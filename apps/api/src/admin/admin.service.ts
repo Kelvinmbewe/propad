@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { InvoiceStatus } from '@prisma/client';
+import { InvoiceStatus, PayoutStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateStrikeDto } from './dto/create-strike.dto';
@@ -88,7 +88,10 @@ export class AdminService {
       this.prisma.property.count({ where: { status: 'VERIFIED' } }),
       this.prisma.lead.count(),
       this.prisma.rewardEvent.aggregate({ _sum: { usdCents: true, points: true } }),
-      this.prisma.payout.aggregate({ _sum: { amountUsdCents: true } })
+      this.prisma.payoutRequest.aggregate({
+        where: { status: PayoutStatus.PAID },
+        _sum: { amountCents: true }
+      })
     ]);
 
     return {
@@ -96,7 +99,7 @@ export class AdminService {
       totalLeads: leads,
       rewardPoolUsd: (rewards._sum.usdCents ?? 0) / 100,
       rewardPoints: rewards._sum.points ?? 0,
-      payoutsUsd: (payouts._sum.amountUsdCents ?? 0) / 100
+      payoutsUsd: (payouts._sum.amountCents ?? 0) / 100
     };
   }
 

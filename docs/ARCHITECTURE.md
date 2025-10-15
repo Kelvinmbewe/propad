@@ -68,16 +68,16 @@ sequenceDiagram
   participant Agent
   participant API
   participant RewardsSvc as Rewards Service
+  participant Wallets
   participant Admin
-  participant Payouts
 
   Agent->>API: Submit verified listing / lead
   API->>RewardsSvc: createRewardEvent({type, points, usdCents})
-  RewardsSvc->>RewardsSvc: Aggregate totals & leaderboards
+  RewardsSvc->>Wallets: creditWallet(REWARD_EVENT)
   RewardsSvc-->>Agent: Dashboard monthly estimate
-  Admin->>Payouts: POST /payouts/:id/approve
-  Payouts->>RewardsSvc: Log payout.adjust event (audit)
-  Payouts-->>Agent: Status updates (pending → paid)
+  Agent->>Wallets: POST /wallets/payouts
+  Admin->>Wallets: POST /wallets/payouts/:id/approve
+  Wallets-->>Agent: Status updates (requested → paid)
 ```
 
 ### Promo boost workflow

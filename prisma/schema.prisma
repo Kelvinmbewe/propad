@@ -174,6 +174,11 @@ enum RewardEventType {
   PROMO_REBATE
 }
 
+enum OwnerType {
+  USER
+  AGENCY
+}
+
 enum PayoutMethod {
   ECOCASH
   BANK
@@ -181,9 +186,38 @@ enum PayoutMethod {
 }
 
 enum PayoutStatus {
-  PENDING
+  REQUESTED
+  REVIEW
+  APPROVED
+  SENT
   PAID
   FAILED
+  CANCELLED
+}
+
+enum KycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum KycIdType {
+  NATIONAL_ID
+  PASSPORT
+  CERT_OF_INC
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum WalletTransactionSource {
+  REWARD_EVENT
+  PROMO_SHARE
+  BONUS
+  PAYOUT
+  ADJUSTMENT
 }
 
 enum PromoTier {
@@ -581,16 +615,88 @@ model RewardEvent {
   @@index([agentId, createdAt(sort: Desc)])
 }
 
-model Payout {
-  id             String        @id @default(cuid())
-  agentId        String
-  amountUsdCents Int
-  method         PayoutMethod
-  status         PayoutStatus @default(PENDING)
-  txRef          String?
-  createdAt      DateTime @default(now())
+model Wallet {
+  id           String      @id @default(cuid())
+  ownerType    OwnerType
+  ownerId      String
+  currency     Currency
+  balanceCents Int         @default(0)
+  pendingCents Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
-  agent User @relation(fields: [agentId], references: [id])
+  transactions   WalletTransaction[]
+  payoutRequests PayoutRequest[]
+  payoutAccounts PayoutAccount[]
+  @@unique([ownerType, ownerId, currency])
+}
+
+model WalletTransaction {
+  id                String                   @id @default(cuid())
+  walletId          String
+  amountCents       Int
+  type              WalletTransactionType
+  source            WalletTransactionSource
+  sourceId          String?
+  description       String?
+  availableAt       DateTime?                @default(now())
+  appliedToBalance  Boolean                  @default(false)
+  createdAt         DateTime                 @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId, createdAt(sort: Desc)])
+  @@index([walletId, availableAt])
+}
+
+model PayoutAccount {
+  id           String      @id @default(cuid())
+  ownerType    OwnerType
+  ownerId      String
+  type         PayoutMethod
+  displayName  String
+  detailsJson  Json
+  verifiedAt   DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  payoutRequests PayoutRequest[]
+
+  @@index([ownerType, ownerId])
+}
+
+model KycRecord {
+  id        String    @id @default(cuid())
+  ownerType OwnerType
+  ownerId   String
+  idType    KycIdType
+  idNumber  String
+  docUrls   String[]
+  status    KycStatus @default(PENDING)
+  notes     String?
+  updatedAt DateTime  @updatedAt
+  createdAt DateTime  @default(now())
+
+  @@index([ownerType, ownerId, status])
+}
+
+model PayoutRequest {
+  id             String        @id @default(cuid())
+  walletId       String
+  amountCents    Int
+  method         PayoutMethod
+  payoutAccountId String
+  status         PayoutStatus  @default(REQUESTED)
+  scheduledFor   DateTime?
+  txRef          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  wallet        Wallet        @relation(fields: [walletId], references: [id])
+  payoutAccount PayoutAccount @relation(fields: [payoutAccountId], references: [id])
+
+  @@index([walletId, status, createdAt(sort: Desc)])
+  @@index([txRef])
 }
 
 model Advertiser {

@@ -463,32 +463,96 @@ Response:
 }
 ```
 
-## Payouts
+## Wallets & payouts
 
-### `POST /payouts/request`
-- **Access:** `AGENT`, `ADMIN`
-- **Description:** Agents (self) or admins (any agent) request a payout; creates `PENDING` record.
+### `GET /wallets/me`
+- **Access:** `AGENT`, `LANDLORD`, `USER`
+- **Description:** Returns the authenticated user's wallet summary (balance, pending earnings, reserved payouts, latest KYC record, payout accounts).
+
+Response:
+```json
+{
+  "id": "clxwallet1",
+  "currency": "USD",
+  "balanceCents": 14200,
+  "pendingCents": 3200,
+  "reservedCents": 5500,
+  "availableCents": 8700,
+  "latestKyc": {
+    "id": "seed-kyc-0",
+    "status": "VERIFIED",
+    "updatedAt": "2024-04-02T10:15:00.000Z"
+  },
+  "payoutAccounts": [
+    {
+      "id": "seed-payout-...",
+      "type": "ECOCASH",
+      "displayName": "Harare EcoCash",
+      "verifiedAt": "2024-03-30T08:00:00.000Z"
+    }
+  ]
+}
+```
+
+### `GET /wallets/:id/transactions`
+- **Access:** Wallet owner or `ADMIN`
+- **Description:** Lists recent wallet transactions (credits, debits) sorted newest first.
+
+### `POST /wallets/payout-accounts`
+- **Access:** `AGENT`, `LANDLORD`, `USER`
+- **Description:** Registers a payout destination (EcoCash or bank) for the caller. Accounts must be verified before payouts can be requested.
 
 Request:
 ```json
 {
-  "agentId": "clxagent1",
-  "amountUsdCents": 7500,
-  "method": "ECOCASH"
+  "type": "ECOCASH",
+  "displayName": "Primary EcoCash",
+  "details": { "ecocashNumber": "+263771234567" }
 }
 ```
 
-### `POST /payouts/:id/approve`
+### `POST /wallets/payout-accounts/:id/verify`
 - **Access:** `ADMIN`
-- **Description:** Adds a transaction reference before disbursement.
+- **Description:** Marks a payout account as verified (or unverified) so it can be used for disbursements.
 
-### `POST /payouts/:id/pay`
+### `POST /wallets/kyc`
+- **Access:** `AGENT`, `LANDLORD`, `USER`
+- **Description:** Submits identity documents for review. Creates a `KycRecord` with status `PENDING`.
+
+Request:
+```json
+{
+  "idType": "NATIONAL_ID",
+  "idNumber": "12-345678X90",
+  "docUrls": ["https://cdn.propad.co.zw/kyc/12-345678X90-front.jpg"]
+}
+```
+
+### `POST /wallets/kyc/:id/status`
 - **Access:** `ADMIN`
-- **Description:** Marks the payout as `PAID` and logs the action.
+- **Description:** Updates an existing KYC record to `VERIFIED` or `REJECTED` with optional notes.
 
-### `POST /payouts/webhook`
-- **Access:** Public (from payment processor)
-- **Description:** Reconciles asynchronous payout notifications using `txRef` and updates status.
+### `POST /wallets/payouts`
+- **Access:** `AGENT`
+- **Description:** Requests a payout from the agent's wallet. Requires verified KYC, a verified payout account, balance above the configured threshold, and respects daily rate limits.
+
+Request:
+```json
+{
+  "walletId": "clxwallet1",
+  "amountCents": 7500,
+  "method": "ECOCASH",
+  "payoutAccountId": "seed-payout-clxagent1"
+}
+```
+
+### `POST /wallets/payouts/:id/approve`
+- **Access:** `ADMIN`
+- **Description:** Approves a payout request, attaches/creates a transaction reference, and queues gateway dispatch.
+
+### `POST /wallets/payouts/webhook`
+- **Access:** Payment driver/webhook (no auth)
+- **Description:** Updates payout status based on gateway callbacks (`SENT`, `PAID`, `FAILED`, `CANCELLED`) using the `txRef` reference.
 
 Request:
 ```json
