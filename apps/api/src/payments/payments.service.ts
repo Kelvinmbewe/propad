@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   Currency,
+  FxRate,
   Invoice,
   InvoiceLine,
   InvoicePurpose,
@@ -19,6 +20,8 @@ import { PaymentGatewayRegistry } from './payment-gateway.registry';
 import { MailService } from '../mail/mail.service';
 
 const VAT_SCALE = 100;
+const MICRO_SCALE = 1_000_000;
+const BASE_CURRENCY = Currency.USD;
 
 type PrismaTx = Prisma.TransactionClient;
 
@@ -28,6 +31,7 @@ type InvoiceWithRelations = Invoice & {
   buyerAgency?: { name: string; email?: string | null } | null;
   promoBoost?: { id: string; startAt: Date; endAt: Date } | null;
   campaign?: { id: string; status: string; startAt: Date; flights: { id: string; placementId: string }[] } | null;
+  fxRate?: FxRate | null;
 };
 
 type TransactionSummary = {
@@ -45,6 +49,7 @@ type InvoiceLineInput = {
   qty: number;
   unitPriceCents: number;
   meta?: Record<string, unknown>;
+  taxable?: boolean;
 };
 
 type CreateInvoiceOptions = {
@@ -76,7 +81,7 @@ type OfflinePaymentOptions = {
 
 @Injectable()
 export class PaymentsService {
-  private readonly vatRate = (env.VAT_PERCENT ?? 15) / VAT_SCALE;
+  private readonly vatRate = env.VAT_RATE ?? (env.VAT_PERCENT ?? 15) / VAT_SCALE;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -92,8 +97,22 @@ export class PaymentsService {
       throw new BadRequestException('Invoice requires at least one line item');
     }
 
-    const subtotal = options.lines.reduce((acc, line) => acc + line.qty * line.unitPriceCents, 0);
-    const tax = Math.round(subtotal * this.vatRate);
+    const subtotalUsd = options.lines.reduce((acc, line) => acc + line.qty * line.unitPriceCents, 0);
+    const taxableSubtotalUsd = options.lines.reduce(
+      (acc, line) => (line.taxable ? acc + line.qty * line.unitPriceCents : acc),
+      0
+    );
+    const taxUsd = Math.round(taxableSubtotalUsd * this.vatRate);
+
+    let fxRate: FxRate | null = null;
+    if (options.currency === Currency.ZWG) {
+      fxRate = await this.resolveFxRate(client, BASE_CURRENCY, Currency.ZWG, new Date());
+    } else if (options.currency !== BASE_CURRENCY) {
+      throw new BadRequestException('Unsupported invoice currency');
+    }
+
+    const rateMicros = fxRate?.rateMicros;
+    const convert = (value: number) => this.convertUsdCents(value, rateMicros);
 
     const invoice = await client.invoice.create({
       data: {
@@ -101,22 +120,39 @@ export class PaymentsService {
         buyerAgencyId: options.buyerAgencyId,
         purpose: options.purpose,
         currency: options.currency,
-        amountCents: subtotal,
-        taxCents: tax,
+        amountCents: convert(subtotalUsd),
+        taxCents: convert(taxUsd),
+        amountUsdCents: subtotalUsd,
+        taxUsdCents: taxUsd,
         status: InvoiceStatus.OPEN,
         dueAt: options.dueAt ?? this.defaultDueDate(),
+        fxRate: fxRate ? { connect: { id: fxRate.id } } : undefined,
         lines: {
-          create: options.lines.map((line) => ({
-            sku: line.sku,
-            description: line.description,
-            qty: line.qty,
-            unitPriceCents: line.unitPriceCents,
-            totalCents: line.unitPriceCents * line.qty,
-            metaJson: line.meta ? line.meta : undefined
-          }))
+          create: options.lines.map((line) => {
+            const baseUnit = line.unitPriceCents;
+            const baseTotal = baseUnit * line.qty;
+            const convertedUnit = convert(baseUnit);
+            const convertedTotal = convert(baseTotal);
+            const meta: Record<string, unknown> = {
+              baseCurrency: BASE_CURRENCY,
+              baseUnitPriceCents: baseUnit,
+              baseTotalCents: baseTotal,
+              taxable: line.taxable ?? false,
+              ...(line.meta ?? {})
+            };
+
+            return {
+              sku: line.sku,
+              description: line.description,
+              qty: line.qty,
+              unitPriceCents: convertedUnit,
+              totalCents: convertedTotal,
+              metaJson: meta
+            };
+          })
         }
       },
-      include: { lines: true }
+      include: { lines: true, fxRate: true }
     });
 
     if (options.link?.promoBoostId) {
@@ -131,7 +167,10 @@ export class PaymentsService {
   }
 
   async createPaymentIntent(options: CreatePaymentIntentOptions) {
-    const invoice = await this.prisma.invoice.findUnique({ where: { id: options.invoiceId }, include: { lines: true } });
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: options.invoiceId },
+      include: { lines: true, fxRate: true }
+    });
     if (!invoice) {
       throw new NotFoundException('Invoice not found');
     }
@@ -212,7 +251,8 @@ export class PaymentsService {
             buyerUser: true,
             buyerAgency: true,
             promoBoost: true,
-            campaign: { include: { flights: true } }
+            campaign: { include: { flights: true } },
+            fxRate: true
           }
         }
       }
@@ -276,7 +316,8 @@ export class PaymentsService {
         buyerUser: true,
         buyerAgency: true,
         promoBoost: true,
-        campaign: { include: { flights: true } }
+        campaign: { include: { flights: true } },
+        fxRate: true
       }
     });
 
@@ -338,7 +379,10 @@ export class PaymentsService {
       return receiptContext.invoice;
     }
 
-    return this.prisma.invoice.findUnique({ where: { id: invoice.id }, include: { lines: true } });
+    return this.prisma.invoice.findUnique({
+      where: { id: invoice.id },
+      include: { lines: true, fxRate: true }
+    });
   }
 
   private async finalizeInvoice(tx: PrismaTx, invoice: InvoiceWithRelations) {
@@ -429,6 +473,32 @@ export class PaymentsService {
     });
   }
 
+  private convertUsdCents(usdCents: number, rateMicros?: number) {
+    if (!rateMicros) {
+      return usdCents;
+    }
+
+    return Math.round((usdCents * rateMicros) / MICRO_SCALE);
+  }
+
+  private async resolveFxRate(client: PrismaTx, base: Currency, quote: Currency, at: Date) {
+    const targetDate = startOfDay(at);
+    const rate = await client.fxRate.findFirst({
+      where: {
+        base,
+        quote,
+        date: { lte: at }
+      },
+      orderBy: { date: 'desc' }
+    });
+
+    if (!rate) {
+      throw new BadRequestException(`No FX rate configured for ${base}/${quote} on or before ${targetDate.toISOString()}`);
+    }
+
+    return rate;
+  }
+
   private defaultDueDate() {
     const now = new Date();
     return new Date(now.getTime() + 7 * 24 * 3600 * 1000);
@@ -454,13 +524,22 @@ export class PaymentsService {
     }
 
     const amountPaid = (transaction.amountCents / 100).toFixed(2);
+    const totalUsd = ((invoice.amountUsdCents + invoice.taxUsdCents) / 100).toFixed(2);
+    const amountPaidMessage =
+      invoice.currency === Currency.ZWG
+        ? `${amountPaid} ${transaction.currency} (USD ${totalUsd})`
+        : `${amountPaid} ${transaction.currency}`;
+    const rateNote =
+      invoice.currency === Currency.ZWG && invoice.fxRate
+        ? ` at an exchange rate of 1 ${invoice.fxRate.base} = ${(invoice.fxRate.rateMicros / MICRO_SCALE).toFixed(6)} ${invoice.fxRate.quote}`
+        : '';
     const invoiceLabel = invoice.invoiceNo ?? invoice.id;
     const recipientName = invoice.buyerUser?.name ?? invoice.buyerAgency?.name ?? 'Valued customer';
 
     await this.mail.send({
       to: recipient,
       subject: `Receipt for invoice ${invoiceLabel}`,
-      text: `Hi ${recipientName},\n\nThank you for your payment of ${amountPaid} ${transaction.currency} for invoice ${invoiceLabel}. Your receipt is attached for your records.\n\n-- Propad`,
+      text: `Hi ${recipientName},\n\nThank you for your payment of ${amountPaidMessage} for invoice ${invoiceLabel}${rateNote}. Your receipt is attached for your records.\n\n-- Propad`,
       filename: `receipt-${invoiceLabel}.pdf`,
       pdfDataUrl: pdfUrl
     });
@@ -489,6 +568,18 @@ export class PaymentsService {
       doc.text(`Subtotal: ${(invoice.amountCents / 100).toFixed(2)} ${invoice.currency}`);
       doc.text(`VAT: ${(invoice.taxCents / 100).toFixed(2)} ${invoice.currency}`);
       doc.text(`Total: ${((invoice.amountCents + invoice.taxCents) / 100).toFixed(2)} ${invoice.currency}`);
+      if (invoice.currency === Currency.ZWG) {
+        doc.text(`Subtotal (USD): ${(invoice.amountUsdCents / 100).toFixed(2)} USD`);
+        doc.text(`VAT (USD): ${(invoice.taxUsdCents / 100).toFixed(2)} USD`);
+        doc.text(
+          `Total (USD): ${((invoice.amountUsdCents + invoice.taxUsdCents) / 100).toFixed(2)} USD`
+        );
+        if (invoice.fxRate) {
+          doc.text(
+            `Exchange Rate: 1 ${invoice.fxRate.base} = ${(invoice.fxRate.rateMicros / MICRO_SCALE).toFixed(6)} ${invoice.fxRate.quote}`
+          );
+        }
+      }
       doc.moveDown();
 
       doc.fontSize(14).text('Line Items');
@@ -504,7 +595,9 @@ export class PaymentsService {
     });
   }
 
-  private async generateInvoicePdf(invoice: Invoice & { lines: InvoiceLine[]; invoiceNo: string; issuedAt: Date }) {
+  private async generateInvoicePdf(
+    invoice: Invoice & { lines: InvoiceLine[]; invoiceNo: string; issuedAt: Date; fxRate?: FxRate | null }
+  ) {
     return new Promise<string>((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });
       const buffers: Buffer[] = [];
@@ -525,6 +618,18 @@ export class PaymentsService {
       doc.text(`Subtotal: ${(invoice.amountCents / 100).toFixed(2)} ${invoice.currency}`);
       doc.text(`VAT: ${(invoice.taxCents / 100).toFixed(2)} ${invoice.currency}`);
       doc.text(`Total: ${((invoice.amountCents + invoice.taxCents) / 100).toFixed(2)} ${invoice.currency}`);
+      if (invoice.currency === Currency.ZWG) {
+        doc.text(`Subtotal (USD): ${(invoice.amountUsdCents / 100).toFixed(2)} USD`);
+        doc.text(`VAT (USD): ${(invoice.taxUsdCents / 100).toFixed(2)} USD`);
+        doc.text(
+          `Total (USD): ${((invoice.amountUsdCents + invoice.taxUsdCents) / 100).toFixed(2)} USD`
+        );
+        if (invoice.fxRate) {
+          doc.text(
+            `Exchange Rate: 1 ${invoice.fxRate.base} = ${(invoice.fxRate.rateMicros / MICRO_SCALE).toFixed(6)} ${invoice.fxRate.quote}`
+          );
+        }
+      }
       doc.moveDown();
 
       doc.fontSize(14).text('Line Items');

@@ -884,6 +884,8 @@ model Invoice {
   currency      Currency
   amountCents   Int
   taxCents      Int
+  amountUsdCents Int
+  taxUsdCents    Int
   status        InvoiceStatus  @default(DRAFT)
   dueAt         DateTime?
   issuedAt      DateTime?
@@ -891,6 +893,7 @@ model Invoice {
   pdfUrl        String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  fxRateId      String?
 
   buyerUser   User?    @relation(fields: [buyerUserId], references: [id])
   buyerAgency Agency?  @relation(fields: [buyerAgencyId], references: [id])
@@ -899,6 +902,7 @@ model Invoice {
   transactions Transaction[]
   campaign    AdCampaign?
   promoBoost  PromoBoost?
+  fxRate      FxRate?   @relation(fields: [fxRateId], references: [id])
 
   @@index([status, dueAt])
 }
@@ -931,6 +935,20 @@ model PaymentIntent {
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId, gateway, status])
+}
+
+model FxRate {
+  id         String   @id @default(cuid())
+  base       Currency
+  quote      Currency
+  rateMicros Int
+  date       DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  invoices Invoice[]
+
+  @@unique([base, quote, date])
 }
 
 model Transaction {
