@@ -20,7 +20,13 @@ export const env = createEnv({
     FACEBOOK_PAGE_ID: z.string().optional(),
     FACEBOOK_ACCESS_TOKEN: z.string().optional(),
     WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
-    WHATSAPP_ACCESS_TOKEN: z.string().optional()
+    WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+    ADSERVER_ENABLED: z.coerce.boolean().default(false),
+    ADSERVER_REWARD_SHARE: z.coerce.number().min(0).max(1).default(0.2),
+    MAP_TILES_URL: z.string().min(1).default('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+    WS_PROVIDER: z.enum(['INTERNAL', 'PUSHER']).default('INTERNAL'),
+    PUSHER_KEY: z.string().optional(),
+    PUSHER_CLUSTER: z.string().optional()
   },
   client: {
     NEXT_PUBLIC_API_BASE_URL: z.string().url(),
@@ -47,6 +53,12 @@ export const env = createEnv({
     FACEBOOK_ACCESS_TOKEN: process.env.FACEBOOK_ACCESS_TOKEN,
     WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID,
     WHATSAPP_ACCESS_TOKEN: process.env.WHATSAPP_ACCESS_TOKEN,
+    ADSERVER_ENABLED: process.env.ADSERVER_ENABLED,
+    ADSERVER_REWARD_SHARE: process.env.ADSERVER_REWARD_SHARE,
+    MAP_TILES_URL: process.env.MAP_TILES_URL,
+    WS_PROVIDER: process.env.WS_PROVIDER,
+    PUSHER_KEY: process.env.PUSHER_KEY,
+    PUSHER_CLUSTER: process.env.PUSHER_CLUSTER,
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
     NEXT_PUBLIC_ADSENSE_CLIENT_ID: process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID,
     NEXT_PUBLIC_ADSENSE_FEED_SLOT: process.env.NEXT_PUBLIC_ADSENSE_FEED_SLOT,
