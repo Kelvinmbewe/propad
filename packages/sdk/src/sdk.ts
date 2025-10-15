@@ -8,6 +8,7 @@ import {
   PropertyManagementSchema,
   PropertyMessageSchema,
   PropertySchema,
+  PropertySearchResultSchema,
   ShortLinkSchema,
   WhatsAppResponseSchema,
   type AdImpression,
@@ -18,6 +19,7 @@ import {
   type Property,
   type PropertyManagement,
   type PropertyMessage,
+  type PropertySearchResult,
   type ShortLink,
   type WhatsAppResponse
 } from './schemas';
@@ -54,6 +56,7 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         priceMin?: number;
         priceMax?: number;
         limit?: number;
+        page?: number;
       } = {}) =>
         client
           .get('properties/search', {
@@ -71,8 +74,8 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
               })
             )
           })
-          .json<Property[]>()
-          .then((data) => PropertySchema.array().parse(data)),
+          .json<PropertySearchResult>()
+          .then((data) => PropertySearchResultSchema.parse(data)),
       get: async (id: string) =>
         client
           .get(`properties/${id}`)

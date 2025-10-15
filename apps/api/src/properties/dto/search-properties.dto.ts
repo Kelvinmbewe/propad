@@ -34,4 +34,10 @@ export class SearchPropertiesDto {
   @Min(1)
   @Max(50)
   limit?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))
+  @IsNumber()
+  @Min(1)
+  page?: number;
 }
