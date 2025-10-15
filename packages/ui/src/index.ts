@@ -4,4 +4,5 @@ export * from './primitives/input';
 export * from './primitives/label';
 export * from './primitives/skeleton';
 export * from './primitives/toaster';
+export * from './theme';
 export { cn } from './utils';

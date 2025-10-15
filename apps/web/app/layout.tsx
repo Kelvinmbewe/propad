@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { ReactNode } from 'react';
 import './globals.css';
 import { ReactQueryProvider } from '@/components/react-query-provider';
-import { Toaster } from '@propad/ui';
+import { AuroraThemeProvider, Toaster } from '@propad/ui';
 import { AuthProvider } from '@/components/auth-provider';
 
 export const metadata: Metadata = {
@@ -13,13 +13,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <AuthProvider>
-          <ReactQueryProvider>
-            {children}
-            <Toaster />
-          </ReactQueryProvider>
-        </AuthProvider>
+      <body className="aurora-light">
+        <AuroraThemeProvider>
+          <AuthProvider>
+            <ReactQueryProvider>
+              {children}
+              <Toaster />
+            </ReactQueryProvider>
+          </AuthProvider>
+        </AuroraThemeProvider>
       </body>
     </html>
   );

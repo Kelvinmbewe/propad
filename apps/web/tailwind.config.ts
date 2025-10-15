@@ -1,7 +1,9 @@
 import type { Config } from 'tailwindcss';
 import { fontFamily } from 'tailwindcss/defaultTheme';
+import { auroraTailwindPreset } from '@propad/ui';
 
 const config: Config = {
+  presets: [auroraTailwindPreset()],
   content: [
     './app/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
