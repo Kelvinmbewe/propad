@@ -393,7 +393,7 @@ export class PropertiesService {
     return updated;
   }
 
-  search(dto: SearchPropertiesDto) {
+  async search(dto: SearchPropertiesDto) {
     const where: any = {
       status: 'VERIFIED'
     };
@@ -423,22 +423,41 @@ export class PropertiesService {
       }
     }
 
-    return this.prisma.property.findMany({
-      where,
-      orderBy: [
-        {
-          promoBoosts: {
-            _count: 'desc'
-          }
-        },
-        { verifiedAt: 'desc' },
-        { createdAt: 'desc' }
-      ],
-      take: dto.limit ?? 20,
-      include: {
-        media: { take: 3 }
-      }
-    });
+    const perPage = Math.min(Math.max(dto.limit ?? 20, 1), 50);
+    const page = Math.max(dto.page ?? 1, 1);
+    const skip = (page - 1) * perPage;
+
+    const [total, items] = await this.prisma.$transaction([
+      this.prisma.property.count({ where }),
+      this.prisma.property.findMany({
+        where,
+        orderBy: [
+          {
+            promoBoosts: {
+              _count: 'desc'
+            }
+          },
+          { verifiedAt: 'desc' },
+          { createdAt: 'desc' }
+        ],
+        skip,
+        take: perPage,
+        include: {
+          media: { take: 3 }
+        }
+      })
+    ]);
+
+    const totalPages = total === 0 ? 0 : Math.ceil(total / perPage);
+
+    return {
+      items,
+      page,
+      perPage,
+      total,
+      totalPages,
+      hasNextPage: page < totalPages
+    };
   }
 
   async mapBounds(dto: MapBoundsDto) {

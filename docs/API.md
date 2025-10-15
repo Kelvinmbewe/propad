@@ -77,27 +77,34 @@ Response:
 
 ### `GET /properties/search`
 - **Access:** Public
-- **Query Params:** `type`, `city`, `suburb`, `priceMin`, `priceMax`, `limit`
-- **Description:** Returns verified listings sorted by promo density, verification date, and recency.
+- **Query Params:** `type`, `city`, `suburb`, `priceMin`, `priceMax`, `limit`, `page`
+- **Description:** Returns paginated verified listings sorted by promo density, verification date, and recency.
 
 Response:
 ```json
-[
-  {
-    "id": "clxprop1",
-    "type": "HOUSE",
-    "price": "750.00",
-    "currency": "USD",
-    "city": "Harare",
-    "suburb": "Borrowdale",
-    "bedrooms": 4,
-    "bathrooms": 3,
-    "amenities": ["Solar", "Borehole"],
-    "media": [
-      { "id": "clxmedia1", "url": "https://cdn.propad.co.zw/p1.jpg", "kind": "IMAGE" }
-    ]
-  }
-]
+{
+  "items": [
+    {
+      "id": "clxprop1",
+      "type": "HOUSE",
+      "price": "750.00",
+      "currency": "USD",
+      "city": "Harare",
+      "suburb": "Borrowdale",
+      "bedrooms": 4,
+      "bathrooms": 3,
+      "amenities": ["Solar", "Borehole"],
+      "media": [
+        { "id": "clxmedia1", "url": "https://cdn.propad.co.zw/p1.jpg", "kind": "IMAGE" }
+      ]
+    }
+  ],
+  "page": 1,
+  "perPage": 18,
+  "total": 72,
+  "totalPages": 4,
+  "hasNextPage": true
+}
 ```
 
 ### `GET /properties/:id`

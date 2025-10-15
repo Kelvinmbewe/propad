@@ -51,6 +51,15 @@ export const PropertySchema = z
   })
   .passthrough();
 
+export const PropertySearchResultSchema = z.object({
+  items: PropertySchema.array(),
+  page: z.number(),
+  perPage: z.number(),
+  total: z.number(),
+  totalPages: z.number(),
+  hasNextPage: z.boolean()
+});
+
 export const UserSummarySchema = z
   .object({
     id: z.string(),
@@ -173,3 +182,4 @@ export type AgentAssignment = z.infer<typeof AgentAssignmentSchema>;
 export type PropertyMessage = z.infer<typeof PropertyMessageSchema>;
 export type PropertyManagement = z.infer<typeof PropertyManagementSchema>;
 export type UserSummary = z.infer<typeof UserSummarySchema>;
+export type PropertySearchResult = z.infer<typeof PropertySearchResultSchema>;
