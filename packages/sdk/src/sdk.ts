@@ -45,7 +45,17 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         client
           .get('properties/search', {
             searchParams: Object.fromEntries(
-              Object.entries(params).filter(([, value]) => value !== undefined && value !== null)
+              Object.entries(params).filter(([, value]) => {
+                if (value === undefined || value === null) {
+                  return false;
+                }
+
+                if (typeof value === 'string' && value.trim() === '') {
+                  return false;
+                }
+
+                return true;
+              })
             )
           })
           .json<Property[]>()
