@@ -31,7 +31,10 @@ export const env = createEnv({
     MAP_TILES_URL: z.string().min(1).default('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
     WS_PROVIDER: z.enum(['INTERNAL', 'PUSHER']).default('INTERNAL'),
     PUSHER_KEY: z.string().optional(),
-    PUSHER_CLUSTER: z.string().optional()
+    PUSHER_CLUSTER: z.string().optional(),
+    WALLET_MIN_PAYOUT_CENTS: z.coerce.number().min(0).default(2000),
+    WALLET_EARNINGS_COOL_OFF_DAYS: z.coerce.number().min(0).max(30).default(5),
+    WALLET_MAX_PAYOUTS_PER_DAY: z.coerce.number().min(1).max(10).default(2)
   },
   client: {
     NEXT_PUBLIC_API_BASE_URL: z.string().url(),
@@ -69,6 +72,9 @@ export const env = createEnv({
     WS_PROVIDER: process.env.WS_PROVIDER,
     PUSHER_KEY: process.env.PUSHER_KEY,
     PUSHER_CLUSTER: process.env.PUSHER_CLUSTER,
+    WALLET_MIN_PAYOUT_CENTS: process.env.WALLET_MIN_PAYOUT_CENTS,
+    WALLET_EARNINGS_COOL_OFF_DAYS: process.env.WALLET_EARNINGS_COOL_OFF_DAYS,
+    WALLET_MAX_PAYOUTS_PER_DAY: process.env.WALLET_MAX_PAYOUTS_PER_DAY,
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
     NEXT_PUBLIC_ADSENSE_CLIENT_ID: process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID,
     NEXT_PUBLIC_ADSENSE_FEED_SLOT: process.env.NEXT_PUBLIC_ADSENSE_FEED_SLOT,

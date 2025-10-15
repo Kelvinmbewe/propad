@@ -1,8 +1,11 @@
 import {
   Currency,
+  KycIdType,
+  KycStatus,
   LeadSource,
   LeadStatus,
   MediaKind,
+  OwnerType,
   PolicyStrikeReason,
   PayoutMethod,
   PayoutStatus,
@@ -10,14 +13,16 @@ import {
   Prisma,
   PrismaClient,
   PromoTier,
-  PropertyStatus,
   PropertyAvailability,
   PropertyFurnishing,
+  PropertyStatus,
   PropertyType,
   RewardEventType,
   Role,
   VerificationMethod,
-  VerificationResult
+  VerificationResult,
+  WalletTransactionSource,
+  WalletTransactionType
 } from '@prisma/client';
 import { hash } from 'bcryptjs';
 
@@ -123,6 +128,253 @@ async function main() {
       })
     )
   );
+
+  const agentWallets = await Promise.all(
+    agentUsers.map((agent) =>
+      prisma.wallet.upsert({
+        where: {
+          ownerType_ownerId_currency: {
+            ownerType: OwnerType.USER,
+            ownerId: agent.id,
+            currency: Currency.USD
+          }
+        },
+        update: {},
+        create: {
+          ownerType: OwnerType.USER,
+          ownerId: agent.id,
+          currency: Currency.USD
+        }
+      })
+    )
+  );
+
+  const walletByAgentId = new Map(agentUsers.map((agent, index) => [agent.id, agentWallets[index]]));
+
+  await Promise.all(
+    agentUsers.slice(0, 12).map((agent, index) =>
+      prisma.kycRecord.upsert({
+        where: { id: `seed-kyc-${index}` },
+        update: {
+          ownerType: OwnerType.USER,
+          ownerId: agent.id,
+          idType:
+            index % 3 === 0
+              ? KycIdType.NATIONAL_ID
+              : index % 3 === 1
+                ? KycIdType.PASSPORT
+                : KycIdType.CERT_OF_INC,
+          idNumber: `AG-${(index + 1).toString().padStart(5, '0')}`,
+          docUrls: [`https://cdn.propad.co.zw/kyc/${agent.id}.jpg`],
+          status: KycStatus.VERIFIED,
+          notes: 'Seed verified KYC record'
+        },
+        create: {
+          id: `seed-kyc-${index}`,
+          ownerType: OwnerType.USER,
+          ownerId: agent.id,
+          idType:
+            index % 3 === 0
+              ? KycIdType.NATIONAL_ID
+              : index % 3 === 1
+                ? KycIdType.PASSPORT
+                : KycIdType.CERT_OF_INC,
+          idNumber: `AG-${(index + 1).toString().padStart(5, '0')}`,
+          docUrls: [`https://cdn.propad.co.zw/kyc/${agent.id}.jpg`],
+          status: KycStatus.VERIFIED,
+          notes: 'Seed verified KYC record'
+        }
+      })
+    )
+  );
+
+  const payoutAccounts = await Promise.all(
+    agentUsers.slice(0, 8).map((agent, index) =>
+      prisma.payoutAccount.upsert({
+        where: { id: `seed-payout-${agent.id}` },
+        update: {
+          ownerType: OwnerType.USER,
+          ownerId: agent.id,
+          type: PayoutMethod.ECOCASH,
+          displayName: `${agent.name.split(' ')[0]} EcoCash`,
+          detailsJson: {
+            ecocashNumber: `+2637710${(200 + index).toString().padStart(3, '0')}`
+          },
+          verifiedAt: new Date(Date.now() - index * 86400000)
+        },
+        create: {
+          id: `seed-payout-${agent.id}`,
+          ownerType: OwnerType.USER,
+          ownerId: agent.id,
+          type: PayoutMethod.ECOCASH,
+          displayName: `${agent.name.split(' ')[0]} EcoCash`,
+          detailsJson: {
+            ecocashNumber: `+2637710${(200 + index).toString().padStart(3, '0')}`
+          },
+          verifiedAt: new Date(Date.now() - index * 86400000)
+        }
+      })
+    )
+  );
+
+  for (const [index, agent] of agentUsers.slice(0, 6).entries()) {
+    const wallet = walletByAgentId.get(agent.id);
+    if (!wallet) {
+      continue;
+    }
+
+    const maturedAmount = 18000 + index * 1200;
+    const pendingAmount = 3600 + index * 300;
+    const maturedAt = new Date(Date.now() - (index + 3) * 86400000);
+    const pendingAvailableAt = new Date(Date.now() + (index + 2) * 86400000);
+
+    await prisma.walletTransaction.upsert({
+      where: { id: `seed-wallet-credit-${index}` },
+      update: {
+        walletId: wallet.id,
+        amountCents: maturedAmount,
+        type: WalletTransactionType.CREDIT,
+        source: WalletTransactionSource.REWARD_EVENT,
+        description: 'Seed reward credit',
+        availableAt: maturedAt,
+        appliedToBalance: true,
+        createdAt: maturedAt
+      },
+      create: {
+        id: `seed-wallet-credit-${index}`,
+        walletId: wallet.id,
+        amountCents: maturedAmount,
+        type: WalletTransactionType.CREDIT,
+        source: WalletTransactionSource.REWARD_EVENT,
+        description: 'Seed reward credit',
+        availableAt: maturedAt,
+        appliedToBalance: true,
+        createdAt: maturedAt
+      }
+    });
+
+    await prisma.walletTransaction.upsert({
+      where: { id: `seed-wallet-pending-${index}` },
+      update: {
+        walletId: wallet.id,
+        amountCents: pendingAmount,
+        type: WalletTransactionType.CREDIT,
+        source: WalletTransactionSource.BONUS,
+        description: 'Pending bonus credit',
+        availableAt: pendingAvailableAt,
+        appliedToBalance: false
+      },
+      create: {
+        id: `seed-wallet-pending-${index}`,
+        walletId: wallet.id,
+        amountCents: pendingAmount,
+        type: WalletTransactionType.CREDIT,
+        source: WalletTransactionSource.BONUS,
+        description: 'Pending bonus credit',
+        availableAt: pendingAvailableAt,
+        appliedToBalance: false,
+        createdAt: new Date()
+      }
+    });
+
+    let balanceCents = maturedAmount;
+    const pendingCents = pendingAmount;
+
+    if (index < payoutAccounts.length) {
+      const account = payoutAccounts[index];
+      if (index < 2) {
+        const amount = 6000 + index * 1000;
+        const payoutId = `seed-paid-${index}`;
+        await prisma.payoutRequest.upsert({
+          where: { id: payoutId },
+          update: {
+            amountCents: amount,
+            status: PayoutStatus.PAID,
+            txRef: `SEED-TX-${index}`
+          },
+          create: {
+            id: payoutId,
+            walletId: wallet.id,
+            amountCents: amount,
+            method: account.type,
+            payoutAccountId: account.id,
+            status: PayoutStatus.PAID,
+            txRef: `SEED-TX-${index}`,
+            createdAt: new Date(Date.now() - (index + 1) * 86400000)
+          }
+        });
+
+        await prisma.walletTransaction.upsert({
+          where: { id: `seed-wallet-debit-${index}` },
+          update: {
+            walletId: wallet.id,
+            amountCents: amount,
+            sourceId: payoutId
+          },
+          create: {
+            id: `seed-wallet-debit-${index}`,
+            walletId: wallet.id,
+            amountCents: amount,
+            type: WalletTransactionType.DEBIT,
+            source: WalletTransactionSource.PAYOUT,
+            sourceId: payoutId,
+            description: 'Seed payout settlement',
+            availableAt: new Date(),
+            appliedToBalance: true,
+            createdAt: new Date()
+          }
+        });
+
+        balanceCents -= amount;
+      } else if (index === 2) {
+        const amount = 5500;
+        await prisma.payoutRequest.upsert({
+          where: { id: 'seed-approved-2' },
+          update: {
+            amountCents: amount,
+            status: PayoutStatus.APPROVED,
+            txRef: 'SEED-TX-2'
+          },
+          create: {
+            id: 'seed-approved-2',
+            walletId: wallet.id,
+            amountCents: amount,
+            method: account.type,
+            payoutAccountId: account.id,
+            status: PayoutStatus.APPROVED,
+            txRef: 'SEED-TX-2',
+            createdAt: new Date()
+          }
+        });
+      } else if (index === 3) {
+        const amount = 4800;
+        await prisma.payoutRequest.upsert({
+          where: { id: 'seed-requested-3' },
+          update: {
+            amountCents: amount,
+            status: PayoutStatus.REQUESTED
+          },
+          create: {
+            id: 'seed-requested-3',
+            walletId: wallet.id,
+            amountCents: amount,
+            method: account.type,
+            payoutAccountId: account.id,
+            status: PayoutStatus.REQUESTED,
+            createdAt: new Date()
+          }
+        });
+      }
+    }
+
+    await prisma.wallet.update({
+      where: { id: wallet.id },
+      data: {
+        balanceCents,
+        pendingCents
+      }
+    });
+  }
 
   const landlordUsers = await Promise.all(
     Array.from({ length: 10 }).map((_, index) =>
@@ -433,19 +685,6 @@ async function main() {
         points: 50 + index * 5,
         usdCents: 2000 + index * 150,
         refId: properties[index]?.id
-      }
-    });
-  }
-
-  const payoutStatuses: PayoutStatus[] = [PayoutStatus.PENDING, PayoutStatus.PAID];
-  for (let index = 0; index < 6; index++) {
-    await prisma.payout.create({
-      data: {
-        agentId: agentUsers[index].id,
-        amountUsdCents: 5000 + index * 1000,
-        method: index % 2 === 0 ? PayoutMethod.ECOCASH : PayoutMethod.BANK,
-        status: payoutStatuses[index % payoutStatuses.length],
-        txRef: index % 2 === 0 ? null : `TX-${1000 + index}`
       }
     });
   }

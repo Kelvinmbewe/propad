@@ -22,8 +22,9 @@ PropAd is built with renter safety and fee-free access in mind. The following co
 | Promo creation | ✅ | ❌ | ✅ | ❌ | ❌ |
 | Promo activation / rebates | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Lead analytics | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Payout request | ✅ | ❌ | ✅ (self) | ❌ | ❌ |
-| Payout approval / mark paid | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Wallet payout request | ✅ | ❌ | ✅ (self) | ❌ | ❌ |
+| Wallet KYC submission | ✅ | ❌ | ✅ (self) | ❌ | ❌ |
+| Wallet payout approval / driver updates | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Admin strikes, exports, feature flags | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Ads, shortlinks, WhatsApp inbound | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Health probe | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -54,7 +55,7 @@ Audit trails are persisted through `AuditService`, invoked by the following modu
 | Rewards | `reward.create` |
 | Promos | `promo.create`, `promo.activate`, `promo.rebate` |
 | Leads | `lead.create`, `lead.statusChange` |
-| Payouts | `payout.request`, `payout.approve`, `payout.markPaid`, `payout.webhook` |
+| Wallets | `wallet.payout.request`, `wallet.payout.approve`, `wallet.payout.webhook`, `wallet.payoutAccount.create`, `wallet.payoutAccount.verify`, `wallet.kyc.submit`, `wallet.kyc.update` |
 
 Each log captures `actorId` when available, target identifiers, and contextual metadata for forensic analysis.
 

@@ -15,7 +15,7 @@ import { FacebookModule } from './facebook/facebook.module';
 import { VerificationsModule } from './verifications/verifications.module';
 import { LeadsModule } from './leads/leads.module';
 import { RewardsModule } from './rewards/rewards.module';
-import { PayoutsModule } from './payouts/payouts.module';
+import { WalletsModule } from './wallets/wallets.module';
 import { PromosModule } from './promos/promos.module';
 import { AdminModule } from './admin/admin.module';
 import { RateLimitGuard } from './security/rate-limit.guard';
@@ -36,7 +36,7 @@ import { PaymentsModule } from './payments/payments.module';
     VerificationsModule,
     LeadsModule,
     RewardsModule,
-    PayoutsModule,
+    WalletsModule,
     PromosModule,
     AdminModule,
     AuthModule,
