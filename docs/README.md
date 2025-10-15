@@ -4,3 +4,4 @@
 - [Architecture](./ARCHITECTURE.md)
 - [API Reference](./API.md)
 - [Security](./SECURITY.md)
+- [Product Specification](./PRODUCT_SPEC.md)
