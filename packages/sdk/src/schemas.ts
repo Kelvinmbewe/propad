@@ -44,6 +44,7 @@ export const PropertySchema = z
     price: decimalToNumber,
     city: z.string(),
     suburb: z.string().nullish(),
+    agencyId: z.string().nullish(),
     location: z.object({
       city: z.string(),
       suburb: z.string().nullish(),
@@ -53,7 +54,8 @@ export const PropertySchema = z
     bedrooms: z.number().nullish(),
     bathrooms: z.number().nullish(),
     description: z.string().nullish(),
-    media: z.array(PropertyMediaSchema).default([])
+    media: z.array(PropertyMediaSchema).default([]),
+    isManaged: z.boolean().default(false)
   })
   .passthrough();
 
@@ -83,6 +85,56 @@ export const UserSummarySchema = z
     role: z.string()
   })
   .passthrough();
+
+export const AgencySummarySchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    logoUrl: z.string().nullish(),
+    status: z.string(),
+    kycStatus: z.string().nullish()
+  })
+  .passthrough();
+
+export const AgencyMemberSchema = z
+  .object({
+    id: z.string(),
+    agencyId: z.string(),
+    userId: z.string(),
+    role: z.string(),
+    joinedAt: z.string(),
+    isActive: z.boolean(),
+    user: UserSummarySchema.nullish()
+  })
+  .passthrough();
+
+export const ManagementContractSchema = z
+  .object({
+    id: z.string(),
+    agencyId: z.string(),
+    landlordId: z.string(),
+    startAt: z.string(),
+    endAt: z.string().nullish(),
+    scope: z.string(),
+    feeType: z.string(),
+    feeValue: decimalToNumber,
+    notes: z.string().nullish(),
+    status: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string()
+  })
+  .passthrough();
+
+export const AgencySchema = AgencySummarySchema.extend({
+  licenseNo: z.string().nullish(),
+  email: z.string().nullish(),
+  phone: z.string().nullish(),
+  address: z.string().nullish(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  members: z.array(AgencyMemberSchema).optional(),
+  contracts: z.array(ManagementContractSchema).optional()
+});
 
 export const AgentProfileSummarySchema = z.object({
   verifiedListingsCount: z.number(),
@@ -130,7 +182,9 @@ export const PropertyManagementSchema = PropertySchema.extend({
   dealConfirmedAt: z.string().nullish(),
   assignments: AgentAssignmentSchema.array().optional(),
   landlord: UserSummarySchema.nullish(),
-  agentOwner: UserSummarySchema.nullish()
+  agentOwner: UserSummarySchema.nullish(),
+  agency: AgencySummarySchema.nullish(),
+  managementContracts: ManagementContractSchema.array().optional()
 });
 
 export const AdImpressionSchema = z.object({
@@ -198,5 +252,9 @@ export type AgentAssignment = z.infer<typeof AgentAssignmentSchema>;
 export type PropertyMessage = z.infer<typeof PropertyMessageSchema>;
 export type PropertyManagement = z.infer<typeof PropertyManagementSchema>;
 export type UserSummary = z.infer<typeof UserSummarySchema>;
+export type Agency = z.infer<typeof AgencySchema>;
+export type AgencySummary = z.infer<typeof AgencySummarySchema>;
+export type AgencyMember = z.infer<typeof AgencyMemberSchema>;
+export type ManagementContract = z.infer<typeof ManagementContractSchema>;
 export type PropertySearchResult = z.infer<typeof PropertySearchResultSchema>;
 export type GeoSuburb = z.infer<typeof GeoSuburbSchema>;

@@ -31,3 +31,10 @@
 - Back-office queues include verification backlogs, payout approvals, and strike reviews.
 - A policy engine scans listings for banned phrases (e.g. "viewing fee", "tenant registration fee"), creating PolicyStrike records and blocking publication.
 - Feature flags control access to promotions, reward pool percentages, WhatsApp bot integrations, and Facebook autoposting.
+
+## Agency Management
+- Agencies maintain profiles with licensing, contact, address, branding, KYC status, and an activation state. Public profile pages surface a verified badge and appear as filters within property search.
+- Agency members link users to agencies via OWNER, MANAGER, or AGENT roles. Owners and managers can invite or remove agents, assign properties, configure promotions, review team analytics, and manage wallet payouts. Agents operate on behalf of their agency.
+- Management contracts connect agencies with landlords, capturing term, management scope (letting only or full management), flat or percentage fee structures, supporting notes, and contract lifecycle states.
+- When a landlord signs a management contract the associated properties reference the agency and set `isManaged = true`, unlocking portfolio dashboards, task tracking, and revenue attribution for the team.
+- Agency analytics reports include managed stock by status, lead volume, verification ratios, average days-on-market, revenue share, and payout history.
