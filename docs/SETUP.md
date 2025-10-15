@@ -13,6 +13,8 @@ docker compose up --build
 
 The compose file waits for Postgres and Redis before booting the API and web containers. Initial builds take ~5 minutes; subsequent runs reuse cached images. Once healthy, navigate to `http://localhost:3000` for the PWA and `http://localhost:3001/health` for the API heartbeat.
 
+If you received a zipped artifact produced with `npm --workspaces=false run artifact`, unzip it, `cd` into the extracted folder, and execute the same command from the `infrastructure/` directory after copying the sample environment files referenced below.
+
 ## Workstation prerequisites
 
 - Node.js 20+
@@ -25,6 +27,8 @@ Install workspace dependencies if you intend to run services outside Docker:
 ```bash
 npm install
 ```
+
+> Tip: regenerate a fresh handover package with `npm --workspaces=false run artifact` – the command writes `dist/propad-<timestamp>.zip` which excludes `node_modules` and cached build outputs for a clean transfer.
 
 ## Environment variables
 

@@ -14,14 +14,11 @@ PropAd enables agents and landlords to publish listings that renters can trust. 
 - **Operational dashboards** – Built-in analytics for verifiers, admins, and agents surface backlog, funnel, and payout metrics without external BI dependencies.
 - **Extensible infrastructure** – Shared packages for UI, config, and SDK usage; queue-backed background jobs; MinIO-backed media storage; and Prisma migrations for the data model.
 
-## Screenshots
+## Experience highlights
 
-| Screen | Description |
-| --- | --- |
-| ![PWA dashboard](../apps/web/public/icons/icon-512x512.png) | Placeholder icon representing the agent dashboard overview with verification backlog, reward balance, and payout CTA. Replace with an actual screenshot from the PWA before release. |
-| ![Mobile listing card](../apps/web/public/icons/icon-192x192.png) | Placeholder icon standing in for the mobile listing feed that highlights verified badges, promo boosts, and WhatsApp contact actions. |
-
-> **Tip:** Capture updated UI screenshots from `npm --workspace apps/web run dev` once feature work stabilises. Store full-resolution PNGs under `docs/images/` and update the table above to point at them.
+- **Agent dashboard overview** – Surfacing verification backlog, reward balance, lead velocity, and payout CTA in a single glance. ![Agent dashboard overview](./images/dashboard-overview.svg)
+- **Mobile-friendly listing cards** – Verified badges, promo boost tags, and WhatsApp contact buttons optimised for low-bandwidth users. ![Mobile listing feed](./images/listing-feed-mobile.svg)
+- **Verification queue** – Status-driven workflow for AUTO, CALL, SITE, and DOCS review methods with evidence attachments. ![Verification queue](./images/verification-queue.svg)
 
 ## Additional Resources
 

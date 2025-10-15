@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <style>
+    .bg { fill: #f9fafb; }
+    .card { fill: #ffffff; stroke: #d1d5db; stroke-width: 2; rx: 16; }
+    .heading { font: 48px 'Segoe UI', sans-serif; fill: #111827; font-weight: 600; }
+    .subheading { font: 26px 'Segoe UI', sans-serif; fill: #4b5563; }
+    .label { font: 20px 'Segoe UI', sans-serif; fill: #6b7280; }
+    .value { font: 40px 'Segoe UI', sans-serif; fill: #111827; font-weight: 600; }
+    .pill { fill: #2563eb; rx: 12; }
+    .pill-text { font: 20px 'Segoe UI', sans-serif; fill: #f9fafb; font-weight: 600; }
+  </style>
+  <rect class="bg" width="1280" height="720" />
+  <text x="80" y="110" class="heading">Agent dashboard</text>
+  <text x="80" y="160" class="subheading">Verification backlog · Reward balance · Leads this month</text>
+  <rect class="card" x="80" y="200" width="360" height="200" />
+  <text x="120" y="260" class="label">Verification backlog</text>
+  <text x="120" y="320" class="value">12</text>
+  <text x="120" y="360" class="label">4 AUTO · 6 CALL · 2 SITE</text>
+  <rect class="card" x="480" y="200" width="360" height="200" />
+  <text x="520" y="260" class="label">Reward balance</text>
+  <text x="520" y="320" class="value">$742</text>
+  <text x="520" y="360" class="label">Projected $1 120 this month</text>
+  <rect class="card" x="880" y="200" width="320" height="200" />
+  <text x="920" y="260" class="label">Lead velocity</text>
+  <text x="920" y="320" class="value">36</text>
+  <text x="920" y="360" class="label">+12 since last week</text>
+  <rect class="card" x="80" y="440" width="1120" height="200" />
+  <text x="120" y="500" class="label">Actions</text>
+  <rect class="pill" x="120" y="520" width="200" height="48" />
+  <text x="140" y="553" class="pill-text">Request payout</text>
+  <rect class="pill" x="340" y="520" width="250" height="48" />
+  <text x="360" y="553" class="pill-text">Review verification queue</text>
+  <rect class="pill" x="610" y="520" width="240" height="48" />
+  <text x="630" y="553" class="pill-text">Share promo shortlinks</text>
+</svg>

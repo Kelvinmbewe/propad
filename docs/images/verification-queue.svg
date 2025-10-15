@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <style>
+    .bg { fill: #0b1120; }
+    .panel { fill: #111827; stroke: #1f2937; stroke-width: 4; rx: 24; }
+    .heading { font: 40px 'Segoe UI', sans-serif; fill: #f9fafb; font-weight: 600; }
+    .subheading { font: 24px 'Segoe UI', sans-serif; fill: #cbd5f5; }
+    .column-title { font: 24px 'Segoe UI', sans-serif; fill: #93c5fd; font-weight: 600; }
+    .card { fill: #1e293b; stroke: #2563eb; stroke-width: 2; rx: 18; }
+    .card-text { font: 20px 'Segoe UI', sans-serif; fill: #e2e8f0; }
+    .chip { fill: #2563eb; rx: 12; }
+    .chip-text { font: 18px 'Segoe UI', sans-serif; fill: #e0f2fe; font-weight: 600; }
+  </style>
+  <rect class="bg" width="1280" height="720" />
+  <rect class="panel" x="60" y="60" width="1160" height="600" />
+  <text x="120" y="140" class="heading">Verification queue</text>
+  <text x="120" y="190" class="subheading">AUTO · CALL · SITE · DOCS</text>
+  <g transform="translate(120 220)">
+    <text x="0" y="0" class="column-title">AUTO</text>
+    <g transform="translate(0 20)">
+      <rect class="card" width="240" height="140" />
+      <text x="20" y="60" class="card-text">Borrowdale Flat · GPS</text>
+      <rect class="chip" x="20" y="90" width="120" height="32" />
+      <text x="36" y="112" class="chip-text">EXIF PASS</text>
+    </g>
+  </g>
+  <g transform="translate(400 220)">
+    <text x="0" y="0" class="column-title">CALL</text>
+    <g transform="translate(0 20)">
+      <rect class="card" width="240" height="140" />
+      <text x="20" y="60" class="card-text">Mt Pleasant Cottage</text>
+      <rect class="chip" x="20" y="90" width="180" height="32" />
+      <text x="36" y="112" class="chip-text">Awaiting landlord</text>
+    </g>
+  </g>
+  <g transform="translate(680 220)">
+    <text x="0" y="0" class="column-title">SITE</text>
+    <g transform="translate(0 20)">
+      <rect class="card" width="240" height="140" />
+      <text x="20" y="60" class="card-text">Greendale House</text>
+      <rect class="chip" x="20" y="90" width="200" height="32" />
+      <text x="36" y="112" class="chip-text">Scheduled 16:00</text>
+    </g>
+  </g>
+  <g transform="translate(960 220)">
+    <text x="0" y="0" class="column-title">DOCS</text>
+    <g transform="translate(0 20)">
+      <rect class="card" width="240" height="140" />
+      <text x="20" y="60" class="card-text">Budiriro Lease</text>
+      <rect class="chip" x="20" y="90" width="160" height="32" />
+      <text x="36" y="112" class="chip-text">Awaiting upload</text>
+    </g>
+  </g>
+</svg>

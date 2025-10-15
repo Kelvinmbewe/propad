@@ -52,6 +52,26 @@ npm install
    npm --workspace apps/api run start:dev
    ```
 
+### Startup checklist
+
+Follow this order to boot the full environment after cloning or unpacking the repository:
+
+1. Install dependencies with `npm install` (workspace aware).
+2. Copy the sample environment files from `apps/web`, `apps/api`, and `infrastructure` into their runtime names (`.env.local`, `.env`).
+3. Apply database migrations via `npx prisma migrate dev` (or `docker compose exec api npx prisma migrate deploy` inside containers).
+4. Seed baseline data using `npm --workspace scripts run seed`.
+5. Launch Docker Compose from the `infrastructure/` directory or run the API and web workspaces individually using the commands above.
+
+### Create a zipped demo artifact
+
+Package the repository (excluding build outputs and dependencies) into a timestamped zip that you can hand over to reviewers:
+
+```bash
+npm --workspaces=false run artifact
+```
+
+The archive is written to `dist/` and contains everything required to run the Docker stack or development servers after extraction.
+
 ### Seeding
 
 Populate the database with baseline roles and demo data:
