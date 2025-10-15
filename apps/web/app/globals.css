@@ -9,6 +9,10 @@
 
 :root {
   color-scheme: light;
+  --motion-duration: 0.25s;
+  --motion-ease: ease-in-out;
+  --motion-delay-xs: 0.05s;
+  --motion-delay-sm: 0.1s;
 }
 
 @layer base {
@@ -85,6 +89,47 @@
   a {
     @apply transition;
   }
+}
+
+@keyframes skeleton-shimmer-motion {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 10%, rgba(255, 255, 255, 0.65) 45%, rgba(255, 255, 255, 0) 90%);
+  transform: translateX(-100%);
+  animation: skeleton-shimmer-motion calc(var(--motion-duration) * 6) var(--motion-ease) infinite;
+}
+
+@keyframes button-ripple-motion {
+  0% {
+    transform: scale(0);
+    opacity: 0.35;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.button-ripple {
+  position: absolute;
+  border-radius: 9999px;
+  background-color: currentColor;
+  opacity: 0;
+  transform: scale(0);
+  mix-blend-mode: screen;
+  animation: button-ripple-motion calc(var(--motion-duration) * 3) var(--motion-ease);
 }
 
 .property-marker-icon {
