@@ -27,3 +27,4 @@ PropAd enables agents and landlords to publish listings that renters can trust. 
 - [API Reference](./API.md) – Endpoints, payload contracts, and sample responses.
 - [Security Controls](./SECURITY.md) – RBAC matrix, rate limiting, banned phrase policies, and audit coverage.
 - [Product Specification](./PRODUCT_SPEC.md) – Detailed requirements, personas, and roadmap context.
+- [Release Validation Checklist](./QA_VALIDATION.md) – Manual QA scenarios covering ads, discovery, agencies, property, and messaging.
