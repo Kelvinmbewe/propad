@@ -19,6 +19,10 @@ export const auroraTailwindPreset = ({ cssVariablePrefix = 'aurora-' }: AuroraTa
     text: css('color-text'),
     muted: css('color-text-muted'),
     subtle: css('color-text-subtle'),
+    primary: css('color-primary'),
+    primaryOn: css('color-primary-on'),
+    secondary: css('color-secondary'),
+    secondaryOn: css('color-secondary-on'),
     accent: css('color-accent'),
     accentStrong: css('color-accent-strong'),
     accentOn: css('color-accent-on'),
@@ -35,14 +39,27 @@ export const auroraTailwindPreset = ({ cssVariablePrefix = 'aurora-' }: AuroraTa
       extend: {
         colors: {
           aurora: colors,
+          primary: {
+            DEFAULT: colors.primary,
+            on: colors.primaryOn,
+            ...auroraBaseTokens.colors.primary
+          },
+          secondary: {
+            DEFAULT: colors.secondary,
+            on: colors.secondaryOn,
+            ...auroraBaseTokens.colors.secondary
+          },
           accent: {
             DEFAULT: colors.accent,
             strong: colors.accentStrong,
-            on: colors.accentOn
+            on: colors.accentOn,
+            ...auroraBaseTokens.colors.accent
           },
+          neutral: auroraBaseTokens.colors.neutral,
           success: auroraBaseTokens.colors.success,
           warning: auroraBaseTokens.colors.warning,
-          danger: auroraBaseTokens.colors.error
+          danger: auroraBaseTokens.colors.danger,
+          info: auroraBaseTokens.colors.info
         },
         borderRadius: {
           '2xl': auroraBaseTokens.radius['2xl'],
@@ -60,7 +77,8 @@ export const auroraTailwindPreset = ({ cssVariablePrefix = 'aurora-' }: AuroraTa
         backgroundImage: {
           'aurora-gradient': css('gradient-accent'),
           'aurora-panorama': `var(--${cssVariablePrefix}gradient-panorama, ${css('gradient-accent')})`,
-          'aurora-panorama-secondary': `var(--${cssVariablePrefix}gradient-panorama-secondary, ${css('gradient-accent')})`
+          'aurora-panorama-secondary': `var(--${cssVariablePrefix}gradient-panorama-secondary, ${css('gradient-accent')})`,
+          'aurora-panorama-tertiary': `var(--${cssVariablePrefix}gradient-panorama-tertiary, ${css('gradient-accent')})`
         },
         spacing: auroraBaseTokens.spacing,
         transitionTimingFunction: {
@@ -87,9 +105,9 @@ export const auroraTailwindPreset = ({ cssVariablePrefix = 'aurora-' }: AuroraTa
       plugin(({ addBase }) => {
         addBase({
           ':root': {
-            '--aurora-gradient-panorama': `radial-gradient(120% 140% at 10% 20%, rgba(98, 120, 255, 0.35), transparent 60%)`,
-            '--aurora-gradient-panorama-secondary': `radial-gradient(80% 120% at 90% 10%, rgba(34, 211, 238, 0.35), transparent 60%)`,
-            '--aurora-gradient-panorama-tertiary': `radial-gradient(90% 90% at 50% 90%, rgba(245, 158, 11, 0.2), transparent 65%)`,
+            '--aurora-gradient-panorama': `radial-gradient(120% 140% at 10% 20%, rgba(0, 150, 136, 0.22), transparent 60%)`,
+            '--aurora-gradient-panorama-secondary': `radial-gradient(80% 120% at 90% 10%, rgba(43, 108, 176, 0.25), transparent 60%)`,
+            '--aurora-gradient-panorama-tertiary': `radial-gradient(90% 90% at 50% 90%, rgba(255, 111, 97, 0.24), transparent 65%)`,
             '--aurora-motion-ease': 'cubic-bezier(0.22, 1, 0.36, 1)'
           }
         });
