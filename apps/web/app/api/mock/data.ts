@@ -9,6 +9,14 @@ export const mockProperties: Property[] = [
     price: 480,
     city: 'Harare',
     suburb: 'Borrowdale',
+    latitude: -17.764,
+    longitude: 31.076,
+    location: {
+      city: 'Harare',
+      suburb: 'Borrowdale',
+      lat: -17.764,
+      lng: 31.076
+    },
     bedrooms: 3,
     bathrooms: 2,
     description:
@@ -29,6 +37,14 @@ export const mockProperties: Property[] = [
     price: 520,
     city: 'Harare',
     suburb: 'Helensvale',
+    latitude: -17.741,
+    longitude: 31.099,
+    location: {
+      city: 'Harare',
+      suburb: 'Helensvale',
+      lat: -17.741,
+      lng: 31.099
+    },
     bedrooms: 4,
     bathrooms: 3,
     description:
@@ -49,6 +65,14 @@ export const mockProperties: Property[] = [
     price: 380,
     city: 'Harare',
     suburb: 'Mt Pleasant',
+    latitude: -17.779,
+    longitude: 31.042,
+    location: {
+      city: 'Harare',
+      suburb: 'Mt Pleasant',
+      lat: -17.779,
+      lng: 31.042
+    },
     bedrooms: 2,
     bathrooms: 1,
     description:

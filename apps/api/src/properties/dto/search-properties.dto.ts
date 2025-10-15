@@ -40,4 +40,12 @@ export class SearchPropertiesDto {
   @IsNumber()
   @Min(1)
   page?: number;
+
+  @IsOptional()
+  @IsString()
+  filters?: string;
+
+  @IsOptional()
+  @IsString()
+  bounds?: string;
 }

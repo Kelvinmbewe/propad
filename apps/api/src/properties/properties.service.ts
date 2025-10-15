@@ -4,12 +4,13 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
-import { Prisma, PropertyStatus, Role, RewardEventType } from '@prisma/client';
+import { Prisma, PropertyStatus, PropertyType, Role, RewardEventType } from '@prisma/client';
 import { createHmac, randomUUID } from 'crypto';
 import { extname } from 'path';
 import { env } from '@propad/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { GeoService } from '../geo/geo.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { SubmitForVerificationDto } from './dto/submit-verification.dto';
@@ -31,9 +32,210 @@ type AuthContext = {
 const SALE_CONFIRMED_POINTS = 150;
 const SALE_CONFIRMED_USD_CENTS = 0;
 
+type LocationInput = {
+  city?: string | null;
+  suburb?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+type NormalizedBounds = {
+  southWest: { lat: number; lng: number };
+  northEast: { lat: number; lng: number };
+};
+
+type NormalizedFilters = {
+  type?: PropertyType;
+  city?: string;
+  suburb?: string;
+  priceMin?: number;
+  priceMax?: number;
+  bounds?: NormalizedBounds;
+};
+
 @Injectable()
 export class PropertiesService {
-  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly geo: GeoService
+  ) {}
+
+  private pickString(...values: Array<string | null | undefined>): string | undefined {
+    for (const value of values) {
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed) {
+          return trimmed;
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  private pickNumber(...values: Array<number | null | undefined>): number | null {
+    for (const value of values) {
+      if (typeof value === 'number' && !Number.isNaN(value)) {
+        return value;
+      }
+    }
+
+    return null;
+  }
+
+  private removeUndefined<T extends Record<string, any>>(input: T): T {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(input)) {
+      if (value !== undefined) {
+        result[key] = value;
+      }
+    }
+
+    return result as T;
+  }
+
+  private attachLocation<T extends LocationInput & Record<string, any>>(property: T) {
+    return {
+      ...property,
+      location: {
+        city: property.city ?? '',
+        suburb: property.suburb ?? null,
+        lat: property.latitude ?? null,
+        lng: property.longitude ?? null
+      }
+    };
+  }
+
+  private attachLocationToMany<T extends LocationInput & Record<string, any>>(properties: T[]) {
+    return properties.map((property) => this.attachLocation(property));
+  }
+
+  private parseNumber(value: unknown): number | undefined {
+    if (typeof value === 'number' && !Number.isNaN(value)) {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+
+    return undefined;
+  }
+
+  private parseBoundsInput(value: unknown): NormalizedBounds | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    if (typeof value === 'string') {
+      const parts = value.split(',').map((part) => Number(part));
+      if (parts.length === 4 && parts.every((part) => Number.isFinite(part))) {
+        const [swLat, swLng, neLat, neLng] = parts as [number, number, number, number];
+        return {
+          southWest: { lat: swLat, lng: swLng },
+          northEast: { lat: neLat, lng: neLng }
+        };
+      }
+      return undefined;
+    }
+
+    if (typeof value === 'object' && value !== null) {
+      const maybeSouth = (value as any).southWest;
+      const maybeNorth = (value as any).northEast;
+      const swLat = this.parseNumber(maybeSouth?.lat);
+      const swLng = this.parseNumber(maybeSouth?.lng);
+      const neLat = this.parseNumber(maybeNorth?.lat);
+      const neLng = this.parseNumber(maybeNorth?.lng);
+
+      if (
+        swLat !== undefined &&
+        swLng !== undefined &&
+        neLat !== undefined &&
+        neLng !== undefined
+      ) {
+        return {
+          southWest: { lat: swLat, lng: swLng },
+          northEast: { lat: neLat, lng: neLng }
+        };
+      }
+    }
+
+    return undefined;
+  }
+
+  private safeParseFilters(raw?: string): Record<string, unknown> {
+    if (!raw) {
+      return {};
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch (error) {
+      // ignore malformed filter payloads
+    }
+
+    return {};
+  }
+
+  private normalizeSearchFilters(dto: SearchPropertiesDto): NormalizedFilters {
+    const parsedFilters = this.safeParseFilters(dto.filters);
+
+    const city = this.pickString(parsedFilters.city as string | undefined, dto.city);
+    const suburb = this.pickString(parsedFilters.suburb as string | undefined, dto.suburb);
+
+    const typeInput = (parsedFilters.type as string | undefined) ?? dto.type;
+    let type: PropertyType | undefined;
+    if (typeInput) {
+      const normalized = typeInput.toString().toUpperCase();
+      if ((Object.values(PropertyType) as string[]).includes(normalized)) {
+        type = normalized as PropertyType;
+      }
+    }
+
+    const priceMin = this.parseNumber(parsedFilters.priceMin) ?? dto.priceMin;
+    const priceMax = this.parseNumber(parsedFilters.priceMax) ?? dto.priceMax;
+    const bounds =
+      this.parseBoundsInput(parsedFilters.bounds) ?? this.parseBoundsInput(dto.bounds);
+
+    return { type, city: city ?? undefined, suburb: suburb ?? undefined, priceMin, priceMax, bounds };
+  }
+
+  private async resolveLocation(
+    input: LocationInput,
+    fallback: LocationInput = {}
+  ): Promise<{ city: string; suburb: string | null; latitude: number | null; longitude: number | null }> {
+    const latitude = this.pickNumber(input.latitude, fallback.latitude);
+    const longitude = this.pickNumber(input.longitude, fallback.longitude);
+
+    let city = this.pickString(input.city, fallback.city);
+    let suburb = this.pickString(input.suburb, fallback.suburb) ?? null;
+
+    if ((!city || !suburb) && latitude !== null && longitude !== null) {
+      const result = this.geo.reverseGeocode(latitude, longitude);
+      if (result) {
+        city = city ?? result.city;
+        suburb = suburb ?? result.suburb ?? null;
+      }
+    }
+
+    if (!city) {
+      throw new BadRequestException('City is required. Provide a city or valid coordinates.');
+    }
+
+    return {
+      city,
+      suburb,
+      latitude,
+      longitude
+    };
+  }
 
   listOwned(actor: AuthContext) {
     const include = {
@@ -51,23 +253,29 @@ export class PropertiesService {
     } satisfies Prisma.PropertyInclude;
 
     if (actor.role === Role.ADMIN) {
-      return this.prisma.property.findMany({ orderBy: { createdAt: 'desc' }, include });
+      return this.prisma.property
+        .findMany({ orderBy: { createdAt: 'desc' }, include })
+        .then((properties) => this.attachLocationToMany(properties));
     }
 
     if (actor.role === Role.LANDLORD) {
-      return this.prisma.property.findMany({
-        where: { landlordId: actor.userId },
-        orderBy: { createdAt: 'desc' },
-        include
-      });
+      return this.prisma.property
+        .findMany({
+          where: { landlordId: actor.userId },
+          orderBy: { createdAt: 'desc' },
+          include
+        })
+        .then((properties) => this.attachLocationToMany(properties));
     }
 
     if (actor.role === Role.AGENT) {
-      return this.prisma.property.findMany({
-        where: { agentOwnerId: actor.userId },
-        orderBy: { createdAt: 'desc' },
-        include
-      });
+      return this.prisma.property
+        .findMany({
+          where: { agentOwnerId: actor.userId },
+          orderBy: { createdAt: 'desc' },
+          include
+        })
+        .then((properties) => this.attachLocationToMany(properties));
     }
 
     throw new ForbiddenException('Only landlords, agents, or admins can manage listings');
@@ -100,6 +308,13 @@ export class PropertiesService {
     const landlordId = dto.landlordId ?? (actor.role === Role.LANDLORD ? actor.userId : undefined);
     const agentOwnerId = dto.agentOwnerId ?? (actor.role === Role.AGENT ? actor.userId : undefined);
 
+    const location = await this.resolveLocation({
+      city: dto.city,
+      suburb: dto.suburb,
+      latitude: dto.latitude,
+      longitude: dto.longitude
+    });
+
     const property = await this.prisma.property.create({
       data: {
         landlordId,
@@ -107,10 +322,10 @@ export class PropertiesService {
         type: dto.type,
         currency: dto.currency,
         price: new Prisma.Decimal(dto.price),
-        city: dto.city,
-        suburb: dto.suburb,
-        latitude: dto.latitude,
-        longitude: dto.longitude,
+        city: location.city,
+        suburb: location.suburb,
+        latitude: location.latitude,
+        longitude: location.longitude,
         bedrooms: dto.bedrooms,
         bathrooms: dto.bathrooms,
         amenities: dto.amenities ?? [],
@@ -127,7 +342,7 @@ export class PropertiesService {
       metadata: { landlordId, agentOwnerId }
     });
 
-    return property;
+    return this.attachLocation(property);
   }
 
   async update(id: string, dto: UpdatePropertyDto, actor: AuthContext) {
@@ -137,10 +352,28 @@ export class PropertiesService {
     const { amenities, price: priceInput, ...rest } = dto;
     const price = priceInput !== undefined ? new Prisma.Decimal(priceInput) : undefined;
 
+    const { city, suburb, latitude, longitude, ...other } = rest;
+
+    const location = await this.resolveLocation(
+      { city, suburb, latitude, longitude },
+      {
+        city: existing.city,
+        suburb: existing.suburb,
+        latitude: existing.latitude,
+        longitude: existing.longitude
+      }
+    );
+
+    const filtered = this.removeUndefined(other);
+
     const property = await this.prisma.property.update({
       where: { id },
       data: {
-        ...rest,
+        ...filtered,
+        city: location.city,
+        suburb: location.suburb,
+        latitude: location.latitude,
+        longitude: location.longitude,
         ...(price !== undefined ? { price } : {}),
         amenities: amenities ?? existing.amenities
       }
@@ -154,7 +387,7 @@ export class PropertiesService {
       metadata: dto
     });
 
-    return property;
+    return this.attachLocation(property);
   }
 
   async remove(id: string, actor: AuthContext) {
@@ -306,7 +539,7 @@ export class PropertiesService {
       metadata: { confirmed: dto.confirmed }
     });
 
-    return updated;
+    return this.attachLocation(updated);
   }
 
   async listMessages(id: string, actor: AuthContext) {
@@ -390,37 +623,53 @@ export class PropertiesService {
       metadata: dto
     });
 
-    return updated;
+    return this.attachLocation(updated);
   }
 
   async search(dto: SearchPropertiesDto) {
-    const where: any = {
-      status: 'VERIFIED'
+    const filters = this.normalizeSearchFilters(dto);
+
+    const where: Prisma.PropertyWhereInput = {
+      status: PropertyStatus.VERIFIED
     };
 
-    if (dto.type) {
-      where.type = dto.type;
+    if (filters.type) {
+      where.type = filters.type;
     }
 
-    if (dto.city) {
-      where.city = { contains: dto.city, mode: 'insensitive' };
+    if (filters.city) {
+      where.city = { contains: filters.city, mode: 'insensitive' };
     }
 
-    if (dto.suburb) {
-      where.suburb = { contains: dto.suburb, mode: 'insensitive' };
+    if (filters.suburb) {
+      where.suburb = { contains: filters.suburb, mode: 'insensitive' };
     }
 
-    const hasMin = dto.priceMin !== undefined && dto.priceMin !== null;
-    const hasMax = dto.priceMax !== undefined && dto.priceMax !== null;
-
-    if (hasMin || hasMax) {
+    if (typeof filters.priceMin === 'number' || typeof filters.priceMax === 'number') {
       where.price = {};
-      if (hasMin) {
-        where.price.gte = dto.priceMin;
+      if (typeof filters.priceMin === 'number') {
+        where.price.gte = filters.priceMin;
       }
-      if (hasMax) {
-        where.price.lte = dto.priceMax;
+      if (typeof filters.priceMax === 'number') {
+        where.price.lte = filters.priceMax;
       }
+    }
+
+    if (filters.bounds) {
+      const southLat = Math.min(filters.bounds.southWest.lat, filters.bounds.northEast.lat);
+      const northLat = Math.max(filters.bounds.southWest.lat, filters.bounds.northEast.lat);
+      const westLng = Math.min(filters.bounds.southWest.lng, filters.bounds.northEast.lng);
+      const eastLng = Math.max(filters.bounds.southWest.lng, filters.bounds.northEast.lng);
+
+      where.latitude = {
+        gte: southLat,
+        lte: northLat
+      };
+
+      where.longitude = {
+        gte: westLng,
+        lte: eastLng
+      };
     }
 
     const perPage = Math.min(Math.max(dto.limit ?? 20, 1), 50);
@@ -451,7 +700,7 @@ export class PropertiesService {
     const totalPages = total === 0 ? 0 : Math.ceil(total / perPage);
 
     return {
-      items,
+      items: this.attachLocationToMany(items),
       page,
       perPage,
       total,
@@ -461,21 +710,28 @@ export class PropertiesService {
   }
 
   async mapBounds(dto: MapBoundsDto) {
-    return this.prisma.property.findMany({
+    const southLat = Math.min(dto.southWestLat, dto.northEastLat);
+    const northLat = Math.max(dto.southWestLat, dto.northEastLat);
+    const westLng = Math.min(dto.southWestLng, dto.northEastLng);
+    const eastLng = Math.max(dto.southWestLng, dto.northEastLng);
+
+    const properties = await this.prisma.property.findMany({
       where: {
         status: PropertyStatus.VERIFIED,
         latitude: {
-          gte: dto.southWestLat,
-          lte: dto.northEastLat
+          gte: southLat,
+          lte: northLat
         },
         longitude: {
-          gte: dto.southWestLng,
-          lte: dto.northEastLng
+          gte: westLng,
+          lte: eastLng
         },
         ...(dto.type ? { type: dto.type } : {})
       },
       include: { media: { take: 3 } }
     });
+
+    return this.attachLocationToMany(properties);
   }
 
   async findById(id: string) {
@@ -492,7 +748,7 @@ export class PropertiesService {
       throw new NotFoundException('Property not found');
     }
 
-    return property;
+    return this.attachLocation(property);
   }
 
   async createSignedUpload(dto: CreateSignedUploadDto, actor: AuthContext) {
