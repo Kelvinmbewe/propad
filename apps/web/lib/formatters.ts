@@ -11,3 +11,20 @@ export function formatCurrency(value: number | null | undefined, currency: strin
 
   return formatter.format(value);
 }
+
+export function formatFriendlyDate(value: string | Date | null | undefined) {
+  if (!value) {
+    return 'soon';
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'soon';
+  }
+
+  return new Intl.DateTimeFormat('en-ZW', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  }).format(date);
+}

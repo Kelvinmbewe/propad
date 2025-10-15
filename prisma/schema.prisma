@@ -19,8 +19,33 @@ enum PropertyType {
   ROOM
   COTTAGE
   HOUSE
+  APARTMENT
+  TOWNHOUSE
   PLOT
-  SALE
+  LAND
+  COMMERCIAL_OFFICE
+  COMMERCIAL_RETAIL
+  COMMERCIAL_INDUSTRIAL
+  WAREHOUSE
+  FARM
+  MIXED_USE
+  OTHER
+}
+
+enum PowerPhase {
+  SINGLE
+  THREE
+}
+
+enum PropertyAvailability {
+  IMMEDIATE
+  DATE
+}
+
+enum PropertyFurnishing {
+  NONE
+  PARTLY
+  FULLY
 }
 
 enum Currency {
@@ -284,6 +309,10 @@ model Property {
   bedrooms     Int?
   bathrooms    Int?
   amenities    String[]       @default([])
+  furnishing   PropertyFurnishing @default(NONE)
+  availability PropertyAvailability @default(IMMEDIATE)
+  availableFrom DateTime?
+  commercialFields Json?
   description  String?
   status       PropertyStatus @default(DRAFT)
   createdAt    DateTime       @default(now())

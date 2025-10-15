@@ -36,6 +36,19 @@ export const PropertyMediaSchema = z
   })
   .passthrough();
 
+const PropertyCommercialFieldsSchema = z
+  .object({
+    floorAreaSqm: z.number().optional(),
+    lotSizeSqm: z.number().optional(),
+    parkingBays: z.number().optional(),
+    powerPhase: z.string().optional(),
+    loadingBay: z.boolean().optional(),
+    zoning: z.string().optional(),
+    complianceDocsUrl: z.string().optional()
+  })
+  .strict()
+  .partial();
+
 export const PropertySchema = z
   .object({
     id: z.string(),
@@ -53,9 +66,15 @@ export const PropertySchema = z
     }),
     bedrooms: z.number().nullish(),
     bathrooms: z.number().nullish(),
+    furnishing: z.string(),
+    availability: z.string(),
+    availableFrom: z.string().nullish(),
     description: z.string().nullish(),
     media: z.array(PropertyMediaSchema).default([]),
-    isManaged: z.boolean().default(false)
+    isManaged: z.boolean().default(false),
+    commercialFields: PropertyCommercialFieldsSchema.nullish(),
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional()
   })
   .passthrough();
 

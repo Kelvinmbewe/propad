@@ -4,7 +4,16 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
-import { Prisma, PropertyStatus, PropertyType, Role, RewardEventType } from '@prisma/client';
+import {
+  PowerPhase,
+  Prisma,
+  PropertyAvailability,
+  PropertyFurnishing,
+  PropertyStatus,
+  PropertyType,
+  Role,
+  RewardEventType
+} from '@prisma/client';
 import { createHmac, randomUUID } from 'crypto';
 import { extname } from 'path';
 import { env } from '@propad/config';
@@ -32,6 +41,24 @@ type AuthContext = {
 const SALE_CONFIRMED_POINTS = 150;
 const SALE_CONFIRMED_USD_CENTS = 0;
 
+const COMMERCIAL_TYPES: ReadonlySet<PropertyType> = new Set([
+  PropertyType.COMMERCIAL_OFFICE,
+  PropertyType.COMMERCIAL_RETAIL,
+  PropertyType.COMMERCIAL_INDUSTRIAL,
+  PropertyType.WAREHOUSE,
+  PropertyType.FARM,
+  PropertyType.MIXED_USE,
+  PropertyType.OTHER
+]);
+
+const RESIDENTIAL_TYPES: ReadonlySet<PropertyType> = new Set([
+  PropertyType.ROOM,
+  PropertyType.COTTAGE,
+  PropertyType.HOUSE,
+  PropertyType.APARTMENT,
+  PropertyType.TOWNHOUSE
+]);
+
 type LocationInput = {
   city?: string | null;
   suburb?: string | null;
@@ -51,6 +78,14 @@ type NormalizedFilters = {
   priceMin?: number;
   priceMax?: number;
   bounds?: NormalizedBounds;
+  bedrooms?: number;
+  bathrooms?: number;
+  furnished?: PropertyFurnishing;
+  amenities?: string[];
+  minFloorArea?: number;
+  zoning?: string;
+  parking?: boolean;
+  powerPhase?: PowerPhase;
 };
 
 @Injectable()
@@ -111,6 +146,42 @@ export class PropertiesService {
     return properties.map((property) => this.attachLocation(property));
   }
 
+  private normalizeCommercialFields(
+    input: CreatePropertyDto['commercialFields'] | UpdatePropertyDto['commercialFields']
+  ) {
+    if (!input) {
+      return Prisma.JsonNull;
+    }
+
+    const normalized: Record<string, unknown> = {};
+
+    if (typeof input.floorAreaSqm === 'number' && Number.isFinite(input.floorAreaSqm)) {
+      normalized.floorAreaSqm = input.floorAreaSqm;
+    }
+    if (typeof input.lotSizeSqm === 'number' && Number.isFinite(input.lotSizeSqm)) {
+      normalized.lotSizeSqm = input.lotSizeSqm;
+    }
+    if (typeof input.parkingBays === 'number' && Number.isFinite(input.parkingBays)) {
+      normalized.parkingBays = input.parkingBays;
+    }
+    if (input.powerPhase) {
+      normalized.powerPhase = input.powerPhase;
+    }
+    if (input.loadingBay !== undefined) {
+      normalized.loadingBay = Boolean(input.loadingBay);
+    } else if (Object.keys(normalized).length > 0) {
+      normalized.loadingBay = false;
+    }
+    if (typeof input.zoning === 'string' && input.zoning.trim()) {
+      normalized.zoning = input.zoning.trim();
+    }
+    if (typeof input.complianceDocsUrl === 'string' && input.complianceDocsUrl.trim()) {
+      normalized.complianceDocsUrl = input.complianceDocsUrl.trim();
+    }
+
+    return Object.keys(normalized).length > 0 ? normalized : Prisma.JsonNull;
+  }
+
   private parseNumber(value: unknown): number | undefined {
     if (typeof value === 'number' && !Number.isNaN(value)) {
       return value;
@@ -124,6 +195,61 @@ export class PropertiesService {
     }
 
     return undefined;
+  }
+
+  private parseBoolean(value: unknown): boolean | undefined {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (['true', '1', 'yes'].includes(normalized)) {
+        return true;
+      }
+      if (['false', '0', 'no'].includes(normalized)) {
+        return false;
+      }
+    }
+
+    if (typeof value === 'number') {
+      if (value === 1) {
+        return true;
+      }
+      if (value === 0) {
+        return false;
+      }
+    }
+
+    return undefined;
+  }
+
+  private parseStringList(value: unknown): string[] | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const values: string[] = [];
+
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        if (typeof entry === 'string') {
+          const trimmed = entry.trim();
+          if (trimmed) {
+            values.push(trimmed);
+          }
+        }
+      }
+    } else if (typeof value === 'string') {
+      for (const part of value.split(',')) {
+        const trimmed = part.trim();
+        if (trimmed) {
+          values.push(trimmed);
+        }
+      }
+    }
+
+    return values.length ? Array.from(new Set(values)) : undefined;
   }
 
   private parseBoundsInput(value: unknown): NormalizedBounds | undefined {
@@ -204,7 +330,48 @@ export class PropertiesService {
     const bounds =
       this.parseBoundsInput(parsedFilters.bounds) ?? this.parseBoundsInput(dto.bounds);
 
-    return { type, city: city ?? undefined, suburb: suburb ?? undefined, priceMin, priceMax, bounds };
+    const bedrooms = this.parseNumber(parsedFilters.bedrooms) ?? dto.bedrooms;
+    const bathrooms = this.parseNumber(parsedFilters.bathrooms) ?? dto.bathrooms;
+
+    const furnishedInput =
+      ((parsedFilters.furnished as string | undefined) ?? dto.furnished)?.toString().toUpperCase();
+    let furnished: PropertyFurnishing | undefined;
+    if (furnishedInput) {
+      if ((Object.values(PropertyFurnishing) as string[]).includes(furnishedInput)) {
+        furnished = furnishedInput as PropertyFurnishing;
+      }
+    }
+
+    const amenities =
+      this.parseStringList(parsedFilters.amenities ?? dto.amenities) ?? undefined;
+
+    const minFloorArea = this.parseNumber(parsedFilters.minFloorArea) ?? dto.minFloorArea;
+    const zoning = this.pickString(parsedFilters.zoning as string | undefined, dto.zoning);
+    const parking = this.parseBoolean(parsedFilters.parking) ?? dto.parking;
+
+    const powerPhaseInput =
+      ((parsedFilters.powerPhase as string | undefined) ?? dto.powerPhase)?.toString().toUpperCase();
+    let powerPhase: PowerPhase | undefined;
+    if (powerPhaseInput && (Object.values(PowerPhase) as string[]).includes(powerPhaseInput)) {
+      powerPhase = powerPhaseInput as PowerPhase;
+    }
+
+    return {
+      type,
+      city: city ?? undefined,
+      suburb: suburb ?? undefined,
+      priceMin,
+      priceMax,
+      bounds,
+      bedrooms,
+      bathrooms,
+      furnished,
+      amenities,
+      minFloorArea,
+      zoning: zoning ?? undefined,
+      parking,
+      powerPhase
+    };
   }
 
   private async resolveLocation(
@@ -315,6 +482,12 @@ export class PropertiesService {
       longitude: dto.longitude
     });
 
+    const availableFrom =
+      dto.availability === PropertyAvailability.DATE && dto.availableFrom
+        ? new Date(dto.availableFrom)
+        : null;
+    const commercialFields = this.normalizeCommercialFields(dto.commercialFields);
+
     const property = await this.prisma.property.create({
       data: {
         landlordId,
@@ -329,6 +502,10 @@ export class PropertiesService {
         bedrooms: dto.bedrooms,
         bathrooms: dto.bathrooms,
         amenities: dto.amenities ?? [],
+        furnishing: dto.furnishing ?? PropertyFurnishing.NONE,
+        availability: dto.availability ?? PropertyAvailability.IMMEDIATE,
+        availableFrom,
+        commercialFields,
         description: dto.description,
         status: PropertyStatus.DRAFT
       }
@@ -349,7 +526,13 @@ export class PropertiesService {
     const existing = await this.getPropertyOrThrow(id);
     this.ensureCanMutate(existing, actor);
 
-    const { amenities, price: priceInput, ...rest } = dto;
+    const {
+      amenities,
+      price: priceInput,
+      availableFrom: availableFromInput,
+      commercialFields,
+      ...rest
+    } = dto;
     const price = priceInput !== undefined ? new Prisma.Decimal(priceInput) : undefined;
 
     const { city, suburb, latitude, longitude, ...other } = rest;
@@ -364,6 +547,15 @@ export class PropertiesService {
       }
     );
 
+    const availableFrom =
+      availableFromInput !== undefined
+        ? new Date(availableFromInput)
+        : rest.availability === PropertyAvailability.IMMEDIATE
+          ? null
+          : undefined;
+    const normalizedCommercialFields =
+      commercialFields !== undefined ? this.normalizeCommercialFields(commercialFields) : undefined;
+
     const filtered = this.removeUndefined(other);
 
     const property = await this.prisma.property.update({
@@ -375,7 +567,9 @@ export class PropertiesService {
         latitude: location.latitude,
         longitude: location.longitude,
         ...(price !== undefined ? { price } : {}),
-        amenities: amenities ?? existing.amenities
+        amenities: amenities ?? existing.amenities,
+        ...(availableFrom !== undefined ? { availableFrom } : {}),
+        ...(normalizedCommercialFields !== undefined ? { commercialFields: normalizedCommercialFields } : {})
       }
     });
 
@@ -633,6 +827,8 @@ export class PropertiesService {
       status: PropertyStatus.VERIFIED
     };
 
+    const andConditions: Prisma.PropertyWhereInput[] = [];
+
     if (filters.type) {
       where.type = filters.type;
     }
@@ -670,6 +866,63 @@ export class PropertiesService {
         gte: westLng,
         lte: eastLng
       };
+    }
+
+    if (typeof filters.bedrooms === 'number') {
+      where.bedrooms = { gte: filters.bedrooms };
+    }
+
+    if (typeof filters.bathrooms === 'number') {
+      where.bathrooms = { gte: filters.bathrooms };
+    }
+
+    if (filters.furnished) {
+      where.furnishing = filters.furnished;
+    }
+
+    if (filters.amenities?.length) {
+      where.amenities = { hasEvery: filters.amenities };
+    }
+
+    if (typeof filters.minFloorArea === 'number') {
+      andConditions.push({
+        commercialFields: {
+          path: ['floorAreaSqm'],
+          gte: filters.minFloorArea
+        }
+      });
+    }
+
+    if (filters.zoning) {
+      andConditions.push({
+        commercialFields: {
+          path: ['zoning'],
+          string_contains: filters.zoning,
+          string_mode: 'insensitive'
+        }
+      });
+    }
+
+    if (filters.parking === true) {
+      andConditions.push({
+        commercialFields: {
+          path: ['parkingBays'],
+          gte: 1
+        }
+      });
+    }
+
+    if (filters.powerPhase) {
+      andConditions.push({
+        commercialFields: {
+          path: ['powerPhase'],
+          equals: filters.powerPhase
+        }
+      });
+    }
+
+    if (andConditions.length) {
+      where.AND = [...(where.AND ?? []), ...andConditions];
     }
 
     const perPage = Math.min(Math.max(dto.limit ?? 20, 1), 50);

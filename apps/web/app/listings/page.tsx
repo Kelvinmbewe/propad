@@ -5,7 +5,7 @@ import { PropertyFeed } from '@/components/property-feed';
 
 export const metadata: Metadata = {
   title: 'Browse Listings | PropAd',
-  description: 'Discover verified rentals and sale properties across Zimbabwe on PropAd.'
+  description: 'Discover verified residential and commercial properties across Zimbabwe on PropAd.'
 };
 
 type ListingsSearchParams = Record<string, string>;
@@ -92,7 +92,7 @@ export default async function ListingsPage({
       <section className="text-center">
         <h1 className="text-3xl font-semibold md:text-4xl">Featured Zimbabwe property listings</h1>
         <p className="mt-3 text-neutral-600">
-          Verified rooms, cottages, and homes sourced from trusted landlords and agents. Ads support the zero-fee marketplace.
+          Verified rooms, cottages, homes, and commercial spaces sourced from trusted landlords and agents. Ads support the zero-fee marketplace.
         </p>
       </section>
 

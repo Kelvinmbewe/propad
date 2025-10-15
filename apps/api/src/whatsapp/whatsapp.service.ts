@@ -13,9 +13,26 @@ const TYPE_KEYWORDS: Record<string, PropertyType> = {
   cottages: PropertyType.COTTAGE,
   house: PropertyType.HOUSE,
   houses: PropertyType.HOUSE,
+  apartment: PropertyType.APARTMENT,
+  apartments: PropertyType.APARTMENT,
+  flat: PropertyType.APARTMENT,
+  flats: PropertyType.APARTMENT,
+  townhouse: PropertyType.TOWNHOUSE,
+  townhouses: PropertyType.TOWNHOUSE,
   plot: PropertyType.PLOT,
   plots: PropertyType.PLOT,
-  sale: PropertyType.SALE
+  land: PropertyType.LAND,
+  office: PropertyType.COMMERCIAL_OFFICE,
+  offices: PropertyType.COMMERCIAL_OFFICE,
+  retail: PropertyType.COMMERCIAL_RETAIL,
+  shop: PropertyType.COMMERCIAL_RETAIL,
+  industrial: PropertyType.COMMERCIAL_INDUSTRIAL,
+  warehouse: PropertyType.WAREHOUSE,
+  warehouses: PropertyType.WAREHOUSE,
+  farm: PropertyType.FARM,
+  farms: PropertyType.FARM,
+  mixed: PropertyType.MIXED_USE,
+  other: PropertyType.OTHER
 };
 
 interface ParsedQuery {
@@ -125,10 +142,28 @@ export class WhatsAppService {
         return 'Cottage';
       case PropertyType.HOUSE:
         return 'House';
+      case PropertyType.APARTMENT:
+        return 'Apartment';
+      case PropertyType.TOWNHOUSE:
+        return 'Townhouse';
       case PropertyType.PLOT:
         return 'Plot';
-      case PropertyType.SALE:
-        return 'Property for Sale';
+      case PropertyType.LAND:
+        return 'Land';
+      case PropertyType.COMMERCIAL_OFFICE:
+        return 'Office space';
+      case PropertyType.COMMERCIAL_RETAIL:
+        return 'Retail space';
+      case PropertyType.COMMERCIAL_INDUSTRIAL:
+        return 'Industrial space';
+      case PropertyType.WAREHOUSE:
+        return 'Warehouse';
+      case PropertyType.FARM:
+        return 'Farm property';
+      case PropertyType.MIXED_USE:
+        return 'Mixed-use property';
+      case PropertyType.OTHER:
+        return 'Property';
       default:
         return type;
     }
