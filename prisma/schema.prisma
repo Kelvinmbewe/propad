@@ -278,11 +278,16 @@ model ShortLink {
   id          String   @id @default(cuid())
   code        String   @unique
   targetUrl   String
+  propertyId  String?
   utmSource   String?
   utmMedium   String?
   utmCampaign String?
+  utmTerm     String?
+  utmContent  String?
   clicks      Int      @default(0)
   createdAt   DateTime @default(now())
+
+  property Property? @relation(fields: [propertyId], references: [id])
 }
 
 model PolicyStrike {
