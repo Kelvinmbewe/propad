@@ -107,10 +107,28 @@ export class FacebookService {
         return 'Cottage available';
       case PropertyType.HOUSE:
         return 'House listing';
+      case PropertyType.APARTMENT:
+        return 'Apartment listing';
+      case PropertyType.TOWNHOUSE:
+        return 'Townhouse listing';
       case PropertyType.PLOT:
         return 'Plot / stand';
-      case PropertyType.SALE:
-        return 'Property for sale';
+      case PropertyType.LAND:
+        return 'Land opportunity';
+      case PropertyType.COMMERCIAL_OFFICE:
+        return 'Office space available';
+      case PropertyType.COMMERCIAL_RETAIL:
+        return 'Retail space available';
+      case PropertyType.COMMERCIAL_INDUSTRIAL:
+        return 'Industrial property available';
+      case PropertyType.WAREHOUSE:
+        return 'Warehouse listing';
+      case PropertyType.FARM:
+        return 'Farm property';
+      case PropertyType.MIXED_USE:
+        return 'Mixed-use development';
+      case PropertyType.OTHER:
+        return 'Property listing';
       default:
         return 'Listing';
     }

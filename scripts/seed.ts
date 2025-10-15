@@ -6,10 +6,13 @@ import {
   PolicyStrikeReason,
   PayoutMethod,
   PayoutStatus,
+  PowerPhase,
   Prisma,
   PrismaClient,
   PromoTier,
   PropertyStatus,
+  PropertyAvailability,
+  PropertyFurnishing,
   PropertyType,
   RewardEventType,
   Role,
@@ -166,8 +169,17 @@ async function main() {
     PropertyType.HOUSE,
     PropertyType.COTTAGE,
     PropertyType.ROOM,
+    PropertyType.APARTMENT,
+    PropertyType.TOWNHOUSE,
     PropertyType.PLOT,
-    PropertyType.SALE
+    PropertyType.LAND,
+    PropertyType.COMMERCIAL_OFFICE,
+    PropertyType.COMMERCIAL_RETAIL,
+    PropertyType.COMMERCIAL_INDUSTRIAL,
+    PropertyType.WAREHOUSE,
+    PropertyType.FARM,
+    PropertyType.MIXED_USE,
+    PropertyType.OTHER
   ];
   const propertyStatuses: PropertyStatus[] = [
     PropertyStatus.VERIFIED,
@@ -177,6 +189,30 @@ async function main() {
     PropertyStatus.VERIFIED
   ];
 
+  const residentialTypes = new Set<PropertyType>([
+    PropertyType.HOUSE,
+    PropertyType.COTTAGE,
+    PropertyType.ROOM,
+    PropertyType.APARTMENT,
+    PropertyType.TOWNHOUSE
+  ]);
+  const commercialTypes = new Set<PropertyType>([
+    PropertyType.COMMERCIAL_OFFICE,
+    PropertyType.COMMERCIAL_RETAIL,
+    PropertyType.COMMERCIAL_INDUSTRIAL,
+    PropertyType.WAREHOUSE,
+    PropertyType.FARM,
+    PropertyType.MIXED_USE,
+    PropertyType.OTHER
+  ]);
+  const saleTypes = new Set<PropertyType>([
+    PropertyType.LAND,
+    PropertyType.PLOT,
+    PropertyType.FARM,
+    PropertyType.MIXED_USE,
+    PropertyType.OTHER
+  ]);
+
   const properties = [] as Array<{ id: string }>;
   for (let index = 0; index < 50; index++) {
     const agent = agentUsers[index % agentUsers.length];
@@ -185,8 +221,45 @@ async function main() {
     const type = propertyTypes[index % propertyTypes.length];
     const status = propertyStatuses[index % propertyStatuses.length];
     const currency = index % 4 === 0 ? Currency.ZWG : Currency.USD;
-    const isSaleListing = type === PropertyType.SALE || (index % 6 === 0 && type !== PropertyType.ROOM);
-    const priceBase = isSaleListing ? 45000 + index * 2500 : 250 + index * 12;
+    const isResidential = residentialTypes.has(type);
+    const isCommercial = commercialTypes.has(type);
+    const isSaleListing = saleTypes.has(type);
+    const priceBase = isSaleListing
+      ? 45000 + index * 2500
+      : isCommercial
+        ? 1200 + index * 80
+        : 250 + index * 12;
+    const availability = index % 5 === 0 ? PropertyAvailability.DATE : PropertyAvailability.IMMEDIATE;
+    const availableFrom = availability === PropertyAvailability.DATE
+      ? new Date(Date.now() + (index % 10) * 86400000)
+      : null;
+    const furnishing = isResidential
+      ? index % 3 === 0
+        ? PropertyFurnishing.FULLY
+        : index % 3 === 1
+          ? PropertyFurnishing.PARTLY
+          : PropertyFurnishing.NONE
+      : PropertyFurnishing.NONE;
+    const amenities = isResidential
+      ? ['WiFi', index % 2 === 0 ? 'Parking' : 'Borehole', 'Security']
+      : ['Generator', 'Parking', 'Road frontage'];
+    const commercialFieldsValue = isCommercial
+      ? {
+          floorAreaSqm: 120 + index * 15,
+          lotSizeSqm: 600 + index * 20,
+          parkingBays: (index % 6) + 2,
+          powerPhase: index % 2 === 0 ? PowerPhase.SINGLE : PowerPhase.THREE,
+          loadingBay: type === PropertyType.WAREHOUSE || index % 4 === 0,
+          zoning: index % 2 === 0 ? 'Commercial' : 'Industrial',
+          complianceDocsUrl: 'https://cdn.propad.co.zw/docs/compliance-sample.pdf'
+        }
+      : Prisma.JsonNull;
+    const bedrooms = isResidential ? (type === PropertyType.ROOM ? 1 : 3 + (index % 3)) : null;
+    const bathrooms = isResidential ? (type === PropertyType.ROOM ? 1 : 2 + (index % 2)) : null;
+    const typeLabel = type.replace(/_/g, ' ').toLowerCase();
+    const description = isCommercial
+      ? `${typeLabel} with ${amenities.join(', ')} and flexible lease terms.`
+      : `${typeLabel} in ${suburb} with modern finishes and close to amenities.`;
     const property = await prisma.property.create({
       data: {
         landlordId: landlord.id,
@@ -198,10 +271,14 @@ async function main() {
         suburb,
         latitude: -17.8292 + index * 0.001,
         longitude: 31.0522 + index * 0.001,
-        bedrooms: type === PropertyType.ROOM ? 1 : 3 + (index % 4),
-        bathrooms: type === PropertyType.ROOM ? 1 : 2 + (index % 3),
-        amenities: ['WiFi', index % 2 === 0 ? 'Parking' : 'Borehole', 'Security'],
-        description: `${type} in ${suburb} with modern finishes and close to amenities.`,
+        bedrooms,
+        bathrooms,
+        amenities,
+        furnishing,
+        availability,
+        availableFrom,
+        commercialFields: commercialFieldsValue,
+        description,
         status,
         verifiedAt: status === PropertyStatus.VERIFIED ? new Date(Date.now() - index * 43200000) : null,
         media: {

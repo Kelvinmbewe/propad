@@ -3,7 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { Property } from '@propad/sdk';
 import clsx from 'clsx';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, formatFriendlyDate } from '@/lib/formatters';
 
 interface PropertyCardProps {
   property: Property;
@@ -14,6 +14,16 @@ export function PropertyCard({ property, highlighted = false }: PropertyCardProp
   const primaryImage = property.media?.[0]?.url;
   const location = property.location.suburb ?? property.location.city;
   const price = formatCurrency(property.price, property.currency);
+  const availabilityLabel =
+    property.availability === 'DATE' && property.availableFrom
+      ? `Available ${formatFriendlyDate(property.availableFrom)}`
+      : 'Available now';
+  const furnishingLabel =
+    property.furnishing && property.furnishing !== 'NONE'
+      ? `${property.furnishing === 'FULLY' ? 'Fully' : property.furnishing === 'PARTLY' ? 'Partly' : 'Lightly'} furnished`
+      : null;
+  const floorArea = property.commercialFields?.floorAreaSqm;
+  const parkingBays = property.commercialFields?.parkingBays;
 
   return (
     <Card
@@ -44,12 +54,18 @@ export function PropertyCard({ property, highlighted = false }: PropertyCardProp
           <p className="text-sm text-neutral-500">{location}</p>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm text-neutral-600">
+          <div className="flex flex-wrap gap-3 text-xs uppercase text-neutral-500">
+            <span>{availabilityLabel}</span>
+            {furnishingLabel ? <span>{furnishingLabel}</span> : null}
+            {floorArea ? <span>{Math.round(floorArea)} sqm</span> : null}
+            {parkingBays ? <span>{parkingBays} parking bays</span> : null}
+          </div>
           {property.bedrooms ? <span>{property.bedrooms} bedrooms</span> : null}
           {property.bathrooms ? <span>{property.bathrooms} bathrooms</span> : null}
           {property.description ? <p className="line-clamp-2">{property.description}</p> : null}
         </CardContent>
         <CardFooter className="flex items-center justify-between text-xs text-neutral-500">
-          <span>Tap to view details</span>
+          <span>{availabilityLabel}</span>
           <span className="font-medium">PropAd</span>
         </CardFooter>
       </Link>

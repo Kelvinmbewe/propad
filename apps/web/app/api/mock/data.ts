@@ -19,6 +19,10 @@ export const mockProperties: Property[] = [
     },
     bedrooms: 3,
     bathrooms: 2,
+    furnishing: 'PARTLY',
+    availability: 'DATE',
+    availableFrom: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    amenities: ['Solar backup', 'Borehole', 'Parking'],
     description:
       "North-facing garden flat with solar backup, borehole, and secure parking. 2 minutes from Sam Levy's Village.",
     media: [
@@ -28,7 +32,10 @@ export const mockProperties: Property[] = [
         kind: 'IMAGE',
         hasGps: true
       }
-    ]
+    ],
+    commercialFields: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   },
   {
     id: 'prop-harare-002',
@@ -47,6 +54,10 @@ export const mockProperties: Property[] = [
     },
     bedrooms: 4,
     bathrooms: 3,
+    furnishing: 'FULLY',
+    availability: 'IMMEDIATE',
+    availableFrom: null,
+    amenities: ['Pool', 'Fibre internet', '24/7 security'],
     description:
       'Modern townhouse with open-plan kitchen, fibre internet, and a communal pool. Promo boost active for the next 5 days.',
     media: [
@@ -56,7 +67,10 @@ export const mockProperties: Property[] = [
         kind: 'IMAGE',
         hasGps: true
       }
-    ]
+    ],
+    commercialFields: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   },
   {
     id: 'prop-harare-003',
@@ -75,6 +89,10 @@ export const mockProperties: Property[] = [
     },
     bedrooms: 2,
     bathrooms: 1,
+    furnishing: 'NONE',
+    availability: 'IMMEDIATE',
+    availableFrom: null,
+    amenities: ['Water storage', 'Prepaid ZESA', 'Security'],
     description:
       'Standalone cottage ideal for professionals. Secure estate with 24/7 guard, prepaid ZESA, and water storage.',
     media: [
@@ -84,7 +102,53 @@ export const mockProperties: Property[] = [
         kind: 'IMAGE',
         hasGps: false
       }
-    ]
+    ],
+    commercialFields: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'prop-harare-004',
+    type: 'COMMERCIAL_OFFICE',
+    currency: 'USD',
+    price: 1850,
+    city: 'Harare',
+    suburb: 'Avondale',
+    latitude: -17.789,
+    longitude: 31.040,
+    location: {
+      city: 'Harare',
+      suburb: 'Avondale',
+      lat: -17.789,
+      lng: 31.04
+    },
+    bedrooms: null,
+    bathrooms: 4,
+    furnishing: 'NONE',
+    availability: 'DATE',
+    availableFrom: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    amenities: ['Generator', 'Reception', 'Boardroom'],
+    description:
+      'Recently refurbished office park with back-up power, fibre internet trunking, and secure access control.',
+    media: [
+      {
+        id: 'media-004',
+        url: 'https://images.unsplash.com/photo-1529429617124-aee711a0343c?auto=format&fit=crop&w=800&q=80',
+        kind: 'IMAGE',
+        hasGps: true
+      }
+    ],
+    commercialFields: {
+      floorAreaSqm: 280,
+      lotSizeSqm: 1200,
+      parkingBays: 8,
+      powerPhase: 'THREE',
+      loadingBay: false,
+      zoning: 'Commercial core',
+      complianceDocsUrl: 'https://cdn.propad.co.zw/mock/compliance-office.pdf'
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   }
 ];
 

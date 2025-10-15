@@ -17,6 +17,7 @@ export function ContactActions({ property }: ContactActionsProps) {
   const [copied, setCopied] = useState(false);
   const { data: session } = useSession();
   const location = useMemo(() => property.suburb ?? property.city, [property.city, property.suburb]);
+  const typeLabel = useMemo(() => property.type.replace(/_/g, ' ').toLowerCase(), [property.type]);
   const propertyDetails = property as Property & {
     landlord?: { id?: string | null } | null;
     agentOwner?: { id?: string | null } | null;
@@ -67,11 +68,11 @@ export function ContactActions({ property }: ContactActionsProps) {
     }
 
     const message = encodeURIComponent(
-      `Hi, I'm interested in the ${property.type.toLowerCase()} in ${location}. See details here: ${url}`
+      `Hi, I'm interested in the ${typeLabel} in ${location}. See details here: ${url}`
     );
 
     window.open(`https://wa.me/?text=${message}`, '_blank', 'noopener');
-  }, [ensureShortLink, location, property.type]);
+  }, [ensureShortLink, location, typeLabel]);
 
   const handleCopy = useCallback(async () => {
     const url = await ensureShortLink();
