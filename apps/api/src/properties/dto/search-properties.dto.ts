@@ -9,11 +9,19 @@ export class SearchPropertiesDto {
 
   @IsOptional()
   @IsString()
-  city?: string;
+  countryId?: string;
 
   @IsOptional()
   @IsString()
-  suburb?: string;
+  provinceId?: string;
+
+  @IsOptional()
+  @IsString()
+  cityId?: string;
+
+  @IsOptional()
+  @IsString()
+  suburbId?: string;
 
   @IsOptional()
   @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))

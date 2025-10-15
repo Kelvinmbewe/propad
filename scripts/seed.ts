@@ -153,6 +153,49 @@ async function main() {
     )
   );
 
+  const country = await prisma.country.upsert({
+    where: { iso2: 'ZW' },
+    update: { name: 'Zimbabwe', phoneCode: '+263' },
+    create: { iso2: 'ZW', name: 'Zimbabwe', phoneCode: '+263' }
+  });
+
+  const province = await prisma.province.upsert({
+    where: { countryId_name: { countryId: country.id, name: 'Harare Metropolitan' } },
+    update: {},
+    create: { countryId: country.id, name: 'Harare Metropolitan' }
+  });
+
+  const city = await prisma.city.upsert({
+    where: { provinceId_name: { provinceId: province.id, name: 'Harare' } },
+    update: { countryId: country.id },
+    create: {
+      provinceId: province.id,
+      countryId: country.id,
+      name: 'Harare',
+      lat: -17.8292,
+      lng: 31.0522
+    }
+  });
+
+  const suburbRecords = await Promise.all(
+    HARARE_SUBURBS.map((name, index) =>
+      prisma.suburb.upsert({
+        where: { cityId_name: { cityId: city.id, name } },
+        update: { countryId: country.id, provinceId: province.id },
+        create: {
+          cityId: city.id,
+          provinceId: province.id,
+          countryId: country.id,
+          name,
+          lat: -17.8292 + index * 0.002,
+          lng: 31.0522 + index * 0.002
+        }
+      })
+    )
+  );
+
+  const suburbMap = new Map(HARARE_SUBURBS.map((name, index) => [name, suburbRecords[index]]));
+
   const consumerUsers = await Promise.all(
     Array.from({ length: 20 }).map((_, index) =>
       upsertUser({
@@ -218,6 +261,7 @@ async function main() {
     const agent = agentUsers[index % agentUsers.length];
     const landlord = landlordUsers[index % landlordUsers.length];
     const suburb = HARARE_SUBURBS[index % HARARE_SUBURBS.length];
+    const suburbRecord = suburbMap.get(suburb)!;
     const type = propertyTypes[index % propertyTypes.length];
     const status = propertyStatuses[index % propertyStatuses.length];
     const currency = index % 4 === 0 ? Currency.ZWG : Currency.USD;
@@ -260,6 +304,9 @@ async function main() {
     const description = isCommercial
       ? `${typeLabel} with ${amenities.join(', ')} and flexible lease terms.`
       : `${typeLabel} in ${suburb} with modern finishes and close to amenities.`;
+    const lat = -17.8292 + index * 0.001;
+    const lng = 31.0522 + index * 0.001;
+
     const property = await prisma.property.create({
       data: {
         landlordId: landlord.id,
@@ -267,10 +314,13 @@ async function main() {
         type,
         currency,
         price: new Prisma.Decimal(priceBase.toFixed(2)),
-        city: 'Harare',
-        suburb,
-        latitude: -17.8292 + index * 0.001,
-        longitude: 31.0522 + index * 0.001,
+        countryId: country.id,
+        provinceId: province.id,
+        cityId: city.id,
+        suburbId: suburbRecord.id,
+        pendingGeoId: null,
+        lat,
+        lng,
         bedrooms,
         bathrooms,
         amenities,

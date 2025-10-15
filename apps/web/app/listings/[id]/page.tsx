@@ -54,8 +54,26 @@ function resolveListingUrl(id: string) {
   }
 }
 
+function resolveLocationName(property: Property) {
+  return (
+    property.suburbName ??
+    property.cityName ??
+    property.provinceName ??
+    property.countryName ??
+    property.location.suburb?.name ??
+    property.location.city?.name ??
+    property.location.province?.name ??
+    property.location.country?.name ??
+    'Zimbabwe'
+  );
+}
+
 function buildStructuredData(property: Property, listingUrl: string) {
-  const location = property.suburb ?? property.city;
+  const location = resolveLocationName(property);
+  const addressLocality =
+    property.suburbName ?? property.location.suburb?.name ?? property.cityName ?? property.location.city?.name ?? null;
+  const addressRegion =
+    property.cityName ?? property.location.city?.name ?? property.provinceName ?? property.location.province?.name ?? null;
   const isCommercial = COMMERCIAL_TYPES.has(property.type);
   const isResidential = RESIDENTIAL_TYPES.has(property.type);
   const itemOffered: Record<string, unknown> = {
@@ -63,8 +81,8 @@ function buildStructuredData(property: Property, listingUrl: string) {
     name: `${humanizeType(property.type)} in ${location}`,
     address: {
       '@type': 'PostalAddress',
-      addressLocality: property.suburb ?? property.city,
-      addressRegion: property.city,
+      addressLocality: addressLocality ?? location,
+      addressRegion: addressRegion ?? location,
       addressCountry: 'ZW'
     }
   };
@@ -136,7 +154,7 @@ function buildStructuredData(property: Property, listingUrl: string) {
     url: listingUrl,
     image: images && images.length ? images : undefined,
     datePosted: property.createdAt ?? new Date().toISOString(),
-    areaServed: property.city,
+    areaServed: addressRegion ?? location,
     offers: {
       '@type': 'Offer',
       price: property.price,
@@ -159,7 +177,7 @@ function buildStructuredData(property: Property, listingUrl: string) {
 
 export default async function ListingDetailPage({ params }: { params: { id: string } }) {
   const property = await fetchProperty(params.id);
-  const location = property.suburb ?? property.city;
+  const location = resolveLocationName(property);
   const price = formatCurrency(property.price, property.currency);
   const listingSlot = process.env.NEXT_PUBLIC_ADSENSE_LISTING_SLOT ?? process.env.NEXT_PUBLIC_ADSENSE_FEED_SLOT;
   const availabilityLabel =

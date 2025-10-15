@@ -1,22 +1,66 @@
 import { randomUUID } from 'node:crypto';
 import type { AgentSummary, Property, ShortLink } from '@propad/sdk';
 
+const COUNTRY_ZW = {
+  id: 'country-zw',
+  name: 'Zimbabwe',
+  iso2: 'ZW',
+  phoneCode: '+263'
+};
+
+const PROVINCE_HARARE = {
+  id: 'province-harare',
+  name: 'Harare Metropolitan'
+};
+
+const CITY_HARARE = {
+  id: 'city-harare',
+  name: 'Harare'
+};
+
+const SUBURBS = {
+  BORROWDALE: { id: 'suburb-borrowdale', name: 'Borrowdale' },
+  HELENSVALE: { id: 'suburb-helensvale', name: 'Helensvale' },
+  MT_PLEASANT: { id: 'suburb-mt-pleasant', name: 'Mt Pleasant' },
+  AVONDALE: { id: 'suburb-avondale', name: 'Avondale' }
+} as const;
+
+type SuburbEntry = (typeof SUBURBS)[keyof typeof SUBURBS];
+
+function buildLocation(suburb: SuburbEntry, lat: number, lng: number) {
+  return {
+    countryId: COUNTRY_ZW.id,
+    country: COUNTRY_ZW,
+    provinceId: PROVINCE_HARARE.id,
+    province: PROVINCE_HARARE,
+    cityId: CITY_HARARE.id,
+    city: CITY_HARARE,
+    suburbId: suburb.id,
+    suburb,
+    pendingGeoId: null,
+    lat,
+    lng
+  };
+}
+
 export const mockProperties: Property[] = [
   {
     id: 'prop-harare-001',
     type: 'APARTMENT',
     currency: 'USD',
     price: 480,
-    city: 'Harare',
-    suburb: 'Borrowdale',
-    latitude: -17.764,
-    longitude: 31.076,
-    location: {
-      city: 'Harare',
-      suburb: 'Borrowdale',
-      lat: -17.764,
-      lng: 31.076
-    },
+    countryId: COUNTRY_ZW.id,
+    provinceId: PROVINCE_HARARE.id,
+    cityId: CITY_HARARE.id,
+    suburbId: SUBURBS.BORROWDALE.id,
+    pendingGeoId: null,
+    lat: -17.764,
+    lng: 31.076,
+    location: buildLocation(SUBURBS.BORROWDALE, -17.764, 31.076),
+    countryName: COUNTRY_ZW.name,
+    provinceName: PROVINCE_HARARE.name,
+    cityName: CITY_HARARE.name,
+    suburbName: SUBURBS.BORROWDALE.name,
     bedrooms: 3,
     bathrooms: 2,
     furnishing: 'PARTLY',
@@ -42,16 +86,18 @@ export const mockProperties: Property[] = [
     type: 'TOWNHOUSE',
     currency: 'USD',
     price: 520,
-    city: 'Harare',
-    suburb: 'Helensvale',
-    latitude: -17.741,
-    longitude: 31.099,
-    location: {
-      city: 'Harare',
-      suburb: 'Helensvale',
-      lat: -17.741,
-      lng: 31.099
-    },
+    countryId: COUNTRY_ZW.id,
+    provinceId: PROVINCE_HARARE.id,
+    cityId: CITY_HARARE.id,
+    suburbId: SUBURBS.HELENSVALE.id,
+    pendingGeoId: null,
+    lat: -17.741,
+    lng: 31.099,
+    location: buildLocation(SUBURBS.HELENSVALE, -17.741, 31.099),
+    countryName: COUNTRY_ZW.name,
+    provinceName: PROVINCE_HARARE.name,
+    cityName: CITY_HARARE.name,
+    suburbName: SUBURBS.HELENSVALE.name,
     bedrooms: 4,
     bathrooms: 3,
     furnishing: 'FULLY',
@@ -77,16 +123,18 @@ export const mockProperties: Property[] = [
     type: 'COTTAGE',
     currency: 'USD',
     price: 380,
-    city: 'Harare',
-    suburb: 'Mt Pleasant',
-    latitude: -17.779,
-    longitude: 31.042,
-    location: {
-      city: 'Harare',
-      suburb: 'Mt Pleasant',
-      lat: -17.779,
-      lng: 31.042
-    },
+    countryId: COUNTRY_ZW.id,
+    provinceId: PROVINCE_HARARE.id,
+    cityId: CITY_HARARE.id,
+    suburbId: SUBURBS.MT_PLEASANT.id,
+    pendingGeoId: null,
+    lat: -17.779,
+    lng: 31.042,
+    location: buildLocation(SUBURBS.MT_PLEASANT, -17.779, 31.042),
+    countryName: COUNTRY_ZW.name,
+    provinceName: PROVINCE_HARARE.name,
+    cityName: CITY_HARARE.name,
+    suburbName: SUBURBS.MT_PLEASANT.name,
     bedrooms: 2,
     bathrooms: 1,
     furnishing: 'NONE',
@@ -98,7 +146,7 @@ export const mockProperties: Property[] = [
     media: [
       {
         id: 'media-003',
-        url: 'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=800&q=80',
+        url: 'https://images.unsplash.com/photo-1484154218962-aee711a0343c?auto=format&fit=crop&w=800&q=80',
         kind: 'IMAGE',
         hasGps: false
       }
@@ -112,16 +160,18 @@ export const mockProperties: Property[] = [
     type: 'COMMERCIAL_OFFICE',
     currency: 'USD',
     price: 1850,
-    city: 'Harare',
-    suburb: 'Avondale',
-    latitude: -17.789,
-    longitude: 31.040,
-    location: {
-      city: 'Harare',
-      suburb: 'Avondale',
-      lat: -17.789,
-      lng: 31.04
-    },
+    countryId: COUNTRY_ZW.id,
+    provinceId: PROVINCE_HARARE.id,
+    cityId: CITY_HARARE.id,
+    suburbId: SUBURBS.AVONDALE.id,
+    pendingGeoId: null,
+    lat: -17.789,
+    lng: 31.04,
+    location: buildLocation(SUBURBS.AVONDALE, -17.789, 31.04),
+    countryName: COUNTRY_ZW.name,
+    provinceName: PROVINCE_HARARE.name,
+    cityName: CITY_HARARE.name,
+    suburbName: SUBURBS.AVONDALE.name,
     bedrooms: null,
     bathrooms: 4,
     furnishing: 'NONE',

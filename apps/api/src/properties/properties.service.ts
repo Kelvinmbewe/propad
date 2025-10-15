@@ -59,13 +59,6 @@ const RESIDENTIAL_TYPES: ReadonlySet<PropertyType> = new Set([
   PropertyType.TOWNHOUSE
 ]);
 
-type LocationInput = {
-  city?: string | null;
-  suburb?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-};
-
 type NormalizedBounds = {
   southWest: { lat: number; lng: number };
   northEast: { lat: number; lng: number };
@@ -73,8 +66,10 @@ type NormalizedBounds = {
 
 type NormalizedFilters = {
   type?: PropertyType;
-  city?: string;
-  suburb?: string;
+  countryId?: string;
+  provinceId?: string;
+  cityId?: string;
+  suburbId?: string;
   priceMin?: number;
   priceMax?: number;
   bounds?: NormalizedBounds;
@@ -109,16 +104,6 @@ export class PropertiesService {
     return undefined;
   }
 
-  private pickNumber(...values: Array<number | null | undefined>): number | null {
-    for (const value of values) {
-      if (typeof value === 'number' && !Number.isNaN(value)) {
-        return value;
-      }
-    }
-
-    return null;
-  }
-
   private removeUndefined<T extends Record<string, any>>(input: T): T {
     const result: Record<string, any> = {};
     for (const [key, value] of Object.entries(input)) {
@@ -130,19 +115,32 @@ export class PropertiesService {
     return result as T;
   }
 
-  private attachLocation<T extends LocationInput & Record<string, any>>(property: T) {
+  private attachLocation<T extends Record<string, any>>(property: T) {
     return {
       ...property,
+      countryName: property.country?.name ?? null,
+      provinceName: property.province?.name ?? null,
+      cityName: property.city?.name ?? null,
+      suburbName: property.suburb?.name ?? null,
       location: {
-        city: property.city ?? '',
-        suburb: property.suburb ?? null,
-        lat: property.latitude ?? null,
-        lng: property.longitude ?? null
+        countryId: property.countryId ?? null,
+        country: property.country
+          ? { id: property.country.id, name: property.country.name, iso2: property.country.iso2, phoneCode: property.country.phoneCode }
+          : null,
+        provinceId: property.provinceId ?? null,
+        province: property.province ? { id: property.province.id, name: property.province.name } : null,
+        cityId: property.cityId ?? null,
+        city: property.city ? { id: property.city.id, name: property.city.name } : null,
+        suburbId: property.suburbId ?? null,
+        suburb: property.suburb ? { id: property.suburb.id, name: property.suburb.name } : null,
+        pendingGeoId: property.pendingGeoId ?? null,
+        lat: typeof property.lat === 'number' ? property.lat : null,
+        lng: typeof property.lng === 'number' ? property.lng : null
       }
     };
   }
 
-  private attachLocationToMany<T extends LocationInput & Record<string, any>>(properties: T[]) {
+  private attachLocationToMany<T extends Record<string, any>>(properties: T[]) {
     return properties.map((property) => this.attachLocation(property));
   }
 
@@ -313,8 +311,19 @@ export class PropertiesService {
   private normalizeSearchFilters(dto: SearchPropertiesDto): NormalizedFilters {
     const parsedFilters = this.safeParseFilters(dto.filters);
 
-    const city = this.pickString(parsedFilters.city as string | undefined, dto.city);
-    const suburb = this.pickString(parsedFilters.suburb as string | undefined, dto.suburb);
+    const countryId = this.pickString(
+      parsedFilters.countryId as string | undefined,
+      dto.countryId
+    );
+    const provinceId = this.pickString(
+      parsedFilters.provinceId as string | undefined,
+      dto.provinceId
+    );
+    const cityId = this.pickString(parsedFilters.cityId as string | undefined, dto.cityId);
+    const suburbId = this.pickString(
+      parsedFilters.suburbId as string | undefined,
+      dto.suburbId
+    );
 
     const typeInput = (parsedFilters.type as string | undefined) ?? dto.type;
     let type: PropertyType | undefined;
@@ -358,8 +367,10 @@ export class PropertiesService {
 
     return {
       type,
-      city: city ?? undefined,
-      suburb: suburb ?? undefined,
+      countryId: countryId ?? undefined,
+      provinceId: provinceId ?? undefined,
+      cityId: cityId ?? undefined,
+      suburbId: suburbId ?? undefined,
       priceMin,
       priceMax,
       bounds,
@@ -371,36 +382,6 @@ export class PropertiesService {
       zoning: zoning ?? undefined,
       parking,
       powerPhase
-    };
-  }
-
-  private async resolveLocation(
-    input: LocationInput,
-    fallback: LocationInput = {}
-  ): Promise<{ city: string; suburb: string | null; latitude: number | null; longitude: number | null }> {
-    const latitude = this.pickNumber(input.latitude, fallback.latitude);
-    const longitude = this.pickNumber(input.longitude, fallback.longitude);
-
-    let city = this.pickString(input.city, fallback.city);
-    let suburb = this.pickString(input.suburb, fallback.suburb) ?? null;
-
-    if ((!city || !suburb) && latitude !== null && longitude !== null) {
-      const result = this.geo.reverseGeocode(latitude, longitude);
-      if (result) {
-        city = city ?? result.city;
-        suburb = suburb ?? result.suburb ?? null;
-      }
-    }
-
-    if (!city) {
-      throw new BadRequestException('City is required. Provide a city or valid coordinates.');
-    }
-
-    return {
-      city,
-      suburb,
-      latitude,
-      longitude
     };
   }
 
@@ -416,7 +397,12 @@ export class PropertiesService {
           agent: { select: { id: true, name: true, role: true } },
           landlord: { select: { id: true, name: true, role: true } }
         }
-      }
+      },
+      country: true,
+      province: true,
+      city: true,
+      suburb: true,
+      pendingGeo: true
     } satisfies Prisma.PropertyInclude;
 
     if (actor.role === Role.ADMIN) {
@@ -475,11 +461,12 @@ export class PropertiesService {
     const landlordId = dto.landlordId ?? (actor.role === Role.LANDLORD ? actor.userId : undefined);
     const agentOwnerId = dto.agentOwnerId ?? (actor.role === Role.AGENT ? actor.userId : undefined);
 
-    const location = await this.resolveLocation({
-      city: dto.city,
-      suburb: dto.suburb,
-      latitude: dto.latitude,
-      longitude: dto.longitude
+    const location = await this.geo.resolveLocation({
+      countryId: dto.countryId ?? null,
+      provinceId: dto.provinceId ?? null,
+      cityId: dto.cityId ?? null,
+      suburbId: dto.suburbId ?? null,
+      pendingGeoId: dto.pendingGeoId ?? null
     });
 
     const availableFrom =
@@ -495,10 +482,13 @@ export class PropertiesService {
         type: dto.type,
         currency: dto.currency,
         price: new Prisma.Decimal(dto.price),
-        city: location.city,
-        suburb: location.suburb,
-        latitude: location.latitude,
-        longitude: location.longitude,
+        countryId: location.country?.id ?? dto.countryId ?? null,
+        provinceId: location.province?.id ?? dto.provinceId ?? null,
+        cityId: location.city?.id ?? dto.cityId ?? null,
+        suburbId: location.suburb?.id ?? dto.suburbId ?? null,
+        pendingGeoId: location.pendingGeo?.id ?? null,
+        lat: typeof dto.lat === 'number' ? dto.lat : null,
+        lng: typeof dto.lng === 'number' ? dto.lng : null,
         bedrooms: dto.bedrooms,
         bathrooms: dto.bathrooms,
         amenities: dto.amenities ?? [],
@@ -508,6 +498,13 @@ export class PropertiesService {
         commercialFields,
         description: dto.description,
         status: PropertyStatus.DRAFT
+      },
+      include: {
+        country: true,
+        province: true,
+        city: true,
+        suburb: true,
+        pendingGeo: true
       }
     });
 
@@ -535,17 +532,32 @@ export class PropertiesService {
     } = dto;
     const price = priceInput !== undefined ? new Prisma.Decimal(priceInput) : undefined;
 
-    const { city, suburb, latitude, longitude, ...other } = rest;
+    const {
+      countryId,
+      provinceId,
+      cityId,
+      suburbId,
+      pendingGeoId,
+      lat,
+      lng,
+      ...other
+    } = rest;
 
-    const location = await this.resolveLocation(
-      { city, suburb, latitude, longitude },
-      {
-        city: existing.city,
-        suburb: existing.suburb,
-        latitude: existing.latitude,
-        longitude: existing.longitude
-      }
-    );
+    const location = await this.geo.resolveLocation({
+      countryId: countryId ?? existing.countryId ?? null,
+      provinceId: provinceId ?? existing.provinceId ?? null,
+      cityId: cityId ?? existing.cityId ?? null,
+      suburbId: suburbId ?? existing.suburbId ?? null,
+      pendingGeoId:
+        pendingGeoId !== undefined
+          ? pendingGeoId
+          : countryId !== undefined ||
+              provinceId !== undefined ||
+              cityId !== undefined ||
+              suburbId !== undefined
+            ? null
+            : existing.pendingGeoId ?? null
+    });
 
     const availableFrom =
       availableFromInput !== undefined
@@ -562,14 +574,24 @@ export class PropertiesService {
       where: { id },
       data: {
         ...filtered,
-        city: location.city,
-        suburb: location.suburb,
-        latitude: location.latitude,
-        longitude: location.longitude,
+        countryId: location.country?.id ?? existing.countryId,
+        provinceId: location.province?.id ?? existing.provinceId,
+        cityId: location.city?.id ?? existing.cityId,
+        suburbId: location.suburb?.id ?? existing.suburbId,
+        pendingGeoId: location.pendingGeo?.id ?? null,
+        ...(lat !== undefined ? { lat } : {}),
+        ...(lng !== undefined ? { lng } : {}),
         ...(price !== undefined ? { price } : {}),
         amenities: amenities ?? existing.amenities,
         ...(availableFrom !== undefined ? { availableFrom } : {}),
         ...(normalizedCommercialFields !== undefined ? { commercialFields: normalizedCommercialFields } : {})
+      },
+      include: {
+        country: true,
+        province: true,
+        city: true,
+        suburb: true,
+        pendingGeo: true
       }
     });
 
@@ -687,7 +709,12 @@ export class PropertiesService {
               agent: { select: { id: true, name: true, role: true } },
               landlord: { select: { id: true, name: true, role: true } }
             }
-          }
+          },
+          country: true,
+          province: true,
+          city: true,
+          suburb: true,
+          pendingGeo: true
         }
       });
 
@@ -806,6 +833,13 @@ export class PropertiesService {
       where: { id },
       data: {
         status: PropertyStatus.PENDING_VERIFY
+      },
+      include: {
+        country: true,
+        province: true,
+        city: true,
+        suburb: true,
+        pendingGeo: true
       }
     });
 
@@ -833,12 +867,20 @@ export class PropertiesService {
       where.type = filters.type;
     }
 
-    if (filters.city) {
-      where.city = { contains: filters.city, mode: 'insensitive' };
+    if (filters.countryId) {
+      where.countryId = filters.countryId;
     }
 
-    if (filters.suburb) {
-      where.suburb = { contains: filters.suburb, mode: 'insensitive' };
+    if (filters.provinceId) {
+      where.provinceId = filters.provinceId;
+    }
+
+    if (filters.cityId) {
+      where.cityId = filters.cityId;
+    }
+
+    if (filters.suburbId) {
+      where.suburbId = filters.suburbId;
     }
 
     if (typeof filters.priceMin === 'number' || typeof filters.priceMax === 'number') {
@@ -857,12 +899,12 @@ export class PropertiesService {
       const westLng = Math.min(filters.bounds.southWest.lng, filters.bounds.northEast.lng);
       const eastLng = Math.max(filters.bounds.southWest.lng, filters.bounds.northEast.lng);
 
-      where.latitude = {
+      where.lat = {
         gte: southLat,
         lte: northLat
       };
 
-      where.longitude = {
+      where.lng = {
         gte: westLng,
         lte: eastLng
       };
@@ -945,7 +987,12 @@ export class PropertiesService {
         skip,
         take: perPage,
         include: {
-          media: { take: 3 }
+          media: { take: 3 },
+          country: true,
+          province: true,
+          city: true,
+          suburb: true,
+          pendingGeo: true
         }
       })
     ]);
@@ -971,17 +1018,24 @@ export class PropertiesService {
     const properties = await this.prisma.property.findMany({
       where: {
         status: PropertyStatus.VERIFIED,
-        latitude: {
+        lat: {
           gte: southLat,
           lte: northLat
         },
-        longitude: {
+        lng: {
           gte: westLng,
           lte: eastLng
         },
         ...(dto.type ? { type: dto.type } : {})
       },
-      include: { media: { take: 3 } }
+      include: {
+        media: { take: 3 },
+        country: true,
+        province: true,
+        city: true,
+        suburb: true,
+        pendingGeo: true
+      }
     });
 
     return this.attachLocationToMany(properties);
@@ -993,7 +1047,12 @@ export class PropertiesService {
       include: {
         media: true,
         landlord: true,
-        agentOwner: true
+        agentOwner: true,
+        country: true,
+        province: true,
+        city: true,
+        suburb: true,
+        pendingGeo: true
       }
     });
 

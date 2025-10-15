@@ -157,6 +157,10 @@ export function PropertyManagement() {
             })
           : null;
 
+        const cityLabel =
+          property.cityName ?? property.location.city?.name ?? property.provinceName ?? property.location.province?.name ?? null;
+        const suburbLabel = property.suburbName ?? property.location.suburb?.name ?? null;
+
         return (
           <Card key={property.id} className="border-neutral-200">
             <CardHeader>
@@ -165,8 +169,8 @@ export function PropertyManagement() {
                 <span className="text-base font-medium text-emerald-600">{priceLabel}</span>
               </CardTitle>
               <CardDescription>
-                {property.city}
-                {property.suburb ? ` • ${property.suburb}` : ''}
+                {cityLabel ?? property.countryName ?? property.location.country?.name ?? 'Zimbabwe'}
+                {suburbLabel ? ` • ${suburbLabel}` : ''}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">

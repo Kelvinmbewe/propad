@@ -61,11 +61,18 @@ export class PromosService {
   async suburbSortingEffect() {
     const now = new Date();
     const promos = await this.prisma.promoBoost.findMany({
-      include: { property: true }
+      include: {
+        property: {
+          include: {
+            suburb: true
+          }
+        }
+      }
     });
 
     const counts = promos.reduce<Record<string, { tier: PromoTier; count: number }>>((acc, promo) => {
-      if (!promo.property || !promo.property.suburb) {
+      const suburbName = promo.property?.suburb?.name;
+      if (!promo.property || !suburbName) {
         return acc;
       }
 
@@ -73,9 +80,8 @@ export class PromosService {
         return acc;
       }
 
-      const suburb = promo.property.suburb;
-      const existing = acc[suburb];
-      acc[suburb] = {
+      const existing = acc[suburbName];
+      acc[suburbName] = {
         tier: promo.tier,
         count: (existing?.count ?? 0) + 1
       };
