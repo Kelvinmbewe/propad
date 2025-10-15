@@ -5,6 +5,7 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Button, notify } from '@propad/ui';
 import { PropertySearchResultSchema, type PropertySearchResult, type GeoSuburb } from '@propad/sdk';
 import { usePathname, useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { AdSlot } from './ad-slot';
 import { PropertyCard } from './property-card';
 import { PropertyFeedSkeleton } from './property-feed-skeleton';
@@ -216,8 +217,18 @@ export function PropertyFeed({ initialPage, filters }: PropertyFeedProps) {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-      <div className="order-2 flex flex-col gap-6 lg:order-1">
+    <motion.section
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: 'easeInOut' }}
+      className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: 'easeInOut', delay: 0.05 }}
+        className="order-2 flex flex-col gap-6 lg:order-1"
+      >
         <div className="flex flex-col gap-2 text-sm text-neutral-600" aria-live="polite">
           <span className="font-medium text-neutral-800">{total} verified {totalLabel} available</span>
           <span>
@@ -239,7 +250,11 @@ export function PropertyFeed({ initialPage, filters }: PropertyFeedProps) {
                     onBlur={() => handleCardLeave(property.id)}
                     className="focus-within:outline-none"
                   >
-                    <PropertyCard property={property} highlighted={hoveredPropertyId === property.id} />
+                    <PropertyCard
+                      property={property}
+                      highlighted={hoveredPropertyId === property.id}
+                      appearanceOrder={index}
+                    />
                   </div>
                   {(index + 1) % 3 === 0 ? (
                     <div className="md:col-span-2 xl:col-span-3" key={`${property.id}-ad-${index}`}>
@@ -266,9 +281,14 @@ export function PropertyFeed({ initialPage, filters }: PropertyFeedProps) {
             description="Try drawing a new area on the map or selecting a nearby suburb to broaden your search."
           />
         )}
-      </div>
+      </motion.div>
 
-      <aside className="order-1 lg:order-2 lg:pl-4 lg:pt-2">
+      <motion.aside
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: 'easeInOut', delay: 0.1 }}
+        className="order-1 lg:order-2 lg:pl-4 lg:pt-2"
+      >
         <PropertyMap
           properties={items}
           suburbs={suburbs}
@@ -279,7 +299,7 @@ export function PropertyFeed({ initialPage, filters }: PropertyFeedProps) {
           onBoundsSearch={handleBoundsSearch}
           onSuburbSelect={handleSuburbSelect}
         />
-      </aside>
-    </div>
+      </motion.aside>
+    </motion.section>
   );
 }

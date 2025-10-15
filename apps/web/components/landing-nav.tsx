@@ -35,7 +35,11 @@ export function LandingNav() {
         </Link>
         <div className="hidden items-center gap-10 text-sm font-medium md:flex">
           {navLinks.map((link) => (
-            <a key={link.href} href={link.href} className="transition hover:text-emerald-400">
+            <a
+              key={link.href}
+              href={link.href}
+              className="relative pb-1 transition-colors duration-[var(--motion-duration)] ease-[var(--motion-ease)] hover:text-emerald-400 focus-visible:text-emerald-400 after:absolute after:left-1/2 after:bottom-0 after:h-[2px] after:w-full after:-translate-x-1/2 after:origin-center after:scale-x-0 after:bg-current after:transition-transform after:duration-[var(--motion-duration)] after:ease-[var(--motion-ease)] hover:after:scale-x-100 focus-visible:after:scale-x-100"
+            >
               {link.label}
             </a>
           ))}
