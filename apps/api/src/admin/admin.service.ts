@@ -109,7 +109,8 @@ export class AdminService {
       include: {
         lines: true,
         promoBoost: { select: { id: true } },
-        campaign: { select: { id: true } }
+        campaign: { select: { id: true } },
+        fxRate: true
       },
       orderBy: { createdAt: 'desc' },
       take: 200
@@ -123,6 +124,9 @@ export class AdminService {
       invoiceNo: invoice.invoiceNo ?? invoice.id,
       status: invoice.status,
       totalCents: invoice.amountCents + invoice.taxCents,
+      subtotalUsdCents: invoice.amountUsdCents,
+      taxUsdCents: invoice.taxUsdCents,
+      totalUsdCents: invoice.amountUsdCents + invoice.taxUsdCents,
       currency: invoice.currency,
       dueAt: invoice.dueAt?.toISOString() ?? '',
       issuedAt: invoice.issuedAt?.toISOString() ?? '',

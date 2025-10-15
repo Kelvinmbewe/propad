@@ -38,7 +38,8 @@ export class PromosService {
               sku: `PROMO_${dto.tier}`,
               description: `Promo boost ${dto.tier}`,
               qty: 1,
-              unitPriceCents: dto.usdCents
+              unitPriceCents: dto.usdCents,
+              taxable: true
             }
           ],
           link: { promoBoostId: created.id }

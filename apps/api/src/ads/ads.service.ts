@@ -81,7 +81,8 @@ export class AdsService {
               sku: 'AD_DIRECT',
               description: `Direct ad campaign ${dto.name}`,
               qty: 1,
-              unitPriceCents: dto.totalCents
+              unitPriceCents: dto.totalCents,
+              taxable: true
             }
           ],
           link: { campaignId: createdCampaign.id }
