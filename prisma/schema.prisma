@@ -120,6 +120,19 @@ enum ManagementContractStatus {
   TERMINATED
 }
 
+enum GeoLevel {
+  COUNTRY
+  PROVINCE
+  CITY
+  SUBURB
+}
+
+enum PendingGeoStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum RewardEventType {
   LISTING_VERIFIED
   LEAD_VALID
@@ -187,6 +200,94 @@ enum AdCampaignStatus {
   ENDED
 }
 
+model Country {
+  id        String     @id @default(cuid())
+  iso2      String     @unique
+  name      String
+  phoneCode String
+  provinces Province[]
+  cities    City[]
+  suburbs   Suburb[]
+  properties Property[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([name])
+}
+
+model Province {
+  id        String     @id @default(cuid())
+  countryId String
+  name      String
+  country   Country    @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  cities    City[]
+  suburbs   Suburb[]
+  properties Property[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([countryId, name])
+  @@index([countryId, name])
+}
+
+model City {
+  id         String     @id @default(cuid())
+  countryId  String
+  provinceId String
+  name       String
+  lat        Float?
+  lng        Float?
+  country    Country    @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  province   Province   @relation(fields: [provinceId], references: [id], onDelete: Cascade)
+  suburbs    Suburb[]
+  properties Property[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([provinceId, name])
+  @@index([countryId])
+  @@index([lat, lng])
+}
+
+model Suburb {
+  id             String     @id @default(cuid())
+  countryId      String
+  provinceId     String
+  cityId         String
+  name           String
+  lat            Float?
+  lng            Float?
+  polygonGeoJson Json?
+  country        Country    @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  province       Province   @relation(fields: [provinceId], references: [id], onDelete: Cascade)
+  city           City       @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  properties     Property[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([cityId, name])
+  @@index([countryId])
+  @@index([provinceId])
+  @@index([lat, lng])
+}
+
+model PendingGeo {
+  id               String           @id @default(cuid())
+  level            GeoLevel
+  parentId         String?
+  proposedName     String
+  proposedByUserId String
+  status           PendingGeoStatus @default(PENDING)
+  mergedIntoId     String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  proposedBy       User             @relation(fields: [proposedByUserId], references: [id])
+  properties       Property[]
+
+  @@index([level, status])
+  @@index([parentId])
+}
+
 model User {
   id        String   @id @default(cuid())
   role      Role     @default(USER)
@@ -215,6 +316,7 @@ model User {
   dealConfirmations   Property[]           @relation("PropertyDealConfirmer")
   agencyMemberships   AgencyMember[]
   landlordContracts   ManagementContract[] @relation("LandlordManagementContracts")
+  pendingGeos         PendingGeo[]
 }
 
 model AgentProfile {
@@ -295,37 +397,45 @@ model ManagementContract {
 }
 
 model Property {
-  id           String         @id @default(cuid())
-  landlordId   String?
-  agentOwnerId String?
-  agencyId     String?
-  type         PropertyType
-  currency     Currency
-  price        Decimal        @db.Decimal(12, 2)
-  city         String
-  suburb       String?
-  latitude     Float?
-  longitude    Float?
-  bedrooms     Int?
-  bathrooms    Int?
-  amenities    String[]       @default([])
-  furnishing   PropertyFurnishing @default(NONE)
-  availability PropertyAvailability @default(IMMEDIATE)
-  availableFrom DateTime?
+  id             String              @id @default(cuid())
+  landlordId     String?
+  agentOwnerId   String?
+  agencyId       String?
+  countryId      String?
+  provinceId     String?
+  cityId         String?
+  suburbId       String?
+  pendingGeoId   String?
+  lat            Float?
+  lng            Float?
+  type           PropertyType
+  currency       Currency
+  price          Decimal             @db.Decimal(12, 2)
+  bedrooms       Int?
+  bathrooms      Int?
+  amenities      String[]            @default([])
+  furnishing     PropertyFurnishing  @default(NONE)
+  availability   PropertyAvailability @default(IMMEDIATE)
+  availableFrom  DateTime?
   commercialFields Json?
-  description  String?
-  status       PropertyStatus @default(DRAFT)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  verifiedAt   DateTime?
+  description    String?
+  status         PropertyStatus      @default(DRAFT)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  verifiedAt     DateTime?
   dealConfirmedAt DateTime?
   dealConfirmedById String?
-  isManaged   Boolean        @default(false)
+  isManaged      Boolean             @default(false)
 
-  landlord     User?           @relation("LandlordProperties", fields: [landlordId], references: [id])
-  agentOwner   User?           @relation("AgentOwnerProperties", fields: [agentOwnerId], references: [id])
-  agency       Agency?         @relation(fields: [agencyId], references: [id])
-  dealConfirmedBy User?        @relation("PropertyDealConfirmer", fields: [dealConfirmedById], references: [id])
+  landlord     User?        @relation("LandlordProperties", fields: [landlordId], references: [id])
+  agentOwner   User?        @relation("AgentOwnerProperties", fields: [agentOwnerId], references: [id])
+  agency       Agency?      @relation(fields: [agencyId], references: [id])
+  country      Country?     @relation(fields: [countryId], references: [id])
+  province     Province?    @relation(fields: [provinceId], references: [id])
+  city         City?        @relation(fields: [cityId], references: [id])
+  suburb       Suburb?      @relation(fields: [suburbId], references: [id])
+  pendingGeo   PendingGeo?  @relation(fields: [pendingGeoId], references: [id])
+  dealConfirmedBy User?     @relation("PropertyDealConfirmer", fields: [dealConfirmedById], references: [id])
   media        PropertyMedia[]
   verifications Verification[]
   leads        Lead[]
@@ -335,7 +445,11 @@ model Property {
   messages     PropertyMessage[]
 
   @@index([status])
-  @@index([city, suburb])
+  @@index([countryId])
+  @@index([provinceId])
+  @@index([cityId])
+  @@index([suburbId])
+  @@index([lat, lng])
   @@index([price])
   @@index([verifiedAt])
   @@index([dealConfirmedAt])

@@ -25,10 +25,13 @@ export const createPropertySchema = z.object({
   type: z.nativeEnum(PropertyType),
   currency: z.nativeEnum(Currency),
   price: z.number().positive(),
-  city: z.string().min(2).optional(),
-  suburb: z.string().min(2).optional(),
-  latitude: z.number().min(-90).max(90).optional(),
-  longitude: z.number().min(-180).max(180).optional(),
+  countryId: z.string().cuid().optional(),
+  provinceId: z.string().cuid().optional(),
+  cityId: z.string().cuid().optional(),
+  suburbId: z.string().cuid().optional(),
+  pendingGeoId: z.string().cuid().optional(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
   bedrooms: z.number().int().min(0).max(20).optional(),
   bathrooms: z.number().int().min(0).max(20).optional(),
   amenities: z.array(z.string().min(1)).max(50).optional(),
@@ -39,6 +42,38 @@ export const createPropertySchema = z.object({
   commercialFields: commercialFieldsSchema.optional()
 })
 .superRefine((data, ctx) => {
+  if (!data.countryId && !data.pendingGeoId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'countryId is required unless a pendingGeoId is provided',
+      path: ['countryId']
+    });
+  }
+
+  if (data.suburbId && !data.cityId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'suburbId requires a cityId',
+      path: ['suburbId']
+    });
+  }
+
+  if (data.cityId && !data.provinceId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'cityId requires a provinceId',
+      path: ['cityId']
+    });
+  }
+
+  if (data.provinceId && !data.countryId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'provinceId requires a countryId',
+      path: ['provinceId']
+    });
+  }
+
   if (data.availability === PropertyAvailability.DATE && !data.availableFrom) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

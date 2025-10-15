@@ -14,8 +14,12 @@ export async function GET(request: NextRequest) {
   const perPage = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, MAX_PAGE_SIZE) : 18;
 
   const filtered = mockProperties.filter((property) => {
-    if (suburb && property.suburb?.toLowerCase() !== suburb) {
-      return false;
+    if (suburb) {
+      const locationSuburb =
+        property.suburbName ?? property.location.suburb?.name ?? undefined;
+      if (!locationSuburb || locationSuburb.toLowerCase() !== suburb) {
+        return false;
+      }
     }
 
     if (type && property.type.toLowerCase() !== type) {

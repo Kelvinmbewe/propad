@@ -49,21 +49,55 @@ const PropertyCommercialFieldsSchema = z
   .strict()
   .partial();
 
+const LocationEntitySchema = z
+  .object({
+    id: z.string(),
+    name: z.string()
+  })
+  .passthrough();
+
+const CountrySummarySchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    iso2: z.string(),
+    phoneCode: z.string()
+  })
+  .passthrough();
+
+const PropertyLocationSchema = z.object({
+  countryId: z.string().nullish(),
+  country: CountrySummarySchema.nullish(),
+  provinceId: z.string().nullish(),
+  province: LocationEntitySchema.nullish(),
+  cityId: z.string().nullish(),
+  city: LocationEntitySchema.nullish(),
+  suburbId: z.string().nullish(),
+  suburb: LocationEntitySchema.nullish(),
+  pendingGeoId: z.string().nullish(),
+  lat: z.number().nullish(),
+  lng: z.number().nullish()
+});
+
 export const PropertySchema = z
   .object({
     id: z.string(),
     type: z.string(),
     currency: z.string(),
     price: decimalToNumber,
-    city: z.string(),
-    suburb: z.string().nullish(),
+    countryId: z.string().nullish(),
+    provinceId: z.string().nullish(),
+    cityId: z.string().nullish(),
+    suburbId: z.string().nullish(),
+    pendingGeoId: z.string().nullish(),
     agencyId: z.string().nullish(),
-    location: z.object({
-      city: z.string(),
-      suburb: z.string().nullish(),
-      lat: z.number().nullish(),
-      lng: z.number().nullish()
-    }),
+    location: PropertyLocationSchema,
+    lat: z.number().nullish(),
+    lng: z.number().nullish(),
+    countryName: z.string().nullish(),
+    provinceName: z.string().nullish(),
+    cityName: z.string().nullish(),
+    suburbName: z.string().nullish(),
     bedrooms: z.number().nullish(),
     bathrooms: z.number().nullish(),
     furnishing: z.string(),

@@ -12,7 +12,12 @@ interface PropertyCardProps {
 
 export function PropertyCard({ property, highlighted = false }: PropertyCardProps) {
   const primaryImage = property.media?.[0]?.url;
-  const location = property.location.suburb ?? property.location.city;
+  const locationName =
+    property.location.suburb?.name ??
+    property.location.city?.name ??
+    property.location.province?.name ??
+    property.location.country?.name ??
+    'Zimbabwe';
   const price = formatCurrency(property.price, property.currency);
   const availabilityLabel =
     property.availability === 'DATE' && property.availableFrom
@@ -36,7 +41,7 @@ export function PropertyCard({ property, highlighted = false }: PropertyCardProp
           <div className="relative h-52 w-full overflow-hidden">
             <Image
               src={primaryImage}
-              alt={`${property.type} in ${location}`}
+              alt={`${property.type} in ${locationName}`}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -51,7 +56,7 @@ export function PropertyCard({ property, highlighted = false }: PropertyCardProp
             <span className="capitalize">{property.type.toLowerCase()}</span>
             <span className="text-base font-semibold">{price}</span>
           </CardTitle>
-          <p className="text-sm text-neutral-500">{location}</p>
+          <p className="text-sm text-neutral-500">{locationName}</p>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm text-neutral-600">
           <div className="flex flex-wrap gap-3 text-xs uppercase text-neutral-500">

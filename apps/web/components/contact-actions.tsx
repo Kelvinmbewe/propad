@@ -16,7 +16,19 @@ export function ContactActions({ property }: ContactActionsProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const { data: session } = useSession();
-  const location = useMemo(() => property.suburb ?? property.city, [property.city, property.suburb]);
+  const location = useMemo(() => {
+    return (
+      property.suburbName ??
+      property.cityName ??
+      property.provinceName ??
+      property.countryName ??
+      property.location.suburb?.name ??
+      property.location.city?.name ??
+      property.location.province?.name ??
+      property.location.country?.name ??
+      'Zimbabwe'
+    );
+  }, [property]);
   const typeLabel = useMemo(() => property.type.replace(/_/g, ' ').toLowerCase(), [property.type]);
   const propertyDetails = property as Property & {
     landlord?: { id?: string | null } | null;
