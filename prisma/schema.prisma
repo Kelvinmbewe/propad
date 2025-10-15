@@ -98,6 +98,41 @@ enum PolicyStrikeReason {
   MISREPRESENTATION
 }
 
+enum AdvertiserStatus {
+  ACTIVE
+  PAUSED
+  SUSPENDED
+}
+
+enum AdCreativeType {
+  IMAGE
+  HTML
+  SCRIPT
+}
+
+enum AdPlacementPage {
+  HOME
+  SEARCH
+  DETAIL
+  ARTICLE
+  GLOBAL
+}
+
+enum AdPlacementPosition {
+  HEADER
+  SIDEBAR
+  INLINE
+  FOOTER
+  INTERSTITIAL
+}
+
+enum AdCampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
 model User {
   id        String   @id @default(cuid())
   role      Role     @default(USER)
@@ -289,18 +324,148 @@ model Payout {
   agent User @relation(fields: [agentId], references: [id])
 }
 
+model Advertiser {
+  id           String            @id @default(cuid())
+  name         String
+  contactEmail String?
+  phone        String?
+  billingInfo  Json?
+  status       AdvertiserStatus @default(ACTIVE)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  campaigns   AdCampaign[]
+  creatives   AdCreative[]
+  impressions AdImpression[]
+
+  @@index([status])
+}
+
+model AdCreative {
+  id            String         @id @default(cuid())
+  advertiserId  String
+  type          AdCreativeType
+  assetUrl      String?
+  htmlSnippet   String?
+  clickUrl      String
+  width         Int
+  height        Int
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  advertiser Advertiser @relation(fields: [advertiserId], references: [id])
+  flights     AdFlight[]
+
+  @@index([advertiserId, type])
+}
+
+model AdPlacement {
+  id             String           @id @default(cuid())
+  code           String           @unique
+  name           String
+  description    String?
+  allowedTypes   AdCreativeType[] @default([])
+  page           AdPlacementPage
+  position       AdPlacementPosition
+  allowDirect    Boolean          @default(true)
+  allowAdSense   Boolean          @default(false)
+  policyCompliant Boolean         @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  flights     AdFlight[]
+  impressions AdImpression[]
+  stats       AdStat[]
+
+  @@index([page, position])
+}
+
+model AdCampaign {
+  id                   String            @id @default(cuid())
+  advertiserId         String
+  name                 String
+  startAt              DateTime
+  endAt                DateTime?
+  targetingJson        Json?
+  cpmUsdCents          Int?
+  cpcUsdCents          Int?
+  dailyCapImpressions  Int?
+  status               AdCampaignStatus @default(DRAFT)
+  rewardPoolShareBps   Int?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  advertiser Advertiser  @relation(fields: [advertiserId], references: [id])
+  flights     AdFlight[]
+  stats       AdStat[]
+  impressions AdImpression[]
+
+  @@index([advertiserId, status])
+  @@index([startAt, endAt])
+}
+
+model AdFlight {
+  id           String   @id @default(cuid())
+  campaignId   String
+  creativeId   String
+  placementId  String
+  weight       Int      @default(1)
+  priority     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  campaign  AdCampaign @relation(fields: [campaignId], references: [id])
+  creative  AdCreative @relation(fields: [creativeId], references: [id])
+  placement AdPlacement @relation(fields: [placementId], references: [id])
+  stats     AdStat[]
+  impressions AdImpression[]
+
+  @@index([campaignId, priority])
+  @@index([placementId])
+}
+
+model AdStat {
+  id           String      @id @default(cuid())
+  campaignId   String
+  flightId     String
+  placementId  String
+  date         DateTime
+  impressions  Int         @default(0)
+  clicks       Int         @default(0)
+  revenueMicros Int        @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  campaign  AdCampaign @relation(fields: [campaignId], references: [id])
+  flight    AdFlight   @relation(fields: [flightId], references: [id])
+  placement AdPlacement @relation(fields: [placementId], references: [id])
+
+  @@unique([campaignId, flightId, placementId, date])
+  @@index([date])
+}
+
 model AdImpression {
   id            String   @id @default(cuid())
   propertyId    String?
   userId        String?
+  advertiserId  String?
+  campaignId    String?
+  flightId      String?
+  placementId   String?
   route         String
   source        String?
   sessionId     String
   revenueMicros Int
   createdAt     DateTime @default(now())
 
-  property Property? @relation(fields: [propertyId], references: [id])
-  user     User?     @relation(fields: [userId], references: [id])
+  property   Property?     @relation(fields: [propertyId], references: [id])
+  user       User?         @relation(fields: [userId], references: [id])
+  advertiser Advertiser?   @relation(fields: [advertiserId], references: [id])
+  campaign   AdCampaign?   @relation(fields: [campaignId], references: [id])
+  flight     AdFlight?     @relation(fields: [flightId], references: [id])
+  placement  AdPlacement?  @relation(fields: [placementId], references: [id])
+
+  @@index([campaignId, placementId, createdAt])
 }
 
 model PromoBoost {
