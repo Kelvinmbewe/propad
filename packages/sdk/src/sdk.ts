@@ -1,15 +1,23 @@
 import ky from 'ky';
 import {
   AdImpressionSchema,
+  AgentAssignmentSchema,
+  AgentSummarySchema,
   DashboardMetricsSchema,
   FacebookPublishResponseSchema,
+  PropertyManagementSchema,
+  PropertyMessageSchema,
   PropertySchema,
   ShortLinkSchema,
   WhatsAppResponseSchema,
   type AdImpression,
+  type AgentAssignment,
+  type AgentSummary,
   type DashboardMetrics,
   type FacebookPublishResponse,
   type Property,
+  type PropertyManagement,
+  type PropertyMessage,
   type ShortLink,
   type WhatsAppResponse
 } from './schemas';
@@ -34,6 +42,11 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .then((data) => DashboardMetricsSchema.parse(data))
     },
     properties: {
+      listOwned: async () =>
+        client
+          .get('properties')
+          .json<PropertyManagement[]>()
+          .then((data) => PropertyManagementSchema.array().parse(data)),
       search: async (params: {
         type?: string;
         suburb?: string;
@@ -65,6 +78,30 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .get(`properties/${id}`)
           .json<Property>()
           .then((data) => PropertySchema.parse(data))
+      },
+      assignAgent: async (
+        id: string,
+        payload: { agentId: string; serviceFeeUsd?: number }
+      ) =>
+        client
+          .post(`properties/${id}/assign-agent`, { json: payload })
+          .json<AgentAssignment>()
+          .then((data) => AgentAssignmentSchema.parse(data)),
+      updateDealConfirmation: async (id: string, payload: { confirmed: boolean }) =>
+        client
+          .patch(`properties/${id}/deal-confirmation`, { json: payload })
+          .json<PropertyManagement>()
+          .then((data) => PropertyManagementSchema.parse(data)),
+      listMessages: async (id: string) =>
+        client
+          .get(`properties/${id}/messages`)
+          .json<PropertyMessage[]>()
+          .then((data) => PropertyMessageSchema.array().parse(data)),
+      sendMessage: async (id: string, payload: { body: string }) =>
+        client
+          .post(`properties/${id}/messages`, { json: payload })
+          .json<PropertyMessage>()
+          .then((data) => PropertyMessageSchema.parse(data))
     },
     ads: {
       logImpression: async (payload: {
@@ -106,6 +143,13 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .post('whatsapp/inbound', { json: payload })
           .json<WhatsAppResponse>()
           .then((data) => WhatsAppResponseSchema.parse(data))
+    },
+    agents: {
+      listVerified: async () =>
+        client
+          .get('properties/agents/verified')
+          .json<AgentSummary[]>()
+          .then((data) => AgentSummarySchema.array().parse(data))
     },
     facebook: {
       publish: async (payload: {

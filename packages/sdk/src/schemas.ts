@@ -51,6 +51,63 @@ export const PropertySchema = z
   })
   .passthrough();
 
+export const UserSummarySchema = z
+  .object({
+    id: z.string(),
+    name: z.string().nullish(),
+    role: z.string()
+  })
+  .passthrough();
+
+export const AgentProfileSummarySchema = z.object({
+  verifiedListingsCount: z.number(),
+  leadsCount: z.number()
+});
+
+export const AgentSummarySchema = z.object({
+  id: z.string(),
+  name: z.string().nullish(),
+  phone: z.string().nullish(),
+  agentProfile: AgentProfileSummarySchema.nullish()
+});
+
+export const AgentAssignmentSchema = z
+  .object({
+    id: z.string(),
+    propertyId: z.string(),
+    landlordId: z.string(),
+    agentId: z.string(),
+    serviceFeeUsdCents: z.number().nullish(),
+    landlordPaysFee: z.boolean(),
+    createdAt: z.string(),
+    agent: UserSummarySchema.nullish(),
+    landlord: UserSummarySchema.nullish()
+  })
+  .passthrough();
+
+export const PropertyMessageSchema = z
+  .object({
+    id: z.string(),
+    propertyId: z.string(),
+    senderId: z.string(),
+    recipientId: z.string(),
+    body: z.string(),
+    createdAt: z.string(),
+    readAt: z.string().nullish(),
+    sender: UserSummarySchema.nullish(),
+    recipient: UserSummarySchema.nullish()
+  })
+  .passthrough();
+
+export const PropertyManagementSchema = PropertySchema.extend({
+  landlordId: z.string().nullish(),
+  agentOwnerId: z.string().nullish(),
+  dealConfirmedAt: z.string().nullish(),
+  assignments: AgentAssignmentSchema.array().optional(),
+  landlord: UserSummarySchema.nullish(),
+  agentOwner: UserSummarySchema.nullish()
+});
+
 export const AdImpressionSchema = z.object({
   id: z.string(),
   propertyId: z.string().nullish(),
@@ -111,3 +168,8 @@ export type ShortLink = z.infer<typeof ShortLinkSchema>;
 export type WhatsAppItem = z.infer<typeof WhatsAppItemSchema>;
 export type WhatsAppResponse = z.infer<typeof WhatsAppResponseSchema>;
 export type FacebookPublishResponse = z.infer<typeof FacebookPublishResponseSchema>;
+export type AgentSummary = z.infer<typeof AgentSummarySchema>;
+export type AgentAssignment = z.infer<typeof AgentAssignmentSchema>;
+export type PropertyMessage = z.infer<typeof PropertyMessageSchema>;
+export type PropertyManagement = z.infer<typeof PropertyManagementSchema>;
+export type UserSummary = z.infer<typeof UserSummarySchema>;

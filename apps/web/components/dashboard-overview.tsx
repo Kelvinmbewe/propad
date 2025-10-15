@@ -1,11 +1,20 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle, Skeleton } from '@propad/ui';
+import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 
 export function DashboardOverview() {
-  const { data, isLoading } = useQuery({ queryKey: ['dashboard:stats'], queryFn: api.metrics.dashboard });
+  const sdk = useAuthenticatedSDK();
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['dashboard:stats'],
+    queryFn: () => sdk!.metrics.dashboard(),
+    enabled: !!sdk
+  });
+
+  if (!sdk) {
+    return <p className="text-sm text-neutral-500">Preparing your dashboard…</p>;
+  }
 
   if (isLoading) {
     return (
@@ -17,7 +26,7 @@ export function DashboardOverview() {
     );
   }
 
-  if (!data) {
+  if (isError || !data) {
     return <p className="text-sm text-red-600">Unable to load dashboard metrics.</p>;
   }
 

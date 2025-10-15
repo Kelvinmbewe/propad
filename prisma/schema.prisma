@@ -119,6 +119,11 @@ model User {
   adImpressions   AdImpression[]
   promoBoosts     PromoBoost[]
   policyStrikes   PolicyStrike[]
+  agentAssignments    AgentAssignment[]    @relation("AgentAssignments")
+  landlordAssignments AgentAssignment[]    @relation("LandlordAgentAssignments")
+  sentMessages        PropertyMessage[]    @relation("MessageSender")
+  receivedMessages    PropertyMessage[]    @relation("MessageRecipient")
+  dealConfirmations   Property[]           @relation("PropertyDealConfirmer")
 }
 
 model AgentProfile {
@@ -160,20 +165,59 @@ model Property {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   verifiedAt   DateTime?
+  dealConfirmedAt DateTime?
+  dealConfirmedById String?
 
   landlord     User?           @relation("LandlordProperties", fields: [landlordId], references: [id])
   agentOwner   User?           @relation("AgentOwnerProperties", fields: [agentOwnerId], references: [id])
+  dealConfirmedBy User?        @relation("PropertyDealConfirmer", fields: [dealConfirmedById], references: [id])
   media        PropertyMedia[]
   verifications Verification[]
   leads        Lead[]
   adImpressions AdImpression[]
   promoBoosts  PromoBoost[]
+  assignments  AgentAssignment[]
+  messages     PropertyMessage[]
 
   @@index([status])
   @@index([city, suburb])
   @@index([price])
   @@index([verifiedAt])
+  @@index([dealConfirmedAt])
   @@index([createdAt(sort: Desc)])
+}
+
+model AgentAssignment {
+  id                 String   @id @default(cuid())
+  propertyId         String
+  landlordId         String
+  agentId            String
+  serviceFeeUsdCents Int?
+  landlordPaysFee    Boolean  @default(true)
+  createdAt          DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id])
+  landlord User     @relation("LandlordAgentAssignments", fields: [landlordId], references: [id])
+  agent    User     @relation("AgentAssignments", fields: [agentId], references: [id])
+
+  @@index([propertyId, createdAt(sort: Desc)])
+}
+
+model PropertyMessage {
+  id          String   @id @default(cuid())
+  propertyId  String
+  senderId    String
+  recipientId String
+  body        String
+  createdAt   DateTime @default(now())
+  readAt      DateTime?
+
+  property  Property @relation(fields: [propertyId], references: [id])
+  sender    User     @relation("MessageSender", fields: [senderId], references: [id])
+  recipient User     @relation("MessageRecipient", fields: [recipientId], references: [id])
+
+  @@index([propertyId, createdAt])
+  @@index([recipientId, readAt])
 }
 
 model PropertyMedia {
