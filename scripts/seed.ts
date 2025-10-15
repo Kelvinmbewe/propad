@@ -230,6 +230,38 @@ async function main() {
     properties.push(property);
   }
 
+  const sampleAssignments = await Promise.all(
+    properties.slice(0, 10).map((property, index) =>
+      prisma.agentAssignment.create({
+        data: {
+          propertyId: property.id,
+          landlordId: property.landlordId!,
+          agentId: property.agentOwnerId!,
+          serviceFeeUsdCents: index % 2 === 0 ? 2000 + index * 150 : null
+        }
+      })
+    )
+  );
+
+  for (const assignment of sampleAssignments.slice(0, 3)) {
+    await prisma.propertyMessage.createMany({
+      data: [
+        {
+          propertyId: assignment.propertyId,
+          senderId: assignment.landlordId,
+          recipientId: assignment.agentId,
+          body: 'Welcome aboard! Please schedule the first viewing for this weekend.'
+        },
+        {
+          propertyId: assignment.propertyId,
+          senderId: assignment.agentId,
+          recipientId: assignment.landlordId,
+          body: 'Thanks for the assignment. I will confirm interested renters by Friday.'
+        }
+      ]
+    });
+  }
+
   const leadSources = [LeadSource.WEB, LeadSource.WHATSAPP, LeadSource.FACEBOOK];
   const leadStatuses = [LeadStatus.NEW, LeadStatus.CONTACTED, LeadStatus.QUALIFIED, LeadStatus.CLOSED];
   for (let index = 0; index < 100; index++) {

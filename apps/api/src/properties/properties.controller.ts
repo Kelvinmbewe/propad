@@ -25,6 +25,12 @@ import {
 } from './dto/submit-verification.dto';
 import { MapBoundsDto, mapBoundsSchema } from './dto/map-bounds.dto';
 import { CreateSignedUploadDto, createSignedUploadSchema } from './dto/signed-upload.dto';
+import { AssignAgentDto, assignAgentSchema } from './dto/assign-agent.dto';
+import {
+  UpdateDealConfirmationDto,
+  updateDealConfirmationSchema
+} from './dto/update-deal-confirmation.dto';
+import { CreateMessageDto, createMessageSchema } from './dto/create-message.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -36,6 +42,20 @@ interface AuthenticatedRequest {
 @Controller('properties')
 export class PropertiesController {
   constructor(private readonly propertiesService: PropertiesService) {}
+
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  listOwned(@Req() req: AuthenticatedRequest) {
+    return this.propertiesService.listOwned(req.user);
+  }
+
+  @Get('agents/verified')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.ADMIN)
+  listVerifiedAgents() {
+    return this.propertiesService.listVerifiedAgents();
+  }
 
   @Get('search')
   search(@Query() dto: SearchPropertiesDto) {
@@ -78,6 +98,46 @@ export class PropertiesController {
   @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.propertiesService.remove(id, req.user);
+  }
+
+  @Post(':id/assign-agent')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.ADMIN)
+  assignVerifiedAgent(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(assignAgentSchema)) dto: AssignAgentDto
+  ) {
+    return this.propertiesService.assignVerifiedAgent(id, dto, req.user);
+  }
+
+  @Patch(':id/deal-confirmation')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.ADMIN)
+  updateDealConfirmation(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(updateDealConfirmationSchema)) dto: UpdateDealConfirmationDto
+  ) {
+    return this.propertiesService.updateDealConfirmation(id, dto, req.user);
+  }
+
+  @Get(':id/messages')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  listMessages(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.propertiesService.listMessages(id, req.user);
+  }
+
+  @Post(':id/messages')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.AGENT)
+  sendMessage(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(createMessageSchema)) dto: CreateMessageDto
+  ) {
+    return this.propertiesService.sendMessage(id, dto, req.user);
   }
 
   @Post(':id/submit')

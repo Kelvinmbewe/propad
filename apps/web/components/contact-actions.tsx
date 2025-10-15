@@ -1,9 +1,11 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import type { Property } from '@propad/sdk';
 import { Button } from '@propad/ui';
 import { api } from '@/lib/api-client';
+import { PropertyMessenger } from './property-messenger';
 
 interface ContactActionsProps {
   property: Property;
@@ -13,7 +15,21 @@ export function ContactActions({ property }: ContactActionsProps) {
   const [shortUrl, setShortUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const { data: session } = useSession();
   const location = useMemo(() => property.suburb ?? property.city, [property.city, property.suburb]);
+  const propertyDetails = property as Property & {
+    landlord?: { id?: string | null } | null;
+    agentOwner?: { id?: string | null } | null;
+    landlordId?: string | null;
+    agentOwnerId?: string | null;
+  };
+  const landlordId = propertyDetails.landlord?.id ?? propertyDetails.landlordId ?? null;
+  const agentOwnerId = propertyDetails.agentOwner?.id ?? propertyDetails.agentOwnerId ?? null;
+  const userId = session?.user?.id;
+  const role = session?.user?.role;
+  const isParticipant =
+    (role === 'LANDLORD' && landlordId && landlordId === userId) ||
+    (role === 'AGENT' && agentOwnerId && agentOwnerId === userId);
 
   const ensureShortLink = useCallback(async () => {
     if (shortUrl) {
@@ -77,6 +93,14 @@ export function ContactActions({ property }: ContactActionsProps) {
         {copied ? 'Shortlink copied!' : 'Copy share shortlink'}
       </Button>
       {shortUrl ? <p className="text-xs text-neutral-500">Sharing URL: {shortUrl}</p> : null}
+      {isParticipant ? (
+        <PropertyMessenger
+          propertyId={property.id}
+          landlordId={landlordId}
+          agentOwnerId={agentOwnerId}
+          className="mt-4"
+        />
+      ) : null}
     </div>
   );
 }
