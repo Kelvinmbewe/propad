@@ -1,0 +1,16 @@
+{
+  "name": "@propad/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "seed": "ts-node seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "5.11.0",
+    "bcryptjs": "2.4.3"
+  },
+  "devDependencies": {
+    "ts-node": "10.9.2",
+    "typescript": "5.4.5"
+  }
+}

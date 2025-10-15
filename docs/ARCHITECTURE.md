@@ -1,52 +1,42 @@
-# PropAd Zimbabwe Architecture
+# Architecture
 
-## Overview
-PropAd Zimbabwe is a full-stack property marketplace designed for low-data users in Zimbabwe. It provides a FastAPI backend, a React + Vite progressive web app frontend, and infrastructure tooling for containerised deployments.
+PropAd is implemented as a TypeScript monorepo with clearly delineated boundaries between the web PWA, API, shared packages, and infrastructure. The solution is optimised for offline-friendly access, verifiable listings, and zero-fee monetisation.
 
-## Backend
-- **Framework:** FastAPI with SQLAlchemy 2.x async ORM.
-- **Database:** PostgreSQL in production (SQLite for local tests).
-- **Key modules:**
-  - `auth.py` handles JWT-based authentication, password hashing, and role enforcement.
-  - `routers/` contains feature-specific API endpoints (listings, agents, rewards, inquiries, policy checks, admin tooling).
-  - `utils/policy.py` enforces the non-negotiable fee policy with configurable block/flag lists and persistence of policy events.
-  - `services/rewards.py` manages the reward pool and payout allocation with audit logging.
-  - `models.py` defines core entities such as users, property listings, policy events, reward pools, and audit logs.
-- **Security:** JWT authentication, role-based access control, auditable logs, and policy event tracking.
-- **Testing:** `pytest` with async fixtures hitting the FastAPI app using an in-memory SQLite database.
-- **Seed data:** `seed_data.py` bootstraps default admin/agent/landlord accounts and a sample approved listing.
+## High level overview
 
-## Frontend (PWA)
-- **Framework:** React 18 with TypeScript and Vite.
-- **State/Data:** React Query for data fetching, Zustand for auth state, TailwindCSS for styling.
-- **Features:**
-  - Hero landing page emphasising the no-fees promise.
-  - Listing grid fed by the `/listings` API.
-  - Policy badges, reward pool messaging, and WhatsApp/Facebook share links.
-  - Agent and admin resource pages.
-  - Google AdSense-ready ad banner component, service worker caching, and web manifest icons.
+- **Next.js 14 PWA (`apps/web`)** – App Router, Tailwind, shadcn-inspired UI primitives, React Query for data fetching, NextAuth (email OTP + Google), and a service worker for offline caching.
+- **NestJS API (`apps/api`)** – REST API with JWT-based auth, RBAC guards, Prisma ORM, BullMQ queue integration, and Pino structured logging.
+- **Shared packages** – `@propad/ui`, `@propad/config`, and `@propad/sdk` provide design system primitives, runtime configuration, and a typed API client.
+- **Data layer** – PostgreSQL via Prisma, Redis for caching/queues, MinIO (S3-compatible) for asset storage.
+- **Infrastructure** – Docker Compose orchestrates the stack for local development with reproducible environments.
 
-## Infrastructure
-- **Docker:** Separate Dockerfiles for backend (FastAPI + Uvicorn) and frontend (Node build + Nginx serve).
-- **Compose:** `infrastructure/docker-compose.yml` wires Postgres, backend API, and frontend static hosting.
-- **Environment:** `.env.example` files for backend and frontend show required configuration (secret key, database URL, AdSense client ID).
+## Backend architecture
 
-## Logging & Auditability
-- Every privileged or state-changing action writes to `audit_logs` via `utils/audit.py`.
-- Policy violations are recorded in `policy_events` for traceability.
-- Admin endpoints expose audit log retrieval for regulator reviews.
+The NestJS API exposes modular domains:
 
-## Reward Pool Mechanics
-- Reward pool seeded from configuration (`REWARD_POOL_AMOUNT`).
-- Admins allocate payouts using `/rewards/payouts`, automatically reducing the available balance and recording audit entries.
+- **Auth** – JWT issuance for API access, RBAC decorators and guards, NextAuth compatibility for the web app, and support for OTP (email magic links handled by NextAuth).
+- **Listings & verifications** – Prisma models ensure every listing is associated with an owner and a verification entry. The metrics service surfaces dashboard KPIs.
+- **Queues** – BullMQ is preconfigured for background jobs like media processing and verification workflows.
+- **Logging/Monitoring** – Pino HTTP logs include a request ID, and `/health` provides a health check endpoint for orchestration.
 
-## Deployment Flow
-1. Copy `.env.example` to `.env` within `backend/` and adjust secrets.
-2. Run `docker compose` from `infrastructure/` to start Postgres, backend API, and frontend PWA.
-3. Run `backend/seed_data.py` (optional) to populate demo users and listings.
-4. Access the frontend via `http://localhost:4173` and the API via `http://localhost:8000/docs`.
+## Frontend architecture
 
-## Testing & Quality
-- Run `pytest` from the `backend/` directory for backend validation.
-- Run `npm run lint` and `npm run build` from `frontend/` for static analysis and bundle generation.
-- Service worker ensures offline caching of the landing page for low-data scenarios.
+The PWA uses the App Router with nested layouts for marketing pages, authentication, and role-restricted dashboards. React Query coordinates server state and caching, while shadcn-style components from `@propad/ui` ensure consistency. A service worker caches the shell for offline resilience.
+
+Forms rely on `react-hook-form` + `zod` for type-safe validation. RBAC is enforced client-side using helper utilities from `@propad/ui` and server-side through NextAuth session roles.
+
+## Shared packages
+
+- `@propad/ui` – Tailwind-powered components, toast notifications, and styling utilities.
+- `@propad/config` – Runtime-safe environment handling for both Next.js and NestJS.
+- `@propad/sdk` – Ky-powered REST client with Zod validation for typed usage across apps.
+
+## Data model
+
+Prisma models encode key domain entities: `User`, `Listing`, `Verification`, `RewardPool`, and `AuditLog`. Role enums enforce RBAC across both frontend and backend.
+
+## Future enhancements
+
+- Implement Prometheus metrics exporter for API performance insights.
+- Extend BullMQ queues for verification notifications and reward disbursements.
+- Add Playwright journeys covering listing creation, verification, and reward payout flows.
