@@ -11,10 +11,12 @@ import {
   PropertySearchResultSchema,
   ShortLinkSchema,
   WhatsAppResponseSchema,
+  GeoSuburbSchema,
   type AdImpression,
   type AgentAssignment,
   type AgentSummary,
   type DashboardMetrics,
+  type GeoSuburb,
   type FacebookPublishResponse,
   type Property,
   type PropertyManagement,
@@ -57,25 +59,55 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         priceMax?: number;
         limit?: number;
         page?: number;
-      } = {}) =>
-        client
-          .get('properties/search', {
-            searchParams: Object.fromEntries(
-              Object.entries(params).filter(([, value]) => {
-                if (value === undefined || value === null) {
-                  return false;
-                }
+        bounds?: {
+          southWest: { lat: number; lng: number };
+          northEast: { lat: number; lng: number };
+        };
+        filters?: Record<string, unknown>;
+      } = {}) => {
+        const searchParams = new URLSearchParams();
 
-                if (typeof value === 'string' && value.trim() === '') {
-                  return false;
-                }
+        const primitiveEntries = Object.entries({
+          type: params.type,
+          suburb: params.suburb,
+          city: params.city,
+          priceMin: params.priceMin,
+          priceMax: params.priceMax,
+          limit: params.limit,
+          page: params.page
+        }).filter(([, value]) => {
+          if (value === undefined || value === null) {
+            return false;
+          }
 
-                return true;
-              })
-            )
-          })
+          if (typeof value === 'string' && value.trim() === '') {
+            return false;
+          }
+
+          return true;
+        });
+
+        for (const [key, value] of primitiveEntries) {
+          searchParams.set(key, String(value));
+        }
+
+        if (params.bounds) {
+          const { southWest, northEast } = params.bounds;
+          searchParams.set(
+            'bounds',
+            [southWest.lat, southWest.lng, northEast.lat, northEast.lng].map((value) => value.toFixed(6)).join(',')
+          );
+        }
+
+        if (params.filters && Object.keys(params.filters).length > 0) {
+          searchParams.set('filters', JSON.stringify(params.filters));
+        }
+
+        return client
+          .get('properties/search', { searchParams })
           .json<PropertySearchResult>()
-          .then((data) => PropertySearchResultSchema.parse(data)),
+          .then((data) => PropertySearchResultSchema.parse(data));
+      },
       get: async (id: string) =>
         client
           .get(`properties/${id}`)
@@ -105,6 +137,13 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .post(`properties/${id}/messages`, { json: payload })
           .json<PropertyMessage>()
           .then((data) => PropertyMessageSchema.parse(data))
+    },
+    geo: {
+      suburbs: async () =>
+        client
+          .get('geo/suburbs')
+          .json<GeoSuburb[]>()
+          .then((data) => GeoSuburbSchema.array().parse(data))
     },
     ads: {
       logImpression: async (payload: {

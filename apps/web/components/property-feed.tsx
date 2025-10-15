@@ -1,13 +1,16 @@
 'use client';
 
-import { Fragment, useEffect, useMemo } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Button, notify } from '@propad/ui';
-import { PropertySearchResultSchema, type PropertySearchResult } from '@propad/sdk';
+import { PropertySearchResultSchema, type PropertySearchResult, type GeoSuburb } from '@propad/sdk';
+import { usePathname, useRouter } from 'next/navigation';
 import { AdSlot } from './ad-slot';
 import { PropertyCard } from './property-card';
 import { PropertyFeedSkeleton } from './property-feed-skeleton';
 import { EmptyState } from './empty-state';
+import { PropertyMap, type MapBounds } from './property-map';
+import { api } from '@/lib/api-client';
 
 interface PropertyFeedProps {
   initialPage: PropertySearchResult;
@@ -45,10 +48,60 @@ async function requestProperties(
   return PropertySearchResultSchema.parse(json);
 }
 
+function parseBoundsString(value: string | undefined): MapBounds | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const parts = value.split(',').map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part))) {
+    return undefined;
+  }
+
+  const [swLat, swLng, neLat, neLng] = parts as [number, number, number, number];
+  return {
+    southWest: { lat: swLat, lng: swLng },
+    northEast: { lat: neLat, lng: neLng }
+  };
+}
+
 export function PropertyFeed({ initialPage, filters }: PropertyFeedProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const perPage = Math.max(initialPage.perPage, 1);
-  const sanitizedFilters = useMemo(() => sanitizeFilters(filters), [filters]);
-  const filterKey = useMemo(() => JSON.stringify(sanitizedFilters), [sanitizedFilters]);
+
+  const initialSanitized = useMemo(() => sanitizeFilters(filters), [filters]);
+  const initialFilterKey = useMemo(() => JSON.stringify(initialSanitized), [initialSanitized]);
+  const [activeFilters, setActiveFilters] = useState<Record<string, string>>(initialSanitized);
+  const filterKey = useMemo(() => JSON.stringify(activeFilters), [activeFilters]);
+
+  useEffect(() => {
+    setActiveFilters(initialSanitized);
+  }, [initialFilterKey, initialSanitized]);
+
+  const updateUrl = useCallback(
+    (nextFilters: Record<string, string>) => {
+      const params = new URLSearchParams(nextFilters);
+      const search = params.toString();
+      router.replace(search ? `${pathname}?${search}` : pathname, { scroll: false });
+    },
+    [pathname, router]
+  );
+
+  const applyFilters = useCallback(
+    (updater: (prev: Record<string, string>) => Record<string, string>) => {
+      setActiveFilters((prev) => {
+        const next = sanitizeFilters(updater(prev));
+        updateUrl(next);
+        return next;
+      });
+    },
+    [updateUrl]
+  );
+
+  const queryInitialData = filterKey === initialFilterKey
+    ? { pages: [initialPage], pageParams: [initialPage.page] }
+    : undefined;
 
   const {
     data,
@@ -62,15 +115,12 @@ export function PropertyFeed({ initialPage, filters }: PropertyFeedProps) {
   } = useInfiniteQuery<PropertySearchResult>({
     queryKey: ['properties', filterKey, perPage],
     queryFn: async ({ pageParam = initialPage.page }) => {
-      const params = new URLSearchParams(sanitizedFilters);
+      const params = new URLSearchParams(activeFilters);
       params.set('page', pageParam.toString());
       params.set('limit', perPage.toString());
       return requestProperties(params);
     },
-    initialData: {
-      pages: [initialPage],
-      pageParams: [initialPage.page]
-    },
+    initialData: queryInitialData,
     initialPageParam: initialPage.page,
     getNextPageParam: (lastPage) => (lastPage.hasNextPage ? lastPage.page + 1 : undefined),
     staleTime: 60_000
@@ -83,9 +133,13 @@ export function PropertyFeed({ initialPage, filters }: PropertyFeedProps) {
     }
   }, [isError, error]);
 
-  if (status === 'loading' && !data) {
-    return <PropertyFeedSkeleton cards={perPage} />;
-  }
+  const { data: suburbsData } = useQuery<GeoSuburb[]>({
+    queryKey: ['geo', 'suburbs'],
+    queryFn: () => api.geo.suburbs(),
+    staleTime: 1000 * 60 * 60
+  });
+
+  const suburbs = suburbsData ?? [];
 
   const pages = data?.pages ?? [initialPage];
   const items = pages.flatMap((page) => page.items);
@@ -93,6 +147,61 @@ export function PropertyFeed({ initialPage, filters }: PropertyFeedProps) {
   const hasResults = items.length > 0;
   const totalLabel = total === 1 ? 'listing' : 'listings';
   const listingLabel = items.length === 1 ? 'listing' : 'listings';
+
+  const activeBounds = useMemo(() => parseBoundsString(activeFilters.bounds), [activeFilters.bounds]);
+  const activeSuburb = activeFilters.suburb ?? null;
+
+  const [hoveredPropertyId, setHoveredPropertyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHoveredPropertyId(null);
+  }, [filterKey]);
+
+  const handleMarkerHover = useCallback((propertyId: string | null) => {
+    setHoveredPropertyId(propertyId);
+  }, []);
+
+  const handleBoundsSearch = useCallback(
+    (bounds: MapBounds) => {
+      applyFilters((prev) => {
+        const next = { ...prev };
+        next.bounds = [
+          bounds.southWest.lat.toFixed(6),
+          bounds.southWest.lng.toFixed(6),
+          bounds.northEast.lat.toFixed(6),
+          bounds.northEast.lng.toFixed(6)
+        ].join(',');
+        delete next.suburb;
+        return next;
+      });
+    },
+    [applyFilters]
+  );
+
+  const handleSuburbSelect = useCallback(
+    (suburb: GeoSuburb) => {
+      applyFilters((prev) => {
+        const next = { ...prev };
+        next.suburb = suburb.name;
+        next.city = suburb.city;
+        delete next.bounds;
+        return next;
+      });
+    },
+    [applyFilters]
+  );
+
+  const handleCardEnter = useCallback((propertyId: string) => {
+    setHoveredPropertyId(propertyId);
+  }, []);
+
+  const handleCardLeave = useCallback((propertyId: string) => {
+    setHoveredPropertyId((current) => (current === propertyId ? null : current));
+  }, []);
+
+  if (status === 'loading' && !data) {
+    return <PropertyFeedSkeleton cards={perPage} />;
+  }
 
   if (isError && !hasResults) {
     return (
@@ -106,48 +215,71 @@ export function PropertyFeed({ initialPage, filters }: PropertyFeedProps) {
     );
   }
 
-  if (!hasResults) {
-    return (
-      <EmptyState
-        title="No listings yet"
-        description="We update the marketplace daily. Try adjusting your filters or check back soon."
-      />
-    );
-  }
-
   return (
-    <div className="grid gap-8">
-      <div className="flex flex-col gap-2 text-sm text-neutral-600" aria-live="polite">
-        <span className="font-medium text-neutral-800">{total} verified {totalLabel} available</span>
-        <span>
-          Showing {items.length} {listingLabel}.
-        </span>
-      </div>
-
-      <AdSlot source="feed-top" className="mx-auto max-w-4xl" />
-
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {items.map((property, index) => (
-          <Fragment key={property.id}>
-            <PropertyCard property={property} />
-            {(index + 1) % 3 === 0 ? (
-              <div className="md:col-span-2 xl:col-span-3" key={`${property.id}-ad-${index}`}>
-                <AdSlot source="feed-inline" className="mx-auto max-w-4xl" />
-              </div>
-            ) : null}
-          </Fragment>
-        ))}
-      </div>
-
-      {hasNextPage ? (
-        <div className="flex justify-center">
-          <Button onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
-            {isFetchingNextPage ? 'Loading more listings…' : 'Load more listings'}
-          </Button>
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="order-2 flex flex-col gap-6 lg:order-1">
+        <div className="flex flex-col gap-2 text-sm text-neutral-600" aria-live="polite">
+          <span className="font-medium text-neutral-800">{total} verified {totalLabel} available</span>
+          <span>
+            Showing {items.length} {listingLabel}.
+          </span>
         </div>
-      ) : (
-        <p className="text-center text-sm text-neutral-500">You&apos;ve reached the end of the listings.</p>
-      )}
+
+        {hasResults ? (
+          <>
+            <AdSlot source="feed-top" className="mx-auto max-w-4xl" />
+
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {items.map((property, index) => (
+                <Fragment key={property.id}>
+                  <div
+                    onMouseEnter={() => handleCardEnter(property.id)}
+                    onMouseLeave={() => handleCardLeave(property.id)}
+                    onFocus={() => handleCardEnter(property.id)}
+                    onBlur={() => handleCardLeave(property.id)}
+                    className="focus-within:outline-none"
+                  >
+                    <PropertyCard property={property} highlighted={hoveredPropertyId === property.id} />
+                  </div>
+                  {(index + 1) % 3 === 0 ? (
+                    <div className="md:col-span-2 xl:col-span-3" key={`${property.id}-ad-${index}`}>
+                      <AdSlot source="feed-inline" className="mx-auto max-w-4xl" />
+                    </div>
+                  ) : null}
+                </Fragment>
+              ))}
+            </div>
+
+            {hasNextPage ? (
+              <div className="flex justify-center">
+                <Button onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+                  {isFetchingNextPage ? 'Loading more listings…' : 'Load more listings'}
+                </Button>
+              </div>
+            ) : (
+              <p className="text-center text-sm text-neutral-500">You&apos;ve reached the end of the listings.</p>
+            )}
+          </>
+        ) : (
+          <EmptyState
+            title="No listings yet"
+            description="Try drawing a new area on the map or selecting a nearby suburb to broaden your search."
+          />
+        )}
+      </div>
+
+      <aside className="order-1 lg:order-2 lg:pl-4 lg:pt-2">
+        <PropertyMap
+          properties={items}
+          suburbs={suburbs}
+          hoveredPropertyId={hoveredPropertyId}
+          activeSuburb={activeSuburb}
+          activeBounds={activeBounds}
+          onHoverMarker={handleMarkerHover}
+          onBoundsSearch={handleBoundsSearch}
+          onSuburbSelect={handleSuburbSelect}
+        />
+      </aside>
     </div>
   );
 }

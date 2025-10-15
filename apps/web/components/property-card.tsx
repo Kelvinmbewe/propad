@@ -2,19 +2,25 @@ import { Badge, Card, CardContent, CardFooter, CardHeader, CardTitle } from '@pr
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Property } from '@propad/sdk';
+import clsx from 'clsx';
 import { formatCurrency } from '@/lib/formatters';
 
 interface PropertyCardProps {
   property: Property;
+  highlighted?: boolean;
 }
 
-export function PropertyCard({ property }: PropertyCardProps) {
+export function PropertyCard({ property, highlighted = false }: PropertyCardProps) {
   const primaryImage = property.media?.[0]?.url;
-  const location = property.suburb ?? property.city;
+  const location = property.location.suburb ?? property.location.city;
   const price = formatCurrency(property.price, property.currency);
 
   return (
-    <Card className="overflow-hidden">
+    <Card
+      className={clsx('overflow-hidden transition-shadow', {
+        'ring-2 ring-blue-500 ring-offset-2 ring-offset-neutral-100 shadow-lg': highlighted
+      })}
+    >
       <Link href={`/listings/${property.id}`} className="group block h-full">
         {primaryImage ? (
           <div className="relative h-52 w-full overflow-hidden">

@@ -44,6 +44,12 @@ export const PropertySchema = z
     price: decimalToNumber,
     city: z.string(),
     suburb: z.string().nullish(),
+    location: z.object({
+      city: z.string(),
+      suburb: z.string().nullish(),
+      lat: z.number().nullish(),
+      lng: z.number().nullish()
+    }),
     bedrooms: z.number().nullish(),
     bathrooms: z.number().nullish(),
     description: z.string().nullish(),
@@ -58,6 +64,16 @@ export const PropertySearchResultSchema = z.object({
   total: z.number(),
   totalPages: z.number(),
   hasNextPage: z.boolean()
+});
+
+export const GeoSuburbSchema = z.object({
+  name: z.string(),
+  city: z.string(),
+  polygon: z.array(z.tuple([z.number(), z.number()])),
+  bbox: z.object({
+    northEast: z.object({ lat: z.number(), lng: z.number() }),
+    southWest: z.object({ lat: z.number(), lng: z.number() })
+  })
 });
 
 export const UserSummarySchema = z
@@ -183,3 +199,4 @@ export type PropertyMessage = z.infer<typeof PropertyMessageSchema>;
 export type PropertyManagement = z.infer<typeof PropertyManagementSchema>;
 export type UserSummary = z.infer<typeof UserSummarySchema>;
 export type PropertySearchResult = z.infer<typeof PropertySearchResultSchema>;
+export type GeoSuburb = z.infer<typeof GeoSuburbSchema>;
