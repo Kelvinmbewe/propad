@@ -18,6 +18,7 @@ The NestJS API exposes modular domains:
 - **Listings & verifications** – Prisma models ensure every listing is associated with an owner and a verification entry. The metrics service surfaces dashboard KPIs.
 - **Queues** – BullMQ is preconfigured for background jobs like media processing and verification workflows.
 - **Logging/Monitoring** – Pino HTTP logs include a request ID, and `/health` provides a health check endpoint for orchestration.
+- **Conversations** – A dedicated module orchestrates lead-to-agent chats, exposing REST endpoints and a WebSocket gateway layered on top of NestJS `@WebSocketGateway`. The gateway runs behind a Pusher-compatible adapter so the web app can reuse existing client tooling.
 
 ## Frontend architecture
 
@@ -30,10 +31,18 @@ Forms rely on `react-hook-form` + `zod` for type-safe validation. RBAC is enforc
 - `@propad/ui` – Tailwind-powered components, toast notifications, and styling utilities.
 - `@propad/config` – Runtime-safe environment handling for both Next.js and NestJS.
 - `@propad/sdk` – Ky-powered REST client with Zod validation for typed usage across apps.
+- `@propad/realtime` (planned) – Shared helpers for subscribing to conversation channels, normalising typing/delivery events, and reconciling optimistic updates in the web app.
 
 ## Data model
 
-Prisma models encode key domain entities: `User`, `Listing`, `Verification`, `RewardPool`, and `AuditLog`. Role enums enforce RBAC across both frontend and backend.
+Prisma models encode key domain entities: `User`, `Listing`, `Verification`, `RewardPool`, `AuditLog`, and the messaging tables required for dispute-ready audit trails. The conversation suite comprises:
+
+- `Conversation` – stores the subject, linked property/agency/landlord IDs (when applicable), creator, status (`OPEN`, `RESOLVED`, `ARCHIVED`), and timestamps.
+- `ConversationParticipant` – links users to conversations with role metadata (`BUYER`, `TENANT`, `AGENT`, `LANDLORD`, `VERIFIER`, `ADMIN`), join time, and mute state.
+- `Message` – captures sender, body, attachment payload (JSON manifest of stored S3 keys), and edit/delivery timestamps.
+- `MessageFlag` – records moderation events (spam, abuse, scam, contact-info breaches) and ties them back to reporting users for escalation.
+
+Attachment processing leverages the existing MinIO pipeline for storage while a media worker strips EXIF metadata, produces thumbnails, and invokes ClamAV scans before finalising uploads. Conversation status transitions feed into audit logs for dispute resolution.
 
 ## System diagrams
 

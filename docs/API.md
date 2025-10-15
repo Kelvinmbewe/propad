@@ -179,6 +179,103 @@ Response:
 }
 ```
 
+## Conversations
+
+Messaging routes require membership in the target conversation unless otherwise noted. Soft-deleted or archived records continue to be available to admins for dispute resolution.
+
+### `GET /conversations`
+- **Access:** Any authenticated user
+- **Query Params:** `status`, `propertyId`, `role`, `cursor`, `limit`
+- **Description:** Returns the user's conversations ordered by latest message, filtered by optional status or property.
+
+Response:
+```json
+{
+  "items": [
+    {
+      "id": "clxconv1",
+      "subject": "Enquiry: Borrowdale Cottage",
+      "status": "OPEN",
+      "propertyId": "clxprop1",
+      "lastMessagePreview": "Thanks, I'll attend the viewing",
+      "lastMessageAt": "2024-07-02T09:10:00.000Z",
+      "participants": [
+        { "userId": "clxuser1", "role": "TENANT", "muted": false },
+        { "userId": "clxuser2", "role": "AGENT", "muted": false }
+      ],
+      "unreadCount": 2
+    }
+  ],
+  "cursor": "clxconv1",
+  "hasNextPage": false
+}
+```
+
+### `GET /conversations/:id`
+- **Access:** Participant or `ADMIN`
+- **Description:** Returns conversation metadata, participants, and latest message snapshot. Includes WA deep link metadata when available.
+
+### `GET /conversations/:id/messages`
+- **Access:** Participant or `ADMIN`
+- **Query Params:** `before`, `after`, `limit`
+- **Description:** Paginates message history in descending `sentAt` order.
+
+Response:
+```json
+{
+  "items": [
+    {
+      "id": "clxmsg1",
+      "senderId": "clxuser1",
+      "body": "Can I view on Saturday?",
+      "attachments": [],
+      "sentAt": "2024-07-02T08:55:00.000Z",
+      "deliveredAt": "2024-07-02T08:55:02.000Z",
+      "readAt": null
+    }
+  ],
+  "nextCursor": "clxmsg1"
+}
+```
+
+### `POST /conversations/:id/messages`
+- **Access:** Participant
+- **Description:** Sends a message with optional attachments. Enforces rate limits and banned-phrase checks; flagged content returns `403` with context.
+
+Request:
+```json
+{
+  "body": "Please find my proof of income attached.",
+  "attachments": [
+    {
+      "key": "conversations/clxconv1/123.pdf",
+      "fileName": "proof.pdf",
+      "mimeType": "application/pdf",
+      "size": 382331
+    }
+  ],
+  "clientMessageId": "temp-uuid-123"
+}
+```
+
+### `POST /conversations/:id/report`
+- **Access:** Participant
+- **Description:** Flags the latest offending message with a reason (`SPAM`, `ABUSE`, `SCAM`, `CONTACT_INFO_BREACH`). Creates a `MessageFlag` entry and notifies admins.
+
+### `POST /conversations/:id/read`
+- **Access:** Participant
+- **Description:** Marks messages up to a given ID as read and emits WebSocket `message.read` events to other participants.
+
+### `POST /conversations/:id/participants`
+- **Access:** `ADMIN`
+- **Description:** Adds a new participant (e.g. landlord or verifier) to an ongoing thread and backfills unread counts.
+
+### WebSocket events
+- `conversation.typing` – emitted when a participant starts/stops typing.
+- `conversation.message` – pushed when new messages are persisted (includes server-assigned ID and timestamps for optimistic reconciliation).
+- `conversation.delivered` / `conversation.read` – track delivery receipts.
+- `conversation.updated` – conversation status or subject updates.
+
 ## Verifications
 
 All verification routes require `VERIFIER` or `ADMIN` roles.
