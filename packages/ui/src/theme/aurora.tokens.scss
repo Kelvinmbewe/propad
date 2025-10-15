@@ -1,0 +1,60 @@
+$aurora-colors: (
+  'accent-50': #f5f5ff,
+  'accent-100': #eef2ff,
+  'accent-200': #dbe7ff,
+  'accent-300': #c3d7ff,
+  'accent-400': #8ca3ff,
+  'accent-500': #6278ff,
+  'accent-600': #4b5cf2,
+  'accent-700': #3d46d6,
+  'accent-800': #3136ad,
+  'accent-900': #252985,
+  'neutral-50': #f8fafc,
+  'neutral-100': #f1f5f9,
+  'neutral-200': #e2e8f0,
+  'neutral-300': #cbd5f5,
+  'neutral-400': #94a3b8,
+  'neutral-500': #64748b,
+  'neutral-600': #475569,
+  'neutral-700': #334155,
+  'neutral-800': #1e293b,
+  'neutral-900': #0f172a,
+  'fuchsia-500': #d946ef,
+  'teal-400': #22d3ee,
+  'amber-400': #fbbf24,
+  'success-500': #22c55e,
+  'warning-500': #f59e0b,
+  'error-500': #ef4444
+);
+
+$aurora-radius: (
+  'sm': 0.5rem,
+  'md': 0.75rem,
+  'lg': 1rem,
+  'xl': 1.25rem,
+  '2xl': 1.75rem,
+  'pill': 9999px
+);
+
+$aurora-shadows: (
+  'soft': 0 12px 40px -24px rgba(79, 70, 229, 0.35),
+  'medium': 0 24px 60px -20px rgba(15, 23, 42, 0.45),
+  'bold': 0 24px 80px -10px rgba(15, 23, 42, 0.55),
+  'focus': 0 0 0 4px rgba(98, 120, 255, 0.35)
+);
+
+$aurora-gradients: (
+  'accent': linear-gradient(135deg, #6278ff 0%, #22d3ee 45%, #f59e0b 100%),
+  'panorama': radial-gradient(120% 140% at 10% 20%, rgba(98, 120, 255, 0.35), transparent 60%),
+  'panorama-secondary': radial-gradient(80% 120% at 90% 10%, rgba(34, 211, 238, 0.35), transparent 60%),
+  'panorama-tertiary': radial-gradient(90% 90% at 50% 90%, rgba(245, 158, 11, 0.2), transparent 65%)
+);
+
+$aurora-typography: (
+  'sans': 'Inter, Plus Jakarta Sans, system-ui, sans-serif',
+  'display': 'Switzer, Inter, system-ui, sans-serif'
+);
+
+@function aurora-token($map, $token) {
+  @return map-get($map, $token);
+}
