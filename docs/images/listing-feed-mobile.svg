@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1280" viewBox="0 0 720 1280">
+  <style>
+    .bg { fill: #0f172a; }
+    .screen { fill: #f8fafc; stroke: #1e293b; stroke-width: 18; rx: 48; }
+    .card { fill: #ffffff; stroke: #cbd5f5; stroke-width: 4; rx: 28; }
+    .badge { fill: #16a34a; rx: 14; }
+    .badge-text { font: 24px 'Segoe UI', sans-serif; fill: #f8fafc; font-weight: 600; }
+    .title { font: 32px 'Segoe UI', sans-serif; fill: #0f172a; font-weight: 600; }
+    .body { font: 22px 'Segoe UI', sans-serif; fill: #475569; }
+    .cta { fill: #22c55e; rx: 20; }
+    .cta-text { font: 26px 'Segoe UI', sans-serif; fill: #f8fafc; font-weight: 600; }
+  </style>
+  <rect class="bg" width="720" height="1280" />
+  <rect class="screen" x="70" y="90" width="580" height="1100" />
+  <text x="120" y="190" class="title">Borrowdale rentals</text>
+  <text x="120" y="230" class="body">Filters: 3 bedrooms · $500 cap · Promo boost</text>
+  <g transform="translate(120 260)">
+    <rect class="card" width="480" height="300" />
+    <rect fill="#dbeafe" x="0" y="0" width="480" height="160" rx="28" />
+    <rect class="badge" x="24" y="24" width="160" height="48" />
+    <text x="44" y="58" class="badge-text">Verified ✅</text>
+    <text x="32" y="210" class="title">Garden flat · $480</text>
+    <text x="32" y="250" class="body">Borrowdale Brooke · 3 beds · WhatsApp tours available</text>
+  </g>
+  <g transform="translate(120 600)">
+    <rect class="card" width="480" height="300" />
+    <rect fill="#fee2e2" x="0" y="0" width="480" height="160" rx="28" />
+    <rect class="badge" x="24" y="24" width="200" height="48" />
+    <text x="44" y="58" class="badge-text">Promo boost · Top</text>
+    <text x="32" y="210" class="title">Townhouse · $520</text>
+    <text x="32" y="250" class="body">Helensvale · 4 beds · Leads +34% week-on-week</text>
+  </g>
+  <rect class="cta" x="160" y="980" width="400" height="80" />
+  <text x="200" y="1033" class="cta-text">Contact via WhatsApp</text>
+</svg>
