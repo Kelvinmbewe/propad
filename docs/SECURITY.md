@@ -8,6 +8,56 @@ PropAd is built with renter safety and fee-free access in mind. The following co
 - **JWT** secures API endpoints with a 15-minute access token.
 - **RBAC** roles (`ADMIN`, `VERIFIER`, `AGENT`, `LANDLORD`, `USER`) restrict sensitive routes using Nest guards and client-side helpers.
 
+### RBAC matrix (API surface)
+
+| Capability | Admin | Verifier | Agent | Landlord | Public/User |
+| --- | --- | --- | --- | --- | --- |
+| Login / refresh (`/auth/*`) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Metrics dashboard | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Create/update properties | ✅ | ❌ | ✅ (own) | ✅ (own) | ❌ |
+| Submit for verification | ✅ | ❌ | ✅ (own) | ✅ (own) | ❌ |
+| Verification queue & decisions | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Reward event creation | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Reward history (self) | ✅ | ❌ | ✅ | ❌ | ❌ |
+| Promo creation | ✅ | ❌ | ✅ | ❌ | ❌ |
+| Promo activation / rebates | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Lead analytics | ✅ | ❌ | ✅ | ❌ | ❌ |
+| Payout request | ✅ | ❌ | ✅ (self) | ❌ | ❌ |
+| Payout approval / mark paid | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Admin strikes, exports, feature flags | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Ads, shortlinks, WhatsApp inbound | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Health probe | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+Role enforcement is centralised via `JwtAuthGuard` and `RolesGuard`, with decorators ensuring compile-time discoverability.
+
+## Rate limiting
+
+- **Global throttle:** `ThrottlerModule` configured at `ttl=60s`, `limit=120` requests per key.
+- **Key derivation:** `RateLimitGuard` hashes the caller’s IP (`x-forwarded-for` aware) plus authenticated user ID, providing stricter limits for multi-login abuse.
+- **Burst mitigation:** Sensitive POST routes (auth, leads, ads) inherit the same guard; adjust per-route throttles with `@SkipThrottle()` or custom metadata when needed.
+
+## Banned phrases & policy strikes
+
+- **Trigger phrases:** Listings are scanned for banned fee language such as “viewing fee”, “tenant registration fee”, and excessive commission claims. The policy engine (planned for integration with the listings service) raises `PolicyStrike` records with reasons mapped to the Prisma enum: `VIEWING_FEE`, `SCAM`, `MISREPRESENTATION`.
+- **Strike actions:** Admins can issue manual strikes via `POST /admin/strikes`, recording severity, notes, and reason. Strikes increase the agent’s `strikesCount` and surface in the admin backlog.
+- **Content hygiene:** Seed data includes sample strikes to validate dashboards; future work involves integrating NLP classifiers to expand the banned phrase list and escalate repeat offenders.
+
+## Audit logging coverage
+
+Audit trails are persisted through `AuditService`, invoked by the following modules:
+
+| Domain | Events logged |
+| --- | --- |
+| Properties | `property.create`, `property.update`, `property.delete`, `property.submitForVerification`, media upload signing |
+| Verifications | `verification.approve`, `verification.reject` (with verification IDs & outcomes) |
+| Admin | `admin.strike`, `admin.featureFlag` |
+| Rewards | `reward.create` |
+| Promos | `promo.create`, `promo.activate`, `promo.rebate` |
+| Leads | `lead.create`, `lead.statusChange` |
+| Payouts | `payout.request`, `payout.approve`, `payout.markPaid`, `payout.webhook` |
+
+Each log captures `actorId` when available, target identifiers, and contextual metadata for forensic analysis.
+
 ## Data protection
 
 - **PostgreSQL** stores application data; Prisma migrations provide schema auditing.

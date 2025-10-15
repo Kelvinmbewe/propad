@@ -35,6 +35,85 @@ Forms rely on `react-hook-form` + `zod` for type-safe validation. RBAC is enforc
 
 Prisma models encode key domain entities: `User`, `Listing`, `Verification`, `RewardPool`, and `AuditLog`. Role enums enforce RBAC across both frontend and backend.
 
+## System diagrams
+
+### Listing verification flow
+
+```mermaid
+flowchart LR
+  A[Agent/Landlord drafts listing in PWA] --> B[Submit for verification]
+  B -->|POST /properties/:id/submit| C[Property status = PENDING_VERIFY]
+  C --> D[Verifier queue (GET /verifications/queue)]
+  D -->|Approve| E[Create Verification PASS]
+  D -->|Reject| F[Create Verification FAIL]
+  E --> G[Property marked VERIFIED + verifiedAt timestamp]
+  F --> H[Property archived & strike review]
+  E & F --> I[Audit log entry (verification.*)]
+  G --> J[Listing promoted to public feed/search]
+```
+
+### Rewards lifecycle
+
+```mermaid
+sequenceDiagram
+  participant Agent
+  participant API
+  participant RewardsSvc as Rewards Service
+  participant Admin
+  participant Payouts
+
+  Agent->>API: Submit verified listing / lead
+  API->>RewardsSvc: createRewardEvent({type, points, usdCents})
+  RewardsSvc->>RewardsSvc: Aggregate totals & leaderboards
+  RewardsSvc-->>Agent: Dashboard monthly estimate
+  Admin->>Payouts: POST /payouts/:id/approve
+  Payouts->>RewardsSvc: Log payout.adjust event (audit)
+  Payouts-->>Agent: Status updates (pending → paid)
+```
+
+### Promo boost workflow
+
+```mermaid
+flowchart TD
+  Agent[Agent purchases boost] -->|POST /promos| CreatePromo[Create promoBoost record]
+  CreatePromo --> AuditPromo[Audit log promo.create]
+  CreatePromo --> Pending[Scheduled start/end windows]
+  Pending -->|POST /promos/:id/activate| ActivatePromo[Update startAt/endAt]
+  ActivatePromo --> Sorting[Suburb sorting enriches search order]
+  Sorting --> Metrics[Metrics dashboard reflects promo lift]
+  ActivatePromo -->|POST /promos/:id/rebate| Rebate[Log rebate + audit metadata]
+```
+
+### Meta funnels
+
+```mermaid
+flowchart LR
+  Listings[Listings API] --> WebPWA[PWA]
+  Listings --> WhatsAppBot[WhatsApp bot]
+  Listings --> FacebookPoster[Facebook auto-poster]
+  WhatsAppBot --> Shortlinks[Shortlinks service]
+  FacebookPoster --> Shortlinks
+  Shortlinks --> Leads[Leads tracking]
+  Leads --> Metrics[Unified funnel analytics]
+  WebPWA --> Leads
+  Leads --> Rewards[Reward scoring for agents]
+```
+
+### PWA caching strategy
+
+```mermaid
+stateDiagram-v2
+  [*] --> Install
+  Install --> CacheShell: caches.open('propad-offline-v1')
+  CacheShell --> Idle
+  Idle --> Fetch: network request intercepted
+  Fetch --> ServeCached: match found in cache
+  ServeCached --> Idle
+  Fetch --> FetchNetwork: fallback to network
+  FetchNetwork --> CacheUpdate: optionally cache new response
+  CacheUpdate --> Idle
+```
+
 ## Future enhancements
 
 - Implement Prometheus metrics exporter for API performance insights.
