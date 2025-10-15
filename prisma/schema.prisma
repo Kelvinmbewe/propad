@@ -66,6 +66,35 @@ enum LeadStatus {
   CLOSED
 }
 
+enum AgencyMemberRole {
+  OWNER
+  MANAGER
+  AGENT
+}
+
+enum AgencyStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum ManagementContractScope {
+  LETTING_ONLY
+  FULL_MANAGEMENT
+}
+
+enum ManagementFeeType {
+  FLAT
+  PERCENT
+}
+
+enum ManagementContractStatus {
+  DRAFT
+  ACTIVE
+  ENDED
+  TERMINATED
+}
+
 enum RewardEventType {
   LISTING_VERIFIED
   LEAD_VALID
@@ -159,6 +188,8 @@ model User {
   sentMessages        PropertyMessage[]    @relation("MessageSender")
   receivedMessages    PropertyMessage[]    @relation("MessageRecipient")
   dealConfirmations   Property[]           @relation("PropertyDealConfirmer")
+  agencyMemberships   AgencyMember[]
+  landlordContracts   ManagementContract[] @relation("LandlordManagementContracts")
 }
 
 model AgentProfile {
@@ -181,10 +212,68 @@ model LandlordProfile {
   user User @relation(fields: [userId], references: [id])
 }
 
+model Agency {
+  id        String        @id @default(cuid())
+  name      String
+  licenseNo String?
+  email     String?
+  phone     String?
+  address   String?
+  logoUrl   String?
+  kycStatus String?
+  status    AgencyStatus  @default(PENDING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  members    AgencyMember[]
+  contracts  ManagementContract[]
+  properties Property[]
+
+  @@index([status])
+  @@index([name])
+}
+
+model AgencyMember {
+  id        String           @id @default(cuid())
+  agencyId  String
+  userId    String
+  role      AgencyMemberRole
+  joinedAt  DateTime         @default(now())
+  isActive  Boolean          @default(true)
+
+  agency Agency @relation(fields: [agencyId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([agencyId, userId])
+  @@index([userId, role])
+}
+
+model ManagementContract {
+  id         String                     @id @default(cuid())
+  agencyId   String
+  landlordId String
+  startAt    DateTime
+  endAt      DateTime?
+  scope      ManagementContractScope
+  feeType    ManagementFeeType
+  feeValue   Decimal                    @db.Decimal(12, 2)
+  notes      String?
+  status     ManagementContractStatus   @default(DRAFT)
+  createdAt  DateTime                   @default(now())
+  updatedAt  DateTime                   @updatedAt
+
+  agency   Agency @relation(fields: [agencyId], references: [id])
+  landlord User   @relation("LandlordManagementContracts", fields: [landlordId], references: [id])
+
+  @@index([agencyId, status])
+  @@index([landlordId])
+}
+
 model Property {
   id           String         @id @default(cuid())
   landlordId   String?
   agentOwnerId String?
+  agencyId     String?
   type         PropertyType
   currency     Currency
   price        Decimal        @db.Decimal(12, 2)
@@ -202,9 +291,11 @@ model Property {
   verifiedAt   DateTime?
   dealConfirmedAt DateTime?
   dealConfirmedById String?
+  isManaged   Boolean        @default(false)
 
   landlord     User?           @relation("LandlordProperties", fields: [landlordId], references: [id])
   agentOwner   User?           @relation("AgentOwnerProperties", fields: [agentOwnerId], references: [id])
+  agency       Agency?         @relation(fields: [agencyId], references: [id])
   dealConfirmedBy User?        @relation("PropertyDealConfirmer", fields: [dealConfirmedById], references: [id])
   media        PropertyMedia[]
   verifications Verification[]
@@ -220,6 +311,8 @@ model Property {
   @@index([verifiedAt])
   @@index([dealConfirmedAt])
   @@index([createdAt(sort: Desc)])
+  @@index([agencyId])
+  @@index([isManaged])
 }
 
 model AgentAssignment {
