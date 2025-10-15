@@ -16,10 +16,17 @@ export const env = createEnv({
     S3_ACCESS_KEY: z.string(),
     S3_SECRET_KEY: z.string(),
     S3_ENDPOINT: z.string().url(),
-    S3_BUCKET: z.string().min(1)
+    S3_BUCKET: z.string().min(1),
+    FACEBOOK_PAGE_ID: z.string().optional(),
+    FACEBOOK_ACCESS_TOKEN: z.string().optional(),
+    WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+    WHATSAPP_ACCESS_TOKEN: z.string().optional()
   },
   client: {
-    NEXT_PUBLIC_API_BASE_URL: z.string().url()
+    NEXT_PUBLIC_API_BASE_URL: z.string().url(),
+    NEXT_PUBLIC_ADSENSE_CLIENT_ID: z.string().optional(),
+    NEXT_PUBLIC_ADSENSE_FEED_SLOT: z.string().optional(),
+    NEXT_PUBLIC_ADSENSE_LISTING_SLOT: z.string().optional()
   },
   runtimeEnv: {
     PORT: process.env.PORT,
@@ -36,6 +43,13 @@ export const env = createEnv({
     S3_SECRET_KEY: process.env.S3_SECRET_KEY,
     S3_ENDPOINT: process.env.S3_ENDPOINT,
     S3_BUCKET: process.env.S3_BUCKET,
-    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL
+    FACEBOOK_PAGE_ID: process.env.FACEBOOK_PAGE_ID,
+    FACEBOOK_ACCESS_TOKEN: process.env.FACEBOOK_ACCESS_TOKEN,
+    WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID,
+    WHATSAPP_ACCESS_TOKEN: process.env.WHATSAPP_ACCESS_TOKEN,
+    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
+    NEXT_PUBLIC_ADSENSE_CLIENT_ID: process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID,
+    NEXT_PUBLIC_ADSENSE_FEED_SLOT: process.env.NEXT_PUBLIC_ADSENSE_FEED_SLOT,
+    NEXT_PUBLIC_ADSENSE_LISTING_SLOT: process.env.NEXT_PUBLIC_ADSENSE_LISTING_SLOT
   }
 });
