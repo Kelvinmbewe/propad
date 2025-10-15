@@ -1,11 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import { InvoiceStatus, PayoutStatus } from '@prisma/client';
+import {
+  InvoiceStatus,
+  PaymentGateway,
+  PaymentIntentStatus,
+  PayoutStatus,
+  TransactionResult
+} from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateStrikeDto } from './dto/create-strike.dto';
 import { UpdateFeatureFlagDto } from './dto/update-feature-flag.dto';
 import { PaymentsService } from '../payments/payments.service';
 import { MarkInvoicePaidDto } from './dto/mark-invoice-paid.dto';
+import { ListPaymentIntentsDto } from './dto/list-payment-intents.dto';
+import { ListTransactionsDto } from './dto/list-transactions.dto';
+import { CreateFxRateDto } from './dto/create-fx-rate.dto';
 
 @Injectable()
 export class AdminService {
@@ -137,6 +146,72 @@ export class AdminService {
     return this.toCsv(simplified);
   }
 
+  listPaymentIntents(filters: ListPaymentIntentsDto) {
+    return this.prisma.paymentIntent.findMany({
+      where: {
+        status: filters.status ?? undefined,
+        gateway: filters.gateway ?? undefined,
+        invoiceId: filters.invoiceId ?? undefined
+      },
+      include: {
+        invoice: { select: { id: true, invoiceNo: true, status: true, currency: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200
+    });
+  }
+
+  async exportPaymentIntentsCsv(filters: ListPaymentIntentsDto) {
+    const intents = await this.listPaymentIntents(filters);
+    const simplified = intents.map((intent) => ({
+      id: intent.id,
+      invoiceId: intent.invoiceId,
+      invoiceNo: intent.invoice?.invoiceNo ?? intent.invoice?.id ?? intent.invoiceId,
+      gateway: intent.gateway,
+      status: intent.status,
+      amountCents: intent.amountCents,
+      currency: intent.currency,
+      reference: intent.reference,
+      createdAt: intent.createdAt
+    }));
+
+    return this.toCsv(simplified);
+  }
+
+  listTransactions(filters: ListTransactionsDto) {
+    return this.prisma.transaction.findMany({
+      where: {
+        result: filters.result ?? undefined,
+        gateway: filters.gateway ?? undefined,
+        invoiceId: filters.invoiceId ?? undefined
+      },
+      include: {
+        invoice: { select: { id: true, invoiceNo: true, status: true, currency: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200
+    });
+  }
+
+  async exportTransactionsCsv(filters: ListTransactionsDto) {
+    const transactions = await this.listTransactions(filters);
+    const simplified = transactions.map((tx) => ({
+      id: tx.id,
+      invoiceId: tx.invoiceId,
+      invoiceNo: tx.invoice?.invoiceNo ?? tx.invoice?.id ?? tx.invoiceId,
+      gateway: tx.gateway,
+      result: tx.result,
+      amountCents: tx.amountCents,
+      netCents: tx.netCents,
+      feeCents: tx.feeCents,
+      currency: tx.currency,
+      externalRef: tx.externalRef,
+      createdAt: tx.createdAt
+    }));
+
+    return this.toCsv(simplified);
+  }
+
   markInvoicePaid(id: string, dto: MarkInvoicePaidDto, actorId: string) {
     return this.payments.markInvoicePaidOffline({
       invoiceId: id,
@@ -145,6 +220,44 @@ export class AdminService {
       paidAt: dto.paidAt,
       actorId
     });
+  }
+
+  async createFxRate(dto: CreateFxRateDto, actorId: string) {
+    const effectiveDate = new Date(dto.effectiveDate);
+    effectiveDate.setUTCHours(0, 0, 0, 0);
+    const rateMicros = Math.round(dto.rate * 1_000_000);
+
+    const fxRate = await this.prisma.fxRate.upsert({
+      where: {
+        base_quote_date: {
+          base: dto.base,
+          quote: dto.quote,
+          date: effectiveDate
+        }
+      },
+      update: { rateMicros },
+      create: {
+        base: dto.base,
+        quote: dto.quote,
+        rateMicros,
+        date: effectiveDate
+      }
+    });
+
+    await this.audit.log({
+      action: 'admin.fxRate.upsert',
+      actorId,
+      targetType: 'fxRate',
+      targetId: fxRate.id,
+      metadata: {
+        base: dto.base,
+        quote: dto.quote,
+        rate: dto.rate,
+        effectiveDate: effectiveDate.toISOString()
+      }
+    });
+
+    return fxRate;
   }
 
   private toCsv(records: any[]) {

@@ -15,6 +15,7 @@ import {
   type Suburb
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import type { ListPendingGeoDto } from './dto/list-pending-geo.dto';
 import { ZIMBABWE_SEED } from './suburbs.data';
 
 type LocationInput = {
@@ -45,6 +46,22 @@ interface SearchResult<T extends GeoLevel> {
 @Injectable()
 export class GeoService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
+
+  listPending({ level, status, search }: ListPendingGeoDto) {
+    return this.prisma.pendingGeo.findMany({
+      where: {
+        level: level ?? undefined,
+        status: status ?? PendingGeoStatus.PENDING,
+        proposedName: search ? { contains: search, mode: 'insensitive' } : undefined
+      },
+      include: {
+        proposedBy: { select: { id: true, name: true, email: true } },
+        properties: { select: { id: true } }
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 100
+    });
+  }
 
   async onModuleInit() {
     await this.ensureSeedData();

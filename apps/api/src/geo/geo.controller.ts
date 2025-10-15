@@ -15,6 +15,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { GeoService } from './geo.service';
 import { CreatePendingGeoDto } from './dto/create-pending-geo.dto';
+import { ListPendingGeoDto, listPendingGeoSchema } from './dto/list-pending-geo.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -69,6 +70,13 @@ export class GeoController {
     @Body() dto: CreatePendingGeoDto
   ) {
     return this.geoService.createPending(dto.level, dto.proposedName, req.user.userId, dto.parentId);
+  }
+
+  @Get('pending')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  listPending(@Query(new ZodValidationPipe(listPendingGeoSchema)) query: ListPendingGeoDto) {
+    return this.geoService.listPending(query);
   }
 
   @Post('pending/:id/approve')

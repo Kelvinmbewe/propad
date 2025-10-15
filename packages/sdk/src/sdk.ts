@@ -3,26 +3,46 @@ import {
   AdImpressionSchema,
   AgentAssignmentSchema,
   AgentSummarySchema,
+  AmlBlocklistEntrySchema,
   DashboardMetricsSchema,
   FacebookPublishResponseSchema,
+  GeoSearchResultSchema,
+  InvoiceSchema,
+  KycRecordSchema,
+  PaymentIntentSchema,
+  PendingGeoSchema,
   PropertyManagementSchema,
   PropertyMessageSchema,
   PropertySchema,
   PropertySearchResultSchema,
+  PayoutAccountSchema,
+  PayoutRequestSchema,
   ShortLinkSchema,
+  TransactionSchema,
+  WalletThresholdSchema,
   WhatsAppResponseSchema,
   GeoSuburbSchema,
   type AdImpression,
   type AgentAssignment,
   type AgentSummary,
+  type AmlBlocklistEntry,
   type DashboardMetrics,
+  type GeoSearchResult,
+  type Invoice,
+  type KycRecord,
+  type PaymentIntent,
+  type PendingGeo,
   type GeoSuburb,
   type FacebookPublishResponse,
+  type PayoutAccount,
+  type PayoutRequest,
   type Property,
   type PropertyManagement,
   type PropertyMessage,
   type PropertySearchResult,
   type ShortLink,
+  type Transaction,
+  type WalletThreshold,
   type WhatsAppResponse
 } from './schemas';
 
@@ -36,6 +56,17 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
     prefixUrl: baseUrl,
     headers: token ? { Authorization: `Bearer ${token}` } : undefined
   });
+
+  const buildSearchParams = (params: Record<string, string | number | boolean | undefined>) => {
+    const searchParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null) {
+        return;
+      }
+      searchParams.set(key, String(value));
+    });
+    return searchParams;
+  };
 
   return {
     metrics: {
@@ -143,7 +174,28 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         client
           .get('geo/suburbs')
           .json<GeoSuburb[]>()
-          .then((data) => GeoSuburbSchema.array().parse(data))
+          .then((data) => GeoSuburbSchema.array().parse(data)),
+      listPending: async (params: { level?: string; status?: string; search?: string } = {}) => {
+        const searchParams = buildSearchParams({
+          level: params.level,
+          status: params.status,
+          search: params.search
+        });
+        return client
+          .get('geo/pending', { searchParams })
+          .json<PendingGeo[]>()
+          .then((data) => PendingGeoSchema.array().parse(data));
+      },
+      approvePending: async (id: string) =>
+        client.post(`geo/pending/${id}/approve`).json<unknown>(),
+      rejectPending: async (id: string) => client.post(`geo/pending/${id}/reject`).json<unknown>(),
+      mergePending: async (id: string, targetId: string) =>
+        client.post(`geo/pending/${id}/merge`, { json: { targetId } }).json<unknown>(),
+      search: async (query: string) =>
+        client
+          .get('geo/search', { searchParams: buildSearchParams({ q: query }) })
+          .json<GeoSearchResult[]>()
+          .then((data) => GeoSearchResultSchema.array().parse(data))
     },
     ads: {
       logImpression: async (payload: {
@@ -204,6 +256,200 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .post('facebook/publish', { json: payload })
           .json<FacebookPublishResponse>()
           .then((data) => FacebookPublishResponseSchema.parse(data))
+    },
+    admin: {
+      invoices: {
+        list: async (params: { status?: string } = {}) =>
+          client
+            .get('admin/invoices', { searchParams: buildSearchParams({ status: params.status }) })
+            .json<Invoice[]>()
+            .then((data) => InvoiceSchema.array().parse(data)),
+        export: async (params: { status?: string } = {}) =>
+          client
+            .get('admin/exports/invoices', {
+              searchParams: buildSearchParams({ status: params.status })
+            })
+            .text(),
+        markPaid: async (
+          id: string,
+          payload: { amountCents: number; notes?: string; paidAt: string | Date }
+        ) => {
+          const json = {
+            amountCents: payload.amountCents,
+            notes: payload.notes,
+            paidAt: typeof payload.paidAt === 'string' ? payload.paidAt : payload.paidAt.toISOString()
+          };
+          return client
+            .post(`admin/invoices/${id}/mark-paid`, { json })
+            .json<Invoice>()
+            .then((data) => InvoiceSchema.parse(data));
+        }
+      },
+      paymentIntents: {
+        list: async (
+          params: { status?: string; gateway?: string; invoiceId?: string } = {}
+        ) =>
+          client
+            .get('admin/payment-intents', {
+              searchParams: buildSearchParams({
+                status: params.status,
+                gateway: params.gateway,
+                invoiceId: params.invoiceId
+              })
+            })
+            .json<PaymentIntent[]>()
+            .then((data) => PaymentIntentSchema.array().parse(data)),
+        export: async (
+          params: { status?: string; gateway?: string; invoiceId?: string } = {}
+        ) =>
+          client
+            .get('admin/exports/payment-intents', {
+              searchParams: buildSearchParams({
+                status: params.status,
+                gateway: params.gateway,
+                invoiceId: params.invoiceId
+              })
+            })
+            .text()
+      },
+      transactions: {
+        list: async (
+          params: { result?: string; gateway?: string; invoiceId?: string } = {}
+        ) =>
+          client
+            .get('admin/transactions', {
+              searchParams: buildSearchParams({
+                result: params.result,
+                gateway: params.gateway,
+                invoiceId: params.invoiceId
+              })
+            })
+            .json<Transaction[]>()
+            .then((data) => TransactionSchema.array().parse(data)),
+        export: async (
+          params: { result?: string; gateway?: string; invoiceId?: string } = {}
+        ) =>
+          client
+            .get('admin/exports/transactions', {
+              searchParams: buildSearchParams({
+                result: params.result,
+                gateway: params.gateway,
+                invoiceId: params.invoiceId
+              })
+            })
+            .text()
+      },
+      fxRates: {
+        create: async (payload: {
+          base: string;
+          quote: string;
+          rate: number;
+          effectiveDate: string | Date;
+        }) =>
+          client
+            .post('admin/fx-rates', {
+              json: {
+                base: payload.base,
+                quote: payload.quote,
+                rate: payload.rate,
+                effectiveDate:
+                  typeof payload.effectiveDate === 'string'
+                    ? payload.effectiveDate
+                    : payload.effectiveDate.toISOString()
+              }
+            })
+            .json()
+      }
+    },
+    wallets: {
+      kyc: {
+        list: async (params: { status?: string; ownerId?: string } = {}) =>
+          client
+            .get('wallets/kyc', {
+              searchParams: buildSearchParams({ status: params.status, ownerId: params.ownerId })
+            })
+            .json<KycRecord[]>()
+            .then((data) => KycRecordSchema.array().parse(data)),
+        updateStatus: async (id: string, payload: { status: string; notes?: string }) =>
+          client
+            .post(`wallets/kyc/${id}/status`, { json: payload })
+            .json<KycRecord>()
+            .then((data) => KycRecordSchema.parse(data))
+      },
+      payoutRequests: {
+        list: async (params: { status?: string; walletId?: string } = {}) =>
+          client
+            .get('wallets/payouts', {
+              searchParams: buildSearchParams({ status: params.status, walletId: params.walletId })
+            })
+            .json<PayoutRequest[]>()
+            .then((data) => PayoutRequestSchema.array().parse(data)),
+        approve: async (
+          id: string,
+          payload: { txRef?: string; scheduledFor?: string | Date }
+        ) =>
+          client
+            .post(`wallets/payouts/${id}/approve`, {
+              json: {
+                txRef: payload.txRef,
+                scheduledFor:
+                  payload.scheduledFor && payload.scheduledFor instanceof Date
+                    ? payload.scheduledFor.toISOString()
+                    : payload.scheduledFor
+              }
+            })
+            .json<PayoutRequest>()
+            .then((data) => PayoutRequestSchema.parse(data))
+      },
+      payoutAccounts: {
+        list: async (params: { ownerId?: string; ownerType?: string; verified?: boolean } = {}) =>
+          client
+            .get('wallets/payout-accounts', {
+              searchParams: buildSearchParams({
+                ownerId: params.ownerId,
+                ownerType: params.ownerType,
+                verified: params.verified
+              })
+            })
+            .json<PayoutAccount[]>()
+            .then((data) => PayoutAccountSchema.array().parse(data)),
+        verify: async (id: string, payload: { verified: boolean }) =>
+          client
+            .post(`wallets/payout-accounts/${id}/verify`, { json: payload })
+            .json<PayoutAccount>()
+            .then((data) => PayoutAccountSchema.parse(data))
+      },
+      amlBlocklist: {
+        list: async () =>
+          client
+            .get('wallets/aml-blocklist')
+            .json<AmlBlocklistEntry[]>()
+            .then((data) => AmlBlocklistEntrySchema.array().parse(data)),
+        add: async (payload: { value: string; reason?: string }) =>
+          client
+            .post('wallets/aml-blocklist', { json: payload })
+            .json<AmlBlocklistEntry>()
+            .then((data) => AmlBlocklistEntrySchema.parse(data)),
+        remove: async (id: string) =>
+          client.delete(`wallets/aml-blocklist/${id}`).json<{ success: boolean }>()
+      },
+      thresholds: {
+        list: async () =>
+          client
+            .get('wallets/thresholds')
+            .json<WalletThreshold[]>()
+            .then((data) => WalletThresholdSchema.array().parse(data)),
+        upsert: async (payload: {
+          type: string;
+          currency: string;
+          amountCents: number;
+          note?: string;
+        }) =>
+          client
+            .post('wallets/thresholds', { json: payload })
+            .json<WalletThreshold>()
+            .then((data) => WalletThresholdSchema.parse(data))
+      }
     }
   };
 }

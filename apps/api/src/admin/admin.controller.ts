@@ -9,6 +9,9 @@ import { CreateStrikeDto, createStrikeSchema } from './dto/create-strike.dto';
 import { UpdateFeatureFlagDto, updateFeatureFlagSchema } from './dto/update-feature-flag.dto';
 import { ListInvoicesDto, listInvoicesSchema } from './dto/list-invoices.dto';
 import { MarkInvoicePaidDto, markInvoicePaidSchema } from './dto/mark-invoice-paid.dto';
+import { ListPaymentIntentsDto, listPaymentIntentsSchema } from './dto/list-payment-intents.dto';
+import { ListTransactionsDto, listTransactionsSchema } from './dto/list-transactions.dto';
+import { CreateFxRateDto, createFxRateSchema } from './dto/create-fx-rate.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -76,6 +79,32 @@ export class AdminController {
     return this.adminService.exportInvoicesCsv(query.status);
   }
 
+  @Get('payment-intents')
+  listPaymentIntents(
+    @Query(new ZodValidationPipe(listPaymentIntentsSchema)) query: ListPaymentIntentsDto
+  ) {
+    return this.adminService.listPaymentIntents(query);
+  }
+
+  @Get('exports/payment-intents')
+  @Header('Content-Type', 'text/csv')
+  exportPaymentIntents(
+    @Query(new ZodValidationPipe(listPaymentIntentsSchema)) query: ListPaymentIntentsDto
+  ) {
+    return this.adminService.exportPaymentIntentsCsv(query);
+  }
+
+  @Get('transactions')
+  listTransactions(@Query(new ZodValidationPipe(listTransactionsSchema)) query: ListTransactionsDto) {
+    return this.adminService.listTransactions(query);
+  }
+
+  @Get('exports/transactions')
+  @Header('Content-Type', 'text/csv')
+  exportTransactions(@Query(new ZodValidationPipe(listTransactionsSchema)) query: ListTransactionsDto) {
+    return this.adminService.exportTransactionsCsv(query);
+  }
+
   @Post('invoices/:id/mark-paid')
   markInvoicePaid(
     @Param('id') id: string,
@@ -83,5 +112,13 @@ export class AdminController {
     @Body(new ZodValidationPipe(markInvoicePaidSchema)) dto: MarkInvoicePaidDto
   ) {
     return this.adminService.markInvoicePaid(id, dto, req.user.userId);
+  }
+
+  @Post('fx-rates')
+  createFxRate(
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(createFxRateSchema)) dto: CreateFxRateDto
+  ) {
+    return this.adminService.createFxRate(dto, req.user.userId);
   }
 }
