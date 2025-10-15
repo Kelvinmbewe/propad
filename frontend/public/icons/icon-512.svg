@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">PropAd Zimbabwe Icon Large</title>
+  <desc id="desc">Large square icon for PropAd Zimbabwe using national colors</desc>
+  <rect width="512" height="512" rx="80" fill="#0b3d2e"/>
+  <path d="M104 332L256 164l152 168" fill="none" stroke="#f6c343" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M172 332h168v112H172z" fill="#ffffff" opacity="0.92"/>
+  <path d="M340 332h60v112h-60z" fill="#db1f26"/>
+  <path d="M104 332h60v112h-60z" fill="#009e49"/>
+  <circle cx="256" cy="272" r="34" fill="#db1f26"/>
+  <path d="M88 420h336" stroke="#f6c343" stroke-width="20" stroke-linecap="round" opacity="0.65"/>
+</svg>

@@ -1,0 +1,36 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: propad
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+  backend:
+    build:
+      context: ../backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/propad
+      SECRET_KEY: super-secret-key
+      ALLOWED_ORIGINS: '["http://localhost:5173","http://localhost:4173"]'
+    depends_on:
+      - db
+    ports:
+      - '8000:8000'
+
+  frontend:
+    build:
+      context: ../frontend
+    depends_on:
+      - backend
+    ports:
+      - '4173:80'
+
+volumes:
+  db_data:
