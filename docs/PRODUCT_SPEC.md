@@ -6,6 +6,9 @@
 - Listings may be submitted for verification, entering a queue for verifiers.
 - Verifiers can select an evaluation method (AUTO, CALL, SITE, DOCS), record the result (PASS/FAIL), and attach supporting evidence.
 - Verified properties display a ✅ badge, gain higher ranking in search results, and surface a brief verifier note to end users.
+- Location pickers support a Country → Province → City → Suburb hierarchy, enabling fully click-driven listing creation for all canonical places in the database.
+- Agents can flag missing suburbs via a "Not listed" escape hatch that routes the submission to admins.
+- Admins approve new suburb requests, promoting them to canonical locations and auto-linking the originating listing to the freshly created suburb identifier.
 
 ## Discovery & PWA Experience
 - Home feed includes filters for rent/sale, suburb, price caps, rooms, and amenities, with a map/list toggle view.
@@ -34,6 +37,11 @@
 - 30% of promo revenue, configurable via environment variables, automatically credits the reward pool.
 - Active boosts influence sorting order within the suburb and log PROMO_REBATE reward events.
 
+## Direct Ads & Billing
+- Buyers booking a Direct Ad receive an invoice that starts in the OPEN state and includes a Paynow payment link.
+- The Paynow redirect completes the hosted checkout flow, triggering a webhook that transitions the invoice to PAID and activates the related advertising campaign.
+- Once active, the campaign begins immediate ad delivery according to the purchased placement parameters.
+
 ## Admin & Verification Tools
 - Back-office queues include verification backlogs, payout approvals, and strike reviews.
 - A policy engine scans listings for banned phrases (e.g. "viewing fee", "tenant registration fee"), creating PolicyStrike records and blocking publication.
@@ -45,3 +53,8 @@
 - Management contracts connect agencies with landlords, capturing term, management scope (letting only or full management), flat or percentage fee structures, supporting notes, and contract lifecycle states.
 - When a landlord signs a management contract the associated properties reference the agency and set `isManaged = true`, unlocking portfolio dashboards, task tracking, and revenue attribution for the team.
 - Agency analytics reports include managed stock by status, lead volume, verification ratios, average days-on-market, revenue share, and payout history.
+
+## Agent Wallet & Payouts
+- Agent wallets accrue rewards from eligible events until the balance reaches a configurable payout threshold.
+- Agents can add EcoCash payout accounts and must pass KYC checks before requesting a withdrawal.
+- Payout requests equal to or greater than the threshold enter an admin approval queue; once approved the status transitions to PAID and the agent receives an emailed receipt.
