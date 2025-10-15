@@ -15,59 +15,283 @@ enum Role {
   USER
 }
 
-enum ListingStatus {
+enum PropertyType {
+  ROOM
+  COTTAGE
+  HOUSE
+  PLOT
+  SALE
+}
+
+enum Currency {
+  USD
+  ZWG
+}
+
+enum PropertyStatus {
   DRAFT
+  PENDING_VERIFY
+  VERIFIED
+  ARCHIVED
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+}
+
+enum VerificationMethod {
+  AUTO
+  CALL
+  SITE
+  DOCS
+}
+
+enum VerificationResult {
+  PASS
+  FAIL
+}
+
+enum LeadSource {
+  WEB
+  WHATSAPP
+  FACEBOOK
+  SHORTLINK
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CLOSED
+}
+
+enum RewardEventType {
+  LISTING_VERIFIED
+  LEAD_VALID
+  SALE_CONFIRMED
+  BONUS_TIER
+  PROMO_REBATE
+}
+
+enum PayoutMethod {
+  ECOCASH
+  BANK
+  WALLET
+}
+
+enum PayoutStatus {
   PENDING
-  ACTIVE
-  REJECTED
+  PAID
+  FAILED
+}
+
+enum PromoTier {
+  LITE
+  PLUS
+  TOP
+}
+
+enum PolicyStrikeReason {
+  VIEWING_FEE
+  SCAM
+  MISREPRESENTATION
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String?
-  passwordHash String?
-  role         Role     @default(USER)
-  listings     Listing[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        String   @id @default(cuid())
+  role      Role     @default(USER)
+  name      String?
+  phone     String?
+  email     String?  @unique
+  kycStatus String?
+  status    String?
+  createdAt DateTime @default(now())
+
+  agentProfile    AgentProfile?
+  landlordProfile LandlordProfile?
+  propertiesOwned Property[]      @relation("AgentOwnerProperties")
+  properties      Property[]      @relation("LandlordProperties")
+  leads           Lead[]
+  verifications   Verification[]  @relation("VerificationVerifier")
+  rewardEvents    RewardEvent[]
+  payouts         Payout[]
+  adImpressions   AdImpression[]
+  promoBoosts     PromoBoost[]
+  policyStrikes   PolicyStrike[]
 }
 
-model Listing {
-  id          String        @id @default(cuid())
-  title       String
-  description String
-  priceUsd    Decimal       @db.Numeric(10, 2)
-  status      ListingStatus @default(PENDING)
-  ownerId     String
-  owner       User          @relation(fields: [ownerId], references: [id])
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+model AgentProfile {
+  userId                String @id
+  bio                   String?
+  rating                Float  @default(0)
+  verifiedListingsCount Int    @default(0)
+  leadsCount            Int    @default(0)
+  strikesCount          Int    @default(0)
+  kycStatus             String?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model LandlordProfile {
+  userId      String   @id
+  companyName String?
+  verifiedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Property {
+  id           String         @id @default(cuid())
+  landlordId   String?
+  agentOwnerId String?
+  type         PropertyType
+  currency     Currency
+  price        Decimal        @db.Decimal(12, 2)
+  city         String
+  suburb       String?
+  latitude     Float?
+  longitude    Float?
+  bedrooms     Int?
+  bathrooms    Int?
+  amenities    String[]       @default([])
+  description  String?
+  status       PropertyStatus @default(DRAFT)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  verifiedAt   DateTime?
+
+  landlord     User?           @relation("LandlordProperties", fields: [landlordId], references: [id])
+  agentOwner   User?           @relation("AgentOwnerProperties", fields: [agentOwnerId], references: [id])
+  media        PropertyMedia[]
+  verifications Verification[]
+  leads        Lead[]
+  adImpressions AdImpression[]
+  promoBoosts  PromoBoost[]
+
+  @@index([status])
+  @@index([city, suburb])
+  @@index([price])
+  @@index([verifiedAt])
+  @@index([createdAt(sort: Desc)])
+}
+
+model PropertyMedia {
+  id         String  @id @default(cuid())
+  propertyId String
+  url        String
+  kind       MediaKind
+  exifJson   Json?
+  hasGps     Boolean
+  shotAt     DateTime?
+
+  property Property @relation(fields: [propertyId], references: [id])
 }
 
 model Verification {
-  id        String   @id @default(cuid())
-  listing   Listing  @relation(fields: [listingId], references: [id])
-  listingId String   @unique
-  verifier  User?    @relation(fields: [verifierId], references: [id])
-  verifierId String?
-  status    String   @default("PENDING")
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String               @id @default(cuid())
+  propertyId  String
+  verifierId  String?
+  method      VerificationMethod
+  result      VerificationResult
+  notes       String?
+  evidenceUrl String?
+  createdAt   DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id])
+  verifier User?    @relation("VerificationVerifier", fields: [verifierId], references: [id])
 }
 
-model RewardPool {
-  id         String   @id @default(cuid())
-  balanceUsd Float    @default(0)
-  createdAt  DateTime @default(now())
+model Lead {
+  id           String     @id @default(cuid())
+  propertyId   String
+  userId       String?
+  source       LeadSource
+  channelRef   String?
+  contactPhone String
+  status       LeadStatus @default(NEW)
+  createdAt    DateTime   @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id])
+  user     User?    @relation(fields: [userId], references: [id])
+
+  @@index([propertyId, source])
+  @@index([createdAt(sort: Desc)])
 }
 
-model AuditLog {
-  id        String   @id @default(cuid())
-  actorId   String?
-  actor     User?    @relation(fields: [actorId], references: [id])
-  action    String
-  payload   Json
+model RewardEvent {
+  id        String           @id @default(cuid())
+  agentId   String
+  type      RewardEventType
+  points    Int
+  usdCents  Int
+  refId     String?
   createdAt DateTime @default(now())
+
+  agent User @relation(fields: [agentId], references: [id])
+
+  @@index([agentId, createdAt(sort: Desc)])
+}
+
+model Payout {
+  id             String        @id @default(cuid())
+  agentId        String
+  amountUsdCents Int
+  method         PayoutMethod
+  status         PayoutStatus @default(PENDING)
+  txRef          String?
+  createdAt      DateTime @default(now())
+
+  agent User @relation(fields: [agentId], references: [id])
+}
+
+model AdImpression {
+  id            String   @id @default(cuid())
+  propertyId    String?
+  userId        String?
+  route         String
+  source        String?
+  sessionId     String
+  revenueMicros Int
+  createdAt     DateTime @default(now())
+
+  property Property? @relation(fields: [propertyId], references: [id])
+  user     User?     @relation(fields: [userId], references: [id])
+}
+
+model PromoBoost {
+  id         String    @id @default(cuid())
+  agentId    String
+  propertyId String
+  tier       PromoTier
+  startAt    DateTime
+  endAt      DateTime
+  usdCents   Int
+
+  agent    User     @relation(fields: [agentId], references: [id])
+  property Property @relation(fields: [propertyId], references: [id])
+
+  @@index([propertyId, startAt, endAt])
+}
+
+model ShortLink {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  targetUrl   String
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  clicks      Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model PolicyStrike {
+  id        String              @id @default(cuid())
+  agentId   String
+  reason    PolicyStrikeReason
+  severity  Int
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  agent User @relation(fields: [agentId], references: [id])
 }
