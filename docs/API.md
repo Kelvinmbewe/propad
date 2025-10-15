@@ -562,6 +562,38 @@ Request:
 }
 ```
 
+## Payments
+
+### `GET /payments/methods`
+- **Access:** `AGENT`, `LANDLORD`, `USER`
+- **Description:** Lists saved payment methods for the authenticated buyer, including default flag, status, and recurring consent timestamp.
+
+### `POST /payments/methods`
+- **Access:** `AGENT`, `LANDLORD`, `USER`
+- **Description:** Registers a new payment method (card, EcoCash, or bank). Supports optional recurring billing consent capture.
+
+Request:
+```json
+{
+  "type": "ECOCASH",
+  "gatewayRef": "+263771234567",
+  "isDefault": true,
+  "recurringConsent": true
+}
+```
+
+### `POST /payments/methods/:id/default`
+- **Access:** `AGENT`, `LANDLORD`, `USER`
+- **Description:** Marks the specified active payment method as the default for recurring charges.
+
+### `POST /payments/methods/:id/consent`
+- **Access:** `AGENT`, `LANDLORD`, `USER`
+- **Description:** Updates recurring billing consent for the payment method (`{ "consent": true | false }`). When enabled, the consent timestamp is recorded.
+
+### `POST /payments/methods/:id/status`
+- **Access:** `ADMIN`
+- **Description:** Transitions a payment method to a new status (`ACTIVE`, `INACTIVE`, `BLOCKED`, `REVOKED`) while logging the actor and reason.
+
 ## Admin
 
 All endpoints restricted to `ADMIN` role.

@@ -16,10 +16,28 @@ import { env } from '@propad/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PaymentGatewayRegistry } from './payment-gateway.registry';
+import { MailService } from '../mail/mail.service';
 
 const VAT_SCALE = 100;
 
 type PrismaTx = Prisma.TransactionClient;
+
+type InvoiceWithRelations = Invoice & {
+  lines: InvoiceLine[];
+  buyerUser?: { name?: string | null; email?: string | null } | null;
+  buyerAgency?: { name: string; email?: string | null } | null;
+  promoBoost?: { id: string; startAt: Date; endAt: Date } | null;
+  campaign?: { id: string; status: string; startAt: Date; flights: { id: string; placementId: string }[] } | null;
+};
+
+type TransactionSummary = {
+  id: string;
+  amountCents: number;
+  currency: Currency;
+  externalRef: string;
+  gateway: PaymentGateway;
+  createdAt: Date;
+};
 
 type InvoiceLineInput = {
   sku: string;
@@ -63,7 +81,8 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly registry: PaymentGatewayRegistry
+    private readonly registry: PaymentGatewayRegistry,
+    private readonly mail: MailService
   ) {}
 
   async createInvoice(options: CreateInvoiceOptions, tx?: PrismaTx) {
@@ -203,6 +222,8 @@ export class PaymentsService {
       throw new NotFoundException('Payment intent for webhook not found');
     }
 
+    let receiptContext: { invoice: InvoiceWithRelations; transaction: TransactionSummary } | null = null;
+
     await this.prisma.$transaction(async (tx) => {
       await tx.paymentIntent.update({
         where: { id: intent.id },
@@ -212,7 +233,7 @@ export class PaymentsService {
         }
       });
 
-      await tx.transaction.create({
+      const transaction = await tx.transaction.create({
         data: {
           invoiceId: intent.invoiceId,
           gateway: intent.gateway,
@@ -227,9 +248,24 @@ export class PaymentsService {
       });
 
       if (result.success) {
-        await this.finalizeInvoice(tx, intent.invoice);
+        const updatedInvoice = await this.finalizeInvoice(tx, intent.invoice);
+        receiptContext = {
+          invoice: updatedInvoice,
+          transaction: {
+            id: transaction.id,
+            amountCents: transaction.amountCents,
+            currency: transaction.currency,
+            externalRef: transaction.externalRef,
+            gateway: transaction.gateway,
+            createdAt: transaction.createdAt
+          }
+        };
       }
     });
+
+    if (receiptContext) {
+      await this.deliverPaymentReceipt(receiptContext.invoice, receiptContext.transaction);
+    }
   }
 
   async markInvoicePaidOffline(options: OfflinePaymentOptions) {
@@ -258,8 +294,10 @@ export class PaymentsService {
 
     const paidAt = options.paidAt ?? new Date();
 
+    let receiptContext: { invoice: InvoiceWithRelations; transaction: TransactionSummary } | null = null;
+
     await this.prisma.$transaction(async (tx) => {
-      await tx.transaction.create({
+      const transaction = await tx.transaction.create({
         data: {
           invoiceId: invoice.id,
           gateway: PaymentGateway.OFFLINE,
@@ -273,7 +311,18 @@ export class PaymentsService {
         }
       });
 
-      await this.finalizeInvoice(tx, invoice);
+      const updatedInvoice = await this.finalizeInvoice(tx, invoice);
+      receiptContext = {
+        invoice: updatedInvoice,
+        transaction: {
+          id: transaction.id,
+          amountCents: transaction.amountCents,
+          currency: transaction.currency,
+          externalRef: transaction.externalRef,
+          gateway: transaction.gateway,
+          createdAt: transaction.createdAt
+        }
+      };
     });
 
     await this.audit.log({
@@ -284,31 +333,35 @@ export class PaymentsService {
       metadata: { amountCents: options.amountCents, notes: options.notes }
     });
 
+    if (receiptContext) {
+      await this.deliverPaymentReceipt(receiptContext.invoice, receiptContext.transaction);
+      return receiptContext.invoice;
+    }
+
     return this.prisma.invoice.findUnique({ where: { id: invoice.id }, include: { lines: true } });
   }
 
-  private async finalizeInvoice(tx: PrismaTx, invoice: Invoice & {
-    lines: InvoiceLine[];
-    buyerUser?: { name?: string | null; email?: string | null } | null;
-    buyerAgency?: { name: string } | null;
-    promoBoost?: { id: string; startAt: Date; endAt: Date } | null;
-    campaign?: { id: string; status: string; startAt: Date; flights: { id: string; placementId: string }[] } | null;
-  }) {
+  private async finalizeInvoice(tx: PrismaTx, invoice: InvoiceWithRelations) {
     if (invoice.status === InvoiceStatus.PAID) {
-      return;
+      return invoice;
     }
 
     const issuedAt = new Date();
     const invoiceNo = invoice.invoiceNo ?? this.generateInvoiceNumber(invoice, issuedAt);
     const pdfUrl = await this.generateInvoicePdf({ ...invoice, invoiceNo, issuedAt });
 
-    await tx.invoice.update({
+    const updated = await tx.invoice.update({
       where: { id: invoice.id },
       data: {
         status: InvoiceStatus.PAID,
         issuedAt,
         invoiceNo,
         pdfUrl
+      },
+      include: {
+        lines: true,
+        buyerUser: true,
+        buyerAgency: true
       }
     });
 
@@ -319,6 +372,8 @@ export class PaymentsService {
     if (invoice.campaign) {
       await this.activateCampaign(tx, invoice.campaign, issuedAt);
     }
+
+    return { ...updated, promoBoost: invoice.promoBoost, campaign: invoice.campaign } as InvoiceWithRelations;
   }
 
   private async activateCampaign(
@@ -387,6 +442,66 @@ export class PaymentsService {
     const year = issuedAt.getFullYear();
     const suffix = invoice.id.slice(-6).toUpperCase();
     return `PP-${year}-${suffix}`;
+  }
+
+  private async deliverPaymentReceipt(invoice: InvoiceWithRelations, transaction: TransactionSummary) {
+    const pdfUrl = await this.generatePaymentReceiptPdf(invoice, transaction);
+    await this.prisma.transaction.update({ where: { id: transaction.id }, data: { receiptPdfUrl: pdfUrl } });
+
+    const recipient = invoice.buyerUser?.email ?? invoice.buyerAgency?.email ?? null;
+    if (!recipient) {
+      return;
+    }
+
+    const amountPaid = (transaction.amountCents / 100).toFixed(2);
+    const invoiceLabel = invoice.invoiceNo ?? invoice.id;
+    const recipientName = invoice.buyerUser?.name ?? invoice.buyerAgency?.name ?? 'Valued customer';
+
+    await this.mail.send({
+      to: recipient,
+      subject: `Receipt for invoice ${invoiceLabel}`,
+      text: `Hi ${recipientName},\n\nThank you for your payment of ${amountPaid} ${transaction.currency} for invoice ${invoiceLabel}. Your receipt is attached for your records.\n\n-- Propad`,
+      filename: `receipt-${invoiceLabel}.pdf`,
+      pdfDataUrl: pdfUrl
+    });
+  }
+
+  private async generatePaymentReceiptPdf(invoice: InvoiceWithRelations, transaction: TransactionSummary) {
+    return new Promise<string>((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 50 });
+      const buffers: Buffer[] = [];
+
+      doc.on('data', (chunk) => buffers.push(chunk as Buffer));
+      doc.on('error', (err) => reject(err));
+      doc.on('end', () => {
+        const buffer = Buffer.concat(buffers);
+        resolve(`data:application/pdf;base64,${buffer.toString('base64')}`);
+      });
+
+      doc.fontSize(20).text('Propad Payment Receipt', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(12).text(`Invoice Number: ${invoice.invoiceNo ?? invoice.id}`);
+      doc.text(`Transaction Reference: ${transaction.externalRef}`);
+      doc.text(`Payment Date: ${transaction.createdAt.toISOString()}`);
+      doc.text(`Gateway: ${transaction.gateway}`);
+      doc.text(`Amount Paid: ${(transaction.amountCents / 100).toFixed(2)} ${transaction.currency}`);
+      doc.moveDown();
+      doc.text(`Subtotal: ${(invoice.amountCents / 100).toFixed(2)} ${invoice.currency}`);
+      doc.text(`VAT: ${(invoice.taxCents / 100).toFixed(2)} ${invoice.currency}`);
+      doc.text(`Total: ${((invoice.amountCents + invoice.taxCents) / 100).toFixed(2)} ${invoice.currency}`);
+      doc.moveDown();
+
+      doc.fontSize(14).text('Line Items');
+      doc.moveDown(0.5);
+      doc.fontSize(12);
+      invoice.lines.forEach((line) => {
+        doc.text(`${line.qty} x ${line.description} @ ${(line.unitPriceCents / 100).toFixed(2)} ${invoice.currency}`);
+        doc.text(`Total: ${(line.totalCents / 100).toFixed(2)} ${invoice.currency}`);
+        doc.moveDown(0.5);
+      });
+
+      doc.end();
+    });
   }
 
   private async generateInvoicePdf(invoice: Invoice & { lines: InvoiceLine[]; invoiceNo: string; issuedAt: Date }) {

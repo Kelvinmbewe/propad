@@ -9,6 +9,7 @@ import {
   Currency,
   KycStatus,
   OwnerType,
+  PayoutMethod,
   PayoutStatus,
   Prisma,
   Role,
@@ -17,6 +18,7 @@ import {
   WalletTransactionType
 } from '@prisma/client';
 import { addDays, startOfDay } from 'date-fns';
+import PDFDocument from 'pdfkit';
 import { env } from '@propad/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -27,6 +29,7 @@ import { CreatePayoutAccountDto } from './dto/create-payout-account.dto';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
 import { UpdateKycStatusDto } from './dto/update-kyc-status.dto';
 import { VerifyPayoutAccountDto } from './dto/verify-payout-account.dto';
+import { MailService } from '../mail/mail.service';
 
 interface AuthContext {
   userId: string;
@@ -43,7 +46,11 @@ const ACTIVE_PAYOUT_STATUSES: PayoutStatus[] = [
 
 @Injectable()
 export class WalletsService {
-  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly mail: MailService
+  ) {}
 
   async getMyWallet(actor: AuthContext) {
     const owner = this.resolveOwner(actor);
@@ -282,8 +289,19 @@ export class WalletsService {
   }
 
   async handleWebhook(dto: PayoutWebhookDto) {
-    return this.prisma.$transaction(async (tx) => {
-      const payout = await tx.payoutRequest.findFirst({ where: { txRef: dto.txRef } });
+    let receiptContext: {
+      payoutId: string;
+      ownerType: OwnerType;
+      ownerId: string;
+      amountCents: number;
+      currency: Currency;
+      method: PayoutMethod;
+      txRef?: string | null;
+      paidAt: Date;
+    } | null = null;
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const payout = await tx.payoutRequest.findFirst({ where: { txRef: dto.txRef }, include: { wallet: true } });
       if (!payout) {
         throw new NotFoundException('Payout not found for webhook');
       }
@@ -294,11 +312,22 @@ export class WalletsService {
 
       const updated = await tx.payoutRequest.update({
         where: { id: payout.id },
-        data: { status: dto.status }
+        data: { status: dto.status },
+        include: { wallet: true }
       });
 
       if (dto.status === PayoutStatus.PAID) {
         await this.applyPayoutDebit(updated, tx);
+        receiptContext = {
+          payoutId: updated.id,
+          ownerType: updated.wallet.ownerType,
+          ownerId: updated.wallet.ownerId,
+          amountCents: updated.amountCents,
+          currency: updated.wallet.currency,
+          method: updated.method,
+          txRef: updated.txRef ?? dto.txRef,
+          paidAt: updated.updatedAt
+        };
       }
 
       if (dto.status === PayoutStatus.FAILED || dto.status === PayoutStatus.CANCELLED) {
@@ -321,6 +350,12 @@ export class WalletsService {
 
       return updated;
     });
+
+    if (receiptContext) {
+      await this.issuePayoutReceipt(receiptContext);
+    }
+
+    return result;
   }
 
   async creditWallet(params: {
@@ -476,5 +511,85 @@ export class WalletsService {
         balanceCents: { decrement: payout.amountCents }
       }
     });
+  }
+
+  private async issuePayoutReceipt(context: {
+    payoutId: string;
+    ownerType: OwnerType;
+    ownerId: string;
+    amountCents: number;
+    currency: Currency;
+    method: PayoutMethod;
+    txRef?: string | null;
+    paidAt: Date;
+  }) {
+    const owner = await this.resolveOwnerContact(context.ownerType, context.ownerId);
+    const ownerName = owner.name ?? 'Account holder';
+    const pdfUrl = await this.generatePayoutReceiptPdf(context, ownerName);
+
+    await this.prisma.payoutRequest.update({
+      where: { id: context.payoutId },
+      data: { receiptPdfUrl: pdfUrl }
+    });
+
+    if (!owner.email) {
+      return;
+    }
+
+    const amount = (context.amountCents / 100).toFixed(2);
+    const reference = context.txRef ?? context.payoutId;
+
+    await this.mail.send({
+      to: owner.email,
+      subject: `Payout receipt ${reference}`,
+      text: `Hi ${ownerName},\n\nWe have sent ${amount} ${context.currency} via ${context.method}. Your payout receipt is attached for your records.\n\n-- Propad`,
+      filename: `payout-${reference}.pdf`,
+      pdfDataUrl: pdfUrl
+    });
+  }
+
+  private async generatePayoutReceiptPdf(
+    context: {
+      payoutId: string;
+      amountCents: number;
+      currency: Currency;
+      method: PayoutMethod;
+      txRef?: string | null;
+      paidAt: Date;
+    },
+    ownerName: string
+  ) {
+    return new Promise<string>((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 50 });
+      const buffers: Buffer[] = [];
+
+      doc.on('data', (chunk) => buffers.push(chunk as Buffer));
+      doc.on('error', (err) => reject(err));
+      doc.on('end', () => {
+        const buffer = Buffer.concat(buffers);
+        resolve(`data:application/pdf;base64,${buffer.toString('base64')}`);
+      });
+
+      doc.fontSize(20).text('Propad Payout Receipt', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(12).text(`Recipient: ${ownerName}`);
+      doc.text(`Reference: ${context.txRef ?? context.payoutId}`);
+      doc.text(`Method: ${context.method}`);
+      doc.text(`Paid At: ${context.paidAt.toISOString()}`);
+      doc.text(`Amount: ${(context.amountCents / 100).toFixed(2)} ${context.currency}`);
+      doc.end();
+    });
+  }
+
+  private async resolveOwnerContact(ownerType: OwnerType, ownerId: string) {
+    if (ownerType === OwnerType.USER) {
+      const user = await this.prisma.user.findUnique({ where: { id: ownerId }, select: { email: true, name: true } });
+      return { email: user?.email ?? null, name: user?.name ?? null };
+    }
+    if (ownerType === OwnerType.AGENCY) {
+      const agency = await this.prisma.agency.findUnique({ where: { id: ownerId }, select: { email: true, name: true } });
+      return { email: agency?.email ?? null, name: agency?.name ?? null };
+    }
+    return { email: null, name: null };
   }
 }

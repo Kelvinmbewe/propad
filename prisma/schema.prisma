@@ -73,6 +73,19 @@ enum PaymentGateway {
   OFFLINE
 }
 
+enum PaymentMethodType {
+  CARD
+  ECOCASH
+  BANK
+}
+
+enum PaymentMethodStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+  REVOKED
+}
+
 enum PaymentIntentStatus {
   REQUIRES_ACTION
   PROCESSING
@@ -689,6 +702,7 @@ model PayoutRequest {
   status         PayoutStatus  @default(REQUESTED)
   scheduledFor   DateTime?
   txRef          String?
+  receiptPdfUrl  String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -930,11 +944,50 @@ model Transaction {
   netCents       Int
   result         TransactionResult
   rawWebhookJson Json?
+  receiptPdfUrl  String?
   createdAt      DateTime        @default(now())
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([gateway, externalRef])
+}
+
+model PaymentMethod {
+  id                   String               @id @default(cuid())
+  ownerType            OwnerType
+  ownerId              String
+  type                 PaymentMethodType
+  gatewayRef           String?
+  brand                String?
+  last4                String?
+  expMonth             Int?
+  expYear              Int?
+  isDefault            Boolean              @default(false)
+  status               PaymentMethodStatus  @default(ACTIVE)
+  recurringConsentAt   DateTime?
+  recurringConsentActorId String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  statusLogs PaymentMethodStatusLog[]
+
+  @@index([ownerType, ownerId])
+  @@index([ownerType, ownerId, isDefault])
+}
+
+model PaymentMethodStatusLog {
+  id              String              @id @default(cuid())
+  paymentMethodId String
+  fromStatus      PaymentMethodStatus?
+  toStatus        PaymentMethodStatus
+  reason          String?
+  actorId         String?
+  createdAt       DateTime            @default(now())
+
+  paymentMethod PaymentMethod @relation(fields: [paymentMethodId], references: [id], onDelete: Cascade)
+  actor         User?         @relation(fields: [actorId], references: [id])
+
+  @@index([paymentMethodId, createdAt(sort: Desc)])
 }
 
 model ShortLink {
