@@ -1,25 +1,52 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PromoTier } from '@prisma/client';
+import { Currency, InvoicePurpose, PromoTier } from '@prisma/client';
 import { isWithinInterval } from 'date-fns';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePromoDto } from './dto/create-promo.dto';
 import { PromoRebateDto } from './dto/promo-rebate.dto';
+import { PaymentsService } from '../payments/payments.service';
 
 @Injectable()
 export class PromosService {
-  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly payments: PaymentsService
+  ) {}
 
   async create(dto: CreatePromoDto) {
-    const promo = await this.prisma.promoBoost.create({
-      data: {
-        agentId: dto.agentId,
-        propertyId: dto.propertyId,
-        tier: dto.tier,
-        startAt: dto.startAt,
-        endAt: dto.endAt,
-        usdCents: dto.usdCents
-      }
+    const { promo, invoice } = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.promoBoost.create({
+        data: {
+          agentId: dto.agentId,
+          propertyId: dto.propertyId,
+          tier: dto.tier,
+          startAt: dto.startAt,
+          endAt: dto.endAt,
+          usdCents: dto.usdCents
+        }
+      });
+
+      const createdInvoice = await this.payments.createInvoice(
+        {
+          buyerUserId: dto.agentId,
+          purpose: InvoicePurpose.PROMO_BOOST,
+          currency: Currency.USD,
+          lines: [
+            {
+              sku: `PROMO_${dto.tier}`,
+              description: `Promo boost ${dto.tier}`,
+              qty: 1,
+              unitPriceCents: dto.usdCents
+            }
+          ],
+          link: { promoBoostId: created.id }
+        },
+        tx
+      );
+
+      return { promo: created, invoice: createdInvoice };
     });
 
     await this.audit.log({
@@ -27,10 +54,10 @@ export class PromosService {
       actorId: dto.agentId,
       targetType: 'promo',
       targetId: promo.id,
-      metadata: { tier: dto.tier }
+      metadata: { tier: dto.tier, invoiceId: invoice.id }
     });
 
-    return promo;
+    return { promo, invoice };
   }
 
   async activate(id: string) {

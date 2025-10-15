@@ -53,6 +53,39 @@ enum Currency {
   ZWG
 }
 
+enum InvoicePurpose {
+  DIRECT_AD
+  PROMO_BOOST
+  OTHER
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+}
+
+enum PaymentGateway {
+  PAYNOW
+  STRIPE
+  PAYPAL
+  OFFLINE
+}
+
+enum PaymentIntentStatus {
+  REQUIRES_ACTION
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum TransactionResult {
+  SUCCESS
+  FAILED
+}
+
 enum PropertyStatus {
   DRAFT
   PENDING_VERIFY
@@ -619,6 +652,7 @@ model AdPlacement {
 model AdCampaign {
   id                   String            @id @default(cuid())
   advertiserId         String
+  invoiceId            String?
   name                 String
   startAt              DateTime
   endAt                DateTime?
@@ -632,8 +666,9 @@ model AdCampaign {
   updatedAt            DateTime          @updatedAt
 
   advertiser Advertiser  @relation(fields: [advertiserId], references: [id])
-  flights     AdFlight[]
-  stats       AdStat[]
+  invoice    Invoice?     @relation(fields: [invoiceId], references: [id])
+  flights    AdFlight[]
+  stats      AdStat[]
   impressions AdImpression[]
 
   @@index([advertiserId, status])
@@ -708,6 +743,7 @@ model PromoBoost {
   id         String    @id @default(cuid())
   agentId    String
   propertyId String
+  invoiceId  String?
   tier       PromoTier
   startAt    DateTime
   endAt      DateTime
@@ -715,8 +751,84 @@ model PromoBoost {
 
   agent    User     @relation(fields: [agentId], references: [id])
   property Property @relation(fields: [propertyId], references: [id])
+  invoice  Invoice? @relation(fields: [invoiceId], references: [id])
 
   @@index([propertyId, startAt, endAt])
+}
+
+model Invoice {
+  id            String         @id @default(cuid())
+  buyerUserId   String?
+  buyerAgencyId String?
+  purpose       InvoicePurpose
+  currency      Currency
+  amountCents   Int
+  taxCents      Int
+  status        InvoiceStatus  @default(DRAFT)
+  dueAt         DateTime?
+  issuedAt      DateTime?
+  invoiceNo     String?        @unique
+  pdfUrl        String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  buyerUser   User?    @relation(fields: [buyerUserId], references: [id])
+  buyerAgency Agency?  @relation(fields: [buyerAgencyId], references: [id])
+  lines       InvoiceLine[]
+  paymentIntents PaymentIntent[]
+  transactions Transaction[]
+  campaign    AdCampaign?
+  promoBoost  PromoBoost?
+
+  @@index([status, dueAt])
+}
+
+model InvoiceLine {
+  id             String  @id @default(cuid())
+  invoiceId      String
+  sku            String
+  description    String
+  qty            Int
+  unitPriceCents Int
+  totalCents     Int
+  metaJson       Json?
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model PaymentIntent {
+  id          String              @id @default(cuid())
+  invoiceId   String
+  gateway     PaymentGateway
+  reference   String              @unique
+  amountCents Int
+  currency    Currency
+  status      PaymentIntentStatus @default(REQUIRES_ACTION)
+  redirectUrl String?
+  gatewayRef  String?
+  createdAt   DateTime            @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, gateway, status])
+}
+
+model Transaction {
+  id             String          @id @default(cuid())
+  invoiceId      String
+  gateway        PaymentGateway
+  externalRef    String
+  amountCents    Int
+  currency       Currency
+  feeCents       Int             @default(0)
+  netCents       Int
+  result         TransactionResult
+  rawWebhookJson Json?
+  createdAt      DateTime        @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([gateway, externalRef])
 }
 
 model ShortLink {

@@ -1,0 +1,1 @@
+export const PAYMENT_GATEWAYS = Symbol('PAYMENT_GATEWAYS');
