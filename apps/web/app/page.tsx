@@ -1,106 +1,130 @@
-import {
-  AuroraFeatureCard,
-  AuroraHero,
-  AuroraPropertyCard,
-  AuroraThemeToggle,
-  AuroraPerformanceChart,
-  AuroraMetricCard
-} from '@propad/ui';
-import { Building2, Compass, Sparkles } from 'lucide-react';
+import { LandingNav } from '@/components/landing-nav';
+import { LandingHero, type FloatingHeroCard } from '@/components/landing-hero';
+import { LandingMapSection } from '@/components/landing-map-section';
+import { LandingPropertyCard, type LandingProperty } from '@/components/landing-property-card';
+import { Instagram, Linkedin, Twitter } from 'lucide-react';
 
-export default function HomePage() {
-  return (
-    <main className="relative mx-auto flex min-h-screen max-w-6xl flex-col gap-16 px-4 py-16 md:gap-20">
-      <div className="flex justify-end">
-        <AuroraThemeToggle />
-      </div>
-
-      <AuroraHero
-        title="Zimbabwe's elevated real-estate experience"
-        subtitle="Aurora blends cinematic imagery with clean, data-rich surfaces so every property story feels premium and every workflow feels effortless."
-        ctaPrimary={{ label: 'Launch tenant journey', href: '/auth/login' }}
-        ctaSecondary={{ label: 'Explore property map', href: '/listings' }}
-        imageUrl="https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=1200&q=80"
-      />
-
-      <section className="grid gap-6 md:grid-cols-3">
-        <AuroraFeatureCard
-          title="Immersive showcases"
-          description="Hero-ready imagery, 3D-ready card ratios, and glassmorphism overlays create a cinematic property canvas."
-          icon={<Sparkles className="h-6 w-6" />}
-        />
-        <AuroraFeatureCard
-          title="Trust by design"
-          description="WCAG-compliant contrast, badge states, and audit trails reassure renters and compliance teams alike."
-          icon={<ShieldIcon />}
-        />
-        <AuroraFeatureCard
-          title="Adaptive workflows"
-          description="From marketing to admin ops, Aurora keeps typography, spacing, and data viz aligned across every surface."
-          icon={<Compass className="h-6 w-6" />}
-        />
-      </section>
-
-      <section className="grid gap-6 md:grid-cols-3">
-        {showcaseProperties.map((property) => (
-          <AuroraPropertyCard key={property.title} {...property} />
-        ))}
-      </section>
-
-      <section className="grid gap-6 rounded-[32px] border border-[color:var(--aurora-color-border)] bg-[color:var(--aurora-color-elevated)] p-8 shadow-aurora md:grid-cols-[1fr_1.1fr] md:p-12">
-        <div className="flex flex-col gap-6">
-          <h2 className="text-3xl font-semibold text-[color:var(--aurora-color-text)]">Admin clarity without clutter</h2>
-          <p className="text-base text-[color:var(--aurora-color-text-muted)]">
-            Aurora's backend theme mirrors the public brand while introducing structured density, rich charts, and elevated modals so finance, geo, and compliance teams can work faster.
-          </p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <AuroraMetricCard label="Verified payouts" value="$426k" delta="+18%" trend="up" tone="accent" />
-            <AuroraMetricCard label="Fraud blocks" value="24" delta="-32%" trend="down" tone="success" />
-          </div>
-        </div>
-        <AuroraPerformanceChart title="Operational readiness" description="Live telemetry across payout approvals, compliance strikes, and viewing feedback." />
-      </section>
-    </main>
-  );
+interface ShowcaseProperty extends LandingProperty {
+  coordinates: [number, number];
 }
 
-const showcaseProperties = [
+const heroCards: FloatingHeroCard[] = [
   {
-    title: 'Vantage Towers · Borrowdale',
-    price: 'US$1,850/mo',
-    location: 'Panoramic CBD skyline · 3 Bed',
-    imageUrl: 'https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=900&q=80',
-    badges: [
-      { label: 'New to market' },
-      { label: 'Furnished', tone: 'success' }
-    ]
+    accent: 'CURATED AGENTS',
+    title: 'Verified storytellers',
+    description: 'Partnered agents trained on PropAd showing rituals and concierge-style onboarding.'
   },
   {
-    title: 'Umwinsidale Manor',
-    price: 'US$3,400/mo',
-    location: '6 Bed · Solar microgrid · Acre plot',
-    imageUrl: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=80',
-    badges: [
-      { label: 'Verified agent' },
-      { label: 'Viewings open', tone: 'warning' }
-    ]
+    accent: 'SEAMLESS JOURNEY',
+    title: 'Framer powered motion',
+    description: 'Micro-animations guide renters from enquiry to offer with zero static friction.'
   },
   {
-    title: 'Tranquil Mews · Avondale',
-    price: 'US$980/mo',
-    location: 'Loft duplex · Rooftop braai terrace',
-    imageUrl: 'https://images.unsplash.com/photo-1520256862855-398228c41684?auto=format&fit=crop&w=900&q=80',
-    badges: [
-      { label: '360° tour' },
-      { label: 'Smart lock', tone: 'success' }
-    ]
+    accent: 'MARKET INTELLIGENCE',
+    title: 'Live rate telemetry',
+    description: 'Pricing heatmaps pull from PropAd market data to keep valuations precise and aspirational.'
   }
 ];
 
-function ShieldIcon() {
+const showcaseProperties: ShowcaseProperty[] = [
+  {
+    id: 'vantage-towers',
+    title: 'Vantage Towers · Borrowdale',
+    location: 'Borrowdale, Harare',
+    price: 'US$420,000',
+    status: 'FOR SALE',
+    statusTone: 'sale',
+    imageUrl: 'https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=1200&q=80',
+    beds: 4,
+    baths: 3,
+    area: 365,
+    coordinates: [-17.7605, 31.0944]
+  },
+  {
+    id: 'umwinsidale-manor',
+    title: 'Umwinsidale Manor',
+    location: 'Umwinsidale, Harare',
+    price: 'US$3,400/mo',
+    status: 'FOR RENT',
+    statusTone: 'rent',
+    imageUrl: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1200&q=80',
+    beds: 6,
+    baths: 5,
+    area: 480,
+    coordinates: [-17.7376, 31.135]
+  },
+  {
+    id: 'tranquil-mews',
+    title: 'Tranquil Mews · Avondale',
+    location: 'Avondale, Harare',
+    price: 'US$1,050/mo',
+    status: 'FOR RENT',
+    statusTone: 'rent',
+    imageUrl: 'https://images.unsplash.com/photo-1520256862855-398228c41684?auto=format&fit=crop&w=1200&q=80',
+    beds: 3,
+    baths: 2,
+    area: 210,
+    coordinates: [-17.7894, 31.0463]
+  }
+];
+
+export default function HomePage() {
   return (
-    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--aurora-color-accent)]/10 text-[color:var(--aurora-color-accent)]">
-      <Building2 className="h-4 w-4" />
-    </span>
+    <div className="relative">
+      <LandingNav />
+      <main className="flex flex-col gap-24 pb-24 pt-32">
+        <LandingHero cards={heroCards} />
+
+        <section
+          id="listings"
+          className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 sm:px-12 lg:px-16"
+        >
+          <div className="flex flex-col gap-4">
+            <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">Signature portfolio</span>
+            <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
+              Featured addresses crafted for modern Zimbabwean living
+            </h2>
+            <p className="max-w-2xl text-base text-slate-600">
+              Cinematic cards reveal the essentials at a glance. Tap through to unlock immersive tours, agent
+              chat, and PropAd verified documentation.
+            </p>
+          </div>
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {showcaseProperties.map((property) => (
+              <LandingPropertyCard key={property.id} property={property} />
+            ))}
+          </div>
+        </section>
+
+        <LandingMapSection properties={showcaseProperties} />
+      </main>
+
+      <footer
+        id="contact"
+        className="mt-16 bg-gradient-to-br from-slate-950 via-emerald-900 to-cyan-900 py-12 text-white"
+      >
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 sm:flex-row sm:items-center sm:justify-between sm:px-12 lg:px-16">
+          <div className="flex flex-col gap-2">
+            <p className="text-sm uppercase tracking-[0.35em] text-emerald-200">PropAd Zimbabwe</p>
+            <p className="text-lg font-semibold">Aspirational real estate, choreographed end-to-end.</p>
+            <p className="text-sm text-emerald-100/80">hello@propad.co.zw · +263 77 000 1234</p>
+          </div>
+          <div className="flex flex-col items-start gap-4 text-sm text-emerald-100/80 sm:items-end">
+            <div className="flex items-center gap-3">
+              <a href="https://twitter.com" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20">
+                <Twitter className="h-4 w-4" />
+              </a>
+              <a href="https://instagram.com" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20">
+                <Instagram className="h-4 w-4" />
+              </a>
+              <a href="https://linkedin.com" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20">
+                <Linkedin className="h-4 w-4" />
+              </a>
+            </div>
+            <p className="text-xs">© {new Date().getFullYear()} PropAd. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
