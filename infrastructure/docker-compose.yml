@@ -1,36 +1,77 @@
 version: '3.9'
+
 services:
-  db:
-    image: postgres:16
+  web:
+    build:
+      context: ..
+      dockerfile: infrastructure/web.Dockerfile
+    command: npm --workspace apps/web run start
+    environment:
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: change-me
+      NEXT_PUBLIC_API_BASE_URL: http://api:3001
+    ports:
+      - '3000:3000'
+    depends_on:
+      api:
+        condition: service_healthy
+    env_file:
+      - ../apps/web/.env.example
+
+  api:
+    build:
+      context: ..
+      dockerfile: infrastructure/api.Dockerfile
+    env_file:
+      - ../apps/api/.env.example
+      - infrastructure/.env
+    ports:
+      - '3001:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:15
     restart: unless-stopped
     environment:
       POSTGRES_DB: propad
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - db_data:/var/lib/postgresql/data
+      POSTGRES_USER: propad
+      POSTGRES_PASSWORD: propad
     ports:
       - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  backend:
-    build:
-      context: ../backend
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/propad
-      SECRET_KEY: super-secret-key
-      ALLOWED_ORIGINS: '["http://localhost:5173","http://localhost:4173"]'
-    depends_on:
-      - db
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - '8000:8000'
-
-  frontend:
-    build:
-      context: ../frontend
-    depends_on:
-      - backend
-    ports:
-      - '4173:80'
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
 
 volumes:
-  db_data:
+  postgres_data:
+  minio_data:

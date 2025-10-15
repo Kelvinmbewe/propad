@@ -1,69 +1,78 @@
-# PropAd Zimbabwe
+# PropAd Zimbabwe Monorepo
 
-PropAd Zimbabwe is a production-ready MVP for a zero-fee property marketplace focused on Zimbabwean renters, buyers, and landlords. Agents are rewarded from an ads-funded pool, listings are verified, and a policy engine blocks fee-based abuse.
+This repository contains the PropAd Zimbabwe platform implemented as a TypeScript-first monorepo. It includes a progressive web application for end users, a NestJS API, shared packages, infrastructure as code, and documentation.
 
-## Features
-- **FastAPI backend** with JWT auth, policy enforcement, audit logs, reward pool accounting, and admin endpoints.
-- **React + Vite PWA frontend** optimised for low-data users, offline caching, and WhatsApp/Facebook sharing funnels.
-- **Policy engine** that blocks mentions of viewing fees, tenant registration fees, and 10% sale commissions.
-- **Reward pool** management paying agents from platform funds without charging tenants or sellers.
-- **Auditable logs** and moderation workflows with transparent admin tools.
-- **Dockerised deployment** with Postgres, backend API, and Nginx-served frontend.
+## Structure
+
+```
+apps/
+  web/        Next.js 14 PWA with Tailwind, shadcn/ui, React Query, and NextAuth
+  api/        NestJS API server exposing REST endpoints with JWT auth and RBAC
+packages/
+  config/     Shared runtime + build-time configuration
+  sdk/        Typed API client used by the frontend
+  ui/         Reusable UI primitives shared across apps
+prisma/       Prisma schema and migrations
+infrastructure/ Docker + docker-compose setup for local development
+scripts/      Seed and maintenance scripts
+```
 
 ## Getting Started
 
-### Backend
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements-dev.txt
-cp .env.example .env
-uvicorn app.main:app --reload
-```
+### Prerequisites
+- Node.js 20+
+- npm 10+
+- Docker (for running the full stack)
 
-### Frontend
+### Installation
+
 ```bash
-cd frontend
 npm install
-npm run dev
-```
-The frontend expects `VITE_API_BASE_URL` to point to the FastAPI server (defaults to `http://localhost:8000/api/v1`).
-
-### Seed Data
-```bash
-cd backend
-python seed_data.py
-```
-Creates default admin/agent/landlord accounts with password `PropAd123!` and a verified listing.
-
-### Tests
-```bash
-cd backend
-pytest
 ```
 
-### Docker Compose
+### Running the stack locally
+
+1. Copy environment templates:
+   ```bash
+   cp apps/web/.env.example apps/web/.env.local
+   cp apps/api/.env.example apps/api/.env
+   cp infrastructure/.env.example infrastructure/.env
+   ```
+2. Start services with Docker Compose:
+   ```bash
+   cd infrastructure
+   docker compose up --build
+   ```
+3. Run the web app in development mode:
+   ```bash
+   npm --workspace apps/web run dev
+   ```
+4. Run the API in watch mode:
+   ```bash
+   npm --workspace apps/api run start:dev
+   ```
+
+### Seeding
+
+Populate the database with baseline roles and demo data:
 ```bash
-cd infrastructure
-docker compose up --build
+npm --workspace scripts run seed
 ```
-Services:
-- `backend`: FastAPI at `http://localhost:8000`
-- `frontend`: Nginx serving the built PWA at `http://localhost:4173`
-- `db`: PostgreSQL for production-like data persistence
+
+### Testing
+
+- Web unit tests: `npm --workspace apps/web run test`
+- API unit tests: `npm --workspace apps/api run test`
+- Shared packages: `npm --workspaces run lint`
+
+End-to-end Playwright tests are planned under `apps/web/tests/e2e`.
 
 ## Documentation
-- [Architecture overview](docs/ARCHITECTURE.md)
+Comprehensive documentation lives under `docs/`:
+- `SETUP.md` – Local environment setup details
+- `ARCHITECTURE.md` – System design and domain architecture
+- `API.md` – REST API contract
+- `SECURITY.md` – Security model, RBAC, and compliance notes
 
-## Credentials
-Seeded accounts (after running `seed_data.py`):
-- Admin: `admin@propad.co.zw`
-- Agent: `agent@propad.co.zw`
-- Landlord: `landlord@propad.co.zw`
-Password for all: `PropAd123!`
-
-## Compliance Promise
-- No viewing fees, tenant registration fees, or 10% commissions.
-- All moderation events are logged and auditable.
-- Agents are compensated from PropAd’s reward pool funded by ads and partners.
+## Contributing
+Pull requests are welcome! Please ensure tests pass and follow the repository linting rules before submitting changes.
