@@ -16,6 +16,13 @@
 - Optional phone and email relay channels enforce anti-spam rate limits.
 - All leads are stored with attribution metadata covering WEB, WHATSAPP, FACEBOOK, and SHORTLINK sources.
 
+## Conversations & Messaging
+- Every newly created lead automatically spawns a conversation that links the prospective buyer or tenant with the assigned agent (and participating landlord where opted in) so that messaging history is traceable from day one.
+- Messages support rich attachments (images and documents) with automatic mime-type validation, anti-virus scanning, thumbnail generation, and EXIF metadata stripping for privacy.
+- Users receive real-time updates across web and mobile via WebSocket or a Pusher-compatible transport, complete with typing indicators, delivered/read receipts, and WhatsApp deep links to preserve the existing workflow.
+- Offline participants are nudged via email and in-product notifications, while admin tooling exposes global search, moderation, transcript export, and a one-click report button for spam or abuse escalation.
+- Automated safeguards—rate limiting, banned phrase detection (e.g. "viewing fee"), and auto-flagging to admins—maintain trust and reduce disputes.
+
 ## Agent Rewards
 - A configurable reward pool percentage of the monthly platform revenue (supplied via environment configuration).
 - Reward events include LISTING_VERIFIED, LEAD_VALID, SALE_CONFIRMED (with optional micro-cash credit).
