@@ -293,6 +293,177 @@ export const FacebookPublishResponseSchema = z.object({
   destinations: z.array(FacebookDestinationSchema)
 });
 
+export const PendingGeoSchema = z.object({
+  id: z.string(),
+  level: z.string(),
+  parentId: z.string().nullish(),
+  proposedName: z.string(),
+  status: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  proposedBy: z
+    .object({ id: z.string(), name: z.string().nullish(), email: z.string().nullish() })
+    .nullish(),
+  properties: z.array(z.object({ id: z.string() }))
+});
+
+export const InvoiceLineSchema = z
+  .object({
+    id: z.string(),
+    sku: z.string(),
+    description: z.string(),
+    qty: z.number(),
+    unitPriceCents: z.number(),
+    totalCents: z.number(),
+    metaJson: z.unknown().nullable()
+  })
+  .passthrough();
+
+export const FxRateSchema = z
+  .object({
+    id: z.string(),
+    base: z.string(),
+    quote: z.string(),
+    rateMicros: z.number(),
+    date: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string()
+  })
+  .passthrough();
+
+export const InvoiceSchema = z
+  .object({
+    id: z.string(),
+    invoiceNo: z.string().nullish(),
+    status: z.string(),
+    amountCents: z.number(),
+    taxCents: z.number(),
+    amountUsdCents: z.number().nullish(),
+    taxUsdCents: z.number().nullish(),
+    currency: z.string(),
+    dueAt: z.string().nullish(),
+    issuedAt: z.string().nullish(),
+    createdAt: z.string(),
+    lines: z.array(InvoiceLineSchema).default([]),
+    promoBoost: z.object({ id: z.string() }).nullish(),
+    campaign: z.object({ id: z.string() }).nullish(),
+    fxRate: FxRateSchema.nullish()
+  })
+  .passthrough();
+
+export const PaymentIntentSchema = z
+  .object({
+    id: z.string(),
+    invoiceId: z.string(),
+    gateway: z.string(),
+    reference: z.string(),
+    amountCents: z.number(),
+    currency: z.string(),
+    status: z.string(),
+    redirectUrl: z.string().nullish(),
+    gatewayRef: z.string().nullish(),
+    createdAt: z.string(),
+    invoice: InvoiceSchema.pick({ id: true, invoiceNo: true, status: true, currency: true }).nullish()
+  })
+  .passthrough();
+
+export const TransactionSchema = z
+  .object({
+    id: z.string(),
+    invoiceId: z.string(),
+    gateway: z.string(),
+    externalRef: z.string(),
+    amountCents: z.number(),
+    currency: z.string(),
+    feeCents: z.number(),
+    netCents: z.number(),
+    result: z.string(),
+    createdAt: z.string(),
+    receiptPdfUrl: z.string().nullish(),
+    invoice: InvoiceSchema.pick({ id: true, invoiceNo: true, status: true, currency: true }).nullish()
+  })
+  .passthrough();
+
+export const KycRecordSchema = z
+  .object({
+    id: z.string(),
+    ownerType: z.string(),
+    ownerId: z.string(),
+    idType: z.string(),
+    idNumber: z.string(),
+    docUrls: z.array(z.string()),
+    status: z.string(),
+    notes: z.string().nullish(),
+    createdAt: z.string(),
+    updatedAt: z.string()
+  })
+  .passthrough();
+
+export const PayoutAccountSchema = z
+  .object({
+    id: z.string(),
+    ownerType: z.string(),
+    ownerId: z.string(),
+    type: z.string(),
+    displayName: z.string(),
+    detailsJson: z.unknown(),
+    verifiedAt: z.string().nullish(),
+    createdAt: z.string(),
+    updatedAt: z.string()
+  })
+  .passthrough();
+
+export const PayoutRequestSchema = z
+  .object({
+    id: z.string(),
+    walletId: z.string(),
+    amountCents: z.number(),
+    method: z.string(),
+    payoutAccountId: z.string(),
+    status: z.string(),
+    scheduledFor: z.string().nullish(),
+    txRef: z.string().nullish(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    wallet: z
+      .object({ id: z.string(), ownerType: z.string(), ownerId: z.string(), balanceCents: z.number() })
+      .passthrough()
+      .nullish(),
+    payoutAccount: PayoutAccountSchema.nullish()
+  })
+  .passthrough();
+
+export const AmlBlocklistEntrySchema = z.object({
+  id: z.string(),
+  value: z.string(),
+  normalized: z.string(),
+  reason: z.string().nullish(),
+  addedBy: z.string().nullish(),
+  createdAt: z.string().nullish(),
+  updatedAt: z.string().nullish(),
+  enabled: z.boolean()
+});
+
+export const WalletThresholdSchema = z.object({
+  id: z.string().nullish(),
+  type: z.string(),
+  currency: z.string(),
+  amountCents: z.number(),
+  note: z.string().nullish(),
+  source: z.enum(['custom', 'env']),
+  createdAt: z.string().nullish(),
+  updatedAt: z.string().nullish()
+});
+
+export const GeoSearchResultSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  level: z.string(),
+  parentId: z.string().nullish(),
+  provinceId: z.string().nullish(),
+  countryId: z.string().nullish()
+});
+
 export type DashboardMetrics = z.infer<typeof DashboardMetricsSchema>;
 export type Property = z.infer<typeof PropertySchema>;
 export type AdImpression = z.infer<typeof AdImpressionSchema>;
@@ -311,3 +482,13 @@ export type AgencyMember = z.infer<typeof AgencyMemberSchema>;
 export type ManagementContract = z.infer<typeof ManagementContractSchema>;
 export type PropertySearchResult = z.infer<typeof PropertySearchResultSchema>;
 export type GeoSuburb = z.infer<typeof GeoSuburbSchema>;
+export type PendingGeo = z.infer<typeof PendingGeoSchema>;
+export type Invoice = z.infer<typeof InvoiceSchema>;
+export type PaymentIntent = z.infer<typeof PaymentIntentSchema>;
+export type Transaction = z.infer<typeof TransactionSchema>;
+export type KycRecord = z.infer<typeof KycRecordSchema>;
+export type PayoutAccount = z.infer<typeof PayoutAccountSchema>;
+export type PayoutRequest = z.infer<typeof PayoutRequestSchema>;
+export type AmlBlocklistEntry = z.infer<typeof AmlBlocklistEntrySchema>;
+export type WalletThreshold = z.infer<typeof WalletThresholdSchema>;
+export type GeoSearchResult = z.infer<typeof GeoSearchResultSchema>;

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -18,6 +18,26 @@ import {
   verifyPayoutAccountSchema,
   VerifyPayoutAccountDto
 } from './dto/verify-payout-account.dto';
+import {
+  listKycRecordsSchema,
+  type ListKycRecordsDto
+} from './dto/list-kyc-records.dto';
+import {
+  listPayoutRequestsSchema,
+  type ListPayoutRequestsDto
+} from './dto/list-payout-requests.dto';
+import {
+  listPayoutAccountsSchema,
+  type ListPayoutAccountsDto
+} from './dto/list-payout-accounts.dto';
+import {
+  manageAmlBlocklistSchema,
+  type ManageAmlBlocklistDto
+} from './dto/manage-aml-blocklist.dto';
+import {
+  upsertWalletThresholdSchema,
+  type UpsertWalletThresholdDto
+} from './dto/upsert-wallet-threshold.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -56,6 +76,15 @@ export class WalletsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @Get('payout-accounts')
+  listPayoutAccounts(
+    @Query(new ZodValidationPipe(listPayoutAccountsSchema)) query: ListPayoutAccountsDto
+  ) {
+    return this.walletsService.listPayoutAccounts(query);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
   @Post('payout-accounts/:id/verify')
   verifyAccount(
     @Param('id') id: string,
@@ -73,6 +102,15 @@ export class WalletsController {
     @Body(new ZodValidationPipe(submitKycSchema)) dto: SubmitKycDto
   ) {
     return this.walletsService.submitKyc(dto, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('kyc')
+  listKyc(
+    @Query(new ZodValidationPipe(listKycRecordsSchema)) query: ListKycRecordsDto
+  ) {
+    return this.walletsService.listKycRecords(query);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -98,6 +136,15 @@ export class WalletsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
+  @Get('payouts')
+  listPayouts(
+    @Query(new ZodValidationPipe(listPayoutRequestsSchema)) query: ListPayoutRequestsDto
+  ) {
+    return this.walletsService.listPayoutRequests(query);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
   @Post('payouts/:id/approve')
   approvePayout(
     @Param('id') id: string,
@@ -105,6 +152,47 @@ export class WalletsController {
     @Body(new ZodValidationPipe(approvePayoutSchema)) dto: ApprovePayoutDto
   ) {
     return this.walletsService.approvePayout(id, dto, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('aml-blocklist')
+  listAmlBlocklist() {
+    return this.walletsService.listAmlBlocklist();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post('aml-blocklist')
+  addAmlBlocklist(
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(manageAmlBlocklistSchema)) dto: ManageAmlBlocklistDto
+  ) {
+    return this.walletsService.addAmlBlocklistEntry(dto, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Delete('aml-blocklist/:id')
+  removeAmlBlocklist(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.walletsService.removeAmlBlocklistEntry(id, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('thresholds')
+  listThresholds() {
+    return this.walletsService.listWalletThresholds();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post('thresholds')
+  upsertThreshold(
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(upsertWalletThresholdSchema)) dto: UpsertWalletThresholdDto
+  ) {
+    return this.walletsService.upsertWalletThreshold(dto, req.user);
   }
 
   @Post('payouts/webhook')

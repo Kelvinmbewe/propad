@@ -29,6 +29,14 @@ import { CreatePayoutAccountDto } from './dto/create-payout-account.dto';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
 import { UpdateKycStatusDto } from './dto/update-kyc-status.dto';
 import { VerifyPayoutAccountDto } from './dto/verify-payout-account.dto';
+import { ListKycRecordsDto } from './dto/list-kyc-records.dto';
+import { ListPayoutRequestsDto } from './dto/list-payout-requests.dto';
+import { ListPayoutAccountsDto } from './dto/list-payout-accounts.dto';
+import { ManageAmlBlocklistDto } from './dto/manage-aml-blocklist.dto';
+import {
+  UpsertWalletThresholdDto,
+  walletThresholdTypes
+} from './dto/upsert-wallet-threshold.dto';
 import { MailService } from '../mail/mail.service';
 
 interface AuthContext {
@@ -43,6 +51,9 @@ const ACTIVE_PAYOUT_STATUSES: PayoutStatus[] = [
   PayoutStatus.APPROVED,
   PayoutStatus.SENT
 ];
+
+const AML_BLOCKLIST_PREFIX = 'wallet.aml.blocklist.';
+const WALLET_THRESHOLD_PREFIX = 'wallet.threshold.';
 
 @Injectable()
 export class WalletsService {
@@ -128,6 +139,23 @@ export class WalletsService {
     return updated;
   }
 
+  listPayoutAccounts(filters: ListPayoutAccountsDto) {
+    return this.prisma.payoutAccount.findMany({
+      where: {
+        ownerId: filters.ownerId ?? undefined,
+        ownerType: filters.ownerType ?? undefined,
+        verifiedAt:
+          filters.verified === undefined
+            ? undefined
+            : filters.verified
+              ? { not: null }
+              : null
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200
+    });
+  }
+
   async submitKyc(dto: SubmitKycDto, actor: AuthContext) {
     const owner = this.resolveOwner(actor);
     const record = await this.prisma.kycRecord.create({
@@ -151,6 +179,17 @@ export class WalletsService {
     });
 
     return record;
+  }
+
+  listKycRecords(filters: ListKycRecordsDto) {
+    return this.prisma.kycRecord.findMany({
+      where: {
+        status: filters.status ?? undefined,
+        ownerId: filters.ownerId ?? undefined
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200
+    });
   }
 
   async updateKycStatus(id: string, dto: UpdateKycStatusDto, actor: AuthContext) {
@@ -189,7 +228,11 @@ export class WalletsService {
         throw new BadRequestException('Unsupported wallet currency');
       }
 
-      if (dto.amountCents < env.WALLET_MIN_PAYOUT_CENTS) {
+      const minPayoutCents =
+        (await this.resolveThreshold('MIN_PAYOUT', wallet.currency, tx)) ??
+        env.WALLET_MIN_PAYOUT_CENTS;
+
+      if (dto.amountCents < minPayoutCents) {
         throw new BadRequestException('Amount is below minimum payout threshold');
       }
 
@@ -285,6 +328,21 @@ export class WalletsService {
       });
 
       return updated;
+    });
+  }
+
+  listPayoutRequests(filters: ListPayoutRequestsDto) {
+    return this.prisma.payoutRequest.findMany({
+      where: {
+        status: filters.status ?? undefined,
+        walletId: filters.walletId ?? undefined
+      },
+      include: {
+        wallet: true,
+        payoutAccount: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200
     });
   }
 
@@ -398,11 +456,224 @@ export class WalletsService {
     });
   }
 
+  async listAmlBlocklist() {
+    const flags = await this.prisma.featureFlag.findMany({
+      where: { key: { startsWith: AML_BLOCKLIST_PREFIX } },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return flags.map((flag) => this.mapAmlBlocklistFlag(flag));
+  }
+
+  async addAmlBlocklistEntry(dto: ManageAmlBlocklistDto, actor: AuthContext) {
+    const normalized = this.normalizeBlocklistValue(dto.value);
+    const key = `${AML_BLOCKLIST_PREFIX}${normalized}`;
+    const payload = {
+      value: dto.value,
+      normalized,
+      reason: dto.reason ?? null,
+      addedBy: actor.userId
+    };
+
+    const flag = await this.prisma.featureFlag.upsert({
+      where: { key },
+      update: { description: JSON.stringify(payload), enabled: true },
+      create: { key, description: JSON.stringify(payload), enabled: true }
+    });
+
+    await this.audit.log({
+      action: 'wallet.aml.add',
+      actorId: actor.userId,
+      targetType: 'amlBlocklist',
+      targetId: key,
+      metadata: payload
+    });
+
+    return this.mapAmlBlocklistFlag(flag);
+  }
+
+  async removeAmlBlocklistEntry(id: string, actor: AuthContext) {
+    const key = `${AML_BLOCKLIST_PREFIX}${id}`;
+    const flag = await this.prisma.featureFlag.findUnique({ where: { key } });
+    if (!flag) {
+      throw new NotFoundException('Blocklist entry not found');
+    }
+
+    await this.prisma.featureFlag.delete({ where: { key } });
+
+    await this.audit.log({
+      action: 'wallet.aml.remove',
+      actorId: actor.userId,
+      targetType: 'amlBlocklist',
+      targetId: key
+    });
+
+    return { success: true };
+  }
+
+  async listWalletThresholds() {
+    const flags = await this.prisma.featureFlag.findMany({
+      where: { key: { startsWith: WALLET_THRESHOLD_PREFIX } },
+      orderBy: { key: 'asc' }
+    });
+
+    const entries = flags.map((flag) => this.mapWalletThreshold(flag));
+    const hasMin = entries.some((entry) => entry.type === 'MIN_PAYOUT');
+    if (!hasMin) {
+      entries.push({
+        id: null,
+        type: 'MIN_PAYOUT',
+        currency: DEFAULT_CURRENCY,
+        amountCents: env.WALLET_MIN_PAYOUT_CENTS,
+        note: 'Configured via environment',
+        source: 'env',
+        updatedAt: null,
+        createdAt: null
+      });
+    }
+
+    return entries;
+  }
+
+  async upsertWalletThreshold(dto: UpsertWalletThresholdDto, actor: AuthContext) {
+    if (!walletThresholdTypes.includes(dto.type)) {
+      throw new BadRequestException('Unsupported threshold type');
+    }
+
+    const key = `${WALLET_THRESHOLD_PREFIX}${dto.type}.${dto.currency}`;
+    const payload = {
+      amountCents: dto.amountCents,
+      note: dto.note ?? null,
+      updatedBy: actor.userId
+    };
+
+    const flag = await this.prisma.featureFlag.upsert({
+      where: { key },
+      update: { description: JSON.stringify(payload), enabled: true },
+      create: { key, description: JSON.stringify(payload), enabled: true }
+    });
+
+    await this.audit.log({
+      action: 'wallet.threshold.upsert',
+      actorId: actor.userId,
+      targetType: 'walletThreshold',
+      targetId: key,
+      metadata: payload
+    });
+
+    return this.mapWalletThreshold(flag);
+  }
+
   private resolveOwner(actor: AuthContext): { ownerType: OwnerType; ownerId: string } {
     if (actor.role === Role.ADMIN) {
       throw new ForbiddenException('Administrators do not have personal wallets');
     }
     return { ownerType: OwnerType.USER, ownerId: actor.userId };
+  }
+
+  private normalizeBlocklistValue(value: string) {
+    return value.replace(/[\s+\-]/g, '').toLowerCase();
+  }
+
+  private mapAmlBlocklistFlag(flag: {
+    key: string;
+    description: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    enabled: boolean;
+  }) {
+    const id = flag.key.replace(AML_BLOCKLIST_PREFIX, '');
+    let payload: {
+      value?: string;
+      normalized?: string;
+      reason?: string | null;
+      addedBy?: string | null;
+    } = {};
+
+    if (flag.description) {
+      try {
+        payload = JSON.parse(flag.description);
+      } catch (error) {
+        payload = { value: id, reason: flag.description };
+      }
+    }
+
+    const value = payload.value ?? id;
+
+    return {
+      id,
+      value,
+      normalized: payload.normalized ?? this.normalizeBlocklistValue(value),
+      reason: payload.reason ?? null,
+      addedBy: payload.addedBy ?? null,
+      createdAt: flag.createdAt,
+      updatedAt: flag.updatedAt,
+      enabled: flag.enabled
+    };
+  }
+
+  private mapWalletThreshold(flag: {
+    key: string;
+    description: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    enabled: boolean;
+  }) {
+    const suffix = flag.key.replace(WALLET_THRESHOLD_PREFIX, '');
+    const [type, currency] = suffix.split('.');
+    let amountCents: number | null = null;
+    let note: string | null = null;
+
+    if (flag.description) {
+      try {
+        const parsed = JSON.parse(flag.description);
+        if (typeof parsed.amountCents === 'number') {
+          amountCents = parsed.amountCents;
+        } else {
+          const numeric = Number(parsed.amountCents ?? parsed);
+          if (!Number.isNaN(numeric)) {
+            amountCents = numeric;
+          }
+        }
+        if (typeof parsed.note === 'string') {
+          note = parsed.note;
+        }
+      } catch (error) {
+        const numeric = Number(flag.description);
+        if (!Number.isNaN(numeric)) {
+          amountCents = numeric;
+        } else {
+          note = flag.description;
+        }
+      }
+    }
+
+    const fallback = type === 'MIN_PAYOUT' ? env.WALLET_MIN_PAYOUT_CENTS : 0;
+
+    return {
+      id: flag.key,
+      type,
+      currency: (currency as Currency) ?? DEFAULT_CURRENCY,
+      amountCents: amountCents ?? fallback,
+      note,
+      source: 'custom' as const,
+      createdAt: flag.createdAt,
+      updatedAt: flag.updatedAt
+    };
+  }
+
+  private async resolveThreshold(
+    type: (typeof walletThresholdTypes)[number],
+    currency: Currency,
+    tx: Prisma.TransactionClient = this.prisma
+  ) {
+    const key = `${WALLET_THRESHOLD_PREFIX}${type}.${currency}`;
+    const flag = await tx.featureFlag.findUnique({ where: { key } });
+    if (!flag) {
+      return null;
+    }
+    const entry = this.mapWalletThreshold(flag);
+    return entry.amountCents;
   }
 
   private assertAccess(actor: AuthContext, wallet: Wallet) {

@@ -21,12 +21,14 @@ interface OwnerContext {
   ownerId: string;
 }
 
+const AML_BLOCKLIST_PREFIX = 'wallet.aml.blocklist.';
+
 @Injectable()
 export class PaymentMethodsService {
-  private readonly blocklist: Set<string>;
+  private readonly envBlocklist: Set<string>;
 
   constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {
-    this.blocklist = new Set(
+    this.envBlocklist = new Set(
       (env.PAYMENT_METHOD_BLOCKLIST ?? '')
         .split(',')
         .map((entry) => entry.trim())
@@ -45,7 +47,7 @@ export class PaymentMethodsService {
 
   async createMethod(dto: CreatePaymentMethodDto, actor: ActorContext) {
     const owner = this.resolveOwner(actor);
-    this.ensureNotBlocked(dto.gatewayRef ?? dto.last4 ?? null);
+    await this.ensureNotBlocked(dto.gatewayRef ?? dto.last4 ?? null);
 
     return this.prisma.$transaction(async (tx) => {
       if (dto.isDefault) {
@@ -181,14 +183,45 @@ export class PaymentMethodsService {
     }
   }
 
-  private ensureNotBlocked(reference: string | null) {
-    if (!reference || this.blocklist.size === 0) {
+  private async ensureNotBlocked(reference: string | null) {
+    if (!reference) {
       return;
     }
+
     const normalized = this.normalizeReference(reference);
-    if (this.blocklist.has(normalized)) {
+    if (this.envBlocklist.has(normalized)) {
       throw new BadRequestException('Payment method is not allowed');
     }
+
+    const dynamic = await this.loadDynamicBlocklist();
+    if (dynamic.has(normalized)) {
+      throw new BadRequestException('Payment method is not allowed');
+    }
+  }
+
+  private async loadDynamicBlocklist() {
+    const flags = await this.prisma.featureFlag.findMany({
+      where: { key: { startsWith: AML_BLOCKLIST_PREFIX } }
+    });
+
+    const values = flags.map((flag) => {
+      if (flag.description) {
+        try {
+          const parsed = JSON.parse(flag.description);
+          if (typeof parsed.normalized === 'string' && parsed.normalized.length > 0) {
+            return parsed.normalized;
+          }
+          if (typeof parsed.value === 'string') {
+            return this.normalizeReference(parsed.value);
+          }
+        } catch (error) {
+          return flag.key.replace(AML_BLOCKLIST_PREFIX, '');
+        }
+      }
+      return flag.key.replace(AML_BLOCKLIST_PREFIX, '');
+    });
+
+    return new Set(values.map((value) => this.normalizeReference(value)));
   }
 
   private normalizeReference(reference: string) {

@@ -10,7 +10,11 @@ const links: Array<{ href: string; label: string; roles: Role[] }> = [
   { href: '/dashboard', label: 'Overview', roles: ['ADMIN', 'VERIFIER', 'AGENT', 'LANDLORD', 'USER'] },
   { href: '/dashboard/listings', label: 'Listings', roles: ['ADMIN', 'AGENT', 'LANDLORD'] },
   { href: '/dashboard/verifications', label: 'Verifications', roles: ['ADMIN', 'VERIFIER'] },
-  { href: '/dashboard/reward-pool', label: 'Reward pool', roles: ['ADMIN'] }
+  { href: '/dashboard/reward-pool', label: 'Reward pool', roles: ['ADMIN'] },
+  { href: '/dashboard/admin/geo', label: 'Geo admin', roles: ['ADMIN'] },
+  { href: '/dashboard/admin/billing', label: 'Billing admin', roles: ['ADMIN'] },
+  { href: '/dashboard/admin/wallet', label: 'Wallet admin', roles: ['ADMIN'] },
+  { href: '/dashboard/admin/rates', label: 'Rate admin', roles: ['ADMIN'] }
 ];
 
 export function DashboardNav() {
