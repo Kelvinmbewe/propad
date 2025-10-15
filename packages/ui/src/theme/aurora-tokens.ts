@@ -7,13 +7,13 @@ type ColorScale = Scale<'50' | '100' | '200' | '300' | '400' | '500' | '600' | '
 type AuroraBaseTokens = {
   colors: {
     neutral: ColorScale;
+    primary: ColorScale;
+    secondary: ColorScale;
     accent: ColorScale;
-    fuchsia: ColorScale;
-    teal: ColorScale;
-    amber: ColorScale;
-    error: ColorScale;
     success: ColorScale;
     warning: ColorScale;
+    danger: ColorScale;
+    info: ColorScale;
   };
   typography: {
     fontFamily: {
@@ -68,106 +68,106 @@ type AuroraBaseTokens = {
 export const auroraBaseTokens: AuroraBaseTokens = {
   colors: {
     neutral: {
-      '50': '#f8fafc',
-      '100': '#f1f5f9',
+      '50': '#f7fafc',
+      '100': '#edf2f7',
       '200': '#e2e8f0',
-      '300': '#cbd5f5',
-      '400': '#94a3b8',
-      '500': '#64748b',
-      '600': '#475569',
-      '700': '#334155',
-      '800': '#1e293b',
-      '900': '#0f172a'
+      '300': '#cbd5e0',
+      '400': '#a0aec0',
+      '500': '#718096',
+      '600': '#4a5568',
+      '700': '#2d3748',
+      '800': '#1f2937',
+      '900': '#1a202c'
+    },
+    primary: {
+      '50': '#e0f2f1',
+      '100': '#b2dfdb',
+      '200': '#80cbc4',
+      '300': '#4db6ac',
+      '400': '#26a69a',
+      '500': '#009688',
+      '600': '#00897b',
+      '700': '#00796b',
+      '800': '#00695c',
+      '900': '#004d40'
+    },
+    secondary: {
+      '50': '#ebf5ff',
+      '100': '#cfe0ff',
+      '200': '#a3c8ff',
+      '300': '#7aaef5',
+      '400': '#4d8fdd',
+      '500': '#2b6cb0',
+      '600': '#265d99',
+      '700': '#1f4c7d',
+      '800': '#183b61',
+      '900': '#102745'
     },
     accent: {
-      '50': '#f5f5ff',
-      '100': '#eef2ff',
-      '200': '#dbe7ff',
-      '300': '#c3d7ff',
-      '400': '#8ca3ff',
-      '500': '#6278ff',
-      '600': '#4b5cf2',
-      '700': '#3d46d6',
-      '800': '#3136ad',
-      '900': '#252985'
+      '50': '#ffe9e6',
+      '100': '#ffccc5',
+      '200': '#ffada3',
+      '300': '#ff8f82',
+      '400': '#ff7a6c',
+      '500': '#ff6f61',
+      '600': '#e66259',
+      '700': '#cc554f',
+      '800': '#b34746',
+      '900': '#8a3433'
     },
-    fuchsia: {
-      '50': '#fdf4ff',
-      '100': '#fae8ff',
-      '200': '#f5d0fe',
-      '300': '#f0abfc',
-      '400': '#e879f9',
-      '500': '#d946ef',
-      '600': '#c026d3',
-      '700': '#a21caf',
-      '800': '#86198f',
-      '900': '#701a75'
+    success: {
+      '50': '#f0fff4',
+      '100': '#dcfee8',
+      '200': '#bdfad5',
+      '300': '#92f0b9',
+      '400': '#6fe6a1',
+      '500': '#68d391',
+      '600': '#47b371',
+      '700': '#2e9357',
+      '800': '#1d7744',
+      '900': '#115c32'
     },
-    teal: {
-      '50': '#ecfeff',
-      '100': '#cffafe',
-      '200': '#a5f3fc',
-      '300': '#67e8f9',
-      '400': '#22d3ee',
-      '500': '#0ea5e9',
-      '600': '#0284c7',
-      '700': '#0369a1',
-      '800': '#075985',
-      '900': '#0c4a6e'
+    warning: {
+      '50': '#fff8eb',
+      '100': '#ffe9c3',
+      '200': '#ffda9a',
+      '300': '#fec978',
+      '400': '#fdc15f',
+      '500': '#fbd38d',
+      '600': '#e1b16a',
+      '700': '#c7974f',
+      '800': '#a87a3a',
+      '900': '#7c5523'
     },
-    amber: {
-      '50': '#fffbeb',
-      '100': '#fef3c7',
-      '200': '#fde68a',
-      '300': '#fcd34d',
-      '400': '#fbbf24',
-      '500': '#f59e0b',
-      '600': '#d97706',
-      '700': '#b45309',
-      '800': '#92400e',
-      '900': '#78350f'
-    },
-    error: {
+    danger: {
       '50': '#fef2f2',
       '100': '#fee2e2',
       '200': '#fecaca',
       '300': '#fca5a5',
       '400': '#f87171',
-      '500': '#ef4444',
-      '600': '#dc2626',
-      '700': '#b91c1c',
-      '800': '#991b1b',
-      '900': '#7f1d1d'
+      '500': '#f56565',
+      '600': '#e25555',
+      '700': '#c54141',
+      '800': '#a23232',
+      '900': '#7f2323'
     },
-    success: {
-      '50': '#f0fdf4',
-      '100': '#dcfce7',
-      '200': '#bbf7d0',
-      '300': '#86efac',
-      '400': '#4ade80',
-      '500': '#22c55e',
-      '600': '#16a34a',
-      '700': '#15803d',
-      '800': '#166534',
-      '900': '#14532d'
-    },
-    warning: {
-      '50': '#fefce8',
-      '100': '#fef3c7',
-      '200': '#fde68a',
-      '300': '#fcd34d',
-      '400': '#fbbf24',
-      '500': '#f59e0b',
-      '600': '#d97706',
-      '700': '#b45309',
-      '800': '#92400e',
-      '900': '#78350f'
+    info: {
+      '50': '#f5f0ff',
+      '100': '#e8dcff',
+      '200': '#d4c1ff',
+      '300': '#bfa6ff',
+      '400': '#a989ff',
+      '500': '#9f7aea',
+      '600': '#8662d2',
+      '700': '#6d4ab4',
+      '800': '#553595',
+      '900': '#3d2571'
     }
   },
   typography: {
     fontFamily: {
-      sans: "'Inter', 'Plus Jakarta Sans', 'system-ui', sans-serif",
-      display: "'Switzer', 'Inter', 'system-ui', sans-serif"
+      sans: "'Inter', 'Poppins', 'system-ui', sans-serif",
+      display: "'Inter', 'Poppins', 'system-ui', sans-serif"
     },
     fontSize: {
       xs: '0.75rem',
@@ -181,25 +181,25 @@ export const auroraBaseTokens: AuroraBaseTokens = {
       '5xl': '3rem'
     },
     lineHeight: {
-      snug: '1.25',
-      relaxed: '1.5',
-      dense: '1.15',
-      loose: '1.7'
+      snug: '1.2',
+      relaxed: '1.6',
+      dense: '1.1',
+      loose: '1.8'
     }
   },
   radius: {
     sm: '0.5rem',
     md: '0.75rem',
-    lg: '1rem',
-    xl: '1.25rem',
-    '2xl': '1.75rem',
+    lg: '0.875rem',
+    xl: '0.95rem',
+    '2xl': '1rem',
     pill: '9999px'
   },
   shadow: {
-    soft: '0 12px 40px -24px rgba(79, 70, 229, 0.35)',
-    medium: '0 24px 60px -20px rgba(15, 23, 42, 0.45)',
-    bold: '0 24px 80px -10px rgba(15, 23, 42, 0.55)',
-    focus: '0 0 0 4px rgba(98, 120, 255, 0.35)'
+    soft: '0 1px 2px rgba(15, 23, 42, 0.05)',
+    medium: '0 4px 6px rgba(15, 23, 42, 0.08)',
+    bold: '0 10px 15px rgba(15, 23, 42, 0.12)',
+    focus: '0 0 0 4px rgba(43, 108, 176, 0.35)'
   },
   spacing: {
     '3xs': '0.25rem',
@@ -224,6 +224,10 @@ export type AuroraSemanticPalette = {
   text: string;
   textMuted: string;
   textSubtle: string;
+  primary: string;
+  primaryOn: string;
+  secondary: string;
+  secondaryOn: string;
   accent: string;
   accentStrong: string;
   accentGradient: string;
@@ -243,55 +247,63 @@ export type AuroraSemanticPalette = {
 
 export const auroraSemanticTokens: Record<AuroraMode, AuroraSemanticPalette> = {
   light: {
-    background: '#f4f6fb',
+    background: '#fafafa',
     elevated: '#ffffff',
-    highest: '#f8f9ff',
-    overlay: 'rgba(15, 23, 42, 0.65)',
-    border: 'rgba(99, 102, 241, 0.18)',
-    input: 'rgba(15, 23, 42, 0.05)',
-    text: '#0f172a',
-    textMuted: '#475569',
-    textSubtle: '#64748b',
-    accent: '#4b5cf2',
-    accentStrong: '#3d46d6',
-    accentGradient: 'linear-gradient(135deg, #6278ff 0%, #22d3ee 45%, #f59e0b 100%)',
+    highest: '#f5f7fa',
+    overlay: 'rgba(31, 41, 55, 0.55)',
+    border: 'rgba(31, 41, 55, 0.12)',
+    input: 'rgba(31, 41, 55, 0.06)',
+    text: '#1f2937',
+    textMuted: '#4a5568',
+    textSubtle: '#718096',
+    primary: '#009688',
+    primaryOn: '#ffffff',
+    secondary: '#2b6cb0',
+    secondaryOn: '#ffffff',
+    accent: '#ff6f61',
+    accentStrong: '#e66259',
+    accentGradient: 'linear-gradient(135deg, #009688 0%, #2b6cb0 50%, #ff6f61 100%)',
     accentOn: '#ffffff',
-    critical: '#dc2626',
-    warning: '#f59e0b',
-    success: '#16a34a',
-    info: '#0284c7',
-    glass: 'rgba(255, 255, 255, 0.65)',
+    critical: '#f56565',
+    warning: '#fbd38d',
+    success: '#68d391',
+    info: '#9f7aea',
+    glass: 'rgba(255, 255, 255, 0.7)',
     chart: {
-      primary: '#6278ff',
-      secondary: '#22d3ee',
-      tertiary: '#f59e0b',
-      quaternary: '#d946ef'
+      primary: '#009688',
+      secondary: '#2b6cb0',
+      tertiary: '#ff6f61',
+      quaternary: '#9f7aea'
     }
   },
   dark: {
-    background: '#0b1120',
-    elevated: '#111b2f',
-    highest: '#16213f',
-    overlay: 'rgba(3, 7, 18, 0.75)',
-    border: 'rgba(99, 102, 241, 0.32)',
-    input: 'rgba(148, 163, 184, 0.1)',
-    text: '#e2e8f0',
-    textMuted: '#cbd5f5',
-    textSubtle: '#94a3b8',
-    accent: '#8ca3ff',
-    accentStrong: '#6278ff',
-    accentGradient: 'linear-gradient(145deg, #3136ad 0%, #4b5cf2 40%, #22d3ee 75%, #f59e0b 100%)',
-    accentOn: '#0f172a',
-    critical: '#f87171',
-    warning: '#fbbf24',
-    success: '#4ade80',
-    info: '#38bdf8',
-    glass: 'rgba(17, 27, 47, 0.65)',
+    background: '#0d253f',
+    elevated: '#132f54',
+    highest: '#1a3f6f',
+    overlay: 'rgba(12, 30, 55, 0.75)',
+    border: 'rgba(144, 205, 244, 0.25)',
+    input: 'rgba(203, 213, 224, 0.14)',
+    text: '#f5f7fa',
+    textMuted: '#cbd5e0',
+    textSubtle: '#a0b3d4',
+    primary: '#4fd1c5',
+    primaryOn: '#0d253f',
+    secondary: '#90cdf4',
+    secondaryOn: '#0d253f',
+    accent: '#fc8181',
+    accentStrong: '#f9736a',
+    accentGradient: 'linear-gradient(135deg, #4fd1c5 0%, #90cdf4 50%, #fc8181 100%)',
+    accentOn: '#0d253f',
+    critical: '#fc8181',
+    warning: '#fbd38d',
+    success: '#68d391',
+    info: '#9f7aea',
+    glass: 'rgba(19, 47, 84, 0.65)',
     chart: {
-      primary: '#8ca3ff',
-      secondary: '#22d3ee',
-      tertiary: '#f59e0b',
-      quaternary: '#f0abfc'
+      primary: '#4fd1c5',
+      secondary: '#90cdf4',
+      tertiary: '#fc8181',
+      quaternary: '#9f7aea'
     }
   }
 };
@@ -307,6 +319,16 @@ export const auroraTokens: AuroraDesignTokens = {
 
 export const auroraCssVariables = (mode: AuroraMode) => {
   const palette = auroraSemanticTokens[mode];
+  const baseColorVariables = Object.entries(auroraBaseTokens.colors).reduce<Record<string, string>>(
+    (acc, [name, scale]) => {
+      Object.entries(scale).forEach(([grade, value]) => {
+        acc[`--aurora-color-${name}-${grade}`] = value;
+      });
+      return acc;
+    },
+    {}
+  );
+
   return {
     '--aurora-color-background': palette.background,
     '--aurora-color-elevated': palette.elevated,
@@ -317,11 +339,16 @@ export const auroraCssVariables = (mode: AuroraMode) => {
     '--aurora-color-text': palette.text,
     '--aurora-color-text-muted': palette.textMuted,
     '--aurora-color-text-subtle': palette.textSubtle,
+    '--aurora-color-primary': palette.primary,
+    '--aurora-color-primary-on': palette.primaryOn,
+    '--aurora-color-secondary': palette.secondary,
+    '--aurora-color-secondary-on': palette.secondaryOn,
     '--aurora-color-accent': palette.accent,
     '--aurora-color-accent-strong': palette.accentStrong,
     '--aurora-gradient-accent': palette.accentGradient,
     '--aurora-color-accent-on': palette.accentOn,
     '--aurora-color-critical': palette.critical,
+    '--aurora-color-danger': palette.critical,
     '--aurora-color-warning': palette.warning,
     '--aurora-color-success': palette.success,
     '--aurora-color-info': palette.info,
@@ -337,8 +364,21 @@ export const auroraCssVariables = (mode: AuroraMode) => {
     '--aurora-shadow-soft': auroraBaseTokens.shadow.soft,
     '--aurora-shadow-medium': auroraBaseTokens.shadow.medium,
     '--aurora-shadow-bold': auroraBaseTokens.shadow.bold,
-    '--aurora-shadow-focus': auroraBaseTokens.shadow.focus
+    '--aurora-shadow-focus': auroraBaseTokens.shadow.focus,
+    '--color-bg': palette.background,
+    '--color-card': palette.elevated,
+    '--color-text-primary': palette.text,
+    '--color-text-secondary': palette.textMuted,
+    '--color-primary': palette.primary,
+    '--color-secondary': palette.secondary,
+    '--color-accent': palette.accent,
+    '--color-success': auroraBaseTokens.colors.success['500'],
+    '--color-warning': auroraBaseTokens.colors.warning['500'],
+    '--color-danger': auroraBaseTokens.colors.danger['500'],
+    '--color-info': auroraBaseTokens.colors.info['500'],
+    '--aurora-font-numeric': 'tabular-nums',
+    ...baseColorVariables
   } as Record<string, string>;
 };
 
-export const auroraGradientBackground = `radial-gradient(120% 140% at 10% 20%, rgba(98, 120, 255, 0.35), transparent 60%), radial-gradient(80% 120% at 90% 10%, rgba(34, 211, 238, 0.35), transparent 60%), radial-gradient(90% 90% at 50% 90%, rgba(245, 158, 11, 0.2), transparent 65%)`;
+export const auroraGradientBackground = `radial-gradient(120% 140% at 10% 20%, rgba(0, 150, 136, 0.22), transparent 60%), radial-gradient(80% 120% at 90% 10%, rgba(43, 108, 176, 0.25), transparent 60%), radial-gradient(90% 90% at 50% 90%, rgba(255, 111, 97, 0.24), transparent 65%)`;
