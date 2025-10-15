@@ -44,4 +44,21 @@ describe('MetricsService', () => {
 
     expect(result.rewardPoolUsd).toBe(0);
   });
+
+  it('normalises decimal reward totals to numbers', async () => {
+    const prisma = createPrismaMock();
+    prisma.property.count
+      .mockResolvedValueOnce(5)
+      .mockResolvedValueOnce(2);
+    const decimalValue = {
+      toNumber: vi.fn(() => 4321)
+    };
+    prisma.rewardEvent.aggregate.mockResolvedValue({ _sum: { usdCents: decimalValue } });
+
+    const service = new MetricsService(prisma as any);
+    const result = await service.dashboard();
+
+    expect(decimalValue.toNumber).toHaveBeenCalledTimes(1);
+    expect(result.rewardPoolUsd).toBe(43.21);
+  });
 });
