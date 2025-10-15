@@ -13,10 +13,41 @@ export class MetricsService {
       this.prisma.rewardEvent.aggregate({ _sum: { usdCents: true } })
     ]);
 
+    const rewardCentsRaw = rewardSummary._sum.usdCents;
+    const rewardCents = normalizeDecimal(rewardCentsRaw);
+
     return {
       activeListings,
       pendingVerifications,
-      rewardPoolUsd: ((rewardSummary._sum.usdCents ?? 0) / 100) || 0
+      rewardPoolUsd: rewardCents / 100
     };
   }
+}
+
+function normalizeDecimal(value: unknown): number {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+
+  if (typeof value === 'object') {
+    const maybeDecimal = value as { toNumber?: () => number };
+    if (typeof maybeDecimal.toNumber === 'function') {
+      try {
+        return maybeDecimal.toNumber();
+      } catch (error) {
+        return 0;
+      }
+    }
+  }
+
+  return 0;
 }
