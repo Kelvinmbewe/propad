@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -7,6 +7,8 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { AdminService } from './admin.service';
 import { CreateStrikeDto, createStrikeSchema } from './dto/create-strike.dto';
 import { UpdateFeatureFlagDto, updateFeatureFlagSchema } from './dto/update-feature-flag.dto';
+import { ListInvoicesDto, listInvoicesSchema } from './dto/list-invoices.dto';
+import { MarkInvoicePaidDto, markInvoicePaidSchema } from './dto/mark-invoice-paid.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -61,5 +63,25 @@ export class AdminController {
   @Get('analytics/summary')
   analytics() {
     return this.adminService.analyticsSummary();
+  }
+
+  @Get('invoices')
+  listInvoices(@Query(new ZodValidationPipe(listInvoicesSchema)) query: ListInvoicesDto) {
+    return this.adminService.listInvoices(query.status);
+  }
+
+  @Get('exports/invoices')
+  @Header('Content-Type', 'text/csv')
+  exportInvoices(@Query(new ZodValidationPipe(listInvoicesSchema)) query: ListInvoicesDto) {
+    return this.adminService.exportInvoicesCsv(query.status);
+  }
+
+  @Post('invoices/:id/mark-paid')
+  markInvoicePaid(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(markInvoicePaidSchema)) dto: MarkInvoicePaidDto
+  ) {
+    return this.adminService.markInvoicePaid(id, dto, req.user.userId);
   }
 }

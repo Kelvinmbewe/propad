@@ -20,6 +20,7 @@ import { PromosModule } from './promos/promos.module';
 import { AdminModule } from './admin/admin.module';
 import { RateLimitGuard } from './security/rate-limit.guard';
 import { GeoModule } from './geo/geo.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -41,7 +42,8 @@ import { GeoModule } from './geo/geo.module';
     AuthModule,
     HealthModule,
     MetricsModule,
-    GeoModule
+    GeoModule,
+    PaymentsModule
   ],
   providers: [
     {

@@ -1,12 +1,19 @@
 import { Injectable } from '@nestjs/common';
+import { InvoiceStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateStrikeDto } from './dto/create-strike.dto';
 import { UpdateFeatureFlagDto } from './dto/update-feature-flag.dto';
+import { PaymentsService } from '../payments/payments.service';
+import { MarkInvoicePaidDto } from './dto/mark-invoice-paid.dto';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly payments: PaymentsService
+  ) {}
 
   async createStrike(dto: CreateStrikeDto, actorId: string) {
     const strike = await this.prisma.policyStrike.create({
@@ -91,6 +98,46 @@ export class AdminService {
       rewardPoints: rewards._sum.points ?? 0,
       payoutsUsd: (payouts._sum.amountUsdCents ?? 0) / 100
     };
+  }
+
+  listInvoices(status?: InvoiceStatus) {
+    return this.prisma.invoice.findMany({
+      where: status ? { status } : undefined,
+      include: {
+        lines: true,
+        promoBoost: { select: { id: true } },
+        campaign: { select: { id: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200
+    });
+  }
+
+  async exportInvoicesCsv(status?: InvoiceStatus) {
+    const invoices = await this.listInvoices(status);
+    const simplified = invoices.map((invoice) => ({
+      id: invoice.id,
+      invoiceNo: invoice.invoiceNo ?? invoice.id,
+      status: invoice.status,
+      totalCents: invoice.amountCents + invoice.taxCents,
+      currency: invoice.currency,
+      dueAt: invoice.dueAt?.toISOString() ?? '',
+      issuedAt: invoice.issuedAt?.toISOString() ?? '',
+      promoBoostId: invoice.promoBoost?.id ?? '',
+      campaignId: invoice.campaign?.id ?? ''
+    }));
+
+    return this.toCsv(simplified);
+  }
+
+  markInvoicePaid(id: string, dto: MarkInvoicePaidDto, actorId: string) {
+    return this.payments.markInvoicePaidOffline({
+      invoiceId: id,
+      amountCents: dto.amountCents,
+      notes: dto.notes,
+      paidAt: dto.paidAt,
+      actorId
+    });
   }
 
   private toCsv(records: any[]) {
