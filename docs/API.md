@@ -1,16 +1,20 @@
 # API Reference
 
-The API is hosted by the NestJS application in `apps/api`. All endpoints are prefixed with `/` and secured by JWT unless noted.
+The PropAd REST API is implemented in the NestJS service under `apps/api`. Unless otherwise noted, endpoints require a valid JWT (`Authorization: Bearer <token>`) and respect the global rate limit of **120 requests per minute per IP+user** enforced by `RateLimitGuard`.
+
+All responses are JSON and follow NestJS error conventions (`statusCode`, `message`, `error`).
 
 ## Authentication
 
 ### `POST /auth/login`
+- **Access:** Public
+- **Description:** Exchange email/password credentials for a short-lived JWT and user profile.
 
-Request body:
+Request:
 ```json
 {
-  "email": "user@example.com",
-  "password": "PropAd123!"
+  "email": "admin@propad.co.zw",
+  "password": "Admin@123"
 }
 ```
 
@@ -19,100 +23,389 @@ Response:
 {
   "accessToken": "<jwt>",
   "user": {
-    "id": "clx...",
-    "email": "user@example.com",
-    "role": "AGENT"
+    "id": "clx1a...",
+    "email": "admin@propad.co.zw",
+    "role": "ADMIN"
   }
 }
 ```
 
-Use the returned JWT as `Authorization: Bearer <token>` for subsequent requests.
-
-## Metrics
-
-### `GET /metrics/dashboard`
-
-Requires roles: `ADMIN`, `VERIFIER`, `AGENT`, or `LANDLORD`.
+### `GET /auth/session`
+- **Access:** Any authenticated user
+- **Description:** Returns the hydrated session and role metadata for the current token.
 
 Response:
 ```json
 {
-  "activeListings": 12,
-  "pendingVerifications": 3,
-  "rewardPoolUsd": 5000
+  "id": "clx1a...",
+  "email": "agent1@propad.co.zw",
+  "role": "AGENT",
+  "name": "Harare Agent 1",
+  "phone": "+26377100001"
+}
+```
+
+### `POST /auth/refresh`
+- **Access:** Any authenticated user
+- **Description:** Issues a new JWT for the same principal.
+
+Response:
+```json
+{
+  "accessToken": "<new-jwt>",
+  "expiresIn": 900
+}
+```
+
+## Metrics
+
+### `GET /metrics/dashboard`
+- **Access:** `ADMIN`, `VERIFIER`, `AGENT`, `LANDLORD`
+- **Description:** Returns headline KPIs for the platform.
+
+Response:
+```json
+{
+  "activeListings": 42,
+  "pendingVerifications": 7,
+  "rewardPoolUsd": 5200.5,
+  "leads24h": 18
 }
 ```
 
 ## Properties
 
 ### `GET /properties/search`
+- **Access:** Public
+- **Query Params:** `type`, `city`, `suburb`, `priceMin`, `priceMax`, `limit`
+- **Description:** Returns verified listings sorted by promo density, verification date, and recency.
 
-Public endpoint returning verified listings. Supported query params:
-
-- `type` (`ROOM`, `COTTAGE`, `HOUSE`, `PLOT`, `SALE`)
-- `suburb`
-- `city`
-- `priceMin`
-- `priceMax`
-- `limit` (default 20, max 50)
-
-Returns an array of property objects including up to three media items each.
+Response:
+```json
+[
+  {
+    "id": "clxprop1",
+    "type": "HOUSE",
+    "price": "750.00",
+    "currency": "USD",
+    "city": "Harare",
+    "suburb": "Borrowdale",
+    "bedrooms": 4,
+    "bathrooms": 3,
+    "amenities": ["Solar", "Borehole"],
+    "media": [
+      { "id": "clxmedia1", "url": "https://cdn.propad.co.zw/p1.jpg", "kind": "IMAGE" }
+    ]
+  }
+]
+```
 
 ### `GET /properties/:id`
+- **Access:** Public
+- **Description:** Returns a fully hydrated verified listing; `404` if not verified.
 
-Returns full property details for verified listings. Responds with `404` if the listing is not verified or missing.
+### `GET /properties/map/bounds`
+- **Access:** Public
+- **Query Params:** `southWestLat`, `southWestLng`, `northEastLat`, `northEastLng`, optional `type`
+- **Description:** Returns verified listings within map bounds for clustering.
+
+### `POST /properties`
+- **Access:** `AGENT`, `LANDLORD`, `ADMIN`
+- **Description:** Creates a draft property. Landlords/agents automatically become owners when IDs are omitted.
+
+Request:
+```json
+{
+  "type": "COTTAGE",
+  "currency": "USD",
+  "price": 420,
+  "city": "Harare",
+  "suburb": "Greendale",
+  "latitude": -17.8,
+  "longitude": 31.1,
+  "bedrooms": 2,
+  "bathrooms": 1,
+  "amenities": ["WiFi"],
+  "description": "Self-contained cottage with prepaid ZESA."
+}
+```
+
+Response includes the persisted property with status `DRAFT` and generated IDs.
+
+### `PATCH /properties/:id`
+- **Access:** `AGENT`, `LANDLORD`, `ADMIN`
+- **Description:** Update mutable fields; enforces ownership unless admin.
+
+### `DELETE /properties/:id`
+- **Access:** `AGENT`, `LANDLORD`, `ADMIN`
+- **Description:** Soft-deletes a draft or unverified listing.
+
+### `POST /properties/:id/submit`
+- **Access:** `AGENT`, `LANDLORD`, `ADMIN`
+- **Description:** Moves a property into the verification queue.
+
+### `POST /properties/upload-url`
+- **Access:** `AGENT`, `LANDLORD`, `ADMIN`
+- **Description:** Generates a signed PUT URL for MinIO uploads (valid 15 minutes). Rejects disallowed mime types / extensions.
+
+Request:
+```json
+{
+  "fileName": "kitchen.jpg",
+  "mimeType": "image/jpeg",
+  "propertyId": "clxprop1"
+}
+```
+
+Response:
+```json
+{
+  "key": "properties/clxprop1/fb7c....jpg",
+  "uploadUrl": "http://localhost:9000/propad/properties/...",
+  "method": "PUT",
+  "headers": {
+    "Content-Type": "image/jpeg",
+    "x-upload-signature": "...",
+    "x-upload-expires": "1719939000"
+  },
+  "expiresAt": "2024-07-02T10:30:00.000Z"
+}
+```
+
+## Verifications
+
+All verification routes require `VERIFIER` or `ADMIN` roles.
+
+### `GET /verifications/queue`
+- Returns pending properties with landlord, agent, and media context ordered by submission time.
+
+### `POST /verifications/:id/approve`
+- Persists a `Verification` record with result `PASS`, marks property `VERIFIED`, and adds an audit log entry.
+
+Request:
+```json
+{
+  "method": "SITE",
+  "notes": "Water meter confirmed on site",
+  "evidenceUrl": "https://cdn.propad.co.zw/verification/abc123.jpg"
+}
+```
+
+### `POST /verifications/:id/reject`
+- Archives the property and logs the failure with metadata.
+
+## Rewards
+
+Controller enforces `AGENT` or `ADMIN` by default; certain endpoints escalate to admin-only.
+
+### `POST /rewards/events`
+- **Access:** `ADMIN`
+- **Description:** Logs a reward event and writes audit metadata.
+
+Request:
+```json
+{
+  "agentId": "clxagent1",
+  "type": "LISTING_VERIFIED",
+  "points": 15,
+  "usdCents": 500,
+  "refId": "clxprop1"
+}
+```
+
+Response returns the created reward event record.
+
+### `GET /rewards/events`
+- **Access:** `AGENT` (self) or `ADMIN`
+- **Query Params:** optional `agentId`
+- **Description:** Lists up to 200 reward events. Agents requesting another agent’s history receive `403`.
+
+### `GET /rewards/pool/summary`
+- **Access:** `ADMIN`
+- **Description:** Aggregates total points/USD and top earning agents.
+
+### `GET /rewards/agents/:agentId/monthly-estimate`
+- **Access:** `AGENT` (self) or `ADMIN`
+- **Description:** Returns current month projections for an agent.
+
+Response:
+```json
+{
+  "agentId": "clxagent1",
+  "monthStart": "2024-07-01T00:00:00.000Z",
+  "projectedUsd": 125.5,
+  "projectedPoints": 320,
+  "events": 18
+}
+```
+
+## Promotions
+
+### `POST /promos`
+- **Access:** `AGENT`, `ADMIN`
+- **Description:** Creates a promo boost with tier, property, and schedule.
+
+### `POST /promos/:id/activate`
+- **Access:** `ADMIN`
+- **Description:** Forces start of a promo window (updates `startAt`/`endAt`).
+
+### `POST /promos/:id/rebate`
+- **Access:** `ADMIN`
+- **Description:** Logs a rebate event and writes to the audit log.
+
+Request:
+```json
+{
+  "amountUsdCents": 300,
+  "reason": "Service outage credit"
+}
+```
+
+### `GET /promos/suburb-sorting`
+- **Access:** `AGENT`, `ADMIN`
+- **Description:** Returns active promo counts per suburb ordered by volume.
+
+## Leads
+
+### `POST /leads`
+- **Access:** Public
+- **Description:** Captures a lead from web, WhatsApp, Facebook, or shortlink channels.
+
+Request:
+```json
+{
+  "propertyId": "clxprop1",
+  "source": "WHATSAPP",
+  "contact": "+263773300123",
+  "message": "Interested in viewing this weekend"
+}
+```
+
+Response returns the created lead with attribution metadata.
+
+### `PATCH /leads/:id/status`
+- **Access:** `AGENT`, `ADMIN`
+- **Description:** Updates lead status (`NEW`, `CONTACTED`, `QUALIFIED`, `CLOSED`) and appends an audit log entry.
+
+### `GET /leads/analytics/summary`
+- **Access:** `AGENT`, `ADMIN`
+- **Description:** Provides aggregated lead funnel counts by source and status.
 
 ## Advertising
 
 ### `POST /ads/impressions`
+- **Access:** Public (throttled)
+- **Description:** Records an ad impression with optional property/user attribution and returns the stored payload.
 
-Records an ad view with optional `propertyId`, `userId`, and `source` metadata.
-
-Request body:
-
+Request:
 ```json
 {
   "route": "/listings",
   "sessionId": "c0ffee-session",
   "source": "feed",
-  "propertyId": "clx..."
+  "propertyId": "clxprop1"
 }
 ```
 
-Response includes the stored impression and the `revenueMicros` estimate (auto-populated in non-production environments).
+Response includes `revenueMicros` (mocked in non-production environments).
 
 ## Shortlinks
 
-### `POST /shortlinks`
+All endpoints are public for ease of link sharing.
 
-Creates a tracked shortlink for any URL with optional UTM metadata.
+- `POST /shortlinks` – Creates a tracked shortlink with optional UTM fields.
+- `GET /shortlinks/:code` – Fetches the shortlink metadata and click counters.
+- `POST /shortlinks/:code/click` – Increments click counts and, if associated with a WhatsApp lead, auto-creates a `Lead` entry.
 
-### `GET /shortlinks/:code`
-
-Returns the shortlink record, including the original `targetUrl`.
-
-### `POST /shortlinks/:code/click`
-
-Increments the click counter and, for WhatsApp-sourced links with a `propertyId`, automatically creates a `Lead` record attributed to `WHATSAPP`.
-
-## WhatsApp Bot
+## WhatsApp bot
 
 ### `POST /whatsapp/inbound`
+- **Access:** Public (validate signature at the edge in production)
+- **Description:** Parses inbound text, queries listings, creates shortlinks, and responds with templated copy.
 
-Accepts `{ "from": "2637...", "message": "rooms in Budiriro under 150" }` and responds with a canned reply plus up to three listing previews containing shortlinks to the property pages.
+Response:
+```json
+{
+  "reply": "Here are 3 rooms in Budiriro under $150. Tap a link to view full details and contact the landlord.",
+  "items": [
+    {
+      "id": "clxprop1",
+      "headline": "Room in Budiriro",
+      "priceUsd": 120,
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "shortLink": "https://propad.local/s/abc123",
+      "previewImage": "https://cdn.propad.co.zw/media/prop1.jpg"
+    }
+  ]
+}
+```
 
-## Facebook Auto-poster
+## Facebook auto-poster
 
 ### `POST /facebook/publish`
+- **Access:** Internal automation (protect via API gateway)
+- **Description:** Publishes listing copy to the configured Facebook Page/groups. In local/dev environments, returns a simulated payload for verification.
 
-Publishes a preview message and PropAd shortlink to the configured Facebook Page and optional groups. When Facebook credentials are not present the endpoint returns a simulated payload so operators can verify copy.
+Response:
+```json
+{
+  "status": "simulated",
+  "pageId": "1234567890",
+  "message": "New verified property in Borrowdale",
+  "link": "https://propad.co.zw/listings/clxprop1"
+}
+```
+
+## Payouts
+
+### `POST /payouts/request`
+- **Access:** `AGENT`, `ADMIN`
+- **Description:** Agents (self) or admins (any agent) request a payout; creates `PENDING` record.
+
+Request:
+```json
+{
+  "agentId": "clxagent1",
+  "amountUsdCents": 7500,
+  "method": "ECOCASH"
+}
+```
+
+### `POST /payouts/:id/approve`
+- **Access:** `ADMIN`
+- **Description:** Adds a transaction reference before disbursement.
+
+### `POST /payouts/:id/pay`
+- **Access:** `ADMIN`
+- **Description:** Marks the payout as `PAID` and logs the action.
+
+### `POST /payouts/webhook`
+- **Access:** Public (from payment processor)
+- **Description:** Reconciles asynchronous payout notifications using `txRef` and updates status.
+
+Request:
+```json
+{
+  "txRef": "TX-12345",
+  "status": "PAID"
+}
+```
+
+## Admin
+
+All endpoints restricted to `ADMIN` role.
+
+- `POST /admin/strikes` – Creates a `PolicyStrike` against an agent with severity + reason.
+- `GET /admin/strikes` – Lists strikes, optionally filtered by `agentId`.
+- `POST /admin/feature-flags` – Upserts a feature flag (`key`, `enabled`, `description`).
+- `GET /admin/feature-flags` – Enumerates flags for toggling features.
+- `GET /admin/exports/properties` – Streams CSV export of recent properties.
+- `GET /admin/exports/leads` – Streams CSV export of recent leads.
+- `GET /admin/analytics/summary` – Aggregated counts for leadership dashboards.
 
 ## Health
 
 ### `GET /health`
-
-Public health check returning `{ "status": "ok" }`.
-
-## Error handling
-
-Errors follow NestJS defaults with JSON payloads containing `statusCode`, `message`, and `error` fields.
+- **Access:** Public
+- **Description:** Lightweight probe returning `{ "status": "ok" }` for uptime checks.
