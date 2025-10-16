@@ -2,6 +2,7 @@ import { LandingNav } from '@/components/landing-nav';
 import { LandingHero, type FloatingHeroCard } from '@/components/landing-hero';
 import { LandingMapSection } from '@/components/landing-map-section';
 import { LandingPropertyCard, type LandingProperty } from '@/components/landing-property-card';
+import { LandingAuroraPalette } from '@/components/landing-aurora-palette';
 import { Instagram, Linkedin, Twitter } from 'lucide-react';
 
 interface ShowcaseProperty extends LandingProperty {
@@ -74,6 +75,8 @@ export default function HomePage() {
       <LandingNav />
       <main className="flex flex-col gap-24 pb-24 pt-32">
         <LandingHero cards={heroCards} />
+
+        <LandingAuroraPalette />
 
         <section
           id="listings"

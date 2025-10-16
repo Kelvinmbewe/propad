@@ -1,7 +1,17 @@
 'use client';
 
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState
+} from 'react';
 import { auroraCssVariables, type AuroraMode } from './aurora-tokens';
+
+const STORAGE_KEY = 'aurora-theme-mode';
 
 type AuroraThemeContextValue = {
   mode: AuroraMode;
@@ -27,6 +37,13 @@ const applyCssVariables = (mode: AuroraMode) => {
   root.classList.toggle('aurora-dark', mode === 'dark');
   root.classList.toggle('aurora-light', mode === 'light');
   root.classList.toggle('dark', mode === 'dark');
+  root.style.colorScheme = mode;
+};
+
+const getStoredMode = (): AuroraMode | null => {
+  if (typeof window === 'undefined') return null;
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  return stored === 'light' || stored === 'dark' ? stored : null;
 };
 
 const getSystemMode = (): AuroraMode => {
@@ -35,25 +52,49 @@ const getSystemMode = (): AuroraMode => {
 };
 
 export function AuroraThemeProvider({ initialMode = 'system', children }: AuroraThemeProviderProps) {
-  const [mode, setModeState] = useState<AuroraMode>(() => {
-    if (initialMode === 'system') {
-      return getSystemMode();
+  const [mode, setModeState] = useState<AuroraMode>(() => (initialMode === 'dark' ? 'dark' : 'light'));
+
+  useEffect(() => {
+    const stored = getStoredMode();
+    if (stored) {
+      setModeState(stored);
+      return;
     }
-    return initialMode;
-  });
+
+    if (initialMode === 'system') {
+      setModeState(getSystemMode());
+    } else {
+      setModeState(initialMode);
+    }
+  }, [initialMode]);
 
   useEffect(() => {
     applyCssVariables(mode);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY, mode);
+    }
   }, [mode]);
 
   useEffect(() => {
-    if (initialMode !== 'system') return;
+    if (typeof window === 'undefined') return;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = (event: MediaQueryListEvent) => {
-      setModeState(event.matches ? 'dark' : 'light');
+      setModeState((current) => {
+        const stored = getStoredMode();
+        if (stored) {
+          return stored;
+        }
+        return event.matches ? 'dark' : 'light';
+      });
     };
-    media.addEventListener('change', handler);
-    return () => media.removeEventListener('change', handler);
+    if (initialMode === 'system') {
+      media.addEventListener('change', handler);
+    }
+    return () => {
+      if (initialMode === 'system') {
+        media.removeEventListener('change', handler);
+      }
+    };
   }, [initialMode]);
 
   const setMode = useCallback((next: AuroraMode) => {
