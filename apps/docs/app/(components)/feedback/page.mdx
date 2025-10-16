@@ -1,0 +1,41 @@
+'use client';
+
+import { AuroraSkeleton, AuroraSpinner, AuroraProgress, InlineAlert, EmptyState } from '@aurora/ui';
+
+# Feedback & States
+
+<div className="grid gap-8">
+  <section>
+    <h2 className="text-xl font-semibold">Skeletons</h2>
+    <div className="grid gap-4 sm:grid-cols-3">
+      <AuroraSkeleton />
+      <AuroraSkeleton variant="tableRow" />
+      <AuroraSkeleton variant="form" />
+    </div>
+  </section>
+  <section>
+    <h2 className="text-xl font-semibold">Loading</h2>
+    <div className="flex flex-wrap items-center gap-6">
+      <AuroraSpinner />
+      <AuroraProgress indeterminate className="w-64" />
+      <AuroraProgress value={66} className="w-64" />
+    </div>
+  </section>
+  <section>
+    <h2 className="text-xl font-semibold">Alerts</h2>
+    <div className="grid gap-4">
+      <InlineAlert variant="info" title="Information">Aurora surfaces system updates with high contrast.</InlineAlert>
+      <InlineAlert variant="success" title="Success">Celebrate wins with confetti micro animations.</InlineAlert>
+      <InlineAlert variant="warning" title="Warning">Highlight actions that need user attention.</InlineAlert>
+      <InlineAlert variant="danger" title="Danger">Escalate blockers with actionable language.</InlineAlert>
+    </div>
+  </section>
+  <section>
+    <h2 className="text-xl font-semibold">Empty States</h2>
+    <div className="grid gap-6 lg:grid-cols-3">
+      <EmptyState variant="no-results" title="No results" description="Try different filters to discover properties." />
+      <EmptyState variant="no-favorites" title="Favorites empty" description="Save listings to view them here." />
+      <EmptyState variant="no-permissions" title="Permissions needed" description="Request access from an administrator." />
+    </div>
+  </section>
+</div>

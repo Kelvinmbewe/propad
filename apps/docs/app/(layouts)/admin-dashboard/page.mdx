@@ -1,0 +1,51 @@
+# Admin Dashboard
+
+Aurora admin surfaces KPIs, charts, and actionable tables with accessible interactions.
+
+<div className="grid gap-8">
+  <header className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-gradient-to-r from-aurora-primary to-aurora-accent p-8 text-white shadow-lg">
+    <div>
+      <h2 className="text-3xl font-semibold">Portfolio overview</h2>
+      <p className="text-sm text-white/80">Monitor occupancy, revenue, and alerts in real-time.</p>
+    </div>
+    <div className="flex items-center gap-3">
+      <button className="rounded-full bg-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/30">Export</button>
+      <button className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-aurora-accent shadow-lg">Invite team</button>
+    </div>
+  </header>
+  <section className="grid gap-6 md:grid-cols-3">
+    {[
+      { label: 'Occupancy', value: '94%', delta: '+2.1%' },
+      { label: 'Monthly revenue', value: '$482k', delta: '+5.4%' },
+      { label: 'Active alerts', value: '3', delta: 'Resolve' },
+    ].map((item) => (
+      <article key={item.label} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+        <p className="text-sm uppercase tracking-[0.3em] text-slate-400">{item.label}</p>
+        <p className="mt-3 text-3xl font-semibold text-slate-900 dark:text-white">{item.value}</p>
+        <p className="text-sm text-aurora-accent">{item.delta}</p>
+      </article>
+    ))}
+  </section>
+  <section className="grid gap-6 lg:grid-cols-2">
+    <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+      <h3 className="text-lg font-semibold">Pipeline</h3>
+      <p className="text-sm text-slate-500">Lead velocity +12% with Aurora campaigns.</p>
+      <div className="mt-6 h-48 rounded-2xl bg-[linear-gradient(135deg,rgba(0,150,136,0.2),rgba(43,108,176,0.2))] shadow-inner" aria-hidden />
+    </article>
+    <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+      <h3 className="text-lg font-semibold">Alerts</h3>
+      <ul className="mt-4 space-y-3">
+        <li className="flex items-center justify-between rounded-2xl bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-600">
+          Upcoming lease expiry
+          <button className="rounded-full bg-white/80 px-3 py-1 text-xs text-amber-600">Review</button>
+        </li>
+        <li className="flex items-center justify-between rounded-2xl bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-600">
+          Maintenance overdue
+          <button className="rounded-full bg-white/80 px-3 py-1 text-xs text-red-600">Resolve</button>
+        </li>
+      </ul>
+    </article>
+  </section>
+</div>
+
+> Tables trap focus in modals; ESC closes drawers.

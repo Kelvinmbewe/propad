@@ -1,0 +1,50 @@
+# Property Grid
+
+A responsive grid with map/list toggle and density controls.
+
+<section className="space-y-6">
+  <header className="flex flex-wrap items-center justify-between gap-4">
+    <h2 className="text-2xl font-semibold">Featured listings</h2>
+    <div className="flex items-center gap-3">
+      <button className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm hover:border-aurora-accent hover:text-aurora-accent">
+        List view
+      </button>
+      <button className="rounded-full bg-gradient-to-r from-aurora-primary to-aurora-accent px-4 py-2 text-sm font-semibold text-white shadow-lg">
+        Map view
+      </button>
+    </div>
+  </header>
+  <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+    {[1, 2, 3, 4, 5, 6].map((item) => (
+      <article
+        key={item}
+        className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-aurora-accent/15 transition dark:border-slate-700 dark:bg-slate-900"
+      >
+        <div className="relative h-44 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#2B6CB0,transparent)] opacity-70" aria-hidden />
+          <img
+            src={`https://images.unsplash.com/photo-1505691723518-36a5ac3be353?auto=format&fit=crop&w=800&q=80&sig=${item}`}
+            alt="Modern property exterior"
+            className="h-full w-full object-cover"
+          />
+        </div>
+        <div className="space-y-3 p-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold">Aurora Residence {item}</h3>
+            <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-aurora-accent shadow-sm">
+              $1.2m
+            </span>
+          </div>
+          <p className="text-sm text-slate-500 dark:text-slate-400">4 bed · 3 bath · 2 100 ft²</p>
+          <div className="flex items-center gap-3 text-xs text-slate-400">
+            <span>Last updated 2h ago</span>
+            <span>•</span>
+            <span>Walk score 92</span>
+          </div>
+        </div>
+      </article>
+    ))}
+  </div>
+</section>
+
+> Density switch adjusts padding tokens from `md` to `sm`.

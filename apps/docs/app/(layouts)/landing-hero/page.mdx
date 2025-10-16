@@ -1,0 +1,24 @@
+# Landing Hero
+
+The landing hero uses gradient text masks and parallax safe imagery.
+
+<section className="relative overflow-hidden rounded-[3rem] bg-slate-900 p-16 text-white shadow-xl">
+  <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,#2B6CB0,transparent_60%)] opacity-70" aria-hidden />
+  <h2 className="text-5xl font-semibold">Find your next horizon</h2>
+  <p className="mt-4 max-w-xl text-lg text-slate-300">
+    Aurora pairs listings with interactive maps and tailored recommendations using the theme framework.
+  </p>
+  <form className="mt-8 flex flex-col gap-4 sm:flex-row">
+    <input
+      type="text"
+      placeholder="Search by suburb or school..."
+      className="flex-1 rounded-full border border-white/20 bg-white/10 px-6 py-3 backdrop-blur focus:outline-none"
+    />
+    <button className="rounded-full bg-gradient-to-r from-aurora-primary to-aurora-accent px-6 py-3 font-semibold text-white shadow-lg">
+      Search properties
+    </button>
+  </form>
+  <div className="pointer-events-none absolute -right-32 top-12 hidden h-64 w-64 rounded-full bg-gradient-to-br from-aurora-primary/40 to-aurora-accent/60 blur-3xl sm:block" />
+</section>
+
+> Parallax reduces motion for users with `prefers-reduced-motion`.

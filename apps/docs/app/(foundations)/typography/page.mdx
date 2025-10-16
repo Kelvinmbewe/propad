@@ -1,0 +1,27 @@
+# Typography
+
+Aurora uses Inter SemiBold for headlines and Inter Regular for body copy. Font weights are surfaced via tokens.
+
+<table className="w-full border-separate border-spacing-y-4">
+  <thead>
+    <tr className="text-left text-xs uppercase tracking-[0.2em] text-slate-500">
+      <th>Role</th>
+      <th>Token</th>
+      <th>Usage</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr className="rounded-xl bg-white shadow-sm dark:bg-slate-900">
+      <td className="p-4 font-semibold">Display / H1</td>
+      <td className="p-4">font-display: 600</td>
+      <td className="p-4">Hero statements, major KPI callouts.</td>
+    </tr>
+    <tr className="rounded-xl bg-white shadow-sm dark:bg-slate-900">
+      <td className="p-4 font-semibold">Body</td>
+      <td className="p-4">font-body: 400</td>
+      <td className="p-4">Paragraphs, supporting descriptions.</td>
+    </tr>
+  </tbody>
+</table>
+
+> Ensure heading levels follow semantic order (h1-h6) and never skip levels in page layout.
