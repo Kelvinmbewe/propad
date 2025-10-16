@@ -1,0 +1,20 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Aurora logomark</title>
+  <desc id="desc">Rounded square containing flowing aurora wave rendered in a turquoise to indigo gradient.</desc>
+  <defs>
+    <linearGradient id="aurora-gradient" x1="36" y1="36" x2="220" y2="220" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#009688" />
+      <stop offset="100%" stop-color="#2B6CB0" />
+    </linearGradient>
+    <filter id="glow" x="0" y="0" width="256" height="256" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="26.88" fill="url(#aurora-gradient)" filter="url(#glow)" />
+  <path d="M48 152c24-32 48-48 80-48s56 16 80 48-32 64-80 48-96-16-80-48Z" fill="#fff" fill-opacity="0.14" />
+  <path d="M56 112c28-32 60-48 96-48 36 0 68 16 96 48-24 32-44 44-96 32s-72 0-96-32Z" fill="#fff" fill-opacity="0.24" />
+</svg>

@@ -1,0 +1,21 @@
+'use client';
+
+import { Button, Tooltip } from '@aurora/ui';
+
+# Buttons
+
+Interactive controls use gradient emphasis and ripple micro-interactions.
+
+<div className="flex flex-wrap gap-4">
+  <Button>Primary</Button>
+  <Button variant="secondary">Secondary</Button>
+  <Tooltip content="Ghost button">
+    <Button variant="ghost">Ghost</Button>
+  </Tooltip>
+</div>
+
+## Usage
+
+- Keep labels concise and action oriented.
+- Use tooltip to clarify icons or ghost actions.
+- Ripple effect respects motion settings.

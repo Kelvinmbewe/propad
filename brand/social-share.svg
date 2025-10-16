@@ -1,0 +1,46 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Aurora Theme Framework social share card</title>
+  <desc id="desc">Gradient background with Aurora logomark and headline promoting the design system.</desc>
+  <defs>
+    <linearGradient id="bg" x1="180" y1="36" x2="1020" y2="594" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#009688" />
+      <stop offset="100%" stop-color="#2B6CB0" />
+    </linearGradient>
+    <linearGradient id="wave" x1="180" y1="150" x2="780" y2="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7DD3FC" stop-opacity="0.95" />
+      <stop offset="40%" stop-color="#CFFAFE" stop-opacity="0.75" />
+      <stop offset="100%" stop-color="#F8FAFC" stop-opacity="0.6" />
+    </linearGradient>
+    <filter id="glow" x="120" y="90" width="480" height="480" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="30" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="36" y="36" width="1128" height="558" rx="72" fill="url(#bg)" />
+  <g transform="translate(120 135)">
+    <rect x="0" y="0" width="360" height="360" rx="43.2" fill="url(#bg)" opacity="0.22" />
+    <rect x="12" y="12" width="336" height="336" rx="40.32" fill="url(#bg)" filter="url(#glow)" />
+    <path d="M54 228c36-48 72-72 120-72s84 24 120 72-48 96-120 72-144-24-120-72Z" fill="#fff" fill-opacity="0.16" />
+    <path d="M66 168c42-48 90-72 144-72s102 24 144 72c-36 48-66 66-144 48s-108 0-144-48Z" fill="url(#wave)" />
+  </g>
+  <g transform="translate(540 210)" fill="#F8FAFC">
+    <text font-family="'Inter', 'Inter var', 'Helvetica Neue', Arial, sans-serif" font-size="60" font-weight="600" letter-spacing="0.02em">
+      Aurora Theme Framework
+    </text>
+    <text font-family="'Inter', 'Inter var', 'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="400" y="96" fill="#E2E8F0">
+      A production-ready brand, motion, and UI system for real estate teams.
+    </text>
+    <g transform="translate(0 144)" fill="#F8FAFC" font-family="'Inter', 'Inter var', 'Helvetica Neue', Arial, sans-serif">
+      <text font-size="20" font-weight="500" opacity="0.9">Tokens · React UI · Docs · Demos · Tooling</text>
+    </g>
+  </g>
+  <g transform="translate(540 420)">
+    <rect width="210" height="56" rx="28" fill="rgba(15, 23, 42, 0.28)" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" />
+    <text x="32" y="36" font-family="'Inter', 'Inter var', 'Helvetica Neue', Arial, sans-serif" font-size="22" font-weight="600" fill="#F8FAFC">
+      Beauty Unimagined
+    </text>
+  </g>
+</svg>

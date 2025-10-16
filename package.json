@@ -12,9 +12,11 @@
     "dev": "npm run dev --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "artifact": "node scripts/create-artifact.mjs"
+    "artifact": "node scripts/create-artifact.mjs",
+    "build:og": "node scripts/render-social-share.mjs"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "2.6.1",
     "@types/node": "20.11.30",
     "prettier": "3.2.5",
     "typescript": "5.4.5"

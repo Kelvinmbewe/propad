@@ -1,0 +1,27 @@
+'use client';
+
+import { AuroraSpinner } from '@aurora/ui';
+
+# Motion System
+
+Aurora motion is purposeful and respectful.
+
+- Skeleton shimmer: `aurora-shimmer 1.2s linear infinite`
+- Spinner + progress use gradient stroke with glow
+- Route transitions: fade + translateY -4px in 250ms
+- Tooltips scale from 0.98 → 1, opacity fade
+
+<div className="mt-8 flex flex-wrap items-center gap-10">
+  <div className="grid gap-2 text-center">
+    <AuroraSpinner />
+    <span className="text-sm text-slate-500 dark:text-slate-400">Aurora Spinner</span>
+  </div>
+  <div className="grid gap-2 text-center">
+    <div className="h-3 w-52 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+      <div className="h-full w-1/2 bg-gradient-to-r from-aurora-primary to-aurora-accent animate-[aurora-progress_1.2s_ease-in-out_infinite]" />
+    </div>
+    <span className="text-sm text-slate-500 dark:text-slate-400">Indeterminate progress</span>
+  </div>
+</div>
+
+> Respect `prefers-reduced-motion`: disable shimmer & transitions when requested.
