@@ -37,21 +37,21 @@ export function LandingHero({ cards }: { cards: FloatingHeroCard[] }) {
         sizes="100vw"
         className="absolute inset-0 -z-20 object-cover"
       />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-emerald-600/70 via-slate-900/80 to-slate-950/90" />
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(135deg,rgba(0,150,136,0.7),rgba(43,108,176,0.85))]" />
       <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-16 px-6 pb-20 pt-32 sm:px-12 lg:px-16">
         <div className="flex max-w-3xl flex-col gap-6 text-white">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.35em] text-emerald-200/90">
+          <span className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#FF6F61,#9F7AEA)] px-4 py-2 text-xs uppercase tracking-[0.35em] text-white shadow-[0_0_10px_rgba(0,150,136,0.2)]">
             <Sparkles className="h-3.5 w-3.5" />
             Harare · Curated living
           </span>
-          <h1 className="text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
+          <h1 className="bg-[linear-gradient(135deg,#009688,#2B6CB0)] bg-clip-text text-4xl font-semibold leading-tight text-transparent sm:text-5xl lg:text-6xl">
             Discover Zimbabwe's new address for aspirational real estate.
           </h1>
           <p className="max-w-2xl text-lg text-emerald-50/80 sm:text-xl">
             PropAd pairs cinematic imagery with intelligent search so every listing feels personal and every viewing is perfectly choreographed.
           </p>
         </div>
-        <form className="grid gap-4 rounded-full border border-white/20 bg-white/10 p-3 backdrop-blur-xl sm:grid-cols-[2fr_1.3fr_1.3fr_auto]">
+        <form className="grid gap-4 rounded-full border border-white/30 bg-white/20 p-3 backdrop-blur-[10px] sm:grid-cols-[2fr_1.3fr_1.3fr_auto]">
           <div className="flex flex-col gap-1 rounded-full bg-white/5 px-4 py-2">
             <Label htmlFor="hero-location" className="text-[11px] uppercase tracking-widest text-white/70">
               Location
@@ -59,7 +59,7 @@ export function LandingHero({ cards }: { cards: FloatingHeroCard[] }) {
             <Input
               id="hero-location"
               placeholder="Borrowdale, Harare"
-              className="h-9 rounded-full border-none bg-transparent px-0 text-sm text-white placeholder:text-white/60 focus-visible:ring-emerald-300"
+              className="h-9 rounded-full border-none bg-transparent px-0 text-sm text-white placeholder:text-white/60 focus-visible:ring-[#009688]"
             />
           </div>
           <div className="flex flex-col gap-1 rounded-full bg-white/5 px-4 py-2">
@@ -69,7 +69,7 @@ export function LandingHero({ cards }: { cards: FloatingHeroCard[] }) {
             <select
               id="hero-type"
               defaultValue="luxury"
-              className="h-9 w-full rounded-full border-none bg-transparent text-sm text-white outline-none focus:ring-2 focus:ring-emerald-300"
+              className="h-9 w-full rounded-full border-none bg-transparent text-sm text-white outline-none focus:ring-2 focus:ring-[#009688]"
             >
               <option value="luxury" className="text-slate-900">
                 Luxury home
@@ -89,7 +89,7 @@ export function LandingHero({ cards }: { cards: FloatingHeroCard[] }) {
             <select
               id="hero-budget"
               defaultValue="2000"
-              className="h-9 w-full rounded-full border-none bg-transparent text-sm text-white outline-none focus:ring-2 focus:ring-emerald-300"
+              className="h-9 w-full rounded-full border-none bg-transparent text-sm text-white outline-none focus:ring-2 focus:ring-[#009688]"
             >
               <option value="2000" className="text-slate-900">
                 Up to US$2,000/mo
@@ -102,7 +102,7 @@ export function LandingHero({ cards }: { cards: FloatingHeroCard[] }) {
               </option>
             </select>
           </div>
-          <Button className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 px-8 text-base font-semibold text-slate-900 shadow-[0_18px_42px_-18px_rgba(45,212,191,0.85)] transition hover:from-emerald-300 hover:to-cyan-300">
+          <Button className="h-full rounded-full border-2 border-[#2EFEA5] bg-[linear-gradient(135deg,#009688,#2B6CB0)] px-8 text-base font-semibold text-white shadow-[0_18px_42px_-18px_rgba(0,150,136,0.65)] transition hover:shadow-[0_20px_48px_-18px_rgba(43,108,176,0.65)]">
             Search
           </Button>
         </form>
@@ -111,7 +111,7 @@ export function LandingHero({ cards }: { cards: FloatingHeroCard[] }) {
             <motion.div
               key={card.title}
               style={{ y: transforms[index] }}
-              className="rounded-3xl border border-white/10 bg-white/20 p-6 text-white shadow-[0_20px_60px_-35px_rgba(15,23,42,0.7)] backdrop-blur-2xl"
+              className="rounded-3xl border border-white/10 bg-white/20 p-6 text-white shadow-[0_0_10px_rgba(0,150,136,0.2)] backdrop-blur-[10px]"
             >
               <span className="text-xs font-medium uppercase tracking-[0.4em] text-white/60">{card.accent}</span>
               <h3 className="mt-3 text-xl font-semibold">{card.title}</h3>
