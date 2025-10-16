@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/raineorshine/npm-check-updates/main/doc/ncurc.schema.json",
+  "target": "latest",
+  "jsonUpgraded": true,
+  "interactive": false,
+  "doctor": true,
+  "dep": ["prod", "dev", "peer"],
+  "reject": [
+    "react-native",
+    "expo",
+    "/^@types\\\/node$/"
+  ],
+  "format": ["group"]
+}
