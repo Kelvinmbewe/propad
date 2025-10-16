@@ -1,0 +1,117 @@
+{
+  "request": {
+    "replaceWith": "undici",
+    "reason": "Deprecated HTTP client",
+    "notes": "Use native fetch or undici, remove request-promise-native"
+  },
+  "request-promise-native": {
+    "replaceWith": "undici",
+    "reason": "request family deprecated",
+    "notes": "Refactor to use fetch/undici with async helpers"
+  },
+  "node-sass": {
+    "replaceWith": "sass",
+    "reason": "node-sass deprecated; use dart-sass",
+    "minVersion": "^1.70.0"
+  },
+  "ts-node-dev": {
+    "replaceWith": "tsx",
+    "reason": "More reliable and maintained dev runner",
+    "minVersion": "^4.7.0"
+  },
+  "eslint-config-prettier@<8": {
+    "replaceWith": "eslint-config-prettier@^9",
+    "reason": "ESLint v9 compatibility"
+  },
+  "@typescript-eslint/*@<7": {
+    "replaceWith": "@typescript-eslint/*@^8",
+    "reason": "Align with ESLint v9 + TS5",
+    "notes": "Update parser + plugin in tandem"
+  },
+  "eslint@<9": {
+    "replaceWith": "eslint@^9",
+    "reason": "Legacy ESLint releases are retired"
+  },
+  "tailwindcss@<3.4": {
+    "replaceWith": "tailwindcss@^3.4",
+    "reason": "Modern JIT and plugin compat"
+  },
+  "postcss@<8.4": {
+    "replaceWith": "postcss@^8.4",
+    "reason": "Compat with Tailwind 3.x"
+  },
+  "next@<14": {
+    "replaceWith": "next@^14",
+    "reason": "App Router baseline; older plugin ecosystem deprecated",
+    "notes": "Enable turbopack, migrate custom server"
+  },
+  "next-auth": {
+    "replaceWith": "@auth/core",
+    "reason": "Package rename; use next-auth@^5 or @auth/core",
+    "notes": "Follow migration docs; update NextAuthProvider"
+  },
+  "@tanstack/react-query@<5": {
+    "replaceWith": "@tanstack/react-query@^5",
+    "reason": "React Query v5 baseline",
+    "notes": "Run React Query codemod for QueryClient"
+  },
+  "prisma@<5": {
+    "replaceWith": "prisma@^5",
+    "reason": "Engine updates; regenerate client"
+  },
+  "@prisma/client@<5": {
+    "replaceWith": "@prisma/client@^5",
+    "reason": "Align with Prisma CLI",
+    "notes": "Run prisma generate after upgrade"
+  },
+  "typeorm@0.2": {
+    "replaceWith": "typeorm@^0.3",
+    "reason": "Breaking API; use data source config"
+  },
+  "@nestjs/*@<10": {
+    "replaceWith": "@nestjs/*@^10",
+    "reason": "Nest v10 baseline",
+    "notes": "Check new moduleRef API"
+  },
+  "uuid@<9": {
+    "replaceWith": "uuid@^9",
+    "reason": "No default export; use named imports"
+  },
+  "chalk@<5": {
+    "replaceWith": "chalk@^5",
+    "reason": "ESM only; update import syntax"
+  },
+  "rimraf@<5": {
+    "replaceWith": "rimraf@^5",
+    "reason": "Use npx rimraf or npm script"
+  },
+  "cross-fetch": {
+    "replaceWith": "undici",
+    "reason": "Prefer global fetch/undici on Node 20"
+  },
+  "graphql-request@<7": {
+    "replaceWith": "graphql-request@^7",
+    "reason": "Align with graphql@^16 and ESM"
+  },
+  "apollo-server-express": {
+    "replaceWith": "@apollo/server",
+    "reason": "apollo-server v3 deprecated",
+    "notes": "Follow expressMiddleware migration"
+  },
+  "babel-eslint": {
+    "replaceWith": "@babel/eslint-parser",
+    "reason": "babel-eslint deprecated in favor of scoped package"
+  },
+  "@apollo/client@<3.9": {
+    "replaceWith": "@apollo/client@^3.9",
+    "reason": "Node 18+ compat"
+  },
+  "react-query": {
+    "replaceWith": "@tanstack/react-query@^5",
+    "reason": "Package renamed; install scoped module"
+  },
+  "ts-jest@<29": {
+    "replaceWith": "ts-jest@^29",
+    "reason": "Support Jest 29 + TS 5"
+  }
+}
