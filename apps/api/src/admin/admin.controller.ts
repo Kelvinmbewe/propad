@@ -12,6 +12,7 @@ import { MarkInvoicePaidDto, markInvoicePaidSchema } from './dto/mark-invoice-pa
 import { ListPaymentIntentsDto, listPaymentIntentsSchema } from './dto/list-payment-intents.dto';
 import { ListTransactionsDto, listTransactionsSchema } from './dto/list-transactions.dto';
 import { CreateFxRateDto, createFxRateSchema } from './dto/create-fx-rate.dto';
+import { UpdateAppConfigDto, updateAppConfigSchema } from './dto/update-app-config.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -120,5 +121,18 @@ export class AdminController {
     @Body(new ZodValidationPipe(createFxRateSchema)) dto: CreateFxRateDto
   ) {
     return this.adminService.createFxRate(dto, req.user.userId);
+  }
+
+  @Get('config')
+  getAppConfig() {
+    return this.adminService.getAppConfig();
+  }
+
+  @Post('config')
+  updateAppConfig(
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(updateAppConfigSchema)) dto: UpdateAppConfigDto
+  ) {
+    return this.adminService.updateAppConfig(dto, req.user.userId);
   }
 }

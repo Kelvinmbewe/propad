@@ -103,6 +103,9 @@ enum PropertyStatus {
   DRAFT
   PENDING_VERIFY
   VERIFIED
+  UNDER_OFFER
+  RENTED
+  SOLD
   ARCHIVED
 }
 
@@ -185,6 +188,42 @@ enum RewardEventType {
   SALE_CONFIRMED
   BONUS_TIER
   PROMO_REBATE
+}
+
+enum ListingEventType {
+  RENTED
+  SOLD
+  REOPENED
+  DISCOUNT
+  UNDER_OFFER
+}
+
+enum NotificationType {
+  RENTED
+  SOLD
+  DISCOUNT
+  REOPENED
+  REWARD
+  CHAT
+  SYSTEM
+}
+
+enum NotificationStatus {
+  SENT
+  READ
+  FAILED
+}
+
+enum NotificationChannel {
+  EMAIL
+  PUSH
+  WHATSAPP
+  INAPP
+}
+
+enum NotificationLogStatus {
+  OK
+  FAIL
 }
 
 enum OwnerType {
@@ -397,6 +436,11 @@ model User {
   agencyMemberships   AgencyMember[]
   landlordContracts   ManagementContract[] @relation("LandlordManagementContracts")
   pendingGeos         PendingGeo[]
+  priceHistoryChanges PriceHistory[]       @relation("PriceHistoryChangedBy")
+  discountOffersCreated DiscountOffer[]    @relation("DiscountOfferCreatedBy")
+  listingEventsCreated ListingEvent[]      @relation("ListingEventCreatedBy")
+  watchlistEntries     Watchlist[]
+  notifications        Notification[]
 }
 
 model AgentProfile {
@@ -516,13 +560,18 @@ model Property {
   suburb       Suburb?      @relation(fields: [suburbId], references: [id])
   pendingGeo   PendingGeo?  @relation(fields: [pendingGeoId], references: [id])
   dealConfirmedBy User?     @relation("PropertyDealConfirmer", fields: [dealConfirmedById], references: [id])
-  media        PropertyMedia[]
-  verifications Verification[]
-  leads        Lead[]
-  adImpressions AdImpression[]
-  promoBoosts  PromoBoost[]
-  assignments  AgentAssignment[]
-  messages     PropertyMessage[]
+  media           PropertyMedia[]
+  verifications   Verification[]
+  leads           Lead[]
+  adImpressions   AdImpression[]
+  promoBoosts     PromoBoost[]
+  assignments     AgentAssignment[]
+  messages        PropertyMessage[]
+  priceHistory    PriceHistory[]
+  discountOffers  DiscountOffer[]
+  listingEvents   ListingEvent[]
+  watchlists      Watchlist[]
+  metricsDaily    MetricListingDaily[]
 
   @@index([status])
   @@index([countryId])
@@ -536,6 +585,7 @@ model Property {
   @@index([createdAt(sort: Desc)])
   @@index([agencyId])
   @@index([isManaged])
+  @@index([status, cityId, suburbId, type, verifiedAt, updatedAt], map: "property_status_city_suburb_type_verified_updated")
 }
 
 model AgentAssignment {
@@ -569,6 +619,117 @@ model PropertyMessage {
 
   @@index([propertyId, createdAt])
   @@index([recipientId, readAt])
+}
+
+model PriceHistory {
+  id           String   @id @default(cuid())
+  propertyId   String
+  previousPrice Decimal  @db.Decimal(12, 2)
+  newPrice     Decimal   @db.Decimal(12, 2)
+  currency     Currency
+  changedById  String
+  changedAt    DateTime  @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id])
+  changedBy User    @relation("PriceHistoryChangedBy", fields: [changedById], references: [id])
+
+  @@index([propertyId, changedAt(sort: Desc)], map: "price_history_property_id_changed_at_desc")
+}
+
+model DiscountOffer {
+  id          String    @id @default(cuid())
+  propertyId  String
+  percentOff  Decimal?  @db.Decimal(5, 2)
+  amountOff   Decimal?  @db.Decimal(12, 2)
+  startAt     DateTime?
+  endAt       DateTime?
+  reason      String?
+  createdById String
+  createdAt   DateTime  @default(now())
+
+  property  Property @relation(fields: [propertyId], references: [id])
+  createdBy User     @relation("DiscountOfferCreatedBy", fields: [createdById], references: [id])
+
+  @@index([propertyId, startAt, endAt], map: "discount_offer_property_time")
+}
+
+model ListingEvent {
+  id          String            @id @default(cuid())
+  propertyId  String
+  type        ListingEventType
+  createdById String
+  createdAt   DateTime          @default(now())
+  metaJson    Json?
+
+  property  Property @relation(fields: [propertyId], references: [id])
+  createdBy User     @relation("ListingEventCreatedBy", fields: [createdById], references: [id])
+
+  @@index([propertyId, createdAt(sort: Desc)], map: "listing_event_property_id_created_at_desc")
+}
+
+model Watchlist {
+  userId     String
+  propertyId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@id([userId, propertyId])
+  @@index([userId, propertyId], map: "watchlist_user_id_property_id")
+}
+
+model Notification {
+  id        String            @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  url       String?
+  status    NotificationStatus @default(SENT)
+  createdAt DateTime           @default(now())
+  readAt    DateTime?
+
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs    NotificationLog[]
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model NotificationLog {
+  id             String                 @id @default(cuid())
+  notificationId String
+  channel        NotificationChannel
+  providerId     String?
+  status         NotificationLogStatus
+  payloadJson    Json?
+  createdAt      DateTime              @default(now())
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId, channel, createdAt])
+}
+
+model MetricListingDaily {
+  listingId        String
+  day              DateTime
+  impressions      Int      @default(0)
+  clicks           Int      @default(0)
+  sessions         Int      @default(0)
+  saves            Int      @default(0)
+  qualifiedLeads   Int      @default(0)
+  dwellSeconds     Int      @default(0)
+
+  property Property @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@id([listingId, day])
+  @@index([listingId, day], map: "metric_listing_daily_listing_id_day")
+}
+
+model AppConfig {
+  key       String   @id
+  jsonValue Json
+  updatedAt DateTime @updatedAt
 }
 
 model PropertyMedia {

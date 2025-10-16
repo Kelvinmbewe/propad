@@ -22,6 +22,7 @@ import { RateLimitGuard } from './security/rate-limit.guard';
 import { GeoModule } from './geo/geo.module';
 import { PaymentsModule } from './payments/payments.module';
 import { MailModule } from './mail/mail.module';
+import { AppConfigModule } from './app-config/app-config.module';
 
 @Module({
   imports: [
@@ -45,7 +46,8 @@ import { MailModule } from './mail/mail.module';
     MetricsModule,
     GeoModule,
     PaymentsModule,
-    MailModule
+    MailModule,
+    AppConfigModule
   ],
   providers: [
     {
