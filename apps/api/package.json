@@ -12,6 +12,8 @@
   "dependencies": {
     "@nestjs/axios": "3.0.0",
     "@nestjs/common": "10.3.2",
+    "@nestjs/platform-socket.io": "10.3.2",
+    "@nestjs/websockets": "10.3.2",
     "@nestjs/config": "3.2.0",
     "@nestjs/core": "10.3.2",
     "@nestjs/jwt": "10.2.0",
@@ -22,6 +24,7 @@
     "@propad/sdk": "file:../../packages/sdk",
     "@prisma/client": "5.11.0",
     "bullmq": "4.16.2",
+    "ioredis": "5.4.1",
     "cookie-parser": "1.4.6",
     "helmet": "7.1.0",
     "passport": "0.7.0",

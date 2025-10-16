@@ -27,6 +27,44 @@ export const DashboardMetricsSchema = z.object({
   rewardPoolUsd: z.number()
 });
 
+export const AdminOverviewMetricsSchema = z.object({
+  generatedAt: z.string(),
+  listings: z.object({
+    verified: z.number(),
+    pendingVerification: z.number(),
+    new7d: z.number(),
+    growth7dPct: z.number()
+  }),
+  leads: z.object({
+    total30d: z.number(),
+    qualified30d: z.number(),
+    conversionRate30d: z.number()
+  }),
+  agents: z.object({
+    total: z.number(),
+    active30d: z.number(),
+    new7d: z.number()
+  }),
+  revenue: z.object({
+    total30dUsd: z.number(),
+    averageDailyUsd: z.number(),
+    previous30dUsd: z.number(),
+    deltaPct: z.number()
+  }),
+  payouts: z.object({
+    pendingCount: z.number(),
+    pendingUsd: z.number(),
+    settled30dUsd: z.number()
+  }),
+  traffic: z.object({
+    visits30d: z.number(),
+    uniqueSessions30d: z.number(),
+    impressions30d: z.number(),
+    clicks30d: z.number(),
+    ctr30d: z.number()
+  })
+});
+
 export const PropertyMediaSchema = z
   .object({
     id: z.string(),
@@ -112,13 +150,25 @@ export const PropertySchema = z
   })
   .passthrough();
 
+const PropertySearchFacetsSchema = z.object({
+  price: z.object({
+    min: z.number(),
+    max: z.number()
+  }),
+  types: z.array(z.object({ type: z.string(), count: z.number() })),
+  suburbs: z.array(
+    z.object({ suburbId: z.string(), suburbName: z.string().nullish(), count: z.number() })
+  )
+});
+
 export const PropertySearchResultSchema = z.object({
   items: PropertySchema.array(),
   page: z.number(),
   perPage: z.number(),
   total: z.number(),
   totalPages: z.number(),
-  hasNextPage: z.boolean()
+  hasNextPage: z.boolean(),
+  facets: PropertySearchFacetsSchema
 });
 
 export const GeoSuburbSchema = z.object({
@@ -199,6 +249,58 @@ export const AgentSummarySchema = z.object({
   name: z.string().nullish(),
   phone: z.string().nullish(),
   agentProfile: AgentProfileSummarySchema.nullish()
+});
+
+export const DailyAdsPointSchema = z.object({
+  date: z.string(),
+  impressions: z.number(),
+  clicks: z.number(),
+  revenueUSD: z.number()
+});
+
+export const TopAgentPerformanceSchema = z.object({
+  agentId: z.string(),
+  agentName: z.string().nullish(),
+  verifiedListings: z.number(),
+  validLeads: z.number(),
+  monthPoints: z.number(),
+  estPayoutUSD: z.number()
+});
+
+export const TopAgentsResponseSchema = z.object({
+  generatedAt: z.string(),
+  items: TopAgentPerformanceSchema.array(),
+  limit: z.number(),
+  totalAgents: z.number()
+});
+
+export const GeoListingsResponseSchema = z.object({
+  generatedAt: z.string(),
+  city: z.object({ id: z.string(), name: z.string(), province: z.string() }),
+  suburbs: z.array(
+    z.object({
+      suburbId: z.string(),
+      suburbName: z.string(),
+      verifiedListings: z.number(),
+      pendingListings: z.number(),
+      averagePriceUsd: z.number().nullable(),
+      marketSharePct: z.number()
+    })
+  )
+});
+
+export const RewardsEstimateSchema = z.object({
+  agentId: z.string(),
+  generatedAt: z.string(),
+  monthStart: z.string(),
+  projectedUsd: z.number(),
+  projectedPoints: z.number(),
+  events: z.number(),
+  walletBalanceUsd: z.number(),
+  pendingWalletUsd: z.number(),
+  poolUsd: z.number(),
+  estimatedShareUsd: z.number(),
+  nextPayoutEta: z.string()
 });
 
 export const AgentAssignmentSchema = z
@@ -465,6 +567,7 @@ export const GeoSearchResultSchema = z.object({
 });
 
 export type DashboardMetrics = z.infer<typeof DashboardMetricsSchema>;
+export type AdminOverviewMetrics = z.infer<typeof AdminOverviewMetricsSchema>;
 export type Property = z.infer<typeof PropertySchema>;
 export type AdImpression = z.infer<typeof AdImpressionSchema>;
 export type ShortLink = z.infer<typeof ShortLinkSchema>;
@@ -492,3 +595,8 @@ export type PayoutRequest = z.infer<typeof PayoutRequestSchema>;
 export type AmlBlocklistEntry = z.infer<typeof AmlBlocklistEntrySchema>;
 export type WalletThreshold = z.infer<typeof WalletThresholdSchema>;
 export type GeoSearchResult = z.infer<typeof GeoSearchResultSchema>;
+export type DailyAdsPoint = z.infer<typeof DailyAdsPointSchema>;
+export type TopAgentPerformance = z.infer<typeof TopAgentPerformanceSchema>;
+export type TopAgentsResponse = z.infer<typeof TopAgentsResponseSchema>;
+export type GeoListingsResponse = z.infer<typeof GeoListingsResponseSchema>;
+export type RewardsEstimate = z.infer<typeof RewardsEstimateSchema>;

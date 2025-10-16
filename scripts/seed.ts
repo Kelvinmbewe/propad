@@ -27,6 +27,7 @@ import {
 import { hash } from 'bcryptjs';
 
 const prisma = new PrismaClient();
+const ADS_REWARD_SHARE = Number(process.env.ADSERVER_REWARD_SHARE ?? 0.2);
 
 const HARARE_SUBURBS = [
   'Avondale',
@@ -662,6 +663,79 @@ async function main() {
         status,
         createdAt: new Date(Date.now() - index * 3600000)
       }
+    });
+  }
+
+  const baseDay = new Date();
+  baseDay.setHours(0, 0, 0, 0);
+  const impressionsPerDay = 1000;
+
+  for (let dayOffset = 0; dayOffset < 30; dayOffset++) {
+    const dayStart = new Date(baseDay);
+    dayStart.setDate(baseDay.getDate() - dayOffset);
+
+    const dailyImpressions: Array<{ propertyId: string; route: string; source: string; sessionId: string; revenueMicros: number; createdAt: Date }> = [];
+    for (let index = 0; index < impressionsPerDay; index++) {
+      const property = properties[(dayOffset * 37 + index) % properties.length];
+      const createdAt = new Date(dayStart.getTime() + (index % 720) * 120000);
+      dailyImpressions.push({
+        propertyId: property.id,
+        route: index % 6 === 0 ? `/properties/${property.id}` : '/properties',
+        source: index % 4 === 0 ? 'CAMPAIGN' : 'DISCOVERY',
+        sessionId: `seed-session-${dayOffset}-${index}`,
+        revenueMicros: 900 + (index % 120) * 60,
+        createdAt
+      });
+    }
+
+    for (let offset = 0; offset < dailyImpressions.length; offset += 200) {
+      await prisma.adImpression.createMany({
+        data: dailyImpressions.slice(offset, offset + 200)
+      });
+    }
+
+    const impressions = dailyImpressions.length;
+    const clicks = dailyImpressions.filter((entry) => entry.route.startsWith('/properties/')).length;
+    const revenueMicros = dailyImpressions.reduce((total, entry) => total + entry.revenueMicros, 0);
+
+    await prisma.metricDailyAds.upsert({
+      where: { date: dayStart },
+      update: {
+        impressions,
+        clicks,
+        revenueMicros: BigInt(revenueMicros)
+      },
+      create: {
+        date: dayStart,
+        impressions,
+        clicks,
+        revenueMicros: BigInt(revenueMicros)
+      }
+    });
+
+    const grossUsdCents = Math.round(revenueMicros / 10000);
+    const payoutsUsdCents = Math.round(grossUsdCents * ADS_REWARD_SHARE);
+
+    await prisma.metricDailyRevenue.upsert({
+      where: { date: dayStart },
+      update: {
+        grossUsdCents: BigInt(grossUsdCents),
+        payoutsUsdCents: BigInt(payoutsUsdCents)
+      },
+      create: {
+        date: dayStart,
+        grossUsdCents: BigInt(grossUsdCents),
+        payoutsUsdCents: BigInt(payoutsUsdCents)
+      }
+    });
+
+    const visits = 550 + dayOffset * 9;
+    const uniqueSessions = Math.round(visits * 0.72);
+
+    await prisma.metricDailyTraffic.upsert({
+      where: { date: dayStart },
+      update: { visits, uniqueSessions },
+      create: { date: dayStart, visits, uniqueSessions }
     });
   }
 

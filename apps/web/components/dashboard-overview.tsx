@@ -1,713 +1,561 @@
 'use client';
 
-import Link from 'next/link';
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Area,
   AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
-  Line,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
   XAxis,
   YAxis
 } from 'recharts';
-import {
-  Bell,
-  Building2,
-  CircleDollarSign,
-  Gauge,
-  LayoutDashboard,
-  LineChart as LineChartIcon,
-  ListChecks,
-  Menu,
-  MessageCircle,
-  Settings,
-  ShieldCheck,
-  Sun,
-  Moon,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react';
+import { differenceInCalendarDays, format, isValid, parseISO, subDays } from 'date-fns';
+import { io } from 'socket.io-client';
+import { Building2, MapPin, MousePointerClick, TrendingUp, Users, X } from 'lucide-react';
+import { env } from '@propad/config';
 import {
   Button,
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
-  Input,
-  Label,
-  Skeleton,
-  cn,
-  useAuroraTheme
+  Skeleton
 } from '@propad/ui';
-import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
+import { useOverviewMetrics, useDailyAds, useTopAgents, useGeoListings } from '@/hooks/use-admin-metrics';
+import type { AdminOverviewMetrics, DailyAdsPoint, TopAgentPerformance } from '@propad/sdk';
 
-type DashboardMetrics = {
-  activeListings: number;
-  pendingVerifications: number;
-  rewardPoolUsd: number;
-};
+const RANGE_OPTIONS = [7, 30, 90] as const;
+const CITY_CHOICES = ['Harare', 'Bulawayo', 'Mutare'];
 
-const pastelPalette = ['#68D391', '#9F7AEA', '#F6AD55', '#FC8181'] as const;
+const currencyFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD'
+});
 
-const navigationItems = [
-  { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Listings', href: '/dashboard/listings', icon: Building2 },
-  { label: 'Verifications', href: '/dashboard/verifications', icon: ShieldCheck },
-  { label: 'Reward pool', href: '/dashboard/reward-pool', icon: CircleDollarSign }
-];
+const numberFormatter = new Intl.NumberFormat('en-US');
+
+type RangeOption = (typeof RANGE_OPTIONS)[number];
 
 export function DashboardOverview() {
-  const sdk = useAuthenticatedSDK();
-  const { toggle, mode } = useAuroraTheme();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['dashboard:stats'],
-    queryFn: () => sdk!.metrics.dashboard(),
-    enabled: !!sdk
-  });
+  const toParam = searchParams.get('to');
+  const fromParam = searchParams.get('from');
+  const cityParam = searchParams.get('city');
 
-  if (!sdk) {
-    return <p className="text-sm text-neutral-500">Preparing your dashboard…</p>;
-  }
+  const today = new Date();
+  const toCandidate = toParam ? parseISO(toParam) : today;
+  const toDate = isValid(toCandidate) ? toCandidate : today;
+  const defaultFrom = subDays(toDate, 29);
+  const fromCandidate = fromParam ? parseISO(fromParam) : defaultFrom;
+  const fromDate = isValid(fromCandidate) ? fromCandidate : defaultFrom;
+  const normalizedFrom = fromDate > toDate ? subDays(toDate, 29) : fromDate;
 
-  const metrics: DashboardMetrics = data ?? {
-    activeListings: 0,
-    pendingVerifications: 0,
-    rewardPoolUsd: 0
-  };
+  const fromIso = format(normalizedFrom, 'yyyy-MM-dd');
+  const toIso = format(toDate, 'yyyy-MM-dd');
+  const selectedCity = cityParam && cityParam.trim().length > 0 ? cityParam : 'Harare';
+  const rangeDays = differenceInCalendarDays(toDate, normalizedFrom) + 1;
+  const activeRange: RangeOption | null = RANGE_OPTIONS.includes(rangeDays as RangeOption)
+    ? (rangeDays as RangeOption)
+    : null;
 
-  const trendData = useMemo(() => {
-    const months = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
-    const baseline = Math.max(metrics.rewardPoolUsd, 6);
-    const demand = Math.max(metrics.activeListings, 10);
-    const pending = Math.max(metrics.pendingVerifications, 4);
+  const overviewQuery = useOverviewMetrics();
+  const dailyAdsQuery = useDailyAds(fromIso, toIso);
+  const [agentsLimit, setAgentsLimit] = useState(5);
+  const topAgentsQuery = useTopAgents(agentsLimit);
+  const geoQuery = useGeoListings(selectedCity);
 
-    return months.map((month, index) => {
-      const growthFactor = 0.65 + index * 0.07;
-      return {
-        month,
-        rewards: Number((baseline * growthFactor).toFixed(1)),
-        verifications: Math.round(demand * (0.4 + index * 0.05)),
-        pending: Math.round(pending * (0.5 - index * 0.05))
-      };
-    });
-  }, [metrics]);
-
-  const pipelineData = useMemo(
-    () => [
-      {
-        stage: 'New',
-        listings: Math.max(metrics.activeListings - metrics.pendingVerifications, 2) + 12
-      },
-      {
-        stage: 'In review',
-        listings: metrics.pendingVerifications + 8
-      },
-      {
-        stage: 'Ready to publish',
-        listings: Math.max(Math.round(metrics.activeListings * 0.6), 4) + 6
-      },
-      {
-        stage: 'Featured',
-        listings: Math.max(Math.round(metrics.activeListings * 0.35), 2) + 4
-      }
-    ],
-    [metrics]
-  );
-
-  const performanceRows = useMemo(
-    () => [
-      {
-        property: 'Emerald Heights',
-        views: 1240 + metrics.activeListings * 3,
-        inquiries: 32 + Math.round(metrics.rewardPoolUsd / 12),
-        status: 'Live'
-      },
-      {
-        property: 'Harare Gardens Loft',
-        views: 980 + metrics.pendingVerifications * 5,
-        inquiries: 21 + Math.round(metrics.activeListings / 4),
-        status: 'Boosted'
-      },
-      {
-        property: 'Matobo Villas',
-        views: 860 + metrics.pendingVerifications * 4,
-        inquiries: 19 + Math.round(metrics.rewardPoolUsd / 18),
-        status: 'Needs media'
-      },
-      {
-        property: 'Vic Falls Residences',
-        views: 742 + metrics.activeListings * 2,
-        inquiries: 15 + Math.round(metrics.pendingVerifications / 2),
-        status: 'Live'
-      }
-    ],
-    [metrics]
-  );
-
-  const activityItems = useMemo(
-    () => [
-      {
-        title: 'New listing approved',
-        description: 'A property manager published a verified listing.',
-        time: '2 hours ago',
-        accent: pastelPalette[0]
-      },
-      {
-        title: 'Verification follow-up',
-        description: `${metrics.pendingVerifications} listings need additional photos.`,
-        time: 'Today, 09:35',
-        accent: pastelPalette[1]
-      },
-      {
-        title: 'Reward pool update',
-        description: `USD ${metrics.rewardPoolUsd.toLocaleString(undefined, { minimumFractionDigits: 2 })} ready to allocate.`,
-        time: 'Yesterday, 18:10',
-        accent: pastelPalette[2]
-      },
-      {
-        title: 'Team message',
-        description: 'Finance shared payout reminders for verified landlords.',
-        time: 'Yesterday, 14:52',
-        accent: pastelPalette[3]
-      }
-    ],
-    [metrics]
-  );
-
-  const stats = [
-    {
-      title: 'Active listings',
-      value: metrics.activeListings.toLocaleString(),
-      change: 'Up 12% vs last sprint',
-      icon: Building2,
-      accent: 'from-emerald-400 via-teal-400 to-sky-500'
+  const updateQuery = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === null) {
+          params.delete(key);
+        } else {
+          params.set(key, value);
+        }
+      });
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
-    {
-      title: 'Pending verifications',
-      value: metrics.pendingVerifications.toLocaleString(),
-      change: 'Queue cleared every 36 hours',
-      icon: ShieldCheck,
-      accent: 'from-violet-400 via-purple-400 to-indigo-500'
+    [pathname, router, searchParams]
+  );
+
+  const handleRangeChange = useCallback(
+    (days: RangeOption) => {
+      const newFrom = subDays(toDate, days - 1);
+      updateQuery({ from: format(newFrom, 'yyyy-MM-dd'), to: toIso });
     },
-    {
-      title: 'Reward pool (USD)',
-      value: `$${metrics.rewardPoolUsd.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-      change: 'Smooth growth over the past 6 weeks',
-      icon: CircleDollarSign,
-      accent: 'from-amber-400 via-orange-400 to-rose-400'
+    [toDate, toIso, updateQuery]
+  );
+
+  const handleCityChange = useCallback(
+    (value: string) => {
+      updateQuery({ city: value });
+    },
+    [updateQuery]
+  );
+
+  const dailyAds = dailyAdsQuery.data ?? [];
+  const overview = overviewQuery.data;
+  const topAgents = topAgentsQuery.data?.items ?? [];
+  const totalAgents = topAgentsQuery.data?.totalAgents ?? 0;
+  const geoData = geoQuery.data;
+
+  useEffect(() => {
+    if (!env.NEXT_PUBLIC_WS_ENABLED || !session?.accessToken) {
+      return;
     }
-  ];
+
+    const baseUrl = new URL(env.NEXT_PUBLIC_API_BASE_URL);
+    const wsProtocol = baseUrl.protocol === 'https:' ? 'wss' : 'ws';
+    const socket = io(`${wsProtocol}://${baseUrl.host}/admin.metrics`, {
+      transports: ['websocket'],
+      auth: { token: session.accessToken }
+    });
+
+    socket.on('metrics:overview:update', (payload: AdminOverviewMetrics) => {
+      queryClient.setQueryData(['admin-metrics', 'overview'], payload);
+    });
+
+    socket.on('metrics:ads:tick', (payload: DailyAdsPoint) => {
+      queryClient.setQueryData(
+        ['admin-metrics', 'ads', fromIso, toIso],
+        (current: DailyAdsPoint[] | undefined) => {
+          const payloadDay = format(parseISO(payload.date), 'yyyy-MM-dd');
+          const inRange = payloadDay >= fromIso && payloadDay <= toIso;
+          if (!inRange) {
+            return current;
+          }
+          if (!current) {
+            return [payload];
+          }
+          const index = current.findIndex(
+            (point) => format(parseISO(point.date), 'yyyy-MM-dd') === payloadDay
+          );
+          if (index >= 0) {
+            const next = current.slice();
+            next[index] = payload;
+            return next;
+          }
+          const next = [...current, payload];
+          next.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          return next;
+        }
+      );
+    });
+
+    socket.on('leads:new', () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-metrics', 'overview'] });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [fromIso, queryClient, session?.accessToken, toIso]);
+
+  useEffect(() => {
+    if (agentsLimit > totalAgents && totalAgents > 0) {
+      setAgentsLimit(totalAgents);
+    }
+  }, [agentsLimit, totalAgents]);
+
+  const [selectedAgent, setSelectedAgent] = useState<TopAgentPerformance | null>(null);
+
+  const overviewCards = useMemo(() => {
+    if (!overview) {
+      return [];
+    }
+    return [
+      {
+        key: 'listings',
+        label: 'Verified listings',
+        value: numberFormatter.format(overview.listings.verified),
+        hint: `${overview.listings.new7d} added this week`,
+        delta: `${overview.listings.growth7dPct.toFixed(1)}% vs prior 7d`,
+        icon: Building2
+      },
+      {
+        key: 'leads',
+        label: 'Lead conversion',
+        value: `${overview.leads.conversionRate30d.toFixed(1)}%`,
+        hint: `${overview.leads.qualified30d}/${overview.leads.total30d} qualified`,
+        delta: '30-day conversion',
+        icon: MousePointerClick
+      },
+      {
+        key: 'revenue',
+        label: 'Ad revenue (30d)',
+        value: currencyFormatter.format(overview.revenue.total30dUsd),
+        hint: `Daily avg ${currencyFormatter.format(overview.revenue.averageDailyUsd)}`,
+        delta: `${overview.revenue.deltaPct.toFixed(1)}% vs prev 30d`,
+        icon: TrendingUp
+      },
+      {
+        key: 'agents',
+        label: 'Active agents',
+        value: numberFormatter.format(overview.agents.active30d),
+        hint: `${overview.agents.new7d} joined last 7d`,
+        delta: `${overview.agents.total} total roster`,
+        icon: Users
+      }
+    ];
+  }, [overview]);
+
+  const dailyAdsChartData = useMemo(
+    () =>
+      dailyAds.map((point) => ({
+        dateLabel: format(parseISO(point.date), 'MMM d'),
+        revenue: point.revenueUSD,
+        impressions: point.impressions,
+        clicks: point.clicks
+      })),
+    [dailyAds]
+  );
+
+  const geoChartData = useMemo(() => {
+    if (!geoData) {
+      return [];
+    }
+    return geoData.suburbs.slice(0, 6).map((suburb) => ({
+      name: suburb.suburbName,
+      verified: suburb.verifiedListings,
+      pending: suburb.pendingListings
+    }));
+  }, [geoData]);
+
+  const handleCloseDrawer = useCallback(() => setSelectedAgent(null), []);
 
   return (
-    <div className="relative flex min-h-screen bg-gradient-to-br from-neutral-100 via-white to-neutral-200 text-neutral-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-white">
-      <aside
-        className={cn(
-          'relative hidden min-h-screen border-r border-transparent bg-white/70 px-3 py-6 backdrop-blur-xl transition-all duration-300 dark:bg-slate-950/70 md:flex',
-          sidebarCollapsed ? 'w-20' : 'w-64'
-        )}
-        aria-label="Primary"
-      >
-        <span className="pointer-events-none absolute right-0 top-0 h-full w-px bg-gradient-to-b from-emerald-400 via-purple-400 to-orange-400" />
-        <div className="flex flex-1 flex-col gap-8">
-          <div className="flex items-center justify-between px-2">
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 via-purple-400 to-orange-400 text-white shadow-lg">
-                <Gauge className="h-5 w-5" />
-              </span>
-              {!sidebarCollapsed && <span className="text-sm font-semibold tracking-wide">PropAd Control</span>}
-            </Link>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
-              onClick={() => setSidebarCollapsed((prev) => !prev)}
-              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </Button>
-          </div>
-          <nav className="flex flex-1 flex-col gap-1">
-            {navigationItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-neutral-500 transition hover:bg-white/70 hover:text-neutral-900 dark:hover:bg-slate-900/70 dark:hover:text-white',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
-                  )}
-                  title={item.label}
-                >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-neutral-200 via-neutral-100 to-white text-neutral-600 shadow-sm transition group-hover:from-emerald-100 group-hover:via-purple-100 group-hover:to-orange-100 dark:from-slate-800 dark:via-slate-900 dark:to-slate-950">
-                    <Icon className="h-4 w-4" aria-hidden="true" />
-                  </span>
-                  {!sidebarCollapsed && <span>{item.label}</span>}
-                </Link>
-              );
-            })}
-          </nav>
-          <div className={cn('mt-auto rounded-2xl border border-white/40 bg-white/80 p-4 text-xs shadow-lg dark:border-white/10 dark:bg-slate-900/80', sidebarCollapsed && 'hidden')}>
-            <p className="font-semibold text-neutral-700 dark:text-neutral-200">Automations</p>
-            <p className="mt-1 text-neutral-500 dark:text-neutral-400">
-              Keep your verification queue organised by enabling automatic reminders for agents.
-            </p>
-            <Button variant="default" className="mt-3 h-8 rounded-full bg-neutral-900 text-xs text-white hover:bg-neutral-800 dark:bg-white dark:text-slate-900 dark:hover:bg-neutral-200">
-              Configure
-            </Button>
-          </div>
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-neutral-900">Operations overview</h1>
+          <p className="text-sm text-neutral-600">
+            Performance metrics update automatically from live marketplace signals.
+          </p>
         </div>
-      </aside>
+        <div className="flex flex-wrap items-center gap-2">
+          {RANGE_OPTIONS.map((option) => (
+            <Button
+              key={option}
+              variant={activeRange === option ? 'default' : 'outline'}
+              onClick={() => handleRangeChange(option)}
+            >
+              Last {option}d
+            </Button>
+          ))}
+        </div>
+      </header>
 
-      <div className="flex flex-1 flex-col">
-        <header className="sticky top-0 z-20 border-b border-white/40 bg-white/80 px-4 py-4 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden"
-                onClick={() => setSidebarCollapsed((prev) => !prev)}
-                aria-label={sidebarCollapsed ? 'Open navigation' : 'Hide navigation'}
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {overviewQuery.isLoading &&
+          Array.from({ length: 4 }).map((_, index) => (
+            <Card key={index} className="space-y-4">
+              <CardHeader>
+                <Skeleton className="h-4 w-28" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-24" />
+                <Skeleton className="mt-2 h-4 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        {!overviewQuery.isLoading && overviewCards.map((card) => (
+          <Card key={card.key} className="border-neutral-200">
+            <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">Agent Command Center</p>
-                <h1 className="text-lg font-semibold text-neutral-900 dark:text-white">Portfolio momentum</h1>
+                <CardTitle className="flex items-center gap-2 text-sm font-medium text-neutral-600">
+                  {card.label}
+                </CardTitle>
+                <CardDescription>{card.hint}</CardDescription>
               </div>
-            </div>
+              <card.icon className="h-5 w-5 text-neutral-500" aria-hidden />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold text-neutral-900">{card.value}</p>
+              <p className="mt-2 text-xs font-medium text-neutral-500">{card.delta}</p>
+            </CardContent>
+          </Card>
+        ))}
+        {overviewQuery.isError && !overview && (
+          <Card className="md:col-span-2 xl:col-span-4 border-red-200 bg-red-50">
+            <CardHeader>
+              <CardTitle className="text-red-700">Unable to load overview metrics</CardTitle>
+              <CardDescription className="text-red-600">
+                Please refresh or try again later.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+      </section>
 
+      <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+        <Card className="border-neutral-200">
+          <CardHeader>
+            <CardTitle>Daily ad performance</CardTitle>
+            <CardDescription>
+              {format(normalizedFrom, 'MMM d, yyyy')} – {format(toDate, 'MMM d, yyyy')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {dailyAdsQuery.isLoading ? (
+              <Skeleton className="h-64 w-full" />
+            ) : dailyAdsChartData.length === 0 ? (
+              <p className="text-sm text-neutral-500">No ad activity recorded for the selected range.</p>
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer>
+                  <AreaChart data={dailyAdsChartData} margin={{ left: 8, right: 16 }}>
+                    <defs>
+                      <linearGradient id="revenueGradient" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="dateLabel" stroke="#4b5563" fontSize={12} />
+                    <YAxis
+                      yAxisId="left"
+                      stroke="#4b5563"
+                      fontSize={12}
+                      tickFormatter={(value) => `$${value}`}
+                    />
+                    <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={12} />
+                    <RechartsTooltip
+                      formatter={(value: number, name) => {
+                        if (name === 'revenue') {
+                          return [currencyFormatter.format(value), 'Revenue'];
+                        }
+                        return [numberFormatter.format(value), name === 'impressions' ? 'Impressions' : 'Clicks'];
+                      }}
+                    />
+                    <Area
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#4f46e5"
+                      fill="url(#revenueGradient)"
+                      name="revenue"
+                    />
+                    <Bar yAxisId="right" dataKey="impressions" fill="#a855f7" name="impressions" opacity={0.45} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-neutral-200">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Market footprint</CardTitle>
+              <CardDescription>Top suburbs by verified supply</CardDescription>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <MapPin className="h-4 w-4 text-neutral-500" aria-hidden />
+              <select
+                value={selectedCity}
+                onChange={(event) => handleCityChange(event.target.value)}
+                className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm"
+              >
+                {CITY_CHOICES.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {geoQuery.isLoading ? (
+              <Skeleton className="h-48 w-full" />
+            ) : geoData && geoData.suburbs.length > 0 ? (
+              <div className="h-48">
+                <ResponsiveContainer>
+                  <BarChart data={geoChartData} margin={{ left: 16, right: 16 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" stroke="#4b5563" fontSize={12} />
+                    <YAxis stroke="#4b5563" fontSize={12} />
+                    <RechartsTooltip
+                      formatter={(value: number, name) => [numberFormatter.format(value), name]}
+                    />
+                    <Bar dataKey="verified" fill="#22c55e" name="Verified" radius={4} />
+                    <Bar dataKey="pending" fill="#f97316" name="Pending" radius={4} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="text-sm text-neutral-500">No suburb level listings available for this city.</p>
+            )}
+
+            {geoData && geoData.suburbs.length > 0 && (
+              <div className="space-y-2">
+                {geoData.suburbs.slice(0, 4).map((suburb) => (
+                  <div key={suburb.suburbId} className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-neutral-700">{suburb.suburbName}</span>
+                    <span className="text-neutral-500">
+                      {suburb.verifiedListings} verified · {suburb.pendingListings} pending ·{' '}
+                      {suburb.marketSharePct.toFixed(1)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+        <Card className="border-neutral-200">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Top agents</CardTitle>
+              <CardDescription>Performance this month</CardDescription>
+            </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                className="rounded-full border-neutral-200 bg-white/90 text-sm font-medium text-neutral-700 hover:border-emerald-400 hover:text-neutral-900 dark:border-slate-700 dark:bg-slate-900/80 dark:text-neutral-200"
+                size="sm"
+                onClick={() => setAgentsLimit((limit) => Math.max(5, limit - 5))}
+                disabled={agentsLimit <= 5}
               >
-                Export snapshot
+                Show fewer
               </Button>
               <Button
-                className="rounded-full bg-gradient-to-r from-emerald-400 via-purple-400 to-orange-400 px-4 text-white shadow-lg shadow-emerald-200/40 hover:opacity-90"
+                variant="outline"
+                size="sm"
+                onClick={() => setAgentsLimit((limit) => Math.min(limit + 5, totalAgents || limit + 5))}
+                disabled={totalAgents > 0 && agentsLimit >= totalAgents}
               >
-                Add listing
+                Show more
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white"
-                aria-label="Toggle notifications"
-                onClick={() => setDrawerOpen(true)}
-              >
-                <Bell className="h-5 w-5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white"
-                aria-label="Toggle dark mode"
-                onClick={toggle}
-              >
-                {mode === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-              </Button>
-              <div className="hidden items-center gap-2 rounded-full border border-white/50 bg-white/80 px-3 py-1 shadow-md backdrop-blur dark:border-white/10 dark:bg-slate-900/70 md:flex">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 via-purple-400 to-orange-400 text-sm font-semibold text-white">
-                  AJ
-                </div>
-                <div className="text-left">
-                  <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-200">Anesu J.</p>
-                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400">Portfolio lead</p>
-                </div>
-              </div>
             </div>
-          </div>
-        </header>
-
-        {isError && (
-          <div className="px-6 pt-6">
-            <Card className="rounded-xl border border-red-100 bg-red-50/70 text-red-700 shadow-lg dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
-              <CardHeader className="space-y-1">
-                <CardTitle className="text-base">Unable to load fresh metrics</CardTitle>
-                <CardDescription className="text-sm text-red-600 dark:text-red-200/80">
-                  Showing cached interface while we retry your PropAd data. Try refreshing in a moment.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
-        )}
-
-        <main className="flex-1 overflow-y-auto px-6 pb-10 pt-6">
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,0.9fr)]">
-            <section className="space-y-6">
-              <div className="grid gap-4">
-                {stats.map((stat) => (
-                  <StatCard key={stat.title} loading={isLoading} {...stat} />
-                ))}
-              </div>
-
-              <Card className="rounded-xl border-transparent bg-white/80 shadow-lg shadow-neutral-200/40 backdrop-blur dark:bg-slate-900/70 dark:shadow-slate-950/40">
-                <CardHeader className="space-y-1">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <ListChecks className="h-4 w-4 text-emerald-400" /> Verification queue health
-                  </CardTitle>
-                  <CardDescription className="text-sm text-neutral-500 dark:text-neutral-400">
-                    Smart reminders escalate listings stuck over 48 hours.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-4 text-sm text-neutral-600 dark:text-neutral-300">
-                  <p>
-                    {metrics.pendingVerifications === 0
-                      ? 'All verifications are on track. No backlog reported.'
-                      : `${metrics.pendingVerifications.toLocaleString()} listings await media checks. The automations team is nudging assignees.`}
-                  </p>
-                </CardContent>
-              </Card>
-            </section>
-
-            <section className="space-y-6">
-              <Card className="rounded-xl border-transparent bg-white/80 shadow-lg shadow-neutral-200/50 backdrop-blur dark:bg-slate-900/70 dark:shadow-slate-950/40">
-                <CardHeader className="space-y-1">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <LineChartIcon className="h-4 w-4 text-purple-400" /> Reward momentum
-                  </CardTitle>
-                  <CardDescription className="text-sm text-neutral-500 dark:text-neutral-400">
-                    Pastel trendlines visualise rewards against verification throughput.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="h-64 w-full">
-                    {isLoading ? (
-                      <Skeleton className="h-full w-full rounded-xl" />
-                    ) : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={trendData} margin={{ left: 0, right: 0, top: 10, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="rewardsGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor={pastelPalette[1]} stopOpacity={0.8} />
-                              <stop offset="95%" stopColor={pastelPalette[1]} stopOpacity={0.1} />
-                            </linearGradient>
-                            <linearGradient id="verificationsGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor={pastelPalette[0]} stopOpacity={0.8} />
-                              <stop offset="95%" stopColor={pastelPalette[0]} stopOpacity={0.1} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="4 8" stroke="rgba(148, 163, 184, 0.3)" vertical={false} />
-                          <XAxis dataKey="month" stroke="currentColor" tickLine={false} axisLine={false} />
-                          <YAxis stroke="currentColor" tickLine={false} axisLine={false} width={50} />
-                          <RechartsTooltip
-                            cursor={{ stroke: 'rgba(148, 163, 184, 0.4)', strokeDasharray: '4 4' }}
-                            contentStyle={{
-                              background: 'rgba(17, 24, 39, 0.85)',
-                              color: 'white',
-                              borderRadius: 12,
-                              border: 'none',
-                              boxShadow: '0 20px 45px rgba(15,23,42,0.25)'
-                            }}
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey="rewards"
-                            stroke={pastelPalette[1]}
-                            strokeWidth={3}
-                            fill="url(#rewardsGradient)"
-                            activeDot={{ r: 6 }}
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey="verifications"
-                            stroke={pastelPalette[0]}
-                            strokeWidth={3}
-                            fill="url(#verificationsGradient)"
-                            activeDot={{ r: 6 }}
-                          />
-                          <Line type="monotone" dataKey="pending" stroke={pastelPalette[3]} strokeWidth={2} strokeDasharray="6 4" dot={false} />
-                          <Legend />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-xl border-transparent bg-white/80 shadow-lg shadow-neutral-200/40 backdrop-blur dark:bg-slate-900/70 dark:shadow-slate-950/40">
-                <CardHeader className="space-y-1">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <LineChartIcon className="h-4 w-4 text-amber-400" /> Pipeline mix
-                  </CardTitle>
-                  <CardDescription className="text-sm text-neutral-500 dark:text-neutral-400">
-                    Stacked bars show where listings sit in the publication pipeline.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="h-60 w-full">
-                    {isLoading ? (
-                      <Skeleton className="h-full w-full rounded-xl" />
-                    ) : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={pipelineData} barSize={28}>
-                          <CartesianGrid strokeDasharray="3 6" stroke="rgba(148, 163, 184, 0.25)" vertical={false} />
-                          <XAxis dataKey="stage" stroke="currentColor" axisLine={false} tickLine={false} />
-                          <YAxis stroke="currentColor" axisLine={false} tickLine={false} width={40} />
-                          <RechartsTooltip
-                            cursor={{ fill: 'rgba(248, 250, 252, 0.6)' }}
-                            contentStyle={{
-                              background: 'rgba(15, 23, 42, 0.9)',
-                              color: 'white',
-                              borderRadius: 12,
-                              border: 'none'
-                            }}
-                          />
-                          <Bar dataKey="listings" radius={[12, 12, 4, 4]} fill={pastelPalette[2]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-xl border-transparent bg-white/80 shadow-lg shadow-neutral-200/30 backdrop-blur dark:bg-slate-900/70 dark:shadow-slate-950/40">
-                <CardHeader className="space-y-1">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Building2 className="h-4 w-4 text-emerald-400" /> Property performance
-                  </CardTitle>
-                  <CardDescription className="text-sm text-neutral-500 dark:text-neutral-400">
-                    Alternating rows and gradient hover accents guide quick comparisons.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  <div className="overflow-hidden rounded-xl border border-white/40 dark:border-white/10">
-                    <table className="min-w-full divide-y divide-white/50 text-left text-sm dark:divide-white/10">
-                      <thead className="bg-white/70 text-xs uppercase tracking-wide text-neutral-500 dark:bg-slate-900/60 dark:text-neutral-400">
-                        <tr>
-                          <th scope="col" className="px-5 py-3">Property</th>
-                          <th scope="col" className="px-5 py-3">Views</th>
-                          <th scope="col" className="px-5 py-3">Inquiries</th>
-                          <th scope="col" className="px-5 py-3">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {performanceRows.map((row) => (
-                          <tr
-                            key={row.property}
-                            className="group relative overflow-hidden odd:bg-white/90 even:bg-white/70 transition-colors hover:bg-white/95 dark:odd:bg-slate-900/60 dark:even:bg-slate-900/40"
-                          >
-                            <td className="relative px-5 py-4 font-medium text-neutral-700 dark:text-neutral-100">
-                              <span className="absolute inset-x-5 top-0 h-0.5 scale-x-0 rounded-full bg-gradient-to-r from-emerald-400 via-purple-400 to-orange-400 transition-transform duration-300 ease-out content-[''] group-hover:scale-x-100" />
-                              {row.property}
-                            </td>
-                            <td className="px-5 py-4 text-neutral-600 dark:text-neutral-200">{row.views.toLocaleString()}</td>
-                            <td className="px-5 py-4 text-neutral-600 dark:text-neutral-200">{row.inquiries.toLocaleString()}</td>
-                            <td className="px-5 py-4 text-neutral-600 dark:text-neutral-200">
-                              <span className="inline-flex items-center rounded-full bg-gradient-to-r from-emerald-400/20 via-purple-400/20 to-orange-400/20 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-300">
-                                {row.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-
-            <section className="space-y-6">
-              <Card className="rounded-xl border-transparent bg-white/80 shadow-lg shadow-neutral-200/40 backdrop-blur dark:bg-slate-900/70 dark:shadow-slate-950/40">
-                <CardHeader className="space-y-1">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Bell className="h-4 w-4 text-rose-400" /> Activity feed
-                  </CardTitle>
-                  <CardDescription className="text-sm text-neutral-500 dark:text-neutral-400">
-                    Recent actions and nudges from the PropAd automation layer.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <div className="flex flex-col gap-4">
-                    {activityItems.map((activity) => (
-                      <article key={activity.title} className="relative overflow-hidden rounded-xl border border-white/40 bg-white/70 p-4 shadow-sm dark:border-white/10 dark:bg-slate-900/60">
-                        <span
-                          className="absolute left-0 top-0 h-full w-1 rounded-full"
-                          style={{ background: `linear-gradient(180deg, ${activity.accent} 0%, rgba(255,255,255,0) 100%)` }}
-                          aria-hidden="true"
-                        />
-                        <h3 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">{activity.title}</h3>
-                        <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">{activity.description}</p>
-                        <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">{activity.time}</p>
-                      </article>
+          </CardHeader>
+          <CardContent>
+            {topAgentsQuery.isLoading ? (
+              <Skeleton className="h-48 w-full" />
+            ) : topAgents.length === 0 ? (
+              <p className="text-sm text-neutral-500">No agent activity recorded for this period.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-left text-sm">
+                  <thead className="bg-neutral-50 text-neutral-600">
+                    <tr>
+                      <th className="px-4 py-2 font-medium">Agent</th>
+                      <th className="px-4 py-2 font-medium">Verified listings</th>
+                      <th className="px-4 py-2 font-medium">Valid leads</th>
+                      <th className="px-4 py-2 font-medium">Month points</th>
+                      <th className="px-4 py-2 font-medium">Est. payout</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topAgents.map((agent) => (
+                      <tr
+                        key={agent.agentId}
+                        className="cursor-pointer border-b border-neutral-100 text-neutral-700 transition hover:bg-neutral-50"
+                        onClick={() => setSelectedAgent(agent)}
+                      >
+                        <td className="px-4 py-2 font-medium">{agent.agentName ?? 'Unnamed agent'}</td>
+                        <td className="px-4 py-2">{numberFormatter.format(agent.verifiedListings)}</td>
+                        <td className="px-4 py-2">{numberFormatter.format(agent.validLeads)}</td>
+                        <td className="px-4 py-2">{numberFormatter.format(agent.monthPoints)}</td>
+                        <td className="px-4 py-2">{currencyFormatter.format(agent.estPayoutUSD)}</td>
+                      </tr>
                     ))}
-                  </div>
-                </CardContent>
-              </Card>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-              <Card className="rounded-xl border-transparent bg-white/80 shadow-lg shadow-neutral-200/30 backdrop-blur dark:bg-slate-900/70 dark:shadow-slate-950/40">
-                <CardHeader className="space-y-1">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <MessageCircle className="h-4 w-4 text-sky-400" /> Quick note to ops
-                  </CardTitle>
-                  <CardDescription className="text-sm text-neutral-500 dark:text-neutral-400">
-                    Floating labels and accent outlines keep handoffs clear.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="relative">
-                      <Input
-                        id="ops-subject"
-                        placeholder=" "
-                        className="peer h-12 rounded-xl border border-neutral-200 bg-white/90 px-4 pt-6 text-sm text-neutral-700 shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 dark:border-slate-700 dark:bg-slate-900/80 dark:text-neutral-100"
-                      />
-                      <Label
-                        htmlFor="ops-subject"
-                        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xs uppercase tracking-wide text-neutral-400 transition-all duration-200 peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-sm peer-placeholder-shown:uppercase peer-focus:top-2 peer-focus:text-[11px] peer-focus:text-emerald-500"
-                      >
-                        Subject
-                      </Label>
-                    </div>
-                    <div className="relative">
-                      <textarea
-                        id="ops-message"
-                        placeholder=" "
-                        rows={4}
-                        className="peer w-full resize-none rounded-xl border border-neutral-200 bg-white/90 px-4 pb-3 pt-6 text-sm text-neutral-700 shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 dark:border-slate-700 dark:bg-slate-900/80 dark:text-neutral-100"
-                      />
-                      <Label
-                        htmlFor="ops-message"
-                        className="pointer-events-none absolute left-4 top-5 text-xs uppercase tracking-wide text-neutral-400 transition-all duration-200 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-sm peer-placeholder-shown:uppercase peer-focus:top-2 peer-focus:translate-y-0 peer-focus:text-[11px] peer-focus:text-emerald-500"
-                      >
-                        Message
-                      </Label>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
-                    <span>Average response time: 12 minutes</span>
-                    <Button className="rounded-full bg-gradient-to-r from-emerald-400 via-purple-400 to-orange-400 px-4 text-xs font-semibold text-white shadow-md hover:opacity-90">
-                      Send to ops desk
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-          </div>
-        </main>
-      </div>
+        <Card className="border-neutral-200">
+          <CardHeader>
+            <CardTitle>Payout pipeline</CardTitle>
+            <CardDescription>Pending disbursements and wallet state</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-neutral-600">
+            {overview ? (
+              <>
+                <div className="flex items-center justify-between rounded-md bg-neutral-50 px-3 py-2">
+                  <span>Pending payouts</span>
+                  <span className="font-medium text-neutral-800">
+                    {currencyFormatter.format(overview.payouts.pendingUsd)} · {overview.payouts.pendingCount}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-md bg-neutral-50 px-3 py-2">
+                  <span>Settled (30d)</span>
+                  <span className="font-medium text-neutral-800">
+                    {currencyFormatter.format(overview.payouts.settled30dUsd)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-md bg-neutral-50 px-3 py-2">
+                  <span>Ad impressions</span>
+                  <span className="font-medium text-neutral-800">
+                    {numberFormatter.format(overview.traffic.impressions30d)} · CTR {overview.traffic.ctr30d.toFixed(1)}%
+                  </span>
+                </div>
+              </>
+            ) : (
+              <Skeleton className="h-32 w-full" />
+            )}
+          </CardContent>
+        </Card>
+      </section>
 
-      <NotificationsDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      {selectedAgent && (
+        <div className="fixed inset-0 z-40 flex justify-end">
+          <div className="absolute inset-0 bg-black/40" onClick={handleCloseDrawer} aria-hidden />
+          <aside className="relative h-full w-full max-w-md overflow-y-auto bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-neutral-900">
+                  {selectedAgent.agentName ?? 'Agent details'}
+                </h2>
+                <p className="text-sm text-neutral-500">Agent ID: {selectedAgent.agentId}</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={handleCloseDrawer} aria-label="Close agent details">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-4 px-6 py-6 text-sm text-neutral-700">
+              <div className="flex items-center justify-between">
+                <span>Verified listings</span>
+                <span className="font-medium">{numberFormatter.format(selectedAgent.verifiedListings)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Valid leads</span>
+                <span className="font-medium">{numberFormatter.format(selectedAgent.validLeads)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Month points</span>
+                <span className="font-medium">{numberFormatter.format(selectedAgent.monthPoints)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Estimated payout</span>
+                <span className="font-semibold text-neutral-900">
+                  {currencyFormatter.format(selectedAgent.estPayoutUSD)}
+                </span>
+              </div>
+              <p className="rounded-md bg-neutral-50 p-3 text-xs text-neutral-500">
+                Payout forecasts refresh automatically when new reward events post or listings verify. Agents are eligible for
+                disbursement once earnings clear the wallet threshold.
+              </p>
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }
-
-type StatCardProps = {
-  title: string;
-  value: string;
-  change: string;
-  icon: typeof Building2;
-  accent: string;
-  loading?: boolean;
-};
-
-function StatCard({ title, value, change, icon: Icon, accent, loading }: StatCardProps) {
-  return (
-    <Card className="rounded-xl border-transparent bg-white/80 shadow-lg shadow-emerald-100/40 backdrop-blur dark:bg-slate-900/70 dark:shadow-slate-950/40">
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 p-6 pb-2">
-        <div>
-          <CardTitle className="text-sm font-medium text-neutral-500 dark:text-neutral-300">{title}</CardTitle>
-          <div className="mt-3 text-3xl font-semibold text-neutral-900 dark:text-white">
-            {loading ? <Skeleton className="h-9 w-24 rounded-lg" /> : value}
-          </div>
-        </div>
-        <span className={cn('flex h-12 w-12 items-center justify-center rounded-full text-white shadow-lg', 'bg-gradient-to-br', accent)} aria-hidden="true">
-          <Icon className="h-5 w-5" />
-        </span>
-      </CardHeader>
-      <CardContent className="p-6 pt-0">
-        {loading ? (
-          <Skeleton className="h-4 w-32 rounded-lg" />
-        ) : (
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">{change}</p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-type NotificationsDrawerProps = {
-  open: boolean;
-  onClose: () => void;
-};
-
-function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps) {
-  return (
-    <>
-      <div
-        className={cn('fixed inset-0 z-40 bg-neutral-950/40 transition-opacity duration-300', open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0')}
-        aria-hidden="true"
-        onClick={onClose}
-      />
-      <aside
-        className={cn(
-          'fixed right-0 top-0 z-50 h-full w-full max-w-md transform border-l border-white/30 bg-white/90 p-6 shadow-2xl backdrop-blur-xl transition-transform duration-300 dark:border-white/10 dark:bg-slate-950/90',
-          open ? 'translate-x-0' : 'translate-x-full'
-        )}
-        aria-label="Notifications drawer"
-      >
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Notification center</h2>
-            <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Insights arrive here in real time for rapid follow-up.</p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white"
-            onClick={onClose}
-            aria-label="Close notifications"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        </div>
-
-        <div className="mt-6 space-y-4">
-          {[1, 2, 3].map((item) => (
-            <div
-              key={item}
-              className="rounded-xl border border-white/50 bg-white/80 p-4 shadow-md dark:border-white/10 dark:bg-slate-900/80"
-            >
-              <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Lead velocity update</p>
-              <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
-                Agents converted <strong>{12 + item * 3}%</strong> more inquiries after activating the outreach cadence.
-              </p>
-              <div className="mt-3 flex items-center gap-2 text-xs text-neutral-400 dark:text-neutral-500">
-                <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" aria-hidden="true" />
-                Updated moments ago
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-8 rounded-2xl border border-white/40 bg-white/70 p-5 shadow-lg dark:border-white/10 dark:bg-slate-900/80">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 via-purple-400 to-orange-400 text-white">
-              <Settings className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Workflow tuning</p>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">Let us auto-schedule inspections for verified leads.</p>
-            </div>
-          </div>
-          <Button className="mt-4 w-full rounded-full bg-gradient-to-r from-emerald-400 via-purple-400 to-orange-400 text-sm font-semibold text-white shadow-md hover:opacity-90">
-            Enable automation
-          </Button>
-        </div>
-      </aside>
-    </>
-  );
-}
-

@@ -50,6 +50,12 @@ export class RewardsController {
     return this.rewardsService.poolSummary();
   }
 
+  @Roles(Role.AGENT)
+  @Get('estimate/me')
+  myEstimate(@Req() req: AuthenticatedRequest) {
+    return this.rewardsService.agentMonthlyEstimate(req.user.userId);
+  }
+
   @Get('agents/:agentId/monthly-estimate')
   agentEstimate(@Param('agentId') agentId: string, @Req() req: AuthenticatedRequest) {
     if (req.user.role === Role.AGENT && req.user.userId !== agentId) {

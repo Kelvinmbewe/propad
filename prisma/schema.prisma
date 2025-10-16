@@ -859,6 +859,37 @@ model AdImpression {
   @@index([campaignId, placementId, createdAt])
 }
 
+model MetricDailyAds {
+  date          DateTime @id
+  impressions   Int
+  clicks        Int
+  revenueMicros BigInt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([date(sort: Desc)])
+}
+
+model MetricDailyRevenue {
+  date             DateTime @id
+  grossUsdCents    BigInt
+  payoutsUsdCents  BigInt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([date(sort: Desc)])
+}
+
+model MetricDailyTraffic {
+  date          DateTime @id
+  visits        Int
+  uniqueSessions Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([date(sort: Desc)])
+}
+
 model PromoBoost {
   id         String    @id @default(cuid())
   agentId    String
