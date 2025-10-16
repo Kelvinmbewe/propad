@@ -43,7 +43,8 @@ export const env = createEnv({
     DATA_SEEDED: z.coerce.boolean().default(false),
     WS_ENABLED: z.coerce.boolean().default(true),
     NO_STATIC_METRICS: z.coerce.boolean().default(true),
-    NO_DUMMY_LINKS: z.coerce.boolean().default(true)
+    NO_DUMMY_LINKS: z.coerce.boolean().default(true),
+    CONFIG_HOT_RELOAD: z.coerce.boolean().default(false)
   },
   client: {
     NEXT_PUBLIC_API_BASE_URL: z.string().url(),
@@ -94,6 +95,7 @@ export const env = createEnv({
     WS_ENABLED: process.env.WS_ENABLED,
     NO_STATIC_METRICS: process.env.NO_STATIC_METRICS,
     NO_DUMMY_LINKS: process.env.NO_DUMMY_LINKS,
+    CONFIG_HOT_RELOAD: process.env.CONFIG_HOT_RELOAD,
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
     NEXT_PUBLIC_ADSENSE_CLIENT_ID: process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID,
     NEXT_PUBLIC_ADSENSE_FEED_SLOT: process.env.NEXT_PUBLIC_ADSENSE_FEED_SLOT,

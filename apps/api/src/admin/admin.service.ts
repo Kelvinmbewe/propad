@@ -15,13 +15,16 @@ import { MarkInvoicePaidDto } from './dto/mark-invoice-paid.dto';
 import { ListPaymentIntentsDto } from './dto/list-payment-intents.dto';
 import { ListTransactionsDto } from './dto/list-transactions.dto';
 import { CreateFxRateDto } from './dto/create-fx-rate.dto';
+import { AppConfigService } from '../app-config/app-config.service';
+import { UpdateAppConfigDto } from './dto/update-app-config.dto';
 
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly payments: PaymentsService
+    private readonly payments: PaymentsService,
+    private readonly appConfig: AppConfigService
   ) {}
 
   async createStrike(dto: CreateStrikeDto, actorId: string) {
@@ -258,6 +261,14 @@ export class AdminService {
     });
 
     return fxRate;
+  }
+
+  getAppConfig() {
+    return this.appConfig.getConfig();
+  }
+
+  updateAppConfig(dto: UpdateAppConfigDto, actorId: string) {
+    return this.appConfig.updateConfig(dto.config, actorId);
   }
 
   private toCsv(records: any[]) {
