@@ -4,11 +4,12 @@ import {
   AgentAssignmentSchema,
   AgentSummarySchema,
   AmlBlocklistEntrySchema,
-  DashboardMetricsSchema,
+  AdminOverviewMetricsSchema,
   FacebookPublishResponseSchema,
   GeoSearchResultSchema,
   InvoiceSchema,
   KycRecordSchema,
+  DailyAdsPointSchema,
   PaymentIntentSchema,
   PendingGeoSchema,
   PropertyManagementSchema,
@@ -18,6 +19,9 @@ import {
   PayoutAccountSchema,
   PayoutRequestSchema,
   ShortLinkSchema,
+  TopAgentsResponseSchema,
+  GeoListingsResponseSchema,
+  RewardsEstimateSchema,
   TransactionSchema,
   WalletThresholdSchema,
   WhatsAppResponseSchema,
@@ -26,14 +30,18 @@ import {
   type AgentAssignment,
   type AgentSummary,
   type AmlBlocklistEntry,
-  type DashboardMetrics,
+  type AdminOverviewMetrics,
   type GeoSearchResult,
   type Invoice,
   type KycRecord,
+  type DailyAdsPoint,
   type PaymentIntent,
   type PendingGeo,
   type GeoSuburb,
   type FacebookPublishResponse,
+  type TopAgentsResponse,
+  type GeoListingsResponse,
+  type RewardsEstimate,
   type PayoutAccount,
   type PayoutRequest,
   type Property,
@@ -70,11 +78,30 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
 
   return {
     metrics: {
-      dashboard: async () =>
+      overview: async () =>
         client
-          .get('metrics/dashboard')
-          .json<DashboardMetrics>()
-          .then((data) => DashboardMetricsSchema.parse(data))
+          .get('admin/metrics/overview')
+          .json<AdminOverviewMetrics>()
+          .then((data) => AdminOverviewMetricsSchema.parse(data)),
+      dailyAds: async (params: { from: string; to: string }) =>
+        client
+          .get('admin/metrics/ads/daily', { searchParams: buildSearchParams(params) })
+          .json<DailyAdsPoint[]>()
+          .then((data) => DailyAdsPointSchema.array().parse(data)),
+      topAgents: async (params: { limit?: number } = {}) =>
+        client
+          .get('admin/metrics/agents/top', {
+            searchParams: buildSearchParams({ limit: params.limit })
+          })
+          .json<TopAgentsResponse>()
+          .then((data) => TopAgentsResponseSchema.parse(data)),
+      geoListings: async (city: string) =>
+        client
+          .get('admin/metrics/geo/listings', {
+            searchParams: buildSearchParams({ city })
+          })
+          .json<GeoListingsResponse>()
+          .then((data) => GeoListingsResponseSchema.parse(data))
     },
     properties: {
       listOwned: async () =>
@@ -210,6 +237,13 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .post('ads/impressions', { json: payload })
           .json<AdImpression>()
           .then((data) => AdImpressionSchema.parse(data))
+    },
+    rewards: {
+      estimateMe: async () =>
+        client
+          .get('rewards/estimate/me')
+          .json<RewardsEstimate>()
+          .then((data) => RewardsEstimateSchema.parse(data))
     },
     shortlinks: {
       create: async (payload: {

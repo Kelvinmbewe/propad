@@ -36,13 +36,21 @@ export const env = createEnv({
     PUSHER_CLUSTER: z.string().optional(),
     WALLET_MIN_PAYOUT_CENTS: z.coerce.number().min(0).default(2000),
     WALLET_EARNINGS_COOL_OFF_DAYS: z.coerce.number().min(0).max(30).default(5),
-    WALLET_MAX_PAYOUTS_PER_DAY: z.coerce.number().min(1).max(10).default(2)
+    WALLET_MAX_PAYOUTS_PER_DAY: z.coerce.number().min(1).max(10).default(2),
+    AGGREGATION_CRON_NIGHTLY: z.string().default('0 2 * * *'),
+    AGGREGATION_CRON_INCREMENTAL: z.string().default('*/15 * * * *'),
+    CACHE_TTL_METRICS_SECONDS: z.coerce.number().min(10).max(3600).default(120),
+    DATA_SEEDED: z.coerce.boolean().default(false),
+    WS_ENABLED: z.coerce.boolean().default(true),
+    NO_STATIC_METRICS: z.coerce.boolean().default(true),
+    NO_DUMMY_LINKS: z.coerce.boolean().default(true)
   },
   client: {
     NEXT_PUBLIC_API_BASE_URL: z.string().url(),
     NEXT_PUBLIC_ADSENSE_CLIENT_ID: z.string().optional(),
     NEXT_PUBLIC_ADSENSE_FEED_SLOT: z.string().optional(),
-    NEXT_PUBLIC_ADSENSE_LISTING_SLOT: z.string().optional()
+    NEXT_PUBLIC_ADSENSE_LISTING_SLOT: z.string().optional(),
+    NEXT_PUBLIC_WS_ENABLED: z.coerce.boolean().default(true)
   },
   runtimeEnv: {
     PORT: process.env.PORT,
@@ -79,9 +87,17 @@ export const env = createEnv({
     WALLET_MIN_PAYOUT_CENTS: process.env.WALLET_MIN_PAYOUT_CENTS,
     WALLET_EARNINGS_COOL_OFF_DAYS: process.env.WALLET_EARNINGS_COOL_OFF_DAYS,
     WALLET_MAX_PAYOUTS_PER_DAY: process.env.WALLET_MAX_PAYOUTS_PER_DAY,
+    AGGREGATION_CRON_NIGHTLY: process.env.AGGREGATION_CRON_NIGHTLY,
+    AGGREGATION_CRON_INCREMENTAL: process.env.AGGREGATION_CRON_INCREMENTAL,
+    CACHE_TTL_METRICS_SECONDS: process.env.CACHE_TTL_METRICS_SECONDS,
+    DATA_SEEDED: process.env.DATA_SEEDED,
+    WS_ENABLED: process.env.WS_ENABLED,
+    NO_STATIC_METRICS: process.env.NO_STATIC_METRICS,
+    NO_DUMMY_LINKS: process.env.NO_DUMMY_LINKS,
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
     NEXT_PUBLIC_ADSENSE_CLIENT_ID: process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID,
     NEXT_PUBLIC_ADSENSE_FEED_SLOT: process.env.NEXT_PUBLIC_ADSENSE_FEED_SLOT,
-    NEXT_PUBLIC_ADSENSE_LISTING_SLOT: process.env.NEXT_PUBLIC_ADSENSE_LISTING_SLOT
+    NEXT_PUBLIC_ADSENSE_LISTING_SLOT: process.env.NEXT_PUBLIC_ADSENSE_LISTING_SLOT,
+    NEXT_PUBLIC_WS_ENABLED: process.env.NEXT_PUBLIC_WS_ENABLED
   }
 });
