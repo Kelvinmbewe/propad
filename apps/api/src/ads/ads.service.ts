@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { env } from '@propad/config';
-import { AdCampaignStatus, InvoicePurpose, Prisma } from '@prisma/client';
+import { AdCampaignStatus, InvoicePurpose } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAdImpressionDto } from './dto/create-ad-impression.dto';
 import { PaymentsService } from '../payments/payments.service';
@@ -50,7 +50,7 @@ export class AdsService {
   }
 
   async createDirectCampaign(actorId: string, dto: CreateDirectAdDto) {
-    const { campaign, invoice } = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const { campaign, invoice } = await this.prisma.$transaction(async (tx) => {
       const createdCampaign = await tx.adCampaign.create({
         data: {
           advertiserId: dto.advertiserId,
