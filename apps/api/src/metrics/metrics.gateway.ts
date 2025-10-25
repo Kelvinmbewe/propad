@@ -21,7 +21,7 @@ interface AuthenticatedSocket extends Socket {
 })
 export class MetricsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  private readonly server: Server;
+  private readonly server!: Server;
 
   private readonly logger = new Logger(MetricsGateway.name);
 
@@ -80,9 +80,21 @@ export class MetricsGateway implements OnGatewayConnection, OnGatewayDisconnect 
   }
 
   private extractToken(client: Socket) {
-    const headerToken = client.handshake.headers.authorization?.split(' ')[1];
-    if (headerToken) {
-      return headerToken;
+    const authorizationHeader = client.handshake.headers.authorization;
+    if (typeof authorizationHeader === 'string') {
+      const parts = authorizationHeader.split(' ');
+      if (parts[1]) {
+        return parts[1];
+      }
+    } else if (Array.isArray(authorizationHeader)) {
+      for (const value of authorizationHeader) {
+        if (typeof value === 'string') {
+          const parts = value.split(' ');
+          if (parts[1]) {
+            return parts[1];
+          }
+        }
+      }
     }
     const authToken = client.handshake.auth?.token;
     if (typeof authToken === 'string') {
