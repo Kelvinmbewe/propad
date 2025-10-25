@@ -1,19 +1,15 @@
-import tokens from '../tokens.json';
+import baseTokensData from '../tokens.json';
 
-type ColorScale = Record<string, string>;
+const baseTokens = baseTokensData as const;
 
-type AuroraTokens = {
-  colors: ColorScale;
-  radii: Record<string, string>;
-  spacing: Record<string, string>;
-  typography: {
-    fontFamily: string;
-    headingWeight: number;
-    bodyWeight: number;
-  };
-};
+export const tokens = baseTokens;
 
-type AuroraTheme = {
+export type Tokens = typeof tokens;
+export type TokenName = keyof Tokens;
+export type TokenValue<TName extends TokenName = TokenName> = Tokens[TName];
+export type AuroraTokens = Tokens;
+
+export type AuroraTheme = {
   name: 'light' | 'dark';
   colors: {
     background: string;
@@ -33,27 +29,23 @@ type AuroraTheme = {
   motionEnabled: boolean;
 };
 
-const baseTokens = tokens as AuroraTokens;
-
-export const tokens: AuroraTokens = baseTokens;
-
 export const lightTheme: AuroraTheme = {
   name: 'light',
   motionEnabled: true,
   colors: {
-    background: baseTokens.colors.surfaceLight,
+    background: tokens.colors.surfaceLight,
     surface: '#FFFFFF',
     foreground: '#0B1120',
     border: '#D0D8E8',
-    primary: baseTokens.colors.primary,
-    primaryAccent: baseTokens.colors.primaryAccent,
-    textPrimary: baseTokens.colors.textPrimary,
+    primary: tokens.colors.primary,
+    primaryAccent: tokens.colors.primaryAccent,
+    textPrimary: tokens.colors.textPrimary,
     textSecondary: '#475569',
-    textInverse: baseTokens.colors.textInverse,
-    success: baseTokens.colors.success,
-    warning: baseTokens.colors.warning,
-    danger: baseTokens.colors.danger,
-    info: baseTokens.colors.info,
+    textInverse: tokens.colors.textInverse,
+    success: tokens.colors.success,
+    warning: tokens.colors.warning,
+    danger: tokens.colors.danger,
+    info: tokens.colors.info,
   },
 };
 
@@ -61,12 +53,12 @@ export const darkTheme: AuroraTheme = {
   name: 'dark',
   motionEnabled: true,
   colors: {
-    background: baseTokens.colors.surfaceDark,
+    background: tokens.colors.surfaceDark,
     surface: '#14213D',
     foreground: '#E2E8F0',
     border: '#1E293B',
-    primary: baseTokens.colors.primaryAccent,
-    primaryAccent: baseTokens.colors.primary,
+    primary: tokens.colors.primaryAccent,
+    primaryAccent: tokens.colors.primary,
     textPrimary: '#E2E8F0',
     textSecondary: '#94A3B8',
     textInverse: '#0F172A',
@@ -77,8 +69,6 @@ export const darkTheme: AuroraTheme = {
   },
 };
 
-type DeepPartial<T> = {
+export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
 };
-
-export type { AuroraTokens, AuroraTheme, DeepPartial };
