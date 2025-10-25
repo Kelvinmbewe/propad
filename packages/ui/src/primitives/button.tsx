@@ -115,13 +115,13 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     );
 
     if (asChild && React.isValidElement(children)) {
-      const child = children as React.ReactElement;
+      const child = children as React.ReactElement & { ref?: React.Ref<HTMLElement> };
       const childProps = child.props as { className?: string; onClick?: React.MouseEventHandler<HTMLElement>; children?: React.ReactNode };
 
       const mergedClassName = cn(buttonVariants({ variant, size, className }), childProps.className);
 
       const composedRef = (node: HTMLElement | null) => {
-        setRefValue(child.ref as React.Ref<HTMLElement> | undefined, node);
+        setRefValue(child.ref, node);
         setRefValue(forwardedRef, node as HTMLButtonElement | null);
       };
 
