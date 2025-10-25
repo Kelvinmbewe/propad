@@ -265,7 +265,7 @@ export class PaymentsService {
       throw new NotFoundException('Payment intent for webhook not found');
     }
 
-    const receiptContext = await this.prisma.$transaction(async (tx) => {
+    const receiptContext = await this.prisma.$transaction(async (tx: PrismaTx) => {
       await tx.paymentIntent.update({
         where: { id: intent.id },
         data: {
@@ -337,7 +337,7 @@ export class PaymentsService {
 
     const paidAt = options.paidAt ?? new Date();
 
-    const receiptContext = await this.prisma.$transaction(async (tx) => {
+    const receiptContext = await this.prisma.$transaction(async (tx: PrismaTx) => {
       const transaction = await tx.transaction.create({
         data: {
           invoiceId: invoice.id,
