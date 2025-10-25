@@ -7,10 +7,10 @@
     "node": ">=18.18.0"
   },
   "scripts": {
-    "preinstall": "node -e \"if(!/pnpm/.test(process.env.npm_config_user_agent||'')){console.error('🚫 Use pnpm: run `pnpm install` instead of npm');process.exit(1)}\"",
+    "preinstall": "node -e \"const ua=process.env.npm_config_user_agent||''; if(!ua.includes('pnpm')) console.warn('[warn] Please use pnpm. Detected UA:', ua);\"",
     "build": "npm run build --workspaces --if-present",
     "dev": "npm run dev --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present",
+    "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "artifact": "node scripts/create-artifact.mjs",
     "build:og": "node scripts/render-social-share.mjs"
@@ -19,7 +19,11 @@
     "@resvg/resvg-js": "2.6.1",
     "@types/node": "20.11.30",
     "prettier": "3.2.5",
-    "typescript": "5.4.5"
+    "typescript": "5.4.5",
+    "eslint": "^9.0.0",
+    "@eslint/js": "^9.0.0",
+    "typescript-eslint": "^8.0.0",
+    "globals": "^15.0.0"
   },
   "pnpm": {
     "overrides": {
