@@ -1,0 +1,35 @@
+export const baseTokens = {
+  colors: {
+    primary: '#009688',
+    primaryAccent: '#2B6CB0',
+    surfaceLight: '#F8FAFC',
+    surfaceDark: '#0F172A',
+    textPrimary: '#0B1120',
+    textInverse: '#F8FAFC',
+    success: '#22C55E',
+    warning: '#F59E0B',
+    danger: '#EF4444',
+    info: '#38BDF8',
+  },
+  radii: {
+    sm: '8px',
+    md: '12px',
+    lg: '24px',
+  },
+  spacing: {
+    xs: '4px',
+    sm: '8px',
+    md: '16px',
+    lg: '24px',
+    xl: '32px',
+  },
+  typography: {
+    fontFamily: "'Inter', 'Inter var', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    headingWeight: 600,
+    bodyWeight: 400,
+  },
+} as const;
+
+export type Tokens = typeof baseTokens;
+
+export default baseTokens;
