@@ -1,4 +1,12 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
+import {
+  PrismaClientKnownRequestError,
+  PrismaClientInitializationError,
+  PrismaClientUnknownRequestError,
+  PrismaClientValidationError,
+  Decimal,
+} from '@prisma/client/runtime/library';
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
@@ -8,13 +16,13 @@ if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
 
-export { Prisma };
 export type { Prisma };
+export { Decimal };
+export type DecimalLike = Decimal;
 
-export const Decimal = Prisma.Decimal;
-export type Decimal = Prisma.Decimal;
-
-export const PrismaClientInitializationError = Prisma.PrismaClientInitializationError;
-export const PrismaClientKnownRequestError = Prisma.PrismaClientKnownRequestError;
-export const PrismaClientUnknownRequestError = Prisma.PrismaClientUnknownRequestError;
-export const PrismaClientValidationError = Prisma.PrismaClientValidationError;
+export {
+  PrismaClientInitializationError,
+  PrismaClientKnownRequestError,
+  PrismaClientUnknownRequestError,
+  PrismaClientValidationError,
+};
