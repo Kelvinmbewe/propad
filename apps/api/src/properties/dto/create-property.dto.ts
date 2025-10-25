@@ -19,7 +19,7 @@ const commercialFieldsSchema = z
   })
   .strict();
 
-export const createPropertySchema = z.object({
+const basePropertySchema = z.object({
   landlordId: z.string().cuid().optional(),
   agentOwnerId: z.string().cuid().optional(),
   type: z.nativeEnum(PropertyType),
@@ -40,13 +40,15 @@ export const createPropertySchema = z.object({
   availability: z.nativeEnum(PropertyAvailability).default(PropertyAvailability.IMMEDIATE),
   availableFrom: z.string().datetime().optional(),
   commercialFields: commercialFieldsSchema.optional()
-})
-.superRefine((data, ctx) => {
-  if (!data.countryId && !data.pendingGeoId) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'countryId is required unless a pendingGeoId is provided',
-      path: ['countryId']
+});
+
+const withPropertyRefinements = <T extends z.ZodTypeAny>(schema: T) =>
+  schema.superRefine((data, ctx) => {
+    if (!data.countryId && !data.pendingGeoId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'countryId is required unless a pendingGeoId is provided',
+        path: ['countryId']
     });
   }
 
@@ -74,13 +76,16 @@ export const createPropertySchema = z.object({
     });
   }
 
-  if (data.availability === PropertyAvailability.DATE && !data.availableFrom) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'availableFrom is required when availability is DATE',
-      path: ['availableFrom']
-    });
-  }
-});
+    if (data.availability === PropertyAvailability.DATE && !data.availableFrom) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'availableFrom is required when availability is DATE',
+        path: ['availableFrom']
+      });
+    }
+  });
+
+export const createPropertySchema = withPropertyRefinements(basePropertySchema);
+export const updatePropertySchema = withPropertyRefinements(basePropertySchema.partial());
 
 export type CreatePropertyDto = z.infer<typeof createPropertySchema>;
