@@ -7,7 +7,7 @@ import {
 import {
   GeoLevel,
   PendingGeoStatus,
-  Prisma,
+  PrismaClient,
   type City,
   type Country,
   type PendingGeo,
@@ -198,7 +198,7 @@ export class GeoService implements OnModuleInit {
       throw new BadRequestException('Pending geo is not awaiting approval');
     }
 
-    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       let createdId: string;
 
       if (pending.level === GeoLevel.COUNTRY) {
@@ -297,7 +297,7 @@ export class GeoService implements OnModuleInit {
 
     const parentId = await this.validateMergeTarget(pending.level, targetId, pending.parentId);
 
-    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await this.prisma.$transaction(async (tx) => {
       await tx.pendingGeo.update({
         where: { id },
         data: {
@@ -669,7 +669,7 @@ export class GeoService implements OnModuleInit {
     pendingId: string,
     locationId: string,
     parentId: string | null,
-    tx: Prisma.TransactionClient
+    tx: PrismaClient
   ) {
     if (level === GeoLevel.COUNTRY) {
       await tx.property.updateMany({
@@ -726,7 +726,7 @@ export class GeoService implements OnModuleInit {
 
   private async resolveCountryIdForProvince(
     provinceId: string,
-    tx: Prisma.TransactionClient
+    tx: PrismaClient
   ) {
     const province = await tx.province.findUnique({ where: { id: provinceId } });
     if (!province) {

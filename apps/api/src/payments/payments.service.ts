@@ -25,8 +25,8 @@ const VAT_SCALE = 100;
 const MICRO_SCALE = 1_000_000;
 const BASE_CURRENCY = Currency.USD;
 
-type PrismaTx = Prisma.TransactionClient;
-type PrismaClientOrTx = PrismaClient | PrismaTx;
+type PrismaTx = PrismaClient;
+type PrismaClientOrTx = PrismaClient;
 
 type InvoiceWithRelations = Invoice & {
   lines: InvoiceLine[];
@@ -265,7 +265,7 @@ export class PaymentsService {
       throw new NotFoundException('Payment intent for webhook not found');
     }
 
-    const receiptContext = await this.prisma.$transaction(async (tx: PrismaTx) => {
+    const receiptContext = await this.prisma.$transaction(async (tx) => {
       await tx.paymentIntent.update({
         where: { id: intent.id },
         data: {
@@ -337,7 +337,7 @@ export class PaymentsService {
 
     const paidAt = options.paidAt ?? new Date();
 
-    const receiptContext = await this.prisma.$transaction(async (tx: PrismaTx) => {
+    const receiptContext = await this.prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.create({
         data: {
           invoiceId: invoice.id,
