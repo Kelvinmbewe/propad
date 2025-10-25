@@ -16,20 +16,29 @@
     "build:og": "node scripts/render-social-share.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
     "@resvg/resvg-js": "2.6.1",
     "@types/node": "20.11.30",
+    "csstype": "^3.1.3",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
     "prettier": "3.2.5",
     "typescript": "5.4.5",
-    "eslint": "^9.0.0",
-    "@eslint/js": "^9.0.0",
-    "typescript-eslint": "^8.0.0",
-    "globals": "^15.0.0"
+    "typescript-eslint": "^8.0.0"
   },
   "pnpm": {
     "overrides": {
-      "react-leaflet-cluster": "3.1.1",
       "next": "14.2.3",
-      "bullmq": "4.18.3"
+      "bullmq": "4.18.3",
+      "react-leaflet-cluster": "3.1.1",
+      "glob": "^10.3.12",
+      "rimraf": "^5.0.5",
+      "multer": "^1.4.5-lts.2",
+      "sourcemap-codec": "^1.4.15",
+      "source-map": "^0.7.4",
+      "@types/minimatch": "^5.1.2",
+      "workbox-cacheable-response": "^7.1.0",
+      "workbox-google-analytics": "^7.1.0"
     }
   }
 }
