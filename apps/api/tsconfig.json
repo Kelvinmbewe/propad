@@ -2,6 +2,8 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "module": "CommonJS",
+    "moduleResolution": "Node",
+    "types": [],
     "declaration": true,
     "sourceMap": true,
     "outDir": "dist",

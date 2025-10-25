@@ -3,7 +3,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 
 @Injectable()
 export class RateLimitGuard extends ThrottlerGuard {
-  protected getTracker(req: Record<string, any>): string {
+  protected async getTracker(req: Record<string, any>): Promise<string> {
     const ip =
       req.ip ||
       (Array.isArray(req.ips) && req.ips.length > 0 ? req.ips[0] : undefined) ||
