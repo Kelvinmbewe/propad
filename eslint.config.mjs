@@ -1,39 +1,24 @@
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
-
+// eslint.config.mjs
 import js from '@eslint/js';
-import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-const ROOT_DIR = dirname(fileURLToPath(import.meta.url));
-
-export const createConfig = (tsconfigRootDir = ROOT_DIR) => [
-  {
-    ignores: ['**/node_modules/**', '**/.next/**', '**/dist/**', '**/build/**', '**/.turbo/**']
-  },
+export default [
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {
     files: ['**/*.{ts,tsx,js,jsx}'],
+    ignores: ['**/node_modules/**', '**/.next/**', '**/dist/**', '**/build/**', '**/.turbo/**'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
       parserOptions: {
         project: true,
-        tsconfigRootDir,
-        ecmaFeatures: {
-          jsx: true
-        }
-      },
-      globals: {
-        ...globals.browser,
-        ...globals.node
+        tsconfigRootDir: import.meta.dirname
       }
     },
     rules: {
+      // relax or tighten as needed; keep CI green
       'no-console': 'off'
     }
   }
 ];
-
-export default createConfig();
