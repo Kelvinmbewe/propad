@@ -51,7 +51,7 @@ import {
   type ShortLink,
   type Transaction,
   type WalletThreshold,
-  type WhatsAppResponse
+  type WhatsAppResponse,
 } from './schemas';
 
 interface SDKOptions {
@@ -59,22 +59,27 @@ interface SDKOptions {
   token?: string;
 }
 
+const createSearchParams = (
+  params: Record<string, string | number | boolean | undefined | null>,
+) => {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null) {
+      return;
+    }
+
+    searchParams.set(key, String(value));
+  });
+
+  return searchParams;
+};
+
 export function createSDK({ baseUrl, token }: SDKOptions) {
   const client = ky.create({
     prefixUrl: baseUrl,
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
-
-  const buildSearchParams = (params: Record<string, string | number | boolean | undefined>) => {
-    const searchParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value === undefined || value === null) {
-        return;
-      }
-      searchParams.set(key, String(value));
-    });
-    return searchParams;
-  };
 
   return {
     metrics: {
@@ -85,23 +90,25 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .then((data) => AdminOverviewMetricsSchema.parse(data)),
       dailyAds: async (params: { from: string; to: string }) =>
         client
-          .get('admin/metrics/ads/daily', { searchParams: buildSearchParams(params) })
+          .get('admin/metrics/ads/daily', {
+            searchParams: createSearchParams(params),
+          })
           .json<DailyAdsPoint[]>()
           .then((data) => DailyAdsPointSchema.array().parse(data)),
       topAgents: async (params: { limit?: number } = {}) =>
         client
           .get('admin/metrics/agents/top', {
-            searchParams: buildSearchParams({ limit: params.limit })
+            searchParams: createSearchParams({ limit: params.limit }),
           })
           .json<TopAgentsResponse>()
           .then((data) => TopAgentsResponseSchema.parse(data)),
       geoListings: async (city: string) =>
         client
           .get('admin/metrics/geo/listings', {
-            searchParams: buildSearchParams({ city })
+            searchParams: createSearchParams({ city }),
           })
           .json<GeoListingsResponse>()
-          .then((data) => GeoListingsResponseSchema.parse(data))
+          .then((data) => GeoListingsResponseSchema.parse(data)),
     },
     properties: {
       listOwned: async () =>
@@ -109,20 +116,22 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .get('properties')
           .json<PropertyManagement[]>()
           .then((data) => PropertyManagementSchema.array().parse(data)),
-      search: async (params: {
-        type?: string;
-        suburb?: string;
-        city?: string;
-        priceMin?: number;
-        priceMax?: number;
-        limit?: number;
-        page?: number;
-        bounds?: {
-          southWest: { lat: number; lng: number };
-          northEast: { lat: number; lng: number };
-        };
-        filters?: Record<string, unknown>;
-      } = {}) => {
+      search: async (
+        params: {
+          type?: string;
+          suburb?: string;
+          city?: string;
+          priceMin?: number;
+          priceMax?: number;
+          limit?: number;
+          page?: number;
+          bounds?: {
+            southWest: { lat: number; lng: number };
+            northEast: { lat: number; lng: number };
+          };
+          filters?: Record<string, unknown>;
+        } = {},
+      ) => {
         const searchParams = new URLSearchParams();
 
         const primitiveEntries = Object.entries({
@@ -132,7 +141,7 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           priceMin: params.priceMin,
           priceMax: params.priceMax,
           limit: params.limit,
-          page: params.page
+          page: params.page,
         }).filter(([, value]) => {
           if (value === undefined || value === null) {
             return false;
@@ -153,7 +162,9 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           const { southWest, northEast } = params.bounds;
           searchParams.set(
             'bounds',
-            [southWest.lat, southWest.lng, northEast.lat, northEast.lng].map((value) => value.toFixed(6)).join(',')
+            [southWest.lat, southWest.lng, northEast.lat, northEast.lng]
+              .map((value) => value.toFixed(6))
+              .join(','),
           );
         }
 
@@ -170,17 +181,19 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         client
           .get(`properties/${id}`)
           .json<Property>()
-          .then((data) => PropertySchema.parse(data))
-      },
+          .then((data) => PropertySchema.parse(data)),
       assignAgent: async (
         id: string,
-        payload: { agentId: string; serviceFeeUsd?: number }
+        payload: { agentId: string; serviceFeeUsd?: number },
       ) =>
         client
           .post(`properties/${id}/assign-agent`, { json: payload })
           .json<AgentAssignment>()
           .then((data) => AgentAssignmentSchema.parse(data)),
-      updateDealConfirmation: async (id: string, payload: { confirmed: boolean }) =>
+      updateDealConfirmation: async (
+        id: string,
+        payload: { confirmed: boolean },
+      ) =>
         client
           .patch(`properties/${id}/deal-confirmation`, { json: payload })
           .json<PropertyManagement>()
@@ -194,7 +207,7 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         client
           .post(`properties/${id}/messages`, { json: payload })
           .json<PropertyMessage>()
-          .then((data) => PropertyMessageSchema.parse(data))
+          .then((data) => PropertyMessageSchema.parse(data)),
     },
     geo: {
       suburbs: async () =>
@@ -202,27 +215,34 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .get('geo/suburbs')
           .json<GeoSuburb[]>()
           .then((data) => GeoSuburbSchema.array().parse(data)),
-      listPending: async (params: { level?: string; status?: string; search?: string } = {}) => {
-        const searchParams = buildSearchParams({
-          level: params.level,
-          status: params.status,
-          search: params.search
-        });
-        return client
-          .get('geo/pending', { searchParams })
+      listPending: async (
+        params: { level?: string; status?: string; search?: string } = {},
+      ) =>
+        client
+          .get('geo/pending', {
+            searchParams: createSearchParams({
+              level: params.level,
+              status: params.status,
+              search: params.search,
+            }),
+          })
           .json<PendingGeo[]>()
-          .then((data) => PendingGeoSchema.array().parse(data));
-      },
+          .then((data) => PendingGeoSchema.array().parse(data)),
       approvePending: async (id: string) =>
         client.post(`geo/pending/${id}/approve`).json<unknown>(),
-      rejectPending: async (id: string) => client.post(`geo/pending/${id}/reject`).json<unknown>(),
+      rejectPending: async (id: string) =>
+        client.post(`geo/pending/${id}/reject`).json<unknown>(),
       mergePending: async (id: string, targetId: string) =>
-        client.post(`geo/pending/${id}/merge`, { json: { targetId } }).json<unknown>(),
+        client
+          .post(`geo/pending/${id}/merge`, { json: { targetId } })
+          .json<unknown>(),
       search: async (query: string) =>
         client
-          .get('geo/search', { searchParams: buildSearchParams({ q: query }) })
+          .get('geo/search', {
+            searchParams: createSearchParams({ q: query }),
+          })
           .json<GeoSearchResult[]>()
-          .then((data) => GeoSearchResultSchema.array().parse(data))
+          .then((data) => GeoSearchResultSchema.array().parse(data)),
     },
     ads: {
       logImpression: async (payload: {
@@ -236,14 +256,14 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         client
           .post('ads/impressions', { json: payload })
           .json<AdImpression>()
-          .then((data) => AdImpressionSchema.parse(data))
+          .then((data) => AdImpressionSchema.parse(data)),
     },
     rewards: {
       estimateMe: async () =>
         client
           .get('rewards/estimate/me')
           .json<RewardsEstimate>()
-          .then((data) => RewardsEstimateSchema.parse(data))
+          .then((data) => RewardsEstimateSchema.parse(data)),
     },
     shortlinks: {
       create: async (payload: {
@@ -259,25 +279,32 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .post('shortlinks', { json: payload })
           .json<ShortLink>()
           .then((data) => ShortLinkSchema.parse(data)),
-      click: async (code: string, payload: { contactPhone?: string; channelRef?: string } = {}) =>
+      click: async (
+        code: string,
+        payload: { contactPhone?: string; channelRef?: string } = {},
+      ) =>
         client
           .post(`shortlinks/${code}/click`, { json: payload })
           .json<ShortLink>()
-          .then((data) => ShortLinkSchema.parse(data))
+          .then((data) => ShortLinkSchema.parse(data)),
     },
     whatsapp: {
-      inbound: async (payload: { from: string; message: string; locale?: string }) =>
+      inbound: async (payload: {
+        from: string;
+        message: string;
+        locale?: string;
+      }) =>
         client
           .post('whatsapp/inbound', { json: payload })
           .json<WhatsAppResponse>()
-          .then((data) => WhatsAppResponseSchema.parse(data))
+          .then((data) => WhatsAppResponseSchema.parse(data)),
     },
     agents: {
       listVerified: async () =>
         client
           .get('properties/agents/verified')
           .json<AgentSummary[]>()
-          .then((data) => AgentSummarySchema.array().parse(data))
+          .then((data) => AgentSummarySchema.array().parse(data)),
     },
     facebook: {
       publish: async (payload: {
@@ -289,89 +316,115 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         client
           .post('facebook/publish', { json: payload })
           .json<FacebookPublishResponse>()
-          .then((data) => FacebookPublishResponseSchema.parse(data))
+          .then((data) => FacebookPublishResponseSchema.parse(data)),
     },
     admin: {
       invoices: {
         list: async (params: { status?: string } = {}) =>
           client
-            .get('admin/invoices', { searchParams: buildSearchParams({ status: params.status }) })
+            .get('admin/invoices', {
+              searchParams: createSearchParams({ status: params.status }),
+            })
             .json<Invoice[]>()
             .then((data) => InvoiceSchema.array().parse(data)),
         export: async (params: { status?: string } = {}) =>
           client
             .get('admin/exports/invoices', {
-              searchParams: buildSearchParams({ status: params.status })
+              searchParams: createSearchParams({ status: params.status }),
             })
             .text(),
         markPaid: async (
           id: string,
-          payload: { amountCents: number; notes?: string; paidAt: string | Date }
+          payload: {
+            amountCents: number;
+            notes?: string;
+            paidAt: string | Date;
+          },
         ) => {
           const json = {
             amountCents: payload.amountCents,
             notes: payload.notes,
-            paidAt: typeof payload.paidAt === 'string' ? payload.paidAt : payload.paidAt.toISOString()
+            paidAt:
+              typeof payload.paidAt === 'string'
+                ? payload.paidAt
+                : payload.paidAt.toISOString(),
           };
+
           return client
             .post(`admin/invoices/${id}/mark-paid`, { json })
             .json<Invoice>()
             .then((data) => InvoiceSchema.parse(data));
-        }
+        },
       },
       paymentIntents: {
         list: async (
-          params: { status?: string; gateway?: string; invoiceId?: string } = {}
+          params: {
+            status?: string;
+            gateway?: string;
+            invoiceId?: string;
+          } = {},
         ) =>
           client
             .get('admin/payment-intents', {
-              searchParams: buildSearchParams({
+              searchParams: createSearchParams({
                 status: params.status,
                 gateway: params.gateway,
-                invoiceId: params.invoiceId
-              })
+                invoiceId: params.invoiceId,
+              }),
             })
             .json<PaymentIntent[]>()
             .then((data) => PaymentIntentSchema.array().parse(data)),
         export: async (
-          params: { status?: string; gateway?: string; invoiceId?: string } = {}
+          params: {
+            status?: string;
+            gateway?: string;
+            invoiceId?: string;
+          } = {},
         ) =>
           client
             .get('admin/exports/payment-intents', {
-              searchParams: buildSearchParams({
+              searchParams: createSearchParams({
                 status: params.status,
                 gateway: params.gateway,
-                invoiceId: params.invoiceId
-              })
+                invoiceId: params.invoiceId,
+              }),
             })
-            .text()
+            .text(),
       },
       transactions: {
         list: async (
-          params: { result?: string; gateway?: string; invoiceId?: string } = {}
+          params: {
+            result?: string;
+            gateway?: string;
+            invoiceId?: string;
+          } = {},
         ) =>
           client
             .get('admin/transactions', {
-              searchParams: buildSearchParams({
+              searchParams: createSearchParams({
                 result: params.result,
                 gateway: params.gateway,
-                invoiceId: params.invoiceId
-              })
+                invoiceId: params.invoiceId,
+              }),
             })
             .json<Transaction[]>()
             .then((data) => TransactionSchema.array().parse(data)),
         export: async (
-          params: { result?: string; gateway?: string; invoiceId?: string } = {}
+          params: {
+            result?: string;
+            gateway?: string;
+            invoiceId?: string;
+          } = {},
         ) =>
           client
             .get('admin/exports/transactions', {
-              searchParams: buildSearchParams({
+              searchParams: createSearchParams({
                 result: params.result,
                 gateway: params.gateway,
-                invoiceId: params.invoiceId
-              })
+                invoiceId: params.invoiceId,
+              }),
             })
-            .text()
+            .text(),
       },
       fxRates: {
         create: async (payload: {
@@ -389,61 +442,76 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
                 effectiveDate:
                   typeof payload.effectiveDate === 'string'
                     ? payload.effectiveDate
-                    : payload.effectiveDate.toISOString()
-              }
+                    : payload.effectiveDate.toISOString(),
+              },
             })
-            .json()
-      }
+            .json(),
+      },
     },
     wallets: {
       kyc: {
         list: async (params: { status?: string; ownerId?: string } = {}) =>
           client
             .get('wallets/kyc', {
-              searchParams: buildSearchParams({ status: params.status, ownerId: params.ownerId })
+              searchParams: createSearchParams({
+                status: params.status,
+                ownerId: params.ownerId,
+              }),
             })
             .json<KycRecord[]>()
             .then((data) => KycRecordSchema.array().parse(data)),
-        updateStatus: async (id: string, payload: { status: string; notes?: string }) =>
+        updateStatus: async (
+          id: string,
+          payload: { status: string; notes?: string },
+        ) =>
           client
             .post(`wallets/kyc/${id}/status`, { json: payload })
             .json<KycRecord>()
-            .then((data) => KycRecordSchema.parse(data))
+            .then((data) => KycRecordSchema.parse(data)),
       },
       payoutRequests: {
         list: async (params: { status?: string; walletId?: string } = {}) =>
           client
             .get('wallets/payouts', {
-              searchParams: buildSearchParams({ status: params.status, walletId: params.walletId })
+              searchParams: createSearchParams({
+                status: params.status,
+                walletId: params.walletId,
+              }),
             })
             .json<PayoutRequest[]>()
             .then((data) => PayoutRequestSchema.array().parse(data)),
         approve: async (
           id: string,
-          payload: { txRef?: string; scheduledFor?: string | Date }
+          payload: { txRef?: string; scheduledFor?: string | Date },
         ) =>
           client
             .post(`wallets/payouts/${id}/approve`, {
               json: {
                 txRef: payload.txRef,
                 scheduledFor:
-                  payload.scheduledFor && payload.scheduledFor instanceof Date
+                  payload.scheduledFor instanceof Date
                     ? payload.scheduledFor.toISOString()
-                    : payload.scheduledFor
-              }
+                    : payload.scheduledFor,
+              },
             })
             .json<PayoutRequest>()
-            .then((data) => PayoutRequestSchema.parse(data))
+            .then((data) => PayoutRequestSchema.parse(data)),
       },
       payoutAccounts: {
-        list: async (params: { ownerId?: string; ownerType?: string; verified?: boolean } = {}) =>
+        list: async (
+          params: {
+            ownerId?: string;
+            ownerType?: string;
+            verified?: boolean;
+          } = {},
+        ) =>
           client
             .get('wallets/payout-accounts', {
-              searchParams: buildSearchParams({
+              searchParams: createSearchParams({
                 ownerId: params.ownerId,
                 ownerType: params.ownerType,
-                verified: params.verified
-              })
+                verified: params.verified,
+              }),
             })
             .json<PayoutAccount[]>()
             .then((data) => PayoutAccountSchema.array().parse(data)),
@@ -451,7 +519,7 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           client
             .post(`wallets/payout-accounts/${id}/verify`, { json: payload })
             .json<PayoutAccount>()
-            .then((data) => PayoutAccountSchema.parse(data))
+            .then((data) => PayoutAccountSchema.parse(data)),
       },
       amlBlocklist: {
         list: async () =>
@@ -465,7 +533,9 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             .json<AmlBlocklistEntry>()
             .then((data) => AmlBlocklistEntrySchema.parse(data)),
         remove: async (id: string) =>
-          client.delete(`wallets/aml-blocklist/${id}`).json<{ success: boolean }>()
+          client
+            .delete(`wallets/aml-blocklist/${id}`)
+            .json<{ success: boolean }>(),
       },
       thresholds: {
         list: async () =>
@@ -482,9 +552,9 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           client
             .post('wallets/thresholds', { json: payload })
             .json<WalletThreshold>()
-            .then((data) => WalletThresholdSchema.parse(data))
-      }
-    }
+            .then((data) => WalletThresholdSchema.parse(data)),
+      },
+    },
   };
 }
 
