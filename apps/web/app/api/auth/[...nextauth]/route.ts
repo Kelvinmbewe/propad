@@ -2,7 +2,7 @@ import NextAuth from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import EmailProvider from 'next-auth/providers/email';
 import { PrismaAdapter } from '@auth/prisma-adapter';
-import { prisma } from '@propad/sdk/server';
+import { prisma } from '@/lib/prisma';
 import { env } from '@propad/config';
 import { sign } from 'jsonwebtoken';
 import type { Role } from '@propad/sdk';

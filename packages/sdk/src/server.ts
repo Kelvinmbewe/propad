@@ -1,28 +1,35 @@
-import { PrismaClient } from '@prisma/client';
-import type { Prisma } from '@prisma/client';
-import {
+// Re-export Prisma runtime error classes without requiring generated client:
+export {
   PrismaClientKnownRequestError,
   PrismaClientInitializationError,
   PrismaClientUnknownRequestError,
   PrismaClientValidationError,
-  Decimal,
+  Decimal
 } from '@prisma/client/runtime/library';
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+// A minimal shape for the injected Prisma client (loose to avoid tight coupling)
+export type PrismaClientLike = Record<string, any>;
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
-
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
+// Global cache for dev/hot-reload
+declare global {
+  // eslint-disable-next-line no-var
+  var __SDK_PRISMA__: PrismaClientLike | undefined;
 }
 
-export type { Prisma };
-export { Decimal };
-export type DecimalLike = Decimal;
+let prismaRef: PrismaClientLike | undefined = globalThis.__SDK_PRISMA__;
 
-export {
-  PrismaClientInitializationError,
-  PrismaClientKnownRequestError,
-  PrismaClientUnknownRequestError,
-  PrismaClientValidationError,
-};
+/** Attach a Prisma client instance (call this once from the app) */
+export function attachPrisma(client: PrismaClientLike) {
+  prismaRef = client;
+  globalThis.__SDK_PRISMA__ = client;
+}
+
+/** Retrieve the injected Prisma client (throws if not attached) */
+export function getPrisma(): PrismaClientLike {
+  if (!prismaRef) {
+    throw new Error(
+      '[@propad/sdk] Prisma client not attached. Call attachPrisma(prisma) from your app before using SDK.'
+    );
+  }
+  return prismaRef;
+}

@@ -5,18 +5,17 @@
   "types": "src/index.ts",
   "private": true,
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "prisma:generate": "prisma generate --schema ../../apps/api/prisma/schema.prisma",
-    "postinstall": "pnpm run prisma:generate || echo \"[sdk] prisma generate skipped\""
+    "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
     "ky": "1.2.4",
     "zod": "3.23.8"
   },
   "devDependencies": {
-    "prisma": "^5.22.0",
     "typescript": "5.4.5"
+  },
+  "peerDependencies": {
+    "@prisma/client": "^5.22.0"
   },
   "prisma": {
     "schema": "../../apps/api/prisma/schema.prisma"
