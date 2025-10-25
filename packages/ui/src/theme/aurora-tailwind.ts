@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss';
+import type { PluginAPI } from 'tailwindcss/types/config';
 import plugin from 'tailwindcss/plugin';
 import { auroraBaseTokens } from './aurora-tokens';
 
@@ -102,7 +103,7 @@ export const auroraTailwindPreset = ({ cssVariablePrefix = 'aurora-' }: AuroraTa
       }
     },
     plugins: [
-      plugin(({ addBase }) => {
+      plugin(({ addBase }: PluginAPI) => {
         addBase({
           ':root': {
             '--aurora-gradient-panorama': `radial-gradient(120% 140% at 10% 20%, rgba(0, 150, 136, 0.22), transparent 60%)`,
