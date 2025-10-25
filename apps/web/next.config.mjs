@@ -1,6 +1,13 @@
-import withPWA from 'next-pwa';
+import createPWA from '@ducanh2912/next-pwa';
 
 const isDev = process.env.NODE_ENV !== 'production';
+
+const withPWA = createPWA({
+  dest: 'public',
+  disable: isDev,
+  register: true,
+  skipWaiting: true
+});
 
 const config = {
   reactStrictMode: true,
@@ -17,9 +24,4 @@ const config = {
   }
 };
 
-export default withPWA({
-  dest: 'public',
-  disable: isDev,
-  register: true,
-  skipWaiting: true
-})(config);
+export default withPWA(config);

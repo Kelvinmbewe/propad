@@ -1,4 +1,9 @@
 packages:
   - apps/*
   - packages/*
-  - scripts/*
+
+onlyBuiltDependencies:
+  - "@nestjs/core"
+  - "@prisma/client"
+  - esbuild
+  - msgpackr-extract
