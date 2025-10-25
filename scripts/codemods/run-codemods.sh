@@ -97,6 +97,10 @@ if [[ -f "$REPO_ROOT/prisma/schema.prisma" ]]; then
   PRISMA_DETECTED=true
 fi
 
+if [[ -f "$REPO_ROOT/apps/api/prisma/schema.prisma" ]]; then
+  PRISMA_DETECTED=true
+fi
+
 if compgen -G "$REPO_ROOT/tailwind.config.*" >/dev/null; then
   TAILWIND_DETECTED=true
 fi
