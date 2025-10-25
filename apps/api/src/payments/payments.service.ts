@@ -25,6 +25,7 @@ const MICRO_SCALE = 1_000_000;
 const BASE_CURRENCY = Currency.USD;
 
 type PrismaTx = Prisma.TransactionClient;
+type PrismaClientOrTx = PrismaService | PrismaTx;
 
 type InvoiceWithRelations = Invoice & {
   lines: InvoiceLine[];
@@ -91,7 +92,7 @@ export class PaymentsService {
     private readonly mail: MailService
   ) {}
 
-  async createInvoice(options: CreateInvoiceOptions, tx?: PrismaTx) {
+  async createInvoice(options: CreateInvoiceOptions, tx?: PrismaClientOrTx) {
     const client = tx ?? this.prisma;
 
     if (options.lines.length === 0) {
@@ -263,7 +264,7 @@ export class PaymentsService {
       throw new NotFoundException('Payment intent for webhook not found');
     }
 
-    const receiptContext = await this.prisma.$transaction(async (tx) => {
+    const receiptContext = await this.prisma.$transaction(async (tx: PrismaTx) => {
       await tx.paymentIntent.update({
         where: { id: intent.id },
         data: {
@@ -335,7 +336,7 @@ export class PaymentsService {
 
     const paidAt = options.paidAt ?? new Date();
 
-    const receiptContext = await this.prisma.$transaction(async (tx) => {
+    const receiptContext = await this.prisma.$transaction(async (tx: PrismaTx) => {
       const transaction = await tx.transaction.create({
         data: {
           invoiceId: invoice.id,
@@ -472,7 +473,7 @@ export class PaymentsService {
     return Math.round((usdCents * rateMicros) / MICRO_SCALE);
   }
 
-  private async resolveFxRate(client: PrismaTx, base: Currency, quote: Currency, at: Date) {
+  private async resolveFxRate(client: PrismaClientOrTx, base: Currency, quote: Currency, at: Date) {
     const targetDate = startOfDay(at);
     const rate = await client.fxRate.findFirst({
       where: {
@@ -541,8 +542,14 @@ export class PaymentsService {
       const doc = new PDFDocument({ margin: 50 });
       const buffers: Buffer[] = [];
 
-      doc.on('data', (chunk: Buffer) => buffers.push(chunk));
-      doc.on('error', (err: Error) => reject(err));
+      doc.on('data', (chunk: unknown) => {
+        if (chunk instanceof Buffer) {
+          buffers.push(chunk);
+        }
+      });
+      doc.on('error', (err: unknown) => {
+        reject(err instanceof Error ? err : new Error(String(err)));
+      });
       doc.on('end', () => {
         const buffer = Buffer.concat(buffers) as Buffer;
         resolve(`data:application/pdf;base64,${buffer.toString('base64')}`);
@@ -593,8 +600,14 @@ export class PaymentsService {
       const doc = new PDFDocument({ margin: 50 });
       const buffers: Buffer[] = [];
 
-      doc.on('data', (chunk: Buffer) => buffers.push(chunk));
-      doc.on('error', (err: Error) => reject(err));
+      doc.on('data', (chunk: unknown) => {
+        if (chunk instanceof Buffer) {
+          buffers.push(chunk);
+        }
+      });
+      doc.on('error', (err: unknown) => {
+        reject(err instanceof Error ? err : new Error(String(err)));
+      });
       doc.on('end', () => {
         const buffer = Buffer.concat(buffers) as Buffer;
         resolve(`data:application/pdf;base64,${buffer.toString('base64')}`);

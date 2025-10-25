@@ -59,6 +59,8 @@ type WalletThresholdEntry = {
   updatedAt: Date | null;
 };
 
+type PrismaClientOrTx = Prisma.TransactionClient | PrismaService;
+
 interface AuthContext {
   userId: string;
   role: Role;
@@ -85,7 +87,7 @@ export class WalletsService {
 
   async getMyWallet(actor: AuthContext) {
     const owner = this.resolveOwner(actor);
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const wallet = await this.getOrCreateWallet(owner.ownerType, owner.ownerId, DEFAULT_CURRENCY, tx);
       await this.releasePendingTransactions(wallet.id, tx);
       return this.buildWalletResponse(wallet.id, tx);
@@ -93,7 +95,7 @@ export class WalletsService {
   }
 
   async listTransactions(walletId: string, actor: AuthContext) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const wallet = await tx.wallet.findUnique({ where: { id: walletId } });
       if (!wallet) {
         throw new NotFoundException('Wallet not found');
@@ -111,7 +113,7 @@ export class WalletsService {
 
   async createPayoutAccount(dto: CreatePayoutAccountDto, actor: AuthContext) {
     const owner = this.resolveOwner(actor);
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await this.getOrCreateWallet(owner.ownerType, owner.ownerId, DEFAULT_CURRENCY, tx);
       const account = await tx.payoutAccount.create({
         data: {
@@ -235,7 +237,7 @@ export class WalletsService {
   }
 
   async requestPayout(dto: RequestPayoutDto, actor: AuthContext) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const wallet = await tx.wallet.findUnique({ where: { id: dto.walletId } });
       if (!wallet) {
         throw new NotFoundException('Wallet not found');
@@ -320,7 +322,7 @@ export class WalletsService {
   }
 
   async approvePayout(id: string, dto: ApprovePayoutDto, actor: AuthContext) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const payout = await tx.payoutRequest.findUnique({ where: { id } });
       if (!payout) {
         throw new NotFoundException('Payout request not found');
@@ -378,7 +380,7 @@ export class WalletsService {
       paidAt: Date;
     } | null = null;
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const payout = await tx.payoutRequest.findFirst({ where: { txRef: dto.txRef }, include: { wallet: true } });
       if (!payout) {
         throw new NotFoundException('Payout not found for webhook');
@@ -447,7 +449,7 @@ export class WalletsService {
     availableAt?: Date;
   }) {
     const currency = params.currency ?? DEFAULT_CURRENCY;
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const wallet = await this.getOrCreateWallet(params.ownerType, params.ownerId, currency, tx);
       const now = new Date();
       const availableAt = params.availableAt ?? addDays(now, env.WALLET_EARNINGS_COOL_OFF_DAYS);
@@ -681,7 +683,7 @@ export class WalletsService {
   private async resolveThreshold(
     type: (typeof walletThresholdTypes)[number],
     currency: Currency,
-    tx: Prisma.TransactionClient = this.prisma
+    tx: PrismaClientOrTx = this.prisma
   ) {
     const key = `${WALLET_THRESHOLD_PREFIX}${type}.${currency}`;
     const flag = await tx.featureFlag.findUnique({ where: { key } });
@@ -705,7 +707,7 @@ export class WalletsService {
     ownerType: OwnerType,
     ownerId: string,
     currency: Currency,
-    tx: Prisma.TransactionClient = this.prisma
+    tx: PrismaClientOrTx = this.prisma
   ) {
     return tx.wallet.upsert({
       where: { ownerType_ownerId_currency: { ownerType, ownerId, currency } },
@@ -850,8 +852,14 @@ export class WalletsService {
       const doc = new PDFDocument({ margin: 50 });
       const buffers: Buffer[] = [];
 
-      doc.on('data', (chunk: Buffer) => buffers.push(chunk));
-      doc.on('error', (err: Error) => reject(err));
+      doc.on('data', (chunk: unknown) => {
+        if (chunk instanceof Buffer) {
+          buffers.push(chunk);
+        }
+      });
+      doc.on('error', (err: unknown) => {
+        reject(err instanceof Error ? err : new Error(String(err)));
+      });
       doc.on('end', () => {
         const buffer = Buffer.concat(buffers) as Buffer;
         resolve(`data:application/pdf;base64,${buffer.toString('base64')}`);
