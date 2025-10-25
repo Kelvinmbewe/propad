@@ -5,14 +5,18 @@
   "types": "src/index.ts",
   "private": true,
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "postinstall": "pnpm run prisma:generate",
+    "prisma:generate": "cross-env PRISMA_SCHEMA_PATH=../../prisma/schema.prisma prisma generate"
   },
   "dependencies": {
+    "@prisma/client": "5.11.0",
     "ky": "1.2.4",
-    "zod": "3.23.8",
-    "@prisma/client": "5.11.0"
+    "zod": "3.23.8"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
+    "prisma": "^5.11.0",
     "typescript": "5.4.5"
   }
 }
