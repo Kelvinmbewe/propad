@@ -9,3 +9,9 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export { Prisma };
+export const PrismaClientKnownRequestError = Prisma.PrismaClientKnownRequestError;
+export const PrismaClientUnknownRequestError = Prisma.PrismaClientUnknownRequestError;
+export const PrismaClientInitializationError = Prisma.PrismaClientInitializationError;
+export const PrismaClientValidationError = Prisma.PrismaClientValidationError;
+export const Decimal = Prisma.Decimal;
+export type Decimal = Prisma.Decimal;
