@@ -8,9 +8,7 @@
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    "strict": true,
-    "outDir": "dist",
-    "rootDir": "src"
+    "strict": true
   },
   "include": ["src"]
 }

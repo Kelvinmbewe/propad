@@ -1,10 +1,9 @@
-import baseTokensData from '../tokens.json';
-
-const baseTokens = baseTokensData as const;
+import baseTokens from './tokens';
+import type { Tokens } from './tokens';
 
 export const tokens = baseTokens;
+export type { Tokens } from './tokens';
 
-export type Tokens = typeof tokens;
 export type TokenName = keyof Tokens;
 export type TokenValue<TName extends TokenName = TokenName> = Tokens[TName];
 export type AuroraTokens = Tokens;
