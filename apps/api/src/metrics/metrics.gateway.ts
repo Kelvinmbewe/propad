@@ -87,7 +87,7 @@ export class MetricsGateway implements OnGatewayConnection, OnGatewayDisconnect 
         return parts[1];
       }
     } else if (Array.isArray(authorizationHeader)) {
-      for (const value of authorizationHeader) {
+      for (const value of authorizationHeader as string[]) {
         if (typeof value === 'string') {
           const parts = value.split(' ');
           if (parts[1]) {

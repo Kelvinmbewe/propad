@@ -1,11 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { LeadSource } from '@prisma/client';
-import { customAlphabet } from 'nanoid';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateShortLinkDto } from './dto/create-shortlink.dto';
 import { TrackClickDto } from './dto/track-click.dto';
 
-const nanoid = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 7);
+let nanoidGenerator: (() => string) | null = null;
+
+async function getNanoid() {
+  if (!nanoidGenerator) {
+    const { customAlphabet } = await import('nanoid');
+    nanoidGenerator = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 7);
+  }
+  return nanoidGenerator;
+}
 
 @Injectable()
 export class ShortLinksService {
@@ -65,6 +72,7 @@ export class ShortLinksService {
   }
 
   private async generateCode(): Promise<string> {
+    const nanoid = await getNanoid();
     while (true) {
       const code = nanoid();
       const existing = await this.prisma.shortLink.findUnique({ where: { code } });

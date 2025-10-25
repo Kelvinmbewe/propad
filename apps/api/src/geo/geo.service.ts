@@ -34,7 +34,7 @@ type ResolvedLocation = {
   pendingGeo: PendingGeo | null;
 };
 
-interface SearchResult<T extends GeoLevel> {
+export interface SearchResult<T extends GeoLevel> {
   id: string;
   name: string;
   level: T;
@@ -378,9 +378,9 @@ export class GeoService implements OnModuleInit {
     }
 
     let suburb: (Suburb & {
-      city: City & { province: Province; country: Country };
-      province: Province;
-      country: Country;
+      city?: (City & { province?: Province | null; country?: Country | null }) | null;
+      province?: Province | null;
+      country?: Country | null;
     }) | null = null;
     if (suburbId) {
       suburb = await this.prisma.suburb.findUnique({
@@ -392,8 +392,8 @@ export class GeoService implements OnModuleInit {
       }
     }
 
-    let city: (City & { province: Province & { country: Country }; country: Country }) | null = null;
-    if (suburb) {
+    let city: (City & { province?: (Province & { country?: Country | null }) | null; country?: Country | null }) | null = null;
+    if (suburb?.city) {
       city = suburb.city;
     } else if (cityId) {
       city = await this.prisma.city.findUnique({
@@ -407,7 +407,7 @@ export class GeoService implements OnModuleInit {
       city = pendingCity;
     }
 
-    let province: (Province & { country: Country }) | null = null;
+    let province: (Province & { country?: Country | null }) | null = null;
     if (city) {
       province = await this.prisma.province.findUnique({
         where: { id: city.provinceId },

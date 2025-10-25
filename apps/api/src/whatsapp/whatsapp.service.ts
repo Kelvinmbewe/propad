@@ -50,14 +50,38 @@ export class WhatsAppService {
   async handleInbound(dto: InboundMessageDto) {
     const parsed = this.parseQuery(dto.message);
 
-    const results = await this.propertiesService.search({
+    const searchResult = await this.propertiesService.search({
       type: parsed.type,
-      suburb: parsed.suburb,
       priceMax: parsed.priceMax,
       limit: 3
     });
 
-    if (!results.length) {
+    const properties = searchResult.items as unknown as Array<
+      {
+        id: string;
+        city?: { name?: string | null } | null;
+        cityName?: string | null;
+        suburb?: { name?: string | null } | null;
+        suburbName?: string | null;
+        type: PropertyType;
+        price?: Prisma.Decimal | number | string | null;
+        bedrooms?: number | null;
+        bathrooms?: number | null;
+        media?: Array<{ url?: string | null }> | null;
+      } & Record<string, unknown>
+    >;
+
+    let candidates = properties;
+    if (parsed.suburb) {
+      const normalized = parsed.suburb.toLowerCase();
+      candidates = candidates.filter((property) =>
+        (property.suburbName ?? property.suburb?.name ?? property.cityName ?? property.city?.name ?? '')
+          .toLowerCase()
+          .includes(normalized)
+      );
+    }
+
+    if (!candidates.length) {
       return {
         reply: `Hi ${dto.from}, we could not find matches right now. Try a different suburb or price range.`,
         items: []
@@ -65,7 +89,7 @@ export class WhatsAppService {
     }
 
     const items = await Promise.all(
-      results.map(async (property) => {
+      candidates.map(async (property) => {
         const shortLink = await this.shortLinksService.create({
           targetUrl: `${env.WEB_ORIGIN ?? 'https://propad.local'}/listings/${property.id}`,
           propertyId: property.id,
@@ -78,8 +102,12 @@ export class WhatsAppService {
 
         return {
           id: property.id,
-          headline: this.buildHeadline(property.city, property.suburb, property.type),
-          priceUsd: this.normalizeDecimal(property.price),
+          headline: this.buildHeadline(
+            property.cityName ?? property.city?.name ?? 'Unknown',
+            property.suburbName ?? property.suburb?.name,
+            property.type
+          ),
+          priceUsd: this.normalizeDecimal(property.price ?? 0),
           bedrooms: property.bedrooms ?? null,
           bathrooms: property.bathrooms ?? null,
           shortLink: `${env.WEB_ORIGIN ?? 'https://propad.local'}/s/${shortLink.code}`,

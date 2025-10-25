@@ -88,7 +88,7 @@ export class PromosService {
 
   async suburbSortingEffect() {
     const now = new Date();
-    const promos = await this.prisma.promoBoost.findMany({
+    const promos = (await this.prisma.promoBoost.findMany({
       include: {
         property: {
           include: {
@@ -96,7 +96,12 @@ export class PromosService {
           }
         }
       }
-    });
+    })) as Array<{
+      tier: PromoTier;
+      startAt: Date;
+      endAt: Date;
+      property: { suburb: { name: string | null } | null } | null;
+    }>;
 
     const counts = promos.reduce<Record<string, { tier: PromoTier; count: number }>>((acc, promo) => {
       const suburbName = promo.property?.suburb?.name;

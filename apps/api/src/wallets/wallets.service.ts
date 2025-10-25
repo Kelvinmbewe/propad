@@ -18,6 +18,7 @@ import {
   WalletTransactionType
 } from '@prisma/client';
 import { addDays, startOfDay } from 'date-fns';
+import { Buffer } from 'node:buffer';
 import PDFDocument from 'pdfkit';
 import { env } from '@propad/config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -38,6 +39,25 @@ import {
   walletThresholdTypes
 } from './dto/upsert-wallet-threshold.dto';
 import { MailService } from '../mail/mail.service';
+
+type FeatureFlagRecord = {
+  key: string;
+  description: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  enabled: boolean;
+};
+
+type WalletThresholdEntry = {
+  id: string | null;
+  type: string;
+  currency: Currency;
+  amountCents: number;
+  note: string | null;
+  source: 'custom' | 'env';
+  createdAt: Date | null;
+  updatedAt: Date | null;
+};
 
 interface AuthContext {
   userId: string;
@@ -462,7 +482,7 @@ export class WalletsService {
       orderBy: { createdAt: 'desc' }
     });
 
-    return flags.map((flag) => this.mapAmlBlocklistFlag(flag));
+    return (flags as FeatureFlagRecord[]).map((flag) => this.mapAmlBlocklistFlag(flag));
   }
 
   async addAmlBlocklistEntry(dto: ManageAmlBlocklistDto, actor: AuthContext) {
@@ -517,7 +537,9 @@ export class WalletsService {
       orderBy: { key: 'asc' }
     });
 
-    const entries = flags.map((flag) => this.mapWalletThreshold(flag));
+    const entries: WalletThresholdEntry[] = (flags as FeatureFlagRecord[]).map((flag) =>
+      this.mapWalletThreshold(flag)
+    );
     const hasMin = entries.some((entry) => entry.type === 'MIN_PAYOUT');
     if (!hasMin) {
       entries.push({
@@ -612,13 +634,7 @@ export class WalletsService {
     };
   }
 
-  private mapWalletThreshold(flag: {
-    key: string;
-    description: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-    enabled: boolean;
-  }) {
+  private mapWalletThreshold(flag: FeatureFlagRecord): WalletThresholdEntry {
     const suffix = flag.key.replace(WALLET_THRESHOLD_PREFIX, '');
     const [type, currency] = suffix.split('.');
     let amountCents: number | null = null;
@@ -656,7 +672,7 @@ export class WalletsService {
       currency: (currency as Currency) ?? DEFAULT_CURRENCY,
       amountCents: amountCents ?? fallback,
       note,
-      source: 'custom' as const,
+      source: 'custom',
       createdAt: flag.createdAt,
       updatedAt: flag.updatedAt
     };
@@ -700,7 +716,7 @@ export class WalletsService {
 
   private async releasePendingTransactions(walletId: string, tx: Prisma.TransactionClient) {
     const now = new Date();
-    const pending = await tx.walletTransaction.findMany({
+    const pending = (await tx.walletTransaction.findMany({
       where: {
         walletId,
         type: WalletTransactionType.CREDIT,
@@ -708,11 +724,11 @@ export class WalletsService {
         availableAt: { lte: now }
       },
       select: { id: true, amountCents: true }
-    });
+    })) as Array<{ id: string; amountCents: number }>;
     if (!pending.length) {
       return;
     }
-    const total = pending.reduce((sum, item) => sum + item.amountCents, 0);
+    const total = pending.reduce<number>((sum, item) => sum + item.amountCents, 0);
     await tx.wallet.update({
       where: { id: walletId },
       data: {
@@ -834,10 +850,10 @@ export class WalletsService {
       const doc = new PDFDocument({ margin: 50 });
       const buffers: Buffer[] = [];
 
-      doc.on('data', (chunk) => buffers.push(chunk as Buffer));
-      doc.on('error', (err) => reject(err));
+      doc.on('data', (chunk: Buffer) => buffers.push(chunk));
+      doc.on('error', (err: Error) => reject(err));
       doc.on('end', () => {
-        const buffer = Buffer.concat(buffers);
+        const buffer = Buffer.concat(buffers) as Buffer;
         resolve(`data:application/pdf;base64,${buffer.toString('base64')}`);
       });
 

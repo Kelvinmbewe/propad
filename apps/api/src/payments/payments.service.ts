@@ -12,6 +12,7 @@ import {
   TransactionResult
 } from '@prisma/client';
 import { startOfDay } from 'date-fns';
+import { Buffer } from 'node:buffer';
 import PDFDocument from 'pdfkit';
 import { env } from '@propad/config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -262,9 +263,7 @@ export class PaymentsService {
       throw new NotFoundException('Payment intent for webhook not found');
     }
 
-    let receiptContext: { invoice: InvoiceWithRelations; transaction: TransactionSummary } | null = null;
-
-    await this.prisma.$transaction(async (tx) => {
+    const receiptContext = await this.prisma.$transaction(async (tx) => {
       await tx.paymentIntent.update({
         where: { id: intent.id },
         data: {
@@ -289,7 +288,7 @@ export class PaymentsService {
 
       if (result.success) {
         const updatedInvoice = await this.finalizeInvoice(tx, intent.invoice);
-        receiptContext = {
+        return {
           invoice: updatedInvoice,
           transaction: {
             id: transaction.id,
@@ -301,6 +300,7 @@ export class PaymentsService {
           }
         };
       }
+      return null;
     });
 
     if (receiptContext) {
@@ -335,9 +335,7 @@ export class PaymentsService {
 
     const paidAt = options.paidAt ?? new Date();
 
-    let receiptContext: { invoice: InvoiceWithRelations; transaction: TransactionSummary } | null = null;
-
-    await this.prisma.$transaction(async (tx) => {
+    const receiptContext = await this.prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.create({
         data: {
           invoiceId: invoice.id,
@@ -353,7 +351,7 @@ export class PaymentsService {
       });
 
       const updatedInvoice = await this.finalizeInvoice(tx, invoice);
-      receiptContext = {
+      return {
         invoice: updatedInvoice,
         transaction: {
           id: transaction.id,
@@ -374,15 +372,8 @@ export class PaymentsService {
       metadata: { amountCents: options.amountCents, notes: options.notes }
     });
 
-    if (receiptContext) {
-      await this.deliverPaymentReceipt(receiptContext.invoice, receiptContext.transaction);
-      return receiptContext.invoice;
-    }
-
-    return this.prisma.invoice.findUnique({
-      where: { id: invoice.id },
-      include: { lines: true, fxRate: true }
-    });
+    await this.deliverPaymentReceipt(receiptContext.invoice, receiptContext.transaction);
+    return receiptContext.invoice;
   }
 
   private async finalizeInvoice(tx: PrismaTx, invoice: InvoiceWithRelations) {
@@ -550,10 +541,10 @@ export class PaymentsService {
       const doc = new PDFDocument({ margin: 50 });
       const buffers: Buffer[] = [];
 
-      doc.on('data', (chunk) => buffers.push(chunk as Buffer));
-      doc.on('error', (err) => reject(err));
+      doc.on('data', (chunk: Buffer) => buffers.push(chunk));
+      doc.on('error', (err: Error) => reject(err));
       doc.on('end', () => {
-        const buffer = Buffer.concat(buffers);
+        const buffer = Buffer.concat(buffers) as Buffer;
         resolve(`data:application/pdf;base64,${buffer.toString('base64')}`);
       });
 
@@ -602,10 +593,10 @@ export class PaymentsService {
       const doc = new PDFDocument({ margin: 50 });
       const buffers: Buffer[] = [];
 
-      doc.on('data', (chunk) => buffers.push(chunk as Buffer));
-      doc.on('error', (err) => reject(err));
+      doc.on('data', (chunk: Buffer) => buffers.push(chunk));
+      doc.on('error', (err: Error) => reject(err));
       doc.on('end', () => {
-        const buffer = Buffer.concat(buffers);
+        const buffer = Buffer.concat(buffers) as Buffer;
         resolve(`data:application/pdf;base64,${buffer.toString('base64')}`);
       });
 
