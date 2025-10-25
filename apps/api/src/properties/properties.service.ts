@@ -944,7 +944,7 @@ export class PropertiesService {
         commercialFields: {
           path: ['zoning'],
           string_contains: filters.zoning,
-          string_mode: 'insensitive'
+          mode: 'insensitive'
         }
       });
     }
@@ -968,7 +968,12 @@ export class PropertiesService {
     }
 
     if (andConditions.length) {
-      where.AND = [...(where.AND ?? []), ...andConditions];
+      const existing = where.AND
+        ? Array.isArray(where.AND)
+          ? where.AND
+          : [where.AND]
+        : [];
+      where.AND = [...existing, ...andConditions];
     }
 
     const perPage = Math.min(Math.max(dto.limit ?? 20, 1), 50);
