@@ -443,6 +443,19 @@ model User {
   notifications        Notification[]
 }
 
+model Payout {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    Decimal  @db.Decimal(18, 2)
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 model AgentProfile {
   userId                String @id
   bio                   String?

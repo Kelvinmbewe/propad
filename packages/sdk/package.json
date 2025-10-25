@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prisma:generate": "prisma generate --schema ../../apps/api/prisma/schema.prisma",
-    "postinstall": "pnpm run prisma:generate || echo \"[sdk] prisma generate skipped (schema missing or prisma not configured)\""
+    "postinstall": "pnpm run prisma:generate || echo \"[sdk] prisma generate skipped\""
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
