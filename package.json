@@ -31,6 +31,7 @@
       "next": "14.2.3",
       "bullmq": "4.18.3",
       "react-leaflet-cluster": "3.1.1",
+      "webpack": "^5.91.0",
       "glob": "^10.3.12",
       "rimraf": "^5.0.5",
       "multer": "^2.0.0",
