@@ -74,6 +74,11 @@ const ACTIVE_PAYOUT_STATUSES: PayoutStatus[] = [
   PayoutStatus.SENT
 ];
 
+const APPROVABLE_PAYOUT_STATUSES: PayoutStatus[] = [
+  PayoutStatus.REQUESTED,
+  PayoutStatus.REVIEW
+];
+
 const AML_BLOCKLIST_PREFIX = 'wallet.aml.blocklist.';
 const WALLET_THRESHOLD_PREFIX = 'wallet.threshold.';
 
@@ -87,7 +92,7 @@ export class WalletsService {
 
   async getMyWallet(actor: AuthContext) {
     const owner = this.resolveOwner(actor);
-    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    return this.prisma.$transaction(async (tx) => {
       const wallet = await this.getOrCreateWallet(owner.ownerType, owner.ownerId, DEFAULT_CURRENCY, tx);
       await this.releasePendingTransactions(wallet.id, tx);
       return this.buildWalletResponse(wallet.id, tx);
@@ -95,7 +100,7 @@ export class WalletsService {
   }
 
   async listTransactions(walletId: string, actor: AuthContext) {
-    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    return this.prisma.$transaction(async (tx) => {
       const wallet = await tx.wallet.findUnique({ where: { id: walletId } });
       if (!wallet) {
         throw new NotFoundException('Wallet not found');
@@ -113,7 +118,7 @@ export class WalletsService {
 
   async createPayoutAccount(dto: CreatePayoutAccountDto, actor: AuthContext) {
     const owner = this.resolveOwner(actor);
-    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    return this.prisma.$transaction(async (tx) => {
       await this.getOrCreateWallet(owner.ownerType, owner.ownerId, DEFAULT_CURRENCY, tx);
       const account = await tx.payoutAccount.create({
         data: {
@@ -237,7 +242,7 @@ export class WalletsService {
   }
 
   async requestPayout(dto: RequestPayoutDto, actor: AuthContext) {
-    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    return this.prisma.$transaction(async (tx) => {
       const wallet = await tx.wallet.findUnique({ where: { id: dto.walletId } });
       if (!wallet) {
         throw new NotFoundException('Wallet not found');
@@ -322,12 +327,12 @@ export class WalletsService {
   }
 
   async approvePayout(id: string, dto: ApprovePayoutDto, actor: AuthContext) {
-    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    return this.prisma.$transaction(async (tx) => {
       const payout = await tx.payoutRequest.findUnique({ where: { id } });
       if (!payout) {
         throw new NotFoundException('Payout request not found');
       }
-      if (![PayoutStatus.REQUESTED, PayoutStatus.REVIEW].includes(payout.status)) {
+      if (!APPROVABLE_PAYOUT_STATUSES.includes(payout.status)) {
         throw new BadRequestException('Payout cannot be approved');
       }
 
@@ -380,7 +385,7 @@ export class WalletsService {
       paidAt: Date;
     } | null = null;
 
-    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const payout = await tx.payoutRequest.findFirst({ where: { txRef: dto.txRef }, include: { wallet: true } });
       if (!payout) {
         throw new NotFoundException('Payout not found for webhook');
@@ -449,7 +454,7 @@ export class WalletsService {
     availableAt?: Date;
   }) {
     const currency = params.currency ?? DEFAULT_CURRENCY;
-    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    return this.prisma.$transaction(async (tx) => {
       const wallet = await this.getOrCreateWallet(params.ownerType, params.ownerId, currency, tx);
       const now = new Date();
       const availableAt = params.availableAt ?? addDays(now, env.WALLET_EARNINGS_COOL_OFF_DAYS);
@@ -716,7 +721,7 @@ export class WalletsService {
     });
   }
 
-  private async releasePendingTransactions(walletId: string, tx: Prisma.TransactionClient) {
+  private async releasePendingTransactions(walletId: string, tx: PrismaClientOrTx) {
     const now = new Date();
     const pending = (await tx.walletTransaction.findMany({
       where: {
@@ -744,7 +749,7 @@ export class WalletsService {
     });
   }
 
-  private async buildWalletResponse(walletId: string, tx: Prisma.TransactionClient) {
+  private async buildWalletResponse(walletId: string, tx: PrismaClientOrTx) {
     const wallet = await tx.wallet.findUnique({ where: { id: walletId } });
     if (!wallet) {
       throw new NotFoundException('Wallet not found');
@@ -773,7 +778,10 @@ export class WalletsService {
     };
   }
 
-  private async applyPayoutDebit(payout: { id: string; walletId: string; amountCents: number }, tx: Prisma.TransactionClient) {
+  private async applyPayoutDebit(
+    payout: { id: string; walletId: string; amountCents: number },
+    tx: PrismaClientOrTx
+  ) {
     const existing = await tx.walletTransaction.findFirst({
       where: { walletId: payout.walletId, source: WalletTransactionSource.PAYOUT, sourceId: payout.id }
     });

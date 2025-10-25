@@ -9,6 +9,7 @@ import {
   PaymentGateway,
   PaymentIntentStatus,
   Prisma,
+  PrismaClient,
   TransactionResult
 } from '@prisma/client';
 import { startOfDay } from 'date-fns';
@@ -25,7 +26,7 @@ const MICRO_SCALE = 1_000_000;
 const BASE_CURRENCY = Currency.USD;
 
 type PrismaTx = Prisma.TransactionClient;
-type PrismaClientOrTx = PrismaService | PrismaTx;
+type PrismaClientOrTx = PrismaClient | PrismaTx;
 
 type InvoiceWithRelations = Invoice & {
   lines: InvoiceLine[];
@@ -264,7 +265,7 @@ export class PaymentsService {
       throw new NotFoundException('Payment intent for webhook not found');
     }
 
-    const receiptContext = await this.prisma.$transaction(async (tx: PrismaTx) => {
+    const receiptContext = await this.prisma.$transaction(async (tx) => {
       await tx.paymentIntent.update({
         where: { id: intent.id },
         data: {
@@ -283,7 +284,7 @@ export class PaymentsService {
           feeCents: result.feeCents ?? 0,
           netCents: result.amountCents - (result.feeCents ?? 0),
           result: result.success ? TransactionResult.SUCCESS : TransactionResult.FAILED,
-          rawWebhookJson: result.rawPayload ?? undefined
+          rawWebhookJson: this.toJsonObject(result.rawPayload)
         }
       });
 
@@ -336,7 +337,7 @@ export class PaymentsService {
 
     const paidAt = options.paidAt ?? new Date();
 
-    const receiptContext = await this.prisma.$transaction(async (tx: PrismaTx) => {
+    const receiptContext = await this.prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.create({
         data: {
           invoiceId: invoice.id,
@@ -375,6 +376,10 @@ export class PaymentsService {
 
     await this.deliverPaymentReceipt(receiptContext.invoice, receiptContext.transaction);
     return receiptContext.invoice;
+  }
+
+  private toJsonObject(payload?: Record<string, unknown>) {
+    return payload ? (payload as Prisma.JsonObject) : undefined;
   }
 
   private async finalizeInvoice(tx: PrismaTx, invoice: InvoiceWithRelations) {

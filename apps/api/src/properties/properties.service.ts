@@ -943,8 +943,7 @@ export class PropertiesService {
       andConditions.push({
         commercialFields: {
           path: ['zoning'],
-          string_contains: filters.zoning,
-          mode: 'insensitive'
+          string_contains: filters.zoning
         }
       });
     }
