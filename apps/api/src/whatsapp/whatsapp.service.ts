@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PropertyType } from '@prisma/client';
+import { Prisma, PropertyType } from '@prisma/client';
 import { env } from '@propad/config';
-import { Decimal } from '@prisma/client/runtime/library';
 import { PropertiesService } from '../properties/properties.service';
 import { ShortLinksService } from '../shortlinks/shortlinks.service';
 import { InboundMessageDto } from './dto/inbound-message.dto';
@@ -169,8 +168,8 @@ export class WhatsAppService {
     }
   }
 
-  private normalizeDecimal(value: Decimal | number | string) {
-    if (value instanceof Decimal) {
+  private normalizeDecimal(value: Prisma.Decimal | number | string) {
+    if (value instanceof Prisma.Decimal) {
       return Number(value.toString());
     }
     if (typeof value === 'string') {

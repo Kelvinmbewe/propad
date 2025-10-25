@@ -6,17 +6,19 @@
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "postinstall": "pnpm run prisma:generate",
-    "prisma:generate": "cross-env PRISMA_SCHEMA_PATH=../../prisma/schema.prisma prisma generate"
+    "prisma:generate": "prisma generate --schema ../../apps/api/prisma/schema.prisma",
+    "postinstall": "pnpm run prisma:generate || echo \"[sdk] prisma generate skipped (schema missing or prisma not configured)\""
   },
   "dependencies": {
-    "@prisma/client": "5.11.0",
+    "@prisma/client": "^5.22.0",
     "ky": "1.2.4",
     "zod": "3.23.8"
   },
   "devDependencies": {
-    "cross-env": "^7.0.3",
-    "prisma": "^5.11.0",
+    "prisma": "^5.22.0",
     "typescript": "5.4.5"
+  },
+  "prisma": {
+    "schema": "../../apps/api/prisma/schema.prisma"
   }
 }
