@@ -840,6 +840,7 @@ model PayoutAccount {
   id           String      @id @default(cuid())
   ownerType    OwnerType
   ownerId      String
+  walletId     String?
   type         PayoutMethod
   displayName  String
   detailsJson  Json
@@ -847,9 +848,11 @@ model PayoutAccount {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
+  wallet       Wallet? @relation(fields: [walletId], references: [id])
   payoutRequests PayoutRequest[]
 
   @@index([ownerType, ownerId])
+  @@index([walletId])
 }
 
 model KycRecord {
