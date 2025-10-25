@@ -24,27 +24,27 @@ export class SearchPropertiesDto {
   suburbId?: string;
 
   @IsOptional()
-  @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))
+  @Transform(({ value }: { value: unknown }) => (value !== undefined ? Number(value) : undefined))
   @IsNumber()
   @Min(0)
   priceMin?: number;
 
   @IsOptional()
-  @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))
+  @Transform(({ value }: { value: unknown }) => (value !== undefined ? Number(value) : undefined))
   @IsNumber()
   @Min(0)
   @Max(1000000)
   priceMax?: number;
 
   @IsOptional()
-  @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))
+  @Transform(({ value }: { value: unknown }) => (value !== undefined ? Number(value) : undefined))
   @IsNumber()
   @Min(1)
   @Max(50)
   limit?: number;
 
   @IsOptional()
-  @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))
+  @Transform(({ value }: { value: unknown }) => (value !== undefined ? Number(value) : undefined))
   @IsNumber()
   @Min(1)
   page?: number;
@@ -58,14 +58,14 @@ export class SearchPropertiesDto {
   bounds?: string;
 
   @IsOptional()
-  @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))
+  @Transform(({ value }: { value: unknown }) => (value !== undefined ? Number(value) : undefined))
   @IsNumber()
   @Min(0)
   @Max(20)
   bedrooms?: number;
 
   @IsOptional()
-  @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))
+  @Transform(({ value }: { value: unknown }) => (value !== undefined ? Number(value) : undefined))
   @IsNumber()
   @Min(0)
   @Max(20)
@@ -80,7 +80,7 @@ export class SearchPropertiesDto {
   amenities?: string;
 
   @IsOptional()
-  @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))
+  @Transform(({ value }: { value: unknown }) => (value !== undefined ? Number(value) : undefined))
   @IsNumber()
   @Min(0)
   minFloorArea?: number;
@@ -90,14 +90,14 @@ export class SearchPropertiesDto {
   zoning?: string;
 
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === undefined) {
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === undefined || value === null) {
       return undefined;
     }
     if (typeof value === 'boolean') {
       return value;
     }
-    const normalized = value.toString().toLowerCase();
+    const normalized = String(value).toLowerCase();
     if (normalized === 'true' || normalized === '1') {
       return true;
     }

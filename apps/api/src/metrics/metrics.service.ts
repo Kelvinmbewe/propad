@@ -159,13 +159,7 @@ export class MetricsService {
       };
     }
 
-    const results = await this.prisma.$queryRaw<Array<{
-      suburb_id: string;
-      suburb_name: string;
-      verified_listings: number;
-      pending_listings: number;
-      average_price: Prisma.Decimal | null;
-    }>>`
+    const results = (await this.prisma.$queryRaw`
       SELECT
         s.id AS suburb_id,
         s.name AS suburb_name,
@@ -177,9 +171,15 @@ export class MetricsService {
       WHERE s."cityId" = ${cityRecord.id}
       GROUP BY s.id
       ORDER BY verified_listings DESC, pending_listings DESC
-    `;
+    `) as Array<{
+      suburb_id: string;
+      suburb_name: string;
+      verified_listings: number;
+      pending_listings: number;
+      average_price: Prisma.Decimal | null;
+    }>;
 
-    const totalVerified = results.reduce((sum, row) => sum + row.verified_listings, 0);
+    const totalVerified = results.reduce<number>((sum, row) => sum + row.verified_listings, 0);
 
     return {
       generatedAt: new Date().toISOString(),
@@ -203,7 +203,7 @@ export class MetricsService {
     const now = new Date();
     const monthStart = startOfDay(new Date(now.getFullYear(), now.getMonth(), 1));
 
-    const agents = await this.prisma.$queryRaw<Array<TopAgentPerformance>>`
+    const agents = (await this.prisma.$queryRaw`
       SELECT
         u.id AS "agentId",
         u.name AS "agentName",
@@ -218,8 +218,7 @@ export class MetricsService {
       WHERE u.role = 'AGENT'
       GROUP BY u.id
       ORDER BY "monthPoints" DESC, "estPayoutUSD" DESC
-      LIMIT ${limit}
-    `;
+      LIMIT ${limit}`) as Array<TopAgentPerformance>;
 
     const totalAgents = await this.prisma.user.count({ where: { role: Role.AGENT } });
 

@@ -31,9 +31,9 @@ export class PaymentMethodsService {
     this.envBlocklist = new Set(
       (env.PAYMENT_METHOD_BLOCKLIST ?? '')
         .split(',')
-        .map((entry) => entry.trim())
-        .filter((entry) => entry.length > 0)
-        .map((entry) => this.normalizeReference(entry))
+        .map((entry: string) => entry.trim())
+        .filter((entry: string): entry is string => entry.length > 0)
+        .map((entry: string) => this.normalizeReference(entry))
     );
   }
 
@@ -204,10 +204,10 @@ export class PaymentMethodsService {
       where: { key: { startsWith: AML_BLOCKLIST_PREFIX } }
     });
 
-    const values = flags.map((flag) => {
+    const values = flags.map((flag: { key: string; description: string | null }) => {
       if (flag.description) {
         try {
-          const parsed = JSON.parse(flag.description);
+          const parsed = JSON.parse(flag.description) as { normalized?: string; value?: string };
           if (typeof parsed.normalized === 'string' && parsed.normalized.length > 0) {
             return parsed.normalized;
           }
@@ -221,7 +221,7 @@ export class PaymentMethodsService {
       return flag.key.replace(AML_BLOCKLIST_PREFIX, '');
     });
 
-    return new Set(values.map((value) => this.normalizeReference(value)));
+    return new Set(values.map((value: string) => this.normalizeReference(value)));
   }
 
   private normalizeReference(reference: string) {

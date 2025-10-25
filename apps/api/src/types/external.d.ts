@@ -1,5 +1,6 @@
-/**
- * Manual type stubs were removed in favour of the official package typings.
- * This placeholder remains so the include path stays valid without redefining external modules.
- */
-export {};
+declare module 'class-validator';
+declare module 'class-transformer';
+declare module 'bcryptjs';
+declare module 'nodemailer';
+declare module 'cookie-parser';
+declare module 'pdfkit';

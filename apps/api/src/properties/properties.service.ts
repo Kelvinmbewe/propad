@@ -140,7 +140,7 @@ export class PropertiesService {
     };
   }
 
-  private attachLocationToMany<T extends Record<string, any>>(properties: T[]) {
+  private attachLocationToMany<T extends Record<string, unknown>>(properties: T[]) {
     return properties.map((property) => this.attachLocation(property));
   }
 
@@ -408,7 +408,7 @@ export class PropertiesService {
     if (actor.role === Role.ADMIN) {
       return this.prisma.property
         .findMany({ orderBy: { createdAt: 'desc' }, include })
-        .then((properties) => this.attachLocationToMany(properties));
+        .then((properties: Array<Record<string, unknown>>) => this.attachLocationToMany(properties));
     }
 
     if (actor.role === Role.LANDLORD) {
@@ -418,7 +418,7 @@ export class PropertiesService {
           orderBy: { createdAt: 'desc' },
           include
         })
-        .then((properties) => this.attachLocationToMany(properties));
+        .then((properties: Array<Record<string, unknown>>) => this.attachLocationToMany(properties));
     }
 
     if (actor.role === Role.AGENT) {
@@ -428,7 +428,7 @@ export class PropertiesService {
           orderBy: { createdAt: 'desc' },
           include
         })
-        .then((properties) => this.attachLocationToMany(properties));
+        .then((properties: Array<Record<string, unknown>>) => this.attachLocationToMany(properties));
     }
 
     throw new ForbiddenException('Only landlords, agents, or admins can manage listings');
@@ -767,14 +767,18 @@ export class PropertiesService {
     const property = await this.getPropertyOrThrow(id);
     this.ensureConversationAccess(property, actor);
 
-    const messages = await this.prisma.propertyMessage.findMany({
+    const messages = (await this.prisma.propertyMessage.findMany({
       where: { propertyId: id },
       orderBy: { createdAt: 'asc' },
       include: {
         sender: { select: { id: true, name: true, role: true } },
         recipient: { select: { id: true, name: true, role: true } }
       }
-    });
+    })) as Array<{
+      id: string;
+      recipientId: string;
+      readAt: Date | null;
+    } & Record<string, unknown>>;
 
     const unreadForActor = messages
       .filter((message) => message.recipientId === actor.userId && !message.readAt)

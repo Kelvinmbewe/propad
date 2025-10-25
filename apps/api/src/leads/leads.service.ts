@@ -74,7 +74,8 @@ export class LeadsService {
       daily[key] = (daily[key] ?? 0) + 1;
     }
 
-    const sourceBreakdown = sourceCounts.reduce<Record<LeadSource, number>>((acc, curr) => {
+    const typedSourceCounts = sourceCounts as Array<{ source: LeadSource; _count: { _all: number } }>;
+    const sourceBreakdown = typedSourceCounts.reduce<Record<LeadSource, number>>((acc, curr) => {
       acc[curr.source] = curr._count._all;
       return acc;
     }, {

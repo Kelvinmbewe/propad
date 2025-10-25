@@ -18,8 +18,10 @@ declare namespace NodeJS {
 }
 
 declare class Buffer {
-  static from(data: string, encoding?: string): Buffer;
+  static from(data: string | ArrayBuffer | ArrayBufferView, encoding?: string): Buffer;
   static concat(list: Buffer[]): Buffer;
+
+  toString(encoding?: string): string;
 }
 
 declare module 'node:events' {

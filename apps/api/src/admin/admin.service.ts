@@ -18,6 +18,47 @@ import { CreateFxRateDto } from './dto/create-fx-rate.dto';
 import { AppConfigService } from '../app-config/app-config.service';
 import { UpdateAppConfigDto } from './dto/update-app-config.dto';
 
+type InvoiceCsvSource = {
+  id: string;
+  invoiceNo: string | null;
+  status: InvoiceStatus;
+  amountCents: number;
+  taxCents: number;
+  amountUsdCents: number;
+  taxUsdCents: number;
+  currency: string;
+  dueAt: Date | null;
+  issuedAt: Date | null;
+  promoBoost: { id: string } | null;
+  campaign: { id: string } | null;
+};
+
+type PaymentIntentCsvSource = {
+  id: string;
+  invoiceId: string;
+  invoice?: { id: string; invoiceNo: string | null } | null;
+  gateway: PaymentGateway;
+  status: PaymentIntentStatus;
+  amountCents: number;
+  currency: string;
+  reference: string | null;
+  createdAt: Date;
+};
+
+type TransactionCsvSource = {
+  id: string;
+  invoiceId: string;
+  invoice?: { id: string; invoiceNo: string | null } | null;
+  gateway: PaymentGateway;
+  result: TransactionResult;
+  amountCents: number;
+  netCents: number;
+  feeCents: number;
+  currency: string;
+  externalRef: string | null;
+  createdAt: Date;
+};
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -130,7 +171,7 @@ export class AdminService {
   }
 
   async exportInvoicesCsv(status?: InvoiceStatus) {
-    const invoices = await this.listInvoices(status);
+    const invoices = (await this.listInvoices(status)) as InvoiceCsvSource[];
     const simplified = invoices.map((invoice) => ({
       id: invoice.id,
       invoiceNo: invoice.invoiceNo ?? invoice.id,
@@ -165,7 +206,7 @@ export class AdminService {
   }
 
   async exportPaymentIntentsCsv(filters: ListPaymentIntentsDto) {
-    const intents = await this.listPaymentIntents(filters);
+    const intents = (await this.listPaymentIntents(filters)) as PaymentIntentCsvSource[];
     const simplified = intents.map((intent) => ({
       id: intent.id,
       invoiceId: intent.invoiceId,
@@ -197,7 +238,7 @@ export class AdminService {
   }
 
   async exportTransactionsCsv(filters: ListTransactionsDto) {
-    const transactions = await this.listTransactions(filters);
+    const transactions = (await this.listTransactions(filters)) as TransactionCsvSource[];
     const simplified = transactions.map((tx) => ({
       id: tx.id,
       invoiceId: tx.invoiceId,

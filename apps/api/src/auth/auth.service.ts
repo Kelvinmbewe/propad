@@ -4,7 +4,7 @@ import { Role } from '@prisma/client';
 import { compare } from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 
-interface SanitizedUser {
+export interface SanitizedUser {
   id: string;
   role: Role;
   name: string | null;

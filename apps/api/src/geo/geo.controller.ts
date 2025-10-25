@@ -16,6 +16,7 @@ import { Roles } from '../auth/roles.decorator';
 import { GeoService } from './geo.service';
 import { CreatePendingGeoDto } from './dto/create-pending-geo.dto';
 import { ListPendingGeoDto, listPendingGeoSchema } from './dto/list-pending-geo.dto';
+import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 interface AuthenticatedRequest {
   user: {

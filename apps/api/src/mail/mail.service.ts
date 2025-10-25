@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import nodemailer, { Transporter } from 'nodemailer';
+import nodemailer from 'nodemailer';
 import { env } from '@propad/config';
 
 export interface SendMailOptions {
@@ -13,14 +13,16 @@ export interface SendMailOptions {
 
 @Injectable()
 export class MailService {
-  private readonly transporter: Transporter;
+  private readonly transporter: { sendMail(payload: Record<string, unknown>): Promise<unknown> };
   private readonly logger = new Logger(MailService.name);
 
   constructor() {
     if (!env.EMAIL_SERVER) {
       throw new Error('EMAIL_SERVER configuration is required');
     }
-    this.transporter = nodemailer.createTransport(env.EMAIL_SERVER);
+    this.transporter = nodemailer.createTransport(env.EMAIL_SERVER) as {
+      sendMail(payload: Record<string, unknown>): Promise<unknown>;
+    };
   }
 
   async send(options: SendMailOptions) {
