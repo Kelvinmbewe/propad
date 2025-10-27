@@ -12,6 +12,7 @@ import {
   PayoutMethod,
   PayoutStatus,
   Prisma,
+  PrismaClient,
   Role,
   Wallet,
   WalletTransactionSource,
@@ -59,7 +60,7 @@ type WalletThresholdEntry = {
   updatedAt: Date | null;
 };
 
-type PrismaClientOrTx = Prisma.TransactionClient | PrismaService;
+type PrismaClientOrTx = PrismaClient;
 
 interface AuthContext {
   userId: string;
