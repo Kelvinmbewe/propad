@@ -159,7 +159,13 @@ export function DashboardOverview() {
       return;
     }
 
-    const baseUrl = new URL(env.NEXT_PUBLIC_API_BASE_URL);
+    const apiBase = env.NEXT_PUBLIC_API_BASE_URL;
+    if (!apiBase) {
+      console.warn('Dashboard metrics socket disabled: NEXT_PUBLIC_API_BASE_URL is not configured.');
+      return;
+    }
+
+    const baseUrl = new URL(apiBase);
     const wsProtocol = baseUrl.protocol === 'https:' ? 'wss' : 'ws';
     const socket = io(`${wsProtocol}://${baseUrl.host}/admin.metrics`, {
       transports: ['websocket'],

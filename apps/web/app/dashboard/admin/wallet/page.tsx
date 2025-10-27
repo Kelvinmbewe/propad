@@ -249,7 +249,9 @@ function PayoutRow({
   onApprove: (txRef?: string) => void;
   disabled: boolean;
 }) {
-  const amount = formatCurrency(request.wallet?.currency ?? 'USD', request.amountCents);
+  const currency =
+    typeof request.wallet?.currency === 'string' ? request.wallet.currency : 'USD';
+  const amount = formatCurrency(currency, request.amountCents);
 
   return (
     <tr className="bg-white">

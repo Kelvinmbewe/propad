@@ -10,7 +10,7 @@ export function useAuthenticatedSDK() {
   const token = data?.accessToken;
 
   return useMemo(() => {
-    if (!token) {
+    if (!token || !env.NEXT_PUBLIC_API_BASE_URL) {
       return null;
     }
 

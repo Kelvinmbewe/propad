@@ -142,6 +142,7 @@ export const PropertySchema = z
     availability: z.string(),
     availableFrom: z.string().nullish(),
     description: z.string().nullish(),
+    amenities: z.array(z.string()).default([]),
     media: z.array(PropertyMediaSchema).default([]),
     isManaged: z.boolean().default(false),
     commercialFields: PropertyCommercialFieldsSchema.nullish(),

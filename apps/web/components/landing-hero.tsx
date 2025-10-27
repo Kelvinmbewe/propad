@@ -1,8 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import { motion, useScroll } from 'framer-motion';
-import { useMemo, useRef } from 'react';
+import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion';
+import { useRef } from 'react';
 import { Button, Input, Label } from '@propad/ui';
 import { Sparkles } from 'lucide-react';
 
@@ -15,14 +15,6 @@ export interface FloatingHeroCard {
 export function LandingHero({ cards }: { cards: FloatingHeroCard[] }) {
   const heroRef = useRef<HTMLDivElement | null>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start end', 'end start'] });
-
-  const transforms = useMemo(
-    () =>
-      cards.map((_, index) =>
-        scrollYProgress.to((value) => -value * (80 + index * 20))
-      ),
-    [cards, scrollYProgress]
-  );
 
   return (
     <section
@@ -108,18 +100,38 @@ export function LandingHero({ cards }: { cards: FloatingHeroCard[] }) {
         </form>
         <div className="relative grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((card, index) => (
-            <motion.div
+            <FloatingHeroCardItem
               key={card.title}
-              style={{ y: transforms[index] }}
-              className="rounded-3xl border border-white/10 bg-white/20 p-6 text-white shadow-[0_0_10px_rgba(0,150,136,0.2)] backdrop-blur-[10px]"
-            >
-              <span className="text-xs font-medium uppercase tracking-[0.4em] text-white/60">{card.accent}</span>
-              <h3 className="mt-3 text-xl font-semibold">{card.title}</h3>
-              <p className="mt-2 text-sm text-white/75">{card.description}</p>
-            </motion.div>
+              card={card}
+              index={index}
+              progress={scrollYProgress}
+            />
           ))}
         </div>
       </div>
     </section>
+  );
+}
+
+function FloatingHeroCardItem({
+  card,
+  index,
+  progress
+}: {
+  card: FloatingHeroCard;
+  index: number;
+  progress: MotionValue<number>;
+}) {
+  const y = useTransform(progress, (value) => -value * (80 + index * 20));
+
+  return (
+    <motion.div
+      style={{ y }}
+      className="rounded-3xl border border-white/10 bg-white/20 p-6 text-white shadow-[0_0_10px_rgba(0,150,136,0.2)] backdrop-blur-[10px]"
+    >
+      <span className="text-xs font-medium uppercase tracking-[0.4em] text-white/60">{card.accent}</span>
+      <h3 className="mt-3 text-xl font-semibold">{card.title}</h3>
+      <p className="mt-2 text-sm text-white/75">{card.description}</p>
+    </motion.div>
   );
 }

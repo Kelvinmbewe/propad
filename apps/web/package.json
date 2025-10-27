@@ -28,6 +28,7 @@
     "lucide-react": "0.397.0",
     "next": "14.2.3",
     "next-auth": "5.0.0-beta.4",
+    "nodemailer": "6.9.13",
     "jsonwebtoken": "9.0.2",
     "@ducanh2912/next-pwa": "^10.2.9",
     "react": "^18.3.1",

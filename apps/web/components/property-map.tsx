@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoSuburb, Property } from '@propad/sdk';
 import { Button } from '@propad/ui';
 import clsx from 'clsx';
@@ -71,7 +71,8 @@ function MapInteractions({
         return;
       }
       startPointRef.current = event.latlng;
-      rectangleRef.current = L.rectangle([event.latlng, event.latlng], {
+      const initialBounds = L.latLngBounds(event.latlng, event.latlng);
+      rectangleRef.current = L.rectangle(initialBounds, {
         color: '#2563eb',
         weight: 2,
         dashArray: '6 4',
@@ -277,14 +278,16 @@ export function PropertyMap({
         minZoom={5}
         className="h-full w-full"
         scrollWheelZoom
-        whenCreated={(map) => {
-          mapRef.current = map;
+        ref={(instance) => {
+          if (instance) {
+            mapRef.current = instance;
+          }
         }}
       >
-        <TileLayer
-          attribution="&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        {createElement(TileLayer, {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+        })}
         <MapInteractions
           isDrawing={isDrawing}
           onBoundsDrawn={handleDrawnBounds}
@@ -322,9 +325,7 @@ export function PropertyMap({
                 riseOnHover
                 eventHandlers={{
                   mouseover: () => onHoverMarker?.(property.id),
-                  mouseout: () => onHoverMarker?.(null),
-                  focus: () => onHoverMarker?.(property.id),
-                  blur: () => onHoverMarker?.(null)
+                  mouseout: () => onHoverMarker?.(null)
                 }}
               />
             );

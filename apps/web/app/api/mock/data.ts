@@ -77,6 +77,7 @@ export const mockProperties: Property[] = [
         hasGps: true
       }
     ],
+    isManaged: false,
     commercialFields: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -114,6 +115,7 @@ export const mockProperties: Property[] = [
         hasGps: true
       }
     ],
+    isManaged: false,
     commercialFields: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -151,6 +153,7 @@ export const mockProperties: Property[] = [
         hasGps: false
       }
     ],
+    isManaged: false,
     commercialFields: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -188,6 +191,7 @@ export const mockProperties: Property[] = [
         hasGps: true
       }
     ],
+    isManaged: true,
     commercialFields: {
       floorAreaSqm: 280,
       lotSizeSqm: 1200,

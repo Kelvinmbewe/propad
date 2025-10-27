@@ -37,7 +37,12 @@ async function fetchProperties(params: ListingsSearchParams): Promise<PropertySe
       perPage,
       total: 0,
       totalPages: 0,
-      hasNextPage: false
+      hasNextPage: false,
+      facets: {
+        price: { min: 0, max: 0 },
+        types: [],
+        suburbs: []
+      }
     } satisfies PropertySearchResult;
   }
 
