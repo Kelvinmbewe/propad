@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prisma:generate": "if [ -x ../api/node_modules/.bin/prisma ]; then ../api/node_modules/.bin/prisma generate --schema ../api/prisma/schema.prisma; else echo 'Skipping Prisma client generation: prisma CLI not available'; fi",
+    "prebuild": "pnpm run prisma:generate",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
