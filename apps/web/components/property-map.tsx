@@ -4,7 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoSuburb, Property } from '@propad/sdk';
 import { Button } from '@propad/ui';
 import clsx from 'clsx';
-import L, { type Map as LeafletMap } from 'leaflet';
+import L, {
+  type LatLng as LeafletLatLng,
+  type Map as LeafletMap,
+  type Rectangle as LeafletRectangle
+} from 'leaflet';
 import { MapContainer, Marker, Polygon, TileLayer, useMapEvents } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 
@@ -52,8 +56,8 @@ function MapInteractions({
   onMoveEnd: (bounds: MapBounds) => void;
   stopDrawing: () => void;
 }) {
-  const rectangleRef = useRef<L.Rectangle | null>(null);
-  const startPointRef = useRef<L.LatLng | null>(null);
+  const rectangleRef = useRef<LeafletRectangle | null>(null);
+  const startPointRef = useRef<LeafletLatLng | null>(null);
   const map = useMapEvents({
     moveend() {
       const bounds = map.getBounds();

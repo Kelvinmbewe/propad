@@ -1,7 +1,24 @@
-import type { Config } from 'tailwindcss';
-import type { PluginAPI } from 'tailwindcss/types/config';
-import plugin from 'tailwindcss/plugin';
 import { auroraBaseTokens } from './aurora-tokens';
+
+type TailwindPluginAPI = {
+  addBase: (base: Record<string, Record<string, string>>) => void;
+};
+
+type TailwindPlugin = {
+  handler: (api: TailwindPluginAPI) => void;
+};
+
+type TailwindConfig = {
+  darkMode?: unknown;
+  theme: {
+    extend: Record<string, unknown>;
+  };
+  plugins?: TailwindPlugin[];
+};
+
+function createTailwindPlugin(handler: TailwindPlugin['handler']): TailwindPlugin {
+  return { handler };
+}
 
 type AuroraTailwindOptions = {
   cssVariablePrefix?: string;
@@ -9,7 +26,7 @@ type AuroraTailwindOptions = {
 
 const createCssVar = (token: string, prefix: string) => `var(--${prefix}${token})`;
 
-export const auroraTailwindPreset = ({ cssVariablePrefix = 'aurora-' }: AuroraTailwindOptions = {}): Config => {
+export const auroraTailwindPreset = ({ cssVariablePrefix = 'aurora-' }: AuroraTailwindOptions = {}): TailwindConfig => {
   const css = (token: string) => createCssVar(token, cssVariablePrefix);
   const colors = {
     background: css('color-background'),
@@ -103,7 +120,7 @@ export const auroraTailwindPreset = ({ cssVariablePrefix = 'aurora-' }: AuroraTa
       }
     },
     plugins: [
-      plugin(({ addBase }: PluginAPI) => {
+      createTailwindPlugin(({ addBase }) => {
         addBase({
           ':root': {
             '--aurora-gradient-panorama': `radial-gradient(120% 140% at 10% 20%, rgba(0, 150, 136, 0.22), transparent 60%)`,
@@ -114,5 +131,5 @@ export const auroraTailwindPreset = ({ cssVariablePrefix = 'aurora-' }: AuroraTa
         });
       })
     ]
-  } satisfies Config;
+  } satisfies TailwindConfig;
 };
