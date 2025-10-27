@@ -15,7 +15,6 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import { differenceInCalendarDays, format, isValid, parseISO, subDays } from 'date-fns';
 import { io } from 'socket.io-client';
 import { Building2, MapPin, MousePointerClick, TrendingUp, Users, X } from 'lucide-react';
 import { env } from '@propad/config';
@@ -42,6 +41,49 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
 const numberFormatter = new Intl.NumberFormat('en-US');
 
 type RangeOption = (typeof RANGE_OPTIONS)[number];
+
+type DateFormatPattern = 'yyyy-MM-dd' | 'MMM d' | 'MMM d, yyyy';
+
+const shortDateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+const longDateFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric'
+});
+
+function parseISO(value: string) {
+  return new Date(value);
+}
+
+function isValid(date: Date) {
+  return !Number.isNaN(date.getTime());
+}
+
+function subDays(date: Date, amount: number) {
+  const result = new Date(date.getTime());
+  result.setDate(result.getDate() - amount);
+  return result;
+}
+
+function differenceInCalendarDays(left: Date, right: Date) {
+  const startLeft = Date.UTC(left.getFullYear(), left.getMonth(), left.getDate());
+  const startRight = Date.UTC(right.getFullYear(), right.getMonth(), right.getDate());
+  const diff = startLeft - startRight;
+  return Math.round(diff / (24 * 60 * 60 * 1000));
+}
+
+function format(date: Date, pattern: DateFormatPattern) {
+  if (pattern === 'yyyy-MM-dd') {
+    return date.toISOString().slice(0, 10);
+  }
+  if (pattern === 'MMM d') {
+    return shortDateFormatter.format(date);
+  }
+  if (pattern === 'MMM d, yyyy') {
+    return longDateFormatter.format(date);
+  }
+  return date.toISOString();
+}
 
 export function DashboardOverview() {
   const searchParams = useSearchParams();
