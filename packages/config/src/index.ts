@@ -1,5 +1,20 @@
 import { z } from 'zod';
 
+const defaultServerEnv = {
+  DATABASE_URL: 'postgresql://propad:propad@localhost:5432/propad?schema=public',
+  REDIS_URL: 'redis://localhost:6379/0',
+  JWT_SECRET: 'development-jwt-secret-development-jwt-secret',
+  NEXTAUTH_SECRET: 'development-nextauth-secret-development',
+  EMAIL_SERVER: 'smtp://user:pass@smtp.example.com:587',
+  EMAIL_FROM: 'noreply@example.com',
+  GOOGLE_CLIENT_ID: 'development-google-client-id',
+  GOOGLE_CLIENT_SECRET: 'development-google-client-secret',
+  S3_ACCESS_KEY: 'development-s3-access-key',
+  S3_SECRET_KEY: 'development-s3-secret-key',
+  S3_ENDPOINT: 'https://s3.example.com',
+  S3_BUCKET: 'development-bucket'
+} as const;
+
 const serverSchema = z.object({
   PORT: z.coerce.number().default(3001),
   WEB_ORIGIN: z.string().optional(),
@@ -56,7 +71,7 @@ const clientSchema = z.object({
 type ServerEnv = z.infer<typeof serverSchema>;
 type ClientEnv = z.infer<typeof clientSchema>;
 
-const serverEnv = serverSchema.parse(process.env);
+const serverEnv = serverSchema.parse({ ...defaultServerEnv, ...process.env });
 const clientEnv = clientSchema.partial().parse(process.env);
 
 export const env: ServerEnv & Partial<ClientEnv> = {
