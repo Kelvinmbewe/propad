@@ -1,9 +1,15 @@
+import dynamic from 'next/dynamic';
 import { LandingNav } from '@/components/landing-nav';
 import { LandingHero, type FloatingHeroCard } from '@/components/landing-hero';
-import { LandingMapSection } from '@/components/landing-map-section';
 import { LandingPropertyCard, type LandingProperty } from '@/components/landing-property-card';
 import { LandingAuroraPalette } from '@/components/landing-aurora-palette';
 import { Instagram, Linkedin, Twitter } from 'lucide-react';
+import type { LandingMapSectionProps } from '@/components/landing-map-section';
+
+const LandingMapSection = dynamic<LandingMapSectionProps>(
+  () => import('@/components/landing-map-section').then((mod) => mod.LandingMapSection),
+  { ssr: false }
+);
 
 interface ShowcaseProperty extends LandingProperty {
   coordinates: [number, number];

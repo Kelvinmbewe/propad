@@ -1,8 +1,14 @@
 import { Metadata } from 'next';
+import dynamic from 'next/dynamic';
 import { Compass, Map, MapPin, PencilRuler, ShieldCheck } from 'lucide-react';
 import { LandingNav } from '@/components/landing-nav';
-import { LandingMapSection } from '@/components/landing-map-section';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@propad/ui';
+import type { LandingMapSectionProps } from '@/components/landing-map-section';
+
+const LandingMapSection = dynamic<LandingMapSectionProps>(
+  () => import('@/components/landing-map-section').then((mod) => mod.LandingMapSection),
+  { ssr: false }
+);
 
 export const metadata: Metadata = {
   title: 'Interactive Map | PropAd',
@@ -15,7 +21,7 @@ const mapShowcase = [
     title: 'Borrowdale Ridge Estate',
     location: 'Borrowdale, Harare',
     price: 'US$420,000',
-    status: 'FOR SALE',
+    status: 'FOR SALE' as const,
     statusTone: 'sale' as const,
     imageUrl: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
     beds: 4,
@@ -28,7 +34,7 @@ const mapShowcase = [
     title: 'Avondale Skyline Lofts',
     location: 'Avondale, Harare',
     price: 'US$1,150/mo',
-    status: 'FOR RENT',
+    status: 'FOR RENT' as const,
     statusTone: 'rent' as const,
     imageUrl: 'https://images.unsplash.com/photo-1502673530728-f79b4cab31b1?auto=format&fit=crop&w=1200&q=80',
     beds: 2,
@@ -41,7 +47,7 @@ const mapShowcase = [
     title: 'Umwinsidale Oasis',
     location: 'Umwinsidale, Harare',
     price: 'US$3,400/mo',
-    status: 'FOR RENT',
+    status: 'FOR RENT' as const,
     statusTone: 'rent' as const,
     imageUrl: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80',
     beds: 5,

@@ -1,30 +1,99 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import L from 'leaflet';
-import { MapContainer, Marker, TileLayer } from 'react-leaflet';
+import { useEffect, useMemo, useState } from 'react';
 import { Building2, List, MapPin } from 'lucide-react';
 import type { LandingProperty } from './landing-property-card';
 
-interface LandingMapProperty extends LandingProperty {
+export interface LandingMapProperty extends LandingProperty {
   coordinates: [number, number];
 }
 
-export function LandingMapSection({ properties }: { properties: LandingMapProperty[] }) {
-  const [view, setView] = useState<'map' | 'list'>('map');
+export interface LandingMapSectionProps {
+  properties: LandingMapProperty[];
+}
 
-  const tealIcon = useMemo(
-    () =>
-      L.divIcon({
-        className: 'landing-map-pin',
-        html: '<span class="landing-map-pin__dot">✓</span>',
-        iconSize: [36, 36],
-        iconAnchor: [18, 36]
-      }),
-    []
-  );
+type LeafletModule = typeof import('leaflet');
+type ReactLeafletExports = typeof import('react-leaflet');
+type LeafletComponents = Pick<ReactLeafletExports, 'MapContainer' | 'Marker' | 'useMap'>;
+
+interface LandingTileLayerProps {
+  leaflet: LeafletModule;
+  useMap: LeafletComponents['useMap'];
+}
+
+function LandingTileLayer({ leaflet, useMap }: LandingTileLayerProps) {
+  const map = useMap();
+
+  useEffect(() => {
+    const tileLayer = leaflet.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    });
+
+    tileLayer.addTo(map);
+
+    return () => {
+      map.removeLayer(tileLayer);
+    };
+  }, [leaflet, map]);
+
+  return null;
+}
+
+export function LandingMapSection({ properties }: LandingMapSectionProps) {
+  const [view, setView] = useState<'map' | 'list'>('map');
+  const [leaflet, setLeaflet] = useState<LeafletModule | null>(null);
+  const [leafletComponents, setLeafletComponents] = useState<LeafletComponents | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    let isMounted = true;
+
+    void Promise.all([import('leaflet'), import('react-leaflet')])
+      .then(([leafletModule, reactLeafletModule]) => {
+        if (!isMounted) {
+          return;
+        }
+
+        const resolvedLeaflet =
+          (leafletModule as LeafletModule & { default?: LeafletModule }).default ?? leafletModule;
+
+        setLeaflet(resolvedLeaflet);
+        setLeafletComponents({
+          MapContainer: reactLeafletModule.MapContainer,
+          Marker: reactLeafletModule.Marker,
+          useMap: reactLeafletModule.useMap
+        });
+      })
+      .catch(() => {
+        setLeaflet(null);
+        setLeafletComponents(null);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const tealIcon = useMemo(() => {
+    if (!leaflet) {
+      return null;
+    }
+    return leaflet.divIcon({
+      className: 'landing-map-pin',
+      html: '<span class="landing-map-pin__dot">✓</span>',
+      iconSize: [36, 36],
+      iconAnchor: [18, 36]
+    });
+  }, [leaflet]);
 
   const center = useMemo(() => properties[0]?.coordinates ?? [-17.829, 31.054], [properties]);
+
+  const MapContainerComponent = leafletComponents?.MapContainer;
+  const MarkerComponent = leafletComponents?.Marker;
+  const useMapHook = leafletComponents?.useMap;
 
   return (
     <section id="map" className="mx-auto flex max-w-6xl flex-col gap-12 px-6 sm:px-12 lg:px-16">
@@ -74,12 +143,23 @@ export function LandingMapSection({ properties }: { properties: LandingMapProper
         </aside>
         <div className="relative min-h-[420px] overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_35px_100px_-65px_rgba(15,23,42,0.5)]">
           {view === 'map' ? (
-            <MapContainer center={center} zoom={13} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
-              {properties.map((property) => (
-                <Marker key={property.id} position={property.coordinates} icon={tealIcon} />
-              ))}
-            </MapContainer>
+            leaflet && MapContainerComponent && MarkerComponent && useMapHook && tealIcon ? (
+              <MapContainerComponent
+                center={center}
+                zoom={13}
+                scrollWheelZoom={false}
+                style={{ height: '100%', width: '100%' }}
+              >
+                <LandingTileLayer leaflet={leaflet} useMap={useMapHook} />
+                {properties.map((property) => (
+                  <MarkerComponent key={property.id} position={property.coordinates} icon={tealIcon} />
+                ))}
+              </MapContainerComponent>
+            ) : (
+              <div className="flex h-full items-center justify-center bg-slate-50/70 text-sm text-slate-500">
+                Loading interactive map…
+              </div>
+            )
           ) : (
             <div className="grid h-full gap-4 bg-slate-50/70 p-6 sm:grid-cols-2">
               {properties.map((property) => (
