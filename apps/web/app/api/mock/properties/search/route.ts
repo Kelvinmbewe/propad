@@ -35,13 +35,54 @@ export async function GET(request: NextRequest) {
   const startIndex = (currentPage - 1) * perPage;
   const items = filtered.slice(startIndex, startIndex + perPage);
 
+  const prices = filtered.map((property) => property.price ?? 0);
+  const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+  const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+
+  const typeCounts = filtered.reduce<Record<string, number>>((acc, property) => {
+    const key = property.type;
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const suburbCounts = filtered.reduce<Record<string, { name: string | null; count: number }>>(
+    (acc, property) => {
+      const id = property.suburbId ?? property.location.suburbId ?? 'unknown';
+      const name =
+        property.suburbName ?? property.location.suburb?.name ?? property.cityName ?? 'Unknown';
+      const existing = acc[id];
+      if (existing) {
+        existing.count += 1;
+      } else {
+        acc[id] = { name, count: 1 };
+      }
+      return acc;
+    },
+    {}
+  );
+
   const payload: PropertySearchResult = {
     items,
     page: currentPage,
     perPage,
     total,
     totalPages,
-    hasNextPage: currentPage < totalPages
+    hasNextPage: currentPage < totalPages,
+    facets: {
+      price: {
+        min: minPrice,
+        max: maxPrice
+      },
+      types: Object.entries(typeCounts).map(([propertyType, count]) => ({
+        type: propertyType,
+        count
+      })),
+      suburbs: Object.entries(suburbCounts).map(([suburbId, value]) => ({
+        suburbId,
+        suburbName: value.name,
+        count: value.count
+      }))
+    }
   };
 
   return NextResponse.json(payload);

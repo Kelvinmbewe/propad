@@ -39,7 +39,7 @@ export function PropertyCard({ property, highlighted = false, appearanceOrder = 
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -4 }}
-      whileFocusWithin={{ y: -4 }}
+      whileFocus={{ y: -4 }}
       transition={{
         duration: 0.25,
         ease: 'easeInOut',

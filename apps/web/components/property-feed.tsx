@@ -116,8 +116,11 @@ export function PropertyFeed({ initialPage, filters }: PropertyFeedProps) {
   } = useInfiniteQuery<PropertySearchResult>({
     queryKey: ['properties', filterKey, perPage],
     queryFn: async ({ pageParam = initialPage.page }) => {
+      const nextPage = Number.isFinite(pageParam as number)
+        ? Number(pageParam)
+        : initialPage.page;
       const params = new URLSearchParams(activeFilters);
-      params.set('page', pageParam.toString());
+      params.set('page', nextPage.toString());
       params.set('limit', perPage.toString());
       return requestProperties(params);
     },
@@ -200,7 +203,7 @@ export function PropertyFeed({ initialPage, filters }: PropertyFeedProps) {
     setHoveredPropertyId((current) => (current === propertyId ? null : current));
   }, []);
 
-  if (status === 'loading' && !data) {
+  if (status === 'pending' && !data) {
     return <PropertyFeedSkeleton cards={perPage} />;
   }
 

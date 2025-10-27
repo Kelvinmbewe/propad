@@ -1,20 +1,57 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "es2022"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "es2022"
+    ],
     "allowJs": false,
     "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
-      "@/components/*": ["./components/*"],
-      "@/hooks/*": ["./hooks/*"],
-      "@/lib/*": ["./lib/*"],
-      "@propad/ui": ["../../packages/ui/src"],
-      "@propad/config": ["../../packages/config/src"],
-      "@propad/sdk": ["../../packages/sdk/src"]
+      "@/components/*": [
+        "./components/*"
+      ],
+      "@/hooks/*": [
+        "./hooks/*"
+      ],
+      "@/lib/*": [
+        "./lib/*"
+      ],
+      "@/auth": [
+        "./auth"
+      ],
+      "@/auth-edge": [
+        "./auth-edge"
+      ],
+      "@propad/ui": [
+        "../../packages/ui/src"
+      ],
+      "@propad/config": [
+        "../../packages/config/src"
+      ],
+      "@propad/sdk": [
+        "../../packages/sdk/src"
+      ]
     },
-    "plugins": [{ "name": "next" }]
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "incremental": true,
+    "isolatedModules": true
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/*.cjs", "**/*.mjs"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.cjs",
+    "**/*.mjs",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
