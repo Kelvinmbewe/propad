@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY packages ./packages
 COPY apps/api ./apps/api
-COPY prisma ./prisma
+COPY apps/api/prisma ./prisma
 RUN npm install --legacy-peer-deps
 RUN npx prisma generate
 RUN npm --workspace apps/api run build
