@@ -21,13 +21,14 @@ scripts/      Seed and maintenance scripts
 
 ### Prerequisites
 - Node.js 20+
-- npm 10+
+- pnpm 10+ (install via Corepack with `corepack enable`)
 - Docker (for running the full stack)
 
 ### Installation
 
 ```bash
-npm install
+corepack enable
+pnpm install
 ```
 
 ### Running the stack locally
@@ -45,21 +46,21 @@ npm install
    ```
 3. Run the web app in development mode:
    ```bash
-   npm --workspace apps/web run dev
+   pnpm --filter apps/web dev
    ```
 4. Run the API in watch mode:
    ```bash
-   npm --workspace apps/api run start:dev
+   pnpm --filter apps/api start:dev
    ```
 
 ### Startup checklist
 
 Follow this order to boot the full environment after cloning or unpacking the repository:
 
-1. Install dependencies with `npm install` (workspace aware).
+1. Install dependencies with `pnpm install` (workspace aware).
 2. Copy the sample environment files from `apps/web`, `apps/api`, and `infrastructure` into their runtime names (`.env.local`, `.env`).
 3. Apply database migrations via `npx prisma migrate dev` (or `docker compose exec api npx prisma migrate deploy` inside containers).
-4. Seed baseline data using `npm --workspace scripts run seed`.
+4. Seed baseline data using `pnpm --filter @propad/scripts seed`.
 5. Launch Docker Compose from the `infrastructure/` directory or run the API and web workspaces individually using the commands above.
 
 ### Create a zipped demo artifact
@@ -67,7 +68,7 @@ Follow this order to boot the full environment after cloning or unpacking the re
 Package the repository (excluding build outputs and dependencies) into a timestamped zip that you can hand over to reviewers:
 
 ```bash
-npm --workspaces=false run artifact
+pnpm run artifact
 ```
 
 The archive is written to `dist/` and contains everything required to run the Docker stack or development servers after extraction.
@@ -76,14 +77,14 @@ The archive is written to `dist/` and contains everything required to run the Do
 
 Populate the database with baseline roles and demo data:
 ```bash
-npm --workspace scripts run seed
+pnpm --filter @propad/scripts seed
 ```
 
 ### Testing
 
-- Web unit tests: `npm --workspace apps/web run test`
-- API unit tests: `npm --workspace apps/api run test`
-- Shared packages: `npm --workspaces run lint`
+- Web unit tests: `pnpm --filter apps/web test`
+- API unit tests: `pnpm --filter apps/api test`
+- Shared packages: `pnpm --recursive lint`
 
 End-to-end Playwright tests are planned under `apps/web/tests/e2e`.
 
