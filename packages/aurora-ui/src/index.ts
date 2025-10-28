@@ -1,3 +1,5 @@
+'use client';
+
 export { AuroraProvider, useAurora } from './providers/AuroraProvider';
 export { AuroraLogo } from './components/logo/AuroraLogo';
 export { AuroraSkeleton } from './components/feedback/AuroraSkeleton';
