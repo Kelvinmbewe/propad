@@ -10,4 +10,12 @@ export { ErrorBoundaryPage } from './components/feedback/ErrorBoundaryPage';
 export { Button } from './components/layout/Button';
 export { EmptyState } from './components/layout/EmptyState';
 export { Tooltip } from './components/overlays/Tooltip';
-export * from '@aurora/tokens';
+export { tokens, lightTheme, darkTheme } from '@aurora/tokens';
+export type {
+  Tokens,
+  TokenName,
+  TokenValue,
+  AuroraTokens,
+  AuroraTheme,
+  DeepPartial,
+} from '@aurora/tokens';
