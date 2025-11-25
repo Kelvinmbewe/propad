@@ -6,7 +6,8 @@
       "dom.iterable",
       "es2022"
     ],
-    "allowJs": false,
+    "allowJs": true,
+    "checkJs": false,
     "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
@@ -49,7 +50,8 @@
     "**/*.tsx",
     "**/*.cjs",
     "**/*.mjs",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "public/**/*.js"
   ],
   "exclude": [
     "node_modules"

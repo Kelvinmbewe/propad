@@ -55,7 +55,7 @@ const config: NextAuthConfig = {
         name: session.user?.name ?? undefined
       };
       session.accessToken =
-        typeof tokenData.apiAccessToken === 'string' ? (tokenData.apiAccessToken as string) : undefined;
+        typeof tokenData.apiAccessToken === 'string' ? (tokenData.apiAccessToken) : undefined;
 
       return session;
     }

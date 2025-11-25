@@ -22,7 +22,7 @@ const links: Array<{ href: string; label: string; roles: Role[]; icon: ReactNode
 export function DashboardNav() {
   const pathname = usePathname();
   const { data } = useSession();
-  const role = (data?.user?.role ?? 'USER') as Role;
+  const role = (data?.user?.role ?? 'USER');
 
   return (
     <nav className="flex h-full flex-col gap-6">

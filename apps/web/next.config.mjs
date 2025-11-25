@@ -1,4 +1,5 @@
 import createPWA from '@ducanh2912/next-pwa';
+import process from 'process';
 
 const isDev = process.env.NODE_ENV !== 'production';
 

@@ -31,7 +31,7 @@ test.describe('PropAd acceptance journeys', () => {
     await page.addInitScript(() => {
       window.__lastOpenedUrl = undefined;
       const originalOpen = window.open;
-      window.open = ((url?: string | URL | undefined) => {
+      window.open = ((url?: string | URL  ) => {
         window.__lastOpenedUrl = String(url ?? '');
         return null as unknown as Window;
       }) as typeof window.open;
