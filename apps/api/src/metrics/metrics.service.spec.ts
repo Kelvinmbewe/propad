@@ -57,7 +57,7 @@ describe('MetricsService', () => {
     expect(result.listings.verified).toBe(32);
     expect(result.leads.total30d).toBe(120);
     expect(result.agents.total).toBe(18);
-    expect(result.revenue.total30dUsd).toBeCloseTo(4500 / 100, 2);
+    expect(result.revenue.total30dUsd).toBeCloseTo(4500, 2);
     expect(result.payouts.pendingCount).toBe(3);
   });
 

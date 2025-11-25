@@ -100,7 +100,19 @@ describe('AppConfigService', () => {
         },
         'admin-2'
       )
-    ).rejects.toThrowErrorMatchingInlineSnapshot('"endHour must be greater than startHour"');
+    ).rejects.toThrowErrorMatchingInlineSnapshot(`
+      [ZodError: [
+        {
+          "code": "custom",
+          "message": "endHour must be greater than startHour",
+          "path": [
+            "notifications",
+            "sendWindow",
+            "endHour"
+          ]
+        }
+      ]]
+    `);
   });
 });
 

@@ -91,6 +91,7 @@ export class AppConfigService implements OnModuleInit, OnModuleDestroy {
 
   private startHotReload(): void {
     const intervalMs = 10_000;
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.hotReloadTimer = setInterval(async () => {
       try {
         await this.reloadFromStore();

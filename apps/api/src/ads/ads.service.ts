@@ -20,7 +20,7 @@ export class AdsService {
       payload.revenueMicros ??
       this.simulateRevenueMicros(payload.route, payload.sessionId);
 
-    return this.prisma.adImpression.create({
+    return await this.prisma.adImpression.create({
       data: {
         propertyId: payload.propertyId,
         userId: payload.userId,

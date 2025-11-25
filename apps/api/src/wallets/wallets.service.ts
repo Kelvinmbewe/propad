@@ -870,7 +870,7 @@ export class WalletsService {
         reject(err instanceof Error ? err : new Error(String(err)));
       });
       doc.on('end', () => {
-        const buffer = Buffer.concat(buffers) as Buffer;
+        const buffer = Buffer.concat(buffers);
         resolve(`data:application/pdf;base64,${buffer.toString('base64')}`);
       });
 

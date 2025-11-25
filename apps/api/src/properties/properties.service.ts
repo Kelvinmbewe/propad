@@ -145,7 +145,7 @@ export class PropertiesService {
   }
 
   private normalizeCommercialFields(
-    input: CreatePropertyDto['commercialFields'] | UpdatePropertyDto['commercialFields']
+    input: CreatePropertyDto['commercialFields']
   ) {
     if (!input) {
       return Prisma.JsonNull;
