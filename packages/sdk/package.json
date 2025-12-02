@@ -1,17 +1,21 @@
 {
   "name": "@propad/sdk",
   "version": "0.1.0",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./server": "./src/server.ts",
-    "./browser": "./src/browser.ts"
+    ".": "./dist/index.js",
+    "./server": "./dist/server.js",
+    "./browser": "./dist/browser.js"
   },
   "typesVersions": {
     "*": {
-      "server": ["src/server.ts"],
-      "browser": ["src/browser.ts"]
+      "server": [
+        "src/server.ts"
+      ],
+      "browser": [
+        "src/browser.ts"
+      ]
     }
   },
   "private": true,

@@ -11,6 +11,7 @@ COPY apps/api/prisma ./prisma
 RUN corepack enable \
     && corepack prepare pnpm@10.19.0 --activate
 
+RUN pnpm --filter @propad/sdk run build
 RUN pnpm install --filter @propad/api... --frozen-lockfile=false
 RUN pnpm --filter @propad/api... run prisma:generate
 RUN pnpm --filter @propad/api... run build
