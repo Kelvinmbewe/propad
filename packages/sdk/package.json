@@ -11,10 +11,10 @@
   "typesVersions": {
     "*": {
       "server": [
-        "src/server.ts"
+        "dist/server.d.ts"
       ],
       "browser": [
-        "src/browser.ts"
+        "dist/browser.d.ts"
       ]
     }
   },
