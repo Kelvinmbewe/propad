@@ -19,6 +19,8 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
+RUN apk add --no-cache openssl
+
 RUN corepack enable \
     && corepack prepare pnpm@10.19.0 --activate
 
@@ -28,7 +30,7 @@ COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/prisma ./prisma
 
-RUN pnpm install --filter @propad/api... --prod --frozen-lockfile=false
+RUN pnpm install --filter @propad/api... --frozen-lockfile=false
 RUN pnpm --filter @propad/api... run prisma:generate
 
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
