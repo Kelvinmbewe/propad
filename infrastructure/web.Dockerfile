@@ -3,6 +3,7 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY pnpm-workspace.yaml ./
+COPY tsconfig.json ./
 COPY packages ./packages
 COPY apps/web ./apps/web
 

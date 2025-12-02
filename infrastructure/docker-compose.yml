@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   web:
     build:
@@ -24,7 +22,7 @@ services:
       dockerfile: infrastructure/api.Dockerfile
     env_file:
       - ../apps/api/.env.example
-      - infrastructure/.env
+      - .env
     ports:
       - '3001:3001'
     depends_on:
@@ -33,7 +31,7 @@ services:
       redis:
         condition: service_started
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test: [ "CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,14 +41,14 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: propad
-      POSTGRES_USER: propad
-      POSTGRES_PASSWORD: propad
+      POSTGRES_USER: kelvin
+      POSTGRES_PASSWORD: Kellzbiax95
     ports:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      test: [ 'CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB' ]
       interval: 10s
       timeout: 5s
       retries: 5
