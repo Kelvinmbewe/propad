@@ -34,6 +34,9 @@
       ],
       "@propad/sdk": [
         "../../packages/sdk/src"
+      ],
+      "@propad/sdk/*": [
+        "../../packages/sdk/src/*"
       ]
     },
     "plugins": [
