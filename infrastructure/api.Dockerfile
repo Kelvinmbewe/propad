@@ -24,10 +24,13 @@ RUN corepack enable \
 
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
-COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/prisma ./prisma
+
+RUN pnpm install --filter @propad/api... --prod --frozen-lockfile=false
+RUN pnpm --filter @propad/api... run prisma:generate
+
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
 EXPOSE 3001
 CMD ["node", "apps/api/dist/main.js"]
