@@ -28,7 +28,7 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 
 RUN pnpm install --filter @propad/api... --frozen-lockfile=false
 RUN pnpm --filter @propad/api... run prisma:generate
