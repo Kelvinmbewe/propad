@@ -17,7 +17,6 @@ RUN pnpm config set fetch-retries 5 \
 
 RUN pnpm install --filter @propad/api... --frozen-lockfile=false
 RUN pnpm --filter @propad/sdk run build
-RUN ls -R packages/sdk/dist || echo "SDK dist not found"
 RUN pnpm --filter @propad/api... run prisma:generate
 RUN pnpm --filter @propad/api... run build
 
