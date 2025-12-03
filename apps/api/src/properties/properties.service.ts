@@ -4,9 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
-import {
-  PowerPhase,
-  Prisma,
+Prisma,
   PropertyAvailability,
   PropertyFurnishing,
   PropertyStatus,
@@ -14,6 +12,7 @@ import {
   Role,
   RewardEventType
 } from '@prisma/client';
+import { PowerPhase } from '../common/enums';
 import { createHmac, randomUUID } from 'crypto';
 import { extname } from 'path';
 import { env } from '@propad/config';
@@ -89,7 +88,7 @@ export class PropertiesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly geo: GeoService
-  ) {}
+  ) { }
 
   private pickString(...values: Array<string | null | undefined>): string | undefined {
     for (const value of values) {
@@ -552,9 +551,9 @@ export class PropertiesService {
         pendingGeoId !== undefined
           ? pendingGeoId
           : countryId !== undefined ||
-              provinceId !== undefined ||
-              cityId !== undefined ||
-              suburbId !== undefined
+            provinceId !== undefined ||
+            cityId !== undefined ||
+            suburbId !== undefined
             ? null
             : existing.pendingGeoId ?? null
     });

@@ -1,10 +1,10 @@
 import {
   Currency,
-  PowerPhase,
   PropertyAvailability,
   PropertyFurnishing,
   PropertyType
 } from '@prisma/client';
+import { PowerPhase } from '../../common/enums';
 import { z } from 'zod';
 
 const commercialFieldsSchema = z
@@ -49,32 +49,32 @@ const withPropertyRefinements = <T extends z.ZodTypeAny>(schema: T) =>
         code: z.ZodIssueCode.custom,
         message: 'countryId is required unless a pendingGeoId is provided',
         path: ['countryId']
-    });
-  }
+      });
+    }
 
-  if (data.suburbId && !data.cityId) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'suburbId requires a cityId',
-      path: ['suburbId']
-    });
-  }
+    if (data.suburbId && !data.cityId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'suburbId requires a cityId',
+        path: ['suburbId']
+      });
+    }
 
-  if (data.cityId && !data.provinceId) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'cityId requires a provinceId',
-      path: ['cityId']
-    });
-  }
+    if (data.cityId && !data.provinceId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'cityId requires a provinceId',
+        path: ['cityId']
+      });
+    }
 
-  if (data.provinceId && !data.countryId) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'provinceId requires a countryId',
-      path: ['provinceId']
-    });
-  }
+    if (data.provinceId && !data.countryId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'provinceId requires a countryId',
+        path: ['provinceId']
+      });
+    }
 
     if (data.availability === PropertyAvailability.DATE && !data.availableFrom) {
       ctx.addIssue({

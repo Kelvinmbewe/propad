@@ -1,4 +1,5 @@
-import { PowerPhase, PropertyFurnishing, PropertyType } from '@prisma/client';
+import { PropertyFurnishing, PropertyType } from '@prisma/client';
+import { PowerPhase } from '../../common/enums';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
