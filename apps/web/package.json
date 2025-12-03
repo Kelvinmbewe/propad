@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "prisma:generate": "PRISMA_SKIP_AUTOINSTALL=true prisma generate --schema ../api/prisma/schema.prisma",
-    "prebuild": "pnpm run prisma:generate",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

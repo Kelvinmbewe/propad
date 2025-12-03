@@ -19,6 +19,11 @@ RUN pnpm config set fetch-retries 5 \
     && pnpm config set fetch-retry-maxtimeout 120000
 
 RUN pnpm install --recursive --frozen-lockfile=false
+
+WORKDIR /app/apps/web
+RUN npx prisma generate --schema ../../apps/api/prisma/schema.prisma
+WORKDIR /app
+
 RUN pnpm --filter @propad/web... run build
 
 FROM node:20-alpine AS runner
