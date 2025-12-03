@@ -976,6 +976,124 @@ export class PropertiesService {
       }
     };
   }
+
+  async submitForVerification(id: string, dto: SubmitForVerificationDto, actor: AuthContext) {
+    const property = await this.getPropertyOrThrow(id);
+    this.ensureCanMutate(property, actor);
+
+    const updated = await this.prisma.property.update({
+      where: { id },
+      data: {
+        status: PropertyStatus.PENDING_VERIFY
+      },
+      include: {
+        country: true,
+        province: true,
+        city: true,
+        suburb: true,
+        pendingGeo: true
+      }
+    });
+
+    await this.audit.log({
+      action: 'property.submitForVerification',
+      actorId: actor.userId,
+      targetType: 'property',
+      targetId: id,
+      metadata: dto
+    });
+
+    return this.attachLocation(updated);
+  }
+
+  async mapBounds(dto: MapBoundsDto) {
+    const southLat = Math.min(dto.southWestLat, dto.northEastLat);
+    const northLat = Math.max(dto.southWestLat, dto.northEastLat);
+    const westLng = Math.min(dto.southWestLng, dto.northEastLng);
+    const eastLng = Math.max(dto.southWestLng, dto.northEastLng);
+
+    const properties = await this.prisma.property.findMany({
+      where: {
+        status: PropertyStatus.VERIFIED,
+        lat: {
+          gte: southLat,
+          lte: northLat
+        },
+        lng: {
+          gte: westLng,
+          lte: eastLng
+        },
+        ...(dto.type ? { type: dto.type } : {})
+      },
+      include: {
+        media: { take: 3 },
+        country: true,
+        province: true,
+        city: true,
+        suburb: true,
+        pendingGeo: true
+      }
+    });
+
+    return this.attachLocationToMany(properties);
+  }
+
+  async findById(id: string) {
+    const property = await this.prisma.property.findUnique({
+      where: { id },
+      include: {
+        media: true,
+        landlord: true,
+        agentOwner: true,
+        country: true,
+        province: true,
+        city: true,
+        suburb: true,
+        pendingGeo: true
+      }
+    });
+
+    if (!property || property.status !== PropertyStatus.VERIFIED) {
+      throw new NotFoundException('Property not found');
+    }
+
+    return this.attachLocation(property);
+  }
+
+  async createSignedUpload(dto: CreateSignedUploadDto, actor: AuthContext) {
+    if (!ALLOWED_MIME_TYPES.has(dto.mimeType)) {
+      throw new BadRequestException('Unsupported file type');
+    }
+
+    const extension = extname(dto.fileName).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.has(extension)) {
+      throw new BadRequestException('Unsupported file extension');
+    }
+
+    if (dto.propertyId) {
+      const property = await this.getPropertyOrThrow(dto.propertyId);
+      this.ensureCanMutate(property, actor);
+    }
+
+    const key = `properties/${dto.propertyId ?? 'drafts'}/${randomUUID()}${extension}`;
+    const expires = Math.floor(Date.now() / 1000) + 900;
+    const payload = `${key}:${dto.mimeType}:${expires}`;
+    const signature = createHmac('sha256', env.S3_SECRET_KEY)
+      .update(payload)
+      .digest('hex');
+
+    return {
+      key,
+      uploadUrl: `${env.S3_ENDPOINT}/${env.S3_BUCKET}/${key}?expires=${expires}&signature=${signature}`,
+      method: 'PUT',
+      headers: {
+        'Content-Type': dto.mimeType,
+        'x-upload-signature': signature,
+        'x-upload-expires': expires.toString()
+      },
+      expiresAt: new Date(expires * 1000)
+    };
+  }
 }
 
 function messagesRecipient(
