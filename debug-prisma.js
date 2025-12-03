@@ -1,3 +1,3 @@
 const client = require('@prisma/client');
-console.log('Keys:', Object.keys(client));
-console.log('PropertyType:', client.PropertyType);
+console.log('PowerPhase:', client.PowerPhase);
+console.log('PropertyFurnishing:', client.PropertyFurnishing);
