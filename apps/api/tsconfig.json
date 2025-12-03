@@ -8,6 +8,30 @@
     "sourceMap": true,
     "outDir": "dist",
     "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noEmit": false,
+    "paths": {
+      "@propad/sdk/server": [
+        "../../packages/sdk/dist/server.d.ts"
+      ],
+      "@propad/sdk/browser": [
+        "../../packages/sdk/dist/browser.d.ts"
+      ],
+      "@propad/sdk": [
+        "../../packages/sdk/dist/index.d.ts"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "test/**/*",
+    "vitest.config.ts",
+    "eslint.config.mjs"
   ],
   "exclude": [
     "node_modules"
