@@ -33,7 +33,7 @@ async function bootstrap() {
   });
 
   const port = env.PORT ?? 3001;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   logger.log(`API listening on port ${port}`);
 }
 
