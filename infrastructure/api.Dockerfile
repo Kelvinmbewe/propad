@@ -35,5 +35,8 @@ RUN pnpm install --filter @propad/api... --frozen-lockfile=false
 RUN pnpm --filter @propad/api... run prisma:generate
 
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY apps/api/start.sh ./apps/api/start.sh
+RUN chmod +x ./apps/api/start.sh
+
 EXPOSE 3001
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["./apps/api/start.sh"]
