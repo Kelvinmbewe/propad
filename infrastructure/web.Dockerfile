@@ -13,6 +13,10 @@ COPY apps/api/prisma ./apps/api/prisma
 RUN corepack enable \
     && corepack prepare pnpm@10.19.0 --activate
 
+RUN pnpm config set fetch-retries 5 \
+    && pnpm config set fetch-retry-mintimeout 20000 \
+    && pnpm config set fetch-retry-maxtimeout 120000
+
 RUN pnpm install --recursive --frozen-lockfile=false
 RUN pnpm --filter @propad/web... run build
 
