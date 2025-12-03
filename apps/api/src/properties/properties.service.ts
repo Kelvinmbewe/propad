@@ -883,6 +883,99 @@ export class PropertiesService {
     // This logic needs refinement based on requirements.
     // For now, allow if they are involved.
   }
+
+  async search(dto: SearchPropertiesDto) {
+    const filters = this.normalizeSearchFilters(dto);
+    const where: Prisma.PropertyWhereInput = {
+      status: PropertyStatus.VERIFIED
+    };
+
+    if (filters.type) {
+      where.type = filters.type;
+    }
+    if (filters.countryId) {
+      where.countryId = filters.countryId;
+    }
+    if (filters.provinceId) {
+      where.provinceId = filters.provinceId;
+    }
+    if (filters.cityId) {
+      where.cityId = filters.cityId;
+    }
+    if (filters.suburbId) {
+      where.suburbId = filters.suburbId;
+    }
+
+    if (filters.priceMin !== undefined || filters.priceMax !== undefined) {
+      where.price = {};
+      if (filters.priceMin !== undefined) {
+        where.price.gte = filters.priceMin;
+      }
+      if (filters.priceMax !== undefined) {
+        where.price.lte = filters.priceMax;
+      }
+    }
+
+    if (filters.bounds) {
+      const { southWest, northEast } = filters.bounds;
+      const southLat = Math.min(southWest.lat, northEast.lat);
+      const northLat = Math.max(southWest.lat, northEast.lat);
+      const westLng = Math.min(southWest.lng, northEast.lng);
+      const eastLng = Math.max(southWest.lng, northEast.lng);
+
+      where.lat = { gte: southLat, lte: northLat };
+      where.lng = { gte: westLng, lte: eastLng };
+    }
+
+    if (filters.bedrooms !== undefined) {
+      where.bedrooms = { gte: filters.bedrooms };
+    }
+    if (filters.bathrooms !== undefined) {
+      where.bathrooms = { gte: filters.bathrooms };
+    }
+    if (filters.furnished) {
+      where.furnishing = filters.furnished;
+    }
+    if (filters.amenities && filters.amenities.length > 0) {
+      where.amenities = { hasEvery: filters.amenities };
+    }
+
+    // Commercial fields filtering (simplified for now as JsonFilter is complex)
+    // Prisma Json filtering is limited. We might need raw query or careful construction.
+    // For now, skipping complex JSON filtering to avoid build errors if types mismatch.
+
+    const page = dto.page ?? 1;
+    const limit = dto.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      this.prisma.property.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          country: true,
+          province: true,
+          city: true,
+          suburb: true,
+          pendingGeo: true,
+          media: { take: 1, orderBy: { order: 'asc' } }
+        }
+      }),
+      this.prisma.property.count({ where })
+    ]);
+
+    return {
+      items: this.attachLocationToMany(items),
+      meta: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
+    };
+  }
 }
 
 function messagesRecipient(
