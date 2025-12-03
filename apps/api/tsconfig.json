@@ -8,19 +8,6 @@
     "sourceMap": true,
     "outDir": "dist",
     "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "strictNullChecks": true,
-    "noImplicitAny": true,
-    "strictBindCallApply": true,
-    "strictFunctionTypes": true,
-    "noFallthroughCasesInSwitch": true,
-    "noEmit": false
-  },
-  "include": [
-    "src/**/*",
-    "test/**/*",
-    "vitest.config.ts",
-    "eslint.config.mjs"
   ],
   "exclude": [
     "node_modules"
