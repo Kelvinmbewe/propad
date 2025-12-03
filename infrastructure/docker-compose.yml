@@ -3,7 +3,7 @@ services:
     build:
       context: ..
       dockerfile: infrastructure/web.Dockerfile
-    command: npm --workspace apps/web run start
+    command: pnpm --filter @propad/web run start
     environment:
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: change-me
