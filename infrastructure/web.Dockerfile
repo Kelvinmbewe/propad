@@ -9,7 +9,7 @@ COPY pnpm-workspace.yaml ./
 COPY tsconfig.json ./
 COPY packages ./packages
 COPY apps/web ./apps/web
-COPY apps/api/prisma ./apps/api/prisma
+COPY apps/api/prisma ./apps/web/prisma
 
 RUN corepack enable \
     && corepack prepare pnpm@10.19.0 --activate
@@ -21,7 +21,7 @@ RUN pnpm config set fetch-retries 5 \
 RUN pnpm install --recursive --frozen-lockfile=false
 
 WORKDIR /app/apps/web
-RUN npx prisma generate --schema ../../apps/api/prisma/schema.prisma
+RUN pnpm exec prisma generate --schema ./prisma/schema.prisma
 WORKDIR /app
 
 RUN pnpm --filter @propad/web... run build
