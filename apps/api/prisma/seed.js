@@ -1,10 +1,5 @@
-const { PrismaClient, PropertyStatus, PropertyType, Role } = require('@prisma/client');
+const { PrismaClient } = require('@prisma/client');
 const { hash } = require('bcryptjs');
-
-const PowerPhase = {
-    SINGLE: 'SINGLE',
-    THREE: 'THREE',
-};
 
 const prisma = new PrismaClient();
 
@@ -21,7 +16,7 @@ async function main() {
             email: 'admin@propad.co.zw',
             name: 'Admin User',
             passwordHash,
-            role: Role.ADMIN,
+            role: 'ADMIN',
             status: 'ACTIVE',
             phone: '+263770000000',
         },
@@ -33,13 +28,10 @@ async function main() {
             agentProfile: {
                 upsert: {
                     create: {
-                        licenseNumber: 'AG-12345',
-                        verificationStatus: 'VERIFIED',
                         verifiedListingsCount: 5,
                     },
                     update: {
-                        licenseNumber: 'AG-12345',
-                        verificationStatus: 'VERIFIED',
+                        verifiedListingsCount: 5,
                     },
                 },
             },
@@ -48,13 +40,11 @@ async function main() {
             email: 'agent@propad.co.zw',
             name: 'Verified Agent',
             passwordHash,
-            role: Role.AGENT,
+            role: 'AGENT',
             status: 'ACTIVE',
             phone: '+263771111111',
             agentProfile: {
                 create: {
-                    licenseNumber: 'AG-12345',
-                    verificationStatus: 'VERIFIED',
                     verifiedListingsCount: 5,
                 },
             },
@@ -68,7 +58,7 @@ async function main() {
             email: 'user@propad.co.zw',
             name: 'Standard User',
             passwordHash,
-            role: Role.USER,
+            role: 'USER',
             status: 'ACTIVE',
             phone: '+263772222222',
         },
@@ -92,8 +82,8 @@ async function main() {
             description: 'Luxurious family home with golf course views. Features include a modern kitchen, swimming pool, and solar power backup.',
             price: 450000,
             currency: 'USD',
-            type: PropertyType.RESIDENTIAL_SALE,
-            status: PropertyStatus.PUBLISHED,
+            type: 'RESIDENTIAL_SALE',
+            status: 'PUBLISHED',
             landlordId: user.id,
             agentOwnerId: agent.id,
             location: {
@@ -113,7 +103,7 @@ async function main() {
                     parkingSpaces: 2,
                     hasBorehole: true,
                     hasSolarPower: true,
-                    powerPhase: PowerPhase.THREE,
+                    powerPhase: 'THREE',
                 },
             },
             images: {
@@ -131,8 +121,8 @@ async function main() {
             description: 'Secure garden flat close to shopping centers. Ideal for young professionals.',
             price: 1200,
             currency: 'USD',
-            type: PropertyType.RESIDENTIAL_RENTAL,
-            status: PropertyStatus.PUBLISHED,
+            type: 'RESIDENTIAL_RENTAL',
+            status: 'PUBLISHED',
             landlordId: user.id,
             agentOwnerId: agent.id,
             location: {

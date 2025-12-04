@@ -548,6 +548,7 @@ model Property {
   cityId         String?
   suburbId       String?
   pendingGeoId   String?
+  title          String
   lat            Float?
   lng            Float?
   type           PropertyType
