@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 async function getProperties() {
     const properties = await prisma.property.findMany({
         where: {
-            status: 'ACTIVE'
+            status: 'VERIFIED'
         },
         orderBy: {
             createdAt: 'desc'
