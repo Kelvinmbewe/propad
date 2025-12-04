@@ -51,7 +51,7 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
                         <div className="absolute bottom-0 left-0 p-8 text-white">
                             <div className="mb-2 flex items-center gap-2">
                                 <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-bold uppercase tracking-wider">
-                                    {property.type === 'RENTAL' ? 'For Rent' : 'For Sale'}
+                                    For Sale
                                 </span>
                                 <span className="flex items-center gap-1 text-sm font-medium">
                                     {/* MapPin removed for debugging */}
