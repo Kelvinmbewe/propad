@@ -413,6 +413,7 @@ model User {
   name      String?
   phone     String?
   email     String?  @unique
+  passwordHash String?
   kycStatus String?
   status    String?
   createdAt DateTime @default(now())
