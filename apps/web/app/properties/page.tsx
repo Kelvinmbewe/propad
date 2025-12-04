@@ -26,10 +26,10 @@ async function getProperties() {
         price: `$${Number(p.price).toLocaleString()}`,
         status: p.type === 'RENTAL' ? 'FOR RENT' : 'FOR SALE',
         statusTone: p.type === 'RENTAL' ? 'rent' : 'sale',
-        imageUrl: p.media.find(m => m.kind === 'IMAGE')?.url || 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80',
+        imageUrl: p.media[0]?.url || 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80',
         beds: p.bedrooms || 0,
         baths: p.bathrooms || 0,
-        area: 0 // Placeholder as area is not in schema yet
+        area: 0
     } as LandingProperty));
 }
 

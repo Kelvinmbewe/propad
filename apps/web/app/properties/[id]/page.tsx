@@ -22,7 +22,7 @@ async function getProperty(id: string) {
         ...property,
         title: property.title || `${property.bedrooms} Bed ${property.type} in ${property.suburb?.name || 'Harare'}`,
         location: `${property.suburb?.name || 'Harare'}, ${property.city?.name || 'Zimbabwe'}`,
-        imageUrl: property.media.find(m => m.kind === 'IMAGE')?.url || 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80',
+        imageUrl: property.media[0]?.url || 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80',
         price: Number(property.price)
     };
 }
