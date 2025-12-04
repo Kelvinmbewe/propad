@@ -38,7 +38,7 @@ import { PropertyStatus } from '@prisma/client';
 
 // ... (keep imports)
 
-async function getFeaturedProperties() {
+async function getFeaturedProperties(): Promise<ShowcaseProperty[]> {
   const properties = await prisma.property.findMany({
     where: {
       status: PropertyStatus.VERIFIED
@@ -66,7 +66,7 @@ async function getFeaturedProperties() {
     baths: p.baths,
     area: p.area,
     coordinates: [p.lat, p.lng] as [number, number]
-  }));
+  })) as ShowcaseProperty[];
 }
 
 export default async function HomePage() {
