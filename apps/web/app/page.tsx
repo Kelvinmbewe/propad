@@ -59,15 +59,15 @@ async function getFeaturedProperties(): Promise<ShowcaseProperty[]> {
   return properties.map((p: any) => ({
     id: p.id,
     title: p.title,
-    location: `${p.suburb?.name}, ${p.city?.name}`,
+    location: `${p.suburb?.name || 'Harare'}, ${p.city?.name || 'Zimbabwe'}`,
     price: p.currency === 'USD' ? `US$${p.price.toLocaleString()}` : `ZWL$${p.price.toLocaleString()}`,
-    status: p.type === 'RESIDENTIAL' ? 'FOR SALE' : 'FOR RENT', // Simplified logic for demo
-    statusTone: p.type === 'RESIDENTIAL' ? 'sale' : 'rent',
+    status: p.type === 'RESIDENTIAL_SALE' ? 'FOR SALE' : 'FOR RENT',
+    statusTone: p.type === 'RESIDENTIAL_SALE' ? 'sale' : 'rent',
     imageUrl: p.media[0]?.url || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
-    beds: p.beds,
-    baths: p.baths,
-    area: p.area,
-    coordinates: [p.lat, p.lng] as [number, number]
+    beds: p.bedrooms || 0,
+    baths: p.bathrooms || 0,
+    area: 0, // Field missing in schema
+    coordinates: (p.lat && p.lng) ? [p.lat, p.lng] : [-17.8216, 31.0492]
   })) as ShowcaseProperty[];
 }
 

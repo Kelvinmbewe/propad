@@ -116,6 +116,11 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .get('properties')
           .json<PropertyManagement[]>()
           .then((data) => PropertyManagementSchema.array().parse(data)),
+      create: async (payload: unknown) =>
+        client
+          .post('properties', { json: payload })
+          .json<Property>()
+          .then((data) => PropertySchema.parse(data)),
       search: async (
         params: {
           type?: string;
