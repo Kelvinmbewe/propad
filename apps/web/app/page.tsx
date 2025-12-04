@@ -11,6 +11,8 @@ const LandingMapSection = dynamic<LandingMapSectionProps>(
   { ssr: false }
 );
 
+export const dynamic = 'force-dynamic';
+
 interface ShowcaseProperty extends LandingProperty {
   coordinates: [number, number];
 }
