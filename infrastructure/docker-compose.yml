@@ -6,8 +6,9 @@ services:
     command: pnpm --filter @propad/web run start
     environment:
       NEXTAUTH_URL: http://localhost:3000
-      NEXTAUTH_SECRET: change-me
+      NEXTAUTH_SECRET: this-is-a-very-secure-secret-that-is-at-least-32-chars-long
       NEXT_PUBLIC_API_BASE_URL: http://api:3001
+      DATABASE_URL: postgresql://kelvin:Kellzbiax95@postgres:5432/propad?schema=public
     ports:
       - '3000:3000'
     depends_on:
