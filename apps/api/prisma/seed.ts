@@ -1,5 +1,4 @@
 import { PrismaClient, PropertyStatus, PropertyType, Role } from '@prisma/client';
-import { hash } from 'bcryptjs';
 
 enum PowerPhase {
     SINGLE = 'SINGLE',
@@ -9,59 +8,50 @@ enum PowerPhase {
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('Start seeding ...');
+    console.log('Start seeding properties ...');
 
-    // Cleanup existing data
-    await prisma.message.deleteMany();
-    await prisma.conversation.deleteMany();
+    // Cleanup existing properties
     await prisma.propertyAssignment.deleteMany();
     await prisma.property.deleteMany();
-    await prisma.user.deleteMany();
 
-    // Create Users
-    const passwordHash = await hash('password123', 10);
+    // Find Users
+    const admin = await prisma.user.findUnique({ where: { email: 'admin@propad.co.zw' } });
+    const agent = await prisma.user.findUnique({ where: { email: 'agent@propad.co.zw' } });
+    const user = await prisma.user.findUnique({ where: { email: 'user@propad.co.zw' } });
 
-    const admin = await prisma.user.create({
+    if (!admin || !agent || !user) {
+        console.error('Users not found. Please register admin@propad.co.zw, agent@propad.co.zw, and user@propad.co.zw first.');
+        process.exit(1);
+    }
+
+    // Update Agent Profile
+    await prisma.user.update({
+        where: { id: agent.id },
         data: {
-            email: 'admin@propad.co.zw',
-            name: 'Admin User',
-            passwordHash,
-            role: Role.ADMIN,
-            status: 'ACTIVE',
-            phone: '+263770000000',
-        },
-    });
-
-    const agent = await prisma.user.create({
-        data: {
-            email: 'agent@propad.co.zw',
-            name: 'Verified Agent',
-            passwordHash,
             role: Role.AGENT,
-            status: 'ACTIVE',
-            phone: '+263771111111',
             agentProfile: {
-                create: {
-                    licenseNumber: 'AG-12345',
-                    verificationStatus: 'VERIFIED',
-                    verifiedListingsCount: 5,
+                upsert: {
+                    create: {
+                        licenseNumber: 'AG-12345',
+                        verificationStatus: 'VERIFIED',
+                        verifiedListingsCount: 5,
+                    },
+                    update: {
+                        licenseNumber: 'AG-12345',
+                        verificationStatus: 'VERIFIED',
+                    },
                 },
             },
         },
     });
 
-    const user = await prisma.user.create({
-        data: {
-            email: 'user@propad.co.zw',
-            name: 'Standard User',
-            passwordHash,
-            role: Role.USER,
-            status: 'ACTIVE',
-            phone: '+263772222222',
-        },
+    // Update Admin Role
+    await prisma.user.update({
+        where: { id: admin.id },
+        data: { role: Role.ADMIN },
     });
 
-    console.log('Created users:', { admin: admin.email, agent: agent.email, user: user.email });
+    console.log('Found users:', { admin: admin.email, agent: agent.email, user: user.email });
 
     // Create Properties
     const prop1 = await prisma.property.create({
