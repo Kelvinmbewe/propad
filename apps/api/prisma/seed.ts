@@ -1,4 +1,5 @@
 import { PrismaClient, PropertyStatus, PropertyType, Role } from '@prisma/client';
+import { hash } from 'bcryptjs';
 
 enum PowerPhase {
     SINGLE = 'SINGLE',
@@ -8,27 +9,34 @@ enum PowerPhase {
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('Start seeding properties ...');
+    console.log('Start seeding ...');
 
-    // Cleanup existing properties
-    await prisma.propertyAssignment.deleteMany();
-    await prisma.property.deleteMany();
+    // Cleanup existing data (optional, or use upsert)
+    // await prisma.message.deleteMany();
+    // await prisma.conversation.deleteMany();
+    // await prisma.propertyAssignment.deleteMany();
+    // await prisma.property.deleteMany();
+    // await prisma.user.deleteMany();
 
-    // Find Users
-    const admin = await prisma.user.findUnique({ where: { email: 'admin@propad.co.zw' } });
-    const agent = await prisma.user.findUnique({ where: { email: 'agent@propad.co.zw' } });
-    const user = await prisma.user.findUnique({ where: { email: 'user@propad.co.zw' } });
+    const passwordHash = await hash('password123', 10);
 
-    if (!admin || !agent || !user) {
-        console.error('Users not found. Please register admin@propad.co.zw, agent@propad.co.zw, and user@propad.co.zw first.');
-        process.exit(1);
-    }
+    // Upsert Users
+    const admin = await prisma.user.upsert({
+        where: { email: 'admin@propad.co.zw' },
+        update: {},
+        create: {
+            email: 'admin@propad.co.zw',
+            name: 'Admin User',
+            passwordHash,
+            role: Role.ADMIN,
+            status: 'ACTIVE',
+            phone: '+263770000000',
+        },
+    });
 
-    // Update Agent Profile
-    await prisma.user.update({
-        where: { id: agent.id },
-        data: {
-            role: Role.AGENT,
+    const agent = await prisma.user.upsert({
+        where: { email: 'agent@propad.co.zw' },
+        update: {
             agentProfile: {
                 upsert: {
                     create: {
@@ -43,17 +51,52 @@ async function main() {
                 },
             },
         },
+        create: {
+            email: 'agent@propad.co.zw',
+            name: 'Verified Agent',
+            passwordHash,
+            role: Role.AGENT,
+            status: 'ACTIVE',
+            phone: '+263771111111',
+            agentProfile: {
+                create: {
+                    licenseNumber: 'AG-12345',
+                    verificationStatus: 'VERIFIED',
+                    verifiedListingsCount: 5,
+                },
+            },
+        },
     });
 
-    // Update Admin Role
-    await prisma.user.update({
-        where: { id: admin.id },
-        data: { role: Role.ADMIN },
+    const user = await prisma.user.upsert({
+        where: { email: 'user@propad.co.zw' },
+        update: {},
+        create: {
+            email: 'user@propad.co.zw',
+            name: 'Standard User',
+            passwordHash,
+            role: Role.USER,
+            status: 'ACTIVE',
+            phone: '+263772222222',
+        },
     });
 
-    console.log('Found users:', { admin: admin.email, agent: agent.email, user: user.email });
+    console.log('Users synced:', { admin: admin.email, agent: agent.email, user: user.email });
 
-    // Create Properties
+    // Create Properties (only if not exist to avoid duplicates on re-run)
+    // For simplicity, we'll just create them and let Prisma handle ID generation.
+    // But to avoid infinite growth, we might want to check.
+    // We'll delete properties for these users first.
+
+    await prisma.property.deleteMany({
+        where: {
+            OR: [
+                { landlordId: user.id },
+                { agentOwnerId: agent.id }
+            ]
+        }
+    });
+
     const prop1 = await prisma.property.create({
         data: {
             title: 'Modern 4-Bedroom House in Borrowdale Brooke',
