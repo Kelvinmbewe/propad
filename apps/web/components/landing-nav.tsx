@@ -53,20 +53,24 @@ export function LandingNav() {
                 : 'border-white/20 bg-white/10 text-white hover:border-emerald-200 hover:text-emerald-200'
             )}
           />
-          <Button
-            variant="outline"
-            className={cn(
-              'hidden rounded-full shadow-[0_0_0_rgba(0,0,0,0)] transition md:inline-flex',
-              isScrolled
-                ? 'border-slate-200 bg-white text-slate-900 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600'
-                : 'border-white/30 bg-white/10 text-white hover:border-emerald-300 hover:bg-emerald-400/20 hover:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]'
-            )}
-          >
-            Sign in
-          </Button>
-          <Button className="rounded-full bg-emerald-500 px-6 text-white shadow-[0_15px_45px_-20px_rgba(16,185,129,0.85)] transition hover:bg-emerald-400 hover:shadow-[0_18px_48px_-18px_rgba(45,212,191,0.85)]">
-            List a property
-          </Button>
+          <Link href="/auth/signin">
+            <Button
+              variant="outline"
+              className={cn(
+                'hidden rounded-full shadow-[0_0_0_rgba(0,0,0,0)] transition md:inline-flex',
+                isScrolled
+                  ? 'border-slate-200 bg-white text-slate-900 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600'
+                  : 'border-white/30 bg-white/10 text-white hover:border-emerald-300 hover:bg-emerald-400/20 hover:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]'
+              )}
+            >
+              Sign in
+            </Button>
+          </Link>
+          <Link href="/dashboard">
+            <Button className="rounded-full bg-emerald-500 px-6 text-white shadow-[0_15px_45px_-20px_rgba(16,185,129,0.85)] transition hover:bg-emerald-400 hover:shadow-[0_18px_48px_-18px_rgba(45,212,191,0.85)]">
+              List a property
+            </Button>
+          </Link>
         </div>
       </nav>
     </header>

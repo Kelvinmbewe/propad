@@ -1,6 +1,7 @@
 import NextAuth from 'next-auth';
 import type { NextAuthConfig } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
+import CredentialsProvider from 'next-auth/providers/credentials';
 import EmailProvider from 'next-auth/providers/email';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/lib/prisma';
@@ -10,7 +11,29 @@ import type { Role } from '@propad/sdk';
 
 const config: NextAuthConfig = {
   adapter: PrismaAdapter(prisma),
+  pages: {
+    signIn: '/auth/signin'
+  },
   providers: [
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' }
+      },
+      async authorize(credentials) {
+        // For demo purposes, allow any login with "demo@propad.co.zw" / "demo"
+        if (credentials?.email === 'demo@propad.co.zw' && credentials?.password === 'demo') {
+          return {
+            id: 'demo-user-id',
+            name: 'Demo User',
+            email: 'demo@propad.co.zw',
+            role: 'USER'
+          };
+        }
+        return null;
+      }
+    }),
     EmailProvider({
       server: env.EMAIL_SERVER,
       from: env.EMAIL_FROM

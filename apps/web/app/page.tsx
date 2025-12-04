@@ -33,49 +33,45 @@ const heroCards: FloatingHeroCard[] = [
   }
 ];
 
-const showcaseProperties: ShowcaseProperty[] = [
-  {
-    id: 'vantage-towers',
-    title: 'Vantage Towers · Borrowdale',
-    location: 'Borrowdale, Harare',
-    price: 'US$420,000',
-    status: 'FOR SALE',
-    statusTone: 'sale',
-    imageUrl: 'https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=1200&q=80',
-    beds: 4,
-    baths: 3,
-    area: 365,
-    coordinates: [-17.7605, 31.0944]
-  },
-  {
-    id: 'umwinsidale-manor',
-    title: 'Umwinsidale Manor',
-    location: 'Umwinsidale, Harare',
-    price: 'US$3,400/mo',
-    status: 'FOR RENT',
-    statusTone: 'rent',
-    imageUrl: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1200&q=80',
-    beds: 6,
-    baths: 5,
-    area: 480,
-    coordinates: [-17.7376, 31.135]
-  },
-  {
-    id: 'tranquil-mews',
-    title: 'Tranquil Mews · Avondale',
-    location: 'Avondale, Harare',
-    price: 'US$1,050/mo',
-    status: 'FOR RENT',
-    statusTone: 'rent',
-    imageUrl: 'https://images.unsplash.com/photo-1520256862855-398228c41684?auto=format&fit=crop&w=1200&q=80',
-    beds: 3,
-    baths: 2,
-    area: 210,
-    coordinates: [-17.7894, 31.0463]
-  }
-];
+import { prisma } from '@/lib/prisma';
+import { PropertyStatus } from '@propad/sdk';
 
-export default function HomePage() {
+// ... (keep imports)
+
+async function getFeaturedProperties() {
+  const properties = await prisma.property.findMany({
+    where: {
+      status: PropertyStatus.VERIFIED
+    },
+    take: 6,
+    orderBy: {
+      createdAt: 'desc'
+    },
+    include: {
+      media: true,
+      city: true,
+      suburb: true
+    }
+  });
+
+  return properties.map(p => ({
+    id: p.id,
+    title: p.title,
+    location: `${p.suburb?.name}, ${p.city?.name}`,
+    price: p.currency === 'USD' ? `US$${p.price.toLocaleString()}` : `ZWL$${p.price.toLocaleString()}`,
+    status: p.type === 'RESIDENTIAL' ? 'FOR SALE' : 'FOR RENT', // Simplified logic for demo
+    statusTone: p.type === 'RESIDENTIAL' ? 'sale' : 'rent',
+    imageUrl: p.media[0]?.url || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
+    beds: p.beds,
+    baths: p.baths,
+    area: p.area,
+    coordinates: [p.lat, p.lng] as [number, number]
+  }));
+}
+
+export default async function HomePage() {
+  const showcaseProperties = await getFeaturedProperties();
+
   return (
     <div className="relative">
       <LandingNav />
@@ -103,6 +99,7 @@ export default function HomePage() {
               <LandingPropertyCard key={property.id} property={property} />
             ))}
           </div>
+
         </section>
 
         <LandingMapSection properties={showcaseProperties} />
