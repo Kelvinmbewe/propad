@@ -28,7 +28,7 @@ async function getProperty(id: string) {
 }
 
 export default async function PropertyDetailsPage({ params }: { params: { id: string } }) {
-    const property = await getProperty(params.id);
+    const property: any = await getProperty(params.id);
 
     if (!property) {
         notFound();
@@ -54,7 +54,7 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
                                     {property.type === 'RENTAL' ? 'For Rent' : 'For Sale'}
                                 </span>
                                 <span className="flex items-center gap-1 text-sm font-medium">
-                                    <MapPin className="h-4 w-4" />
+                                    {/* MapPin removed for debugging */}
                                     {property.location}
                                 </span>
                             </div>
