@@ -34,7 +34,7 @@ const heroCards: FloatingHeroCard[] = [
 ];
 
 import { prisma } from '@/lib/prisma';
-import { PropertyStatus } from '@propad/sdk';
+import { PropertyStatus } from '@prisma/client';
 
 // ... (keep imports)
 
