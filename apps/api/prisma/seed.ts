@@ -1,4 +1,5 @@
-import { PrismaClient, PropertyStatus, PropertyType } from '@prisma/client';
+import { PrismaClient, PropertyStatus, PropertyType, Role } from '@prisma/client';
+import { hash } from 'bcryptjs';
 
 enum PowerPhase {
     SINGLE = 'SINGLE',
@@ -8,198 +9,139 @@ enum PowerPhase {
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('Seeding database...');
+    console.log('Start seeding ...');
 
-    // Create a demo user
-    const demoUser = await prisma.user.upsert({
-        where: { email: 'demo@propad.co.zw' },
-        update: {},
-        create: {
-            email: 'demo@propad.co.zw',
-            name: 'Demo User',
-            role: 'USER'
-        }
+    // Cleanup existing data
+    await prisma.message.deleteMany();
+    await prisma.conversation.deleteMany();
+    await prisma.propertyAssignment.deleteMany();
+    await prisma.property.deleteMany();
+    await prisma.user.deleteMany();
+
+    // Create Users
+    const passwordHash = await hash('password123', 10);
+
+    const admin = await prisma.user.create({
+        data: {
+            email: 'admin@propad.co.zw',
+            name: 'Admin User',
+            passwordHash,
+            role: Role.ADMIN,
+            status: 'ACTIVE',
+            phone: '+263770000000',
+        },
     });
 
-    // Create a demo agent
-    const demoAgent = await prisma.user.upsert({
-        where: { email: 'agent@propad.co.zw' },
-        update: {},
-        create: {
+    const agent = await prisma.user.create({
+        data: {
             email: 'agent@propad.co.zw',
-            name: 'Tinashe Moyo',
-            role: 'AGENT'
-        }
+            name: 'Verified Agent',
+            passwordHash,
+            role: Role.AGENT,
+            status: 'ACTIVE',
+            phone: '+263771111111',
+            agentProfile: {
+                create: {
+                    licenseNumber: 'AG-12345',
+                    verificationStatus: 'VERIFIED',
+                    verifiedListingsCount: 5,
+                },
+            },
+        },
     });
 
-    // Seed Properties
-    const properties = [
-        {
-            title: 'Vantage Towers · Borrowdale',
-            description: 'Experience the pinnacle of luxury living in the heart of Borrowdale. This penthouse offers panoramic views of the Harare skyline, bespoke finishes, and exclusive access to the rooftop infinity pool.',
-            price: 420000,
-            currency: 'USD',
-            status: PropertyStatus.VERIFIED,
-            type: PropertyType.RESIDENTIAL,
-            beds: 4,
-            baths: 3,
-            area: 365,
-            address: '12 Borrowdale Road',
-            city: 'Harare',
-            suburb: 'Borrowdale',
-            country: 'Zimbabwe',
-            lat: -17.7605,
-            lng: 31.0944,
-            images: ['https://images.unsplash.com/photo-1515263487990-61b07816b324?auto=format&fit=crop&w=1200&q=80'],
-            agentId: demoAgent.id,
-            powerPhase: PowerPhase.GOOD
+    const user = await prisma.user.create({
+        data: {
+            email: 'user@propad.co.zw',
+            name: 'Standard User',
+            passwordHash,
+            role: Role.USER,
+            status: 'ACTIVE',
+            phone: '+263772222222',
         },
-        {
-            title: 'Umwinsidale Manor',
-            description: 'A sprawling estate nestled in the tranquil hills of Umwinsidale. Featuring a main residence, guest cottage, equestrian facilities, and indigenous gardens. Perfect for the discerning family.',
-            price: 3400,
+    });
+
+    console.log('Created users:', { admin: admin.email, agent: agent.email, user: user.email });
+
+    // Create Properties
+    const prop1 = await prisma.property.create({
+        data: {
+            title: 'Modern 4-Bedroom House in Borrowdale Brooke',
+            description: 'Luxurious family home with golf course views. Features include a modern kitchen, swimming pool, and solar power backup.',
+            price: 450000,
             currency: 'USD',
-            status: PropertyStatus.VERIFIED,
-            type: PropertyType.RESIDENTIAL,
-            beds: 6,
-            baths: 5,
-            area: 480,
-            address: '45 Umwinsidale Drive',
-            city: 'Harare',
-            suburb: 'Umwinsidale',
-            country: 'Zimbabwe',
-            lat: -17.7376,
-            lng: 31.135,
-            images: ['https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1200&q=80'],
-            agentId: demoAgent.id,
-            powerPhase: PowerPhase.GOOD
+            type: PropertyType.RESIDENTIAL_SALE,
+            status: PropertyStatus.PUBLISHED,
+            landlordId: user.id,
+            agentOwnerId: agent.id,
+            location: {
+                create: {
+                    address: '123 Golf Course Way',
+                    city: { create: { name: 'Harare' } },
+                    suburb: { create: { name: 'Borrowdale Brooke' } },
+                    country: { create: { name: 'Zimbabwe' } },
+                    coordinates: { lat: -17.75, lng: 31.13 },
+                },
+            },
+            attributes: {
+                create: {
+                    bedrooms: 4,
+                    bathrooms: 3.5,
+                    areaSqM: 500,
+                    parkingSpaces: 2,
+                    hasBorehole: true,
+                    hasSolarPower: true,
+                    powerPhase: PowerPhase.THREE,
+                },
+            },
+            images: {
+                create: [
+                    { url: 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80', caption: 'Exterior' },
+                    { url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80', caption: 'Living Room' },
+                ],
+            },
         },
-        {
-            title: 'Tranquil Mews · Avondale',
-            description: 'Modern townhouse living in the vibrant suburb of Avondale. Walking distance to shopping centers and cafes. Secure complex with borehole water and solar backup.',
-            price: 1050,
+    });
+
+    const prop2 = await prisma.property.create({
+        data: {
+            title: 'Cozy 2-Bedroom Apartment in Avondale',
+            description: 'Secure garden flat close to shopping centers. Ideal for young professionals.',
+            price: 1200,
             currency: 'USD',
-            status: PropertyStatus.VERIFIED,
-            type: PropertyType.RESIDENTIAL,
-            beds: 3,
-            baths: 2,
-            area: 210,
-            address: '8 King George Road',
-            city: 'Harare',
-            suburb: 'Avondale',
-            country: 'Zimbabwe',
-            lat: -17.7894,
-            lng: 31.0463,
-            images: ['https://images.unsplash.com/photo-1520256862855-398228c41684?auto=format&fit=crop&w=1200&q=80'],
-            agentId: demoAgent.id,
-            powerPhase: PowerPhase.GOOD
+            type: PropertyType.RESIDENTIAL_RENTAL,
+            status: PropertyStatus.PUBLISHED,
+            landlordId: user.id,
+            agentOwnerId: agent.id,
+            location: {
+                create: {
+                    address: '45 King George Road',
+                    city: { connect: { name: 'Harare' } },
+                    suburb: { create: { name: 'Avondale' } },
+                    country: { connect: { name: 'Zimbabwe' } },
+                    coordinates: { lat: -17.80, lng: 31.04 },
+                },
+            },
+            attributes: {
+                create: {
+                    bedrooms: 2,
+                    bathrooms: 1,
+                    areaSqM: 90,
+                    parkingSpaces: 1,
+                    hasBorehole: true,
+                },
+            },
+            images: {
+                create: [
+                    { url: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80', caption: 'Interior' },
+                ],
+            },
         },
-        {
-            title: 'Highlands Heritage Home',
-            description: 'A beautifully preserved colonial home in Highlands. Pressed ceilings, wooden floors, and a wrap-around veranda. Set on an acre of lush garden with a swimming pool.',
-            price: 280000,
-            currency: 'USD',
-            status: PropertyStatus.VERIFIED,
-            type: PropertyType.RESIDENTIAL,
-            beds: 4,
-            baths: 3,
-            area: 320,
-            address: '22 Ridgeway North',
-            city: 'Harare',
-            suburb: 'Highlands',
-            country: 'Zimbabwe',
-            lat: -17.8056,
-            lng: 31.0876,
-            images: ['https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80'],
-            agentId: demoAgent.id,
-            powerPhase: PowerPhase.GOOD
-        },
-        {
-            title: 'Msasa Industrial Park',
-            description: 'Prime industrial warehousing in Msasa. High clearance, 3-phase power, and excellent road frontage. Ideal for logistics or manufacturing.',
-            price: 5500,
-            currency: 'USD',
-            status: PropertyStatus.VERIFIED,
-            type: PropertyType.COMMERCIAL,
-            beds: 0,
-            baths: 2,
-            area: 1200,
-            address: '100 Mutare Road',
-            city: 'Harare',
-            suburb: 'Msasa',
-            country: 'Zimbabwe',
-            lat: -17.8421,
-            lng: 31.1098,
-            images: ['https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80'],
-            agentId: demoAgent.id,
-            powerPhase: PowerPhase.GOOD
-        },
-        {
-            title: 'Bulawayo CBD Office Space',
-            description: 'Modern office suite in the heart of Bulawayo CBD. Open plan layout, air conditioning, and secure parking. Ready for immediate occupation.',
-            price: 800,
-            currency: 'USD',
-            status: PropertyStatus.VERIFIED,
-            type: PropertyType.COMMERCIAL,
-            beds: 0,
-            baths: 1,
-            area: 150,
-            address: '9th Avenue / Main Street',
-            city: 'Bulawayo',
-            suburb: 'CBD',
-            country: 'Zimbabwe',
-            lat: -20.1560,
-            lng: 28.5800,
-            images: ['https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80'],
-            agentId: demoAgent.id,
-            powerPhase: PowerPhase.GOOD
-        }
-    ];
+    });
 
-    for (const prop of properties) {
-        const { city, suburb, country, address, lat, lng, images, ...data } = prop;
+    console.log('Created properties:', { prop1: prop1.title, prop2: prop2.title });
 
-        // Upsert location data (simplified for seeding)
-        const countryRec = await prisma.country.upsert({
-            where: { code: 'ZW' },
-            update: {},
-            create: { name: 'Zimbabwe', code: 'ZW' }
-        });
-
-        const cityRec = await prisma.city.upsert({
-            where: { name_countryId: { name: city, countryId: countryRec.id } },
-            update: {},
-            create: { name: city, countryId: countryRec.id }
-        });
-
-        const suburbRec = await prisma.suburb.upsert({
-            where: { name_cityId: { name: suburb, cityId: cityRec.id } },
-            update: {},
-            create: { name: suburb, cityId: cityRec.id }
-        });
-
-        await prisma.property.create({
-            data: {
-                ...data,
-                address,
-                lat,
-                lng,
-                countryId: countryRec.id,
-                cityId: cityRec.id,
-                suburbId: suburbRec.id,
-                agentOwnerId: data.agentId,
-                media: {
-                    create: images.map(url => ({
-                        url,
-                        type: 'IMAGE',
-                        mimeType: 'image/jpeg'
-                    }))
-                }
-            }
-        });
-    }
-
-    console.log('Seeding completed.');
+    console.log('Seeding finished.');
 }
 
 main()

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';
-import { compare } from 'bcryptjs';
+import { compare, hash } from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface SanitizedUser {
@@ -17,7 +17,7 @@ export interface SanitizedUser {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService, private readonly jwtService: JwtService) {}
+  constructor(private readonly prisma: PrismaService, private readonly jwtService: JwtService) { }
 
   async validateUser(email: string, pass: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
@@ -35,6 +35,26 @@ export class AuthService {
 
   async login(email: string, password: string) {
     const user = await this.validateUser(email, password);
+    return this.issueTokens(user.id, user.role);
+  }
+
+  async register(email: string, password: string, name?: string) {
+    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      throw new UnauthorizedException('User already exists');
+    }
+
+    const passwordHash = await hash(password, 10);
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        name,
+        role: Role.USER,
+        status: 'ACTIVE'
+      }
+    });
+
     return this.issueTokens(user.id, user.role);
   }
 

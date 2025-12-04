@@ -137,11 +137,23 @@ export function PropertyManagement() {
   }
 
   if (!properties || properties.length === 0) {
-    return <p className="text-sm text-neutral-600">You have not published any listings yet.</p>;
+    return (
+      <div className="flex flex-col items-center justify-center space-y-4 py-12">
+        <p className="text-sm text-neutral-600">You have not published any listings yet.</p>
+        <Button onClick={() => window.location.href = '/dashboard/listings/new'}>
+          List New Property
+        </Button>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button onClick={() => window.location.href = '/dashboard/listings/new'}>
+          List New Property
+        </Button>
+      </div>
       {properties.map((property) => {
         const priceLabel = formatCurrency(property.price, property.currency);
         const currentAssignment = property.assignments?.[0];
@@ -152,9 +164,9 @@ export function PropertyManagement() {
             : 'No service fee recorded';
         const dealConfirmedAt = property.dealConfirmedAt
           ? new Date(property.dealConfirmedAt).toLocaleString('en-ZW', {
-              dateStyle: 'medium',
-              timeStyle: 'short'
-            })
+            dateStyle: 'medium',
+            timeStyle: 'short'
+          })
           : null;
 
         const cityLabel =
