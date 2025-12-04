@@ -54,7 +54,7 @@ async function getFeaturedProperties() {
     }
   });
 
-  return properties.map(p => ({
+  return properties.map((p: any) => ({
     id: p.id,
     title: p.title,
     location: `${p.suburb?.name}, ${p.city?.name}`,
