@@ -8,7 +8,7 @@ async function main() {
 
     const passwordHash = await hash('password123', 10);
 
-    // Upsert Users
+    // 1. Upsert Users
     const admin = await prisma.user.upsert({
         where: { email: 'admin@propad.co.zw' },
         update: {},
@@ -27,12 +27,8 @@ async function main() {
         update: {
             agentProfile: {
                 upsert: {
-                    create: {
-                        verifiedListingsCount: 5,
-                    },
-                    update: {
-                        verifiedListingsCount: 5,
-                    },
+                    create: { verifiedListingsCount: 5 },
+                    update: { verifiedListingsCount: 5 },
                 },
             },
         },
@@ -44,9 +40,7 @@ async function main() {
             status: 'ACTIVE',
             phone: '+263771111111',
             agentProfile: {
-                create: {
-                    verifiedListingsCount: 5,
-                },
+                create: { verifiedListingsCount: 5 },
             },
         },
     });
@@ -66,6 +60,60 @@ async function main() {
 
     console.log('Users synced:', { admin: admin.email, agent: agent.email, user: user.email });
 
+    // 2. Setup Location Hierarchy
+    const country = await prisma.country.upsert({
+        where: { iso2: 'ZW' },
+        update: {},
+        create: {
+            iso2: 'ZW',
+            name: 'Zimbabwe',
+            phoneCode: '+263',
+        },
+    });
+
+    // Check if province exists, otherwise create (no unique constraint on name alone usually, but assuming simple setup)
+    // For simplicity in seed, we'll findFirst or create
+    let province = await prisma.province.findFirst({
+        where: { countryId: country.id, name: 'Harare' }
+    });
+    if (!province) {
+        province = await prisma.province.create({
+            data: { countryId: country.id, name: 'Harare' }
+        });
+    }
+
+    let city = await prisma.city.findFirst({
+        where: { provinceId: province.id, name: 'Harare' }
+    });
+    if (!city) {
+        city = await prisma.city.create({
+            data: { countryId: country.id, provinceId: province.id, name: 'Harare' }
+        });
+    }
+
+    // Suburbs
+    const suburbsData = ['Borrowdale Brooke', 'Avondale'];
+    const suburbs = {};
+    for (const subName of suburbsData) {
+        let sub = await prisma.suburb.findFirst({
+            where: { cityId: city.id, name: subName }
+        });
+        if (!sub) {
+            sub = await prisma.suburb.create({
+                data: {
+                    countryId: country.id,
+                    provinceId: province.id,
+                    cityId: city.id,
+                    name: subName
+                }
+            });
+        }
+        suburbs[subName] = sub;
+    }
+
+    console.log('Locations synced');
+
+    // 3. Properties
     // Delete existing properties for these users to avoid duplicates
     await prisma.property.deleteMany({
         where: {
@@ -76,76 +124,76 @@ async function main() {
         }
     });
 
+    // Property 1: House in Borrowdale Brooke
     const prop1 = await prisma.property.create({
         data: {
             title: 'Modern 4-Bedroom House in Borrowdale Brooke',
             description: 'Luxurious family home with golf course views. Features include a modern kitchen, swimming pool, and solar power backup.',
             price: 450000,
             currency: 'USD',
-            type: 'RESIDENTIAL_SALE',
-            status: 'PUBLISHED',
+            type: 'HOUSE',
+            status: 'VERIFIED',
             landlordId: user.id,
             agentOwnerId: agent.id,
-            location: {
-                create: {
-                    address: '123 Golf Course Way',
-                    city: { create: { name: 'Harare' } },
-                    suburb: { create: { name: 'Borrowdale Brooke' } },
-                    country: { create: { name: 'Zimbabwe' } },
-                    coordinates: { lat: -17.75, lng: 31.13 },
-                },
-            },
-            attributes: {
-                create: {
-                    bedrooms: 4,
-                    bathrooms: 3.5,
-                    areaSqM: 500,
-                    parkingSpaces: 2,
-                    hasBorehole: true,
-                    hasSolarPower: true,
-                    powerPhase: 'THREE',
-                },
-            },
-            images: {
+
+            // Location Relations
+            countryId: country.id,
+            provinceId: province.id,
+            cityId: city.id,
+            suburbId: suburbs['Borrowdale Brooke'].id,
+
+            // Attributes (Direct fields)
+            bedrooms: 4,
+            bathrooms: 4, // Int in schema
+
+            // Media
+            media: {
                 create: [
-                    { url: 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80', caption: 'Exterior' },
-                    { url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80', caption: 'Living Room' },
+                    {
+                        url: 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80',
+                        kind: 'IMAGE',
+                        hasGps: false
+                    },
+                    {
+                        url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
+                        kind: 'IMAGE',
+                        hasGps: false
+                    },
                 ],
             },
         },
     });
 
+    // Property 2: Apartment in Avondale
     const prop2 = await prisma.property.create({
         data: {
             title: 'Cozy 2-Bedroom Apartment in Avondale',
             description: 'Secure garden flat close to shopping centers. Ideal for young professionals.',
             price: 1200,
             currency: 'USD',
-            type: 'RESIDENTIAL_RENTAL',
-            status: 'PUBLISHED',
+            type: 'APARTMENT',
+            status: 'VERIFIED',
             landlordId: user.id,
             agentOwnerId: agent.id,
-            location: {
-                create: {
-                    address: '45 King George Road',
-                    city: { connect: { name: 'Harare' } },
-                    suburb: { create: { name: 'Avondale' } },
-                    country: { connect: { name: 'Zimbabwe' } },
-                    coordinates: { lat: -17.80, lng: 31.04 },
-                },
-            },
-            attributes: {
-                create: {
-                    bedrooms: 2,
-                    bathrooms: 1,
-                    areaSqM: 90,
-                    parkingSpaces: 1,
-                    hasBorehole: true,
-                },
-            },
-            images: {
+
+            // Location Relations
+            countryId: country.id,
+            provinceId: province.id,
+            cityId: city.id,
+            suburbId: suburbs['Avondale'].id,
+
+            // Attributes
+            bedrooms: 2,
+            bathrooms: 1,
+
+            // Media
+            media: {
                 create: [
-                    { url: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80', caption: 'Interior' },
+                    {
+                        url: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
+                        kind: 'IMAGE',
+                        hasGps: false
+                    },
                 ],
             },
         },
