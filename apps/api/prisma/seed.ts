@@ -1,5 +1,9 @@
 import { PrismaClient, PropertyStatus, PropertyType } from '@prisma/client';
-import { PowerPhase } from '../src/common/enums';
+
+enum PowerPhase {
+    SINGLE = 'SINGLE',
+    THREE = 'THREE',
+}
 
 const prisma = new PrismaClient();
 
