@@ -43,7 +43,13 @@ export function LandingHero({ cards }: { cards: FloatingHeroCard[] }) {
             PropAd pairs cinematic imagery with intelligent search so every listing feels personal and every viewing is perfectly choreographed.
           </p>
         </div>
-        <form className="grid gap-4 rounded-full border border-white/30 bg-white/20 p-3 backdrop-blur-[10px] sm:grid-cols-[2fr_1.3fr_1.3fr_auto]">
+        <form
+          className="grid gap-4 rounded-full border border-white/30 bg-white/20 p-3 backdrop-blur-[10px] sm:grid-cols-[2fr_1.3fr_1.3fr_auto]"
+          onSubmit={(e) => {
+            e.preventDefault();
+            window.location.href = '/properties';
+          }}
+        >
           <div className="flex flex-col gap-1 rounded-full bg-white/5 px-4 py-2">
             <Label htmlFor="hero-location" className="text-[11px] uppercase tracking-widest text-white/70">
               Location
@@ -94,7 +100,7 @@ export function LandingHero({ cards }: { cards: FloatingHeroCard[] }) {
               </option>
             </select>
           </div>
-          <Button className="h-full rounded-full border-2 border-[#2EFEA5] bg-[linear-gradient(135deg,#009688,#2B6CB0)] px-8 text-base font-semibold text-white shadow-[0_18px_42px_-18px_rgba(0,150,136,0.65)] transition hover:shadow-[0_20px_48px_-18px_rgba(43,108,176,0.65)]">
+          <Button type="submit" className="h-full rounded-full border-2 border-[#2EFEA5] bg-[linear-gradient(135deg,#009688,#2B6CB0)] px-8 text-base font-semibold text-white shadow-[0_18px_42px_-18px_rgba(0,150,136,0.65)] transition hover:shadow-[0_20px_48px_-18px_rgba(43,108,176,0.65)]">
             Search
           </Button>
         </form>

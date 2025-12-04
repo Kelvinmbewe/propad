@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Bath, BedDouble, Ruler } from 'lucide-react';
 
@@ -64,7 +65,9 @@ export function LandingPropertyCard({
         </div>
         <div className="mt-auto flex items-center justify-between">
           <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">Curated by PropAd</span>
-          <span className="text-xs font-semibold text-slate-400">View listing →</span>
+          <Link href={`/properties/${property.id}`} className="text-xs font-semibold text-slate-400 hover:text-emerald-500">
+            View listing →
+          </Link>
         </div>
       </div>
     </motion.article>

@@ -49,7 +49,7 @@ export default function SignInPage() {
                     </h2>
                     <p className="mt-2 text-center text-sm text-slate-600 dark:text-slate-400">
                         Or{' '}
-                        <a href="#" className="font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400">
+                        <a href="/auth/signup" className="font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400">
                             create a new account
                         </a>
                     </p>

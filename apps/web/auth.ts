@@ -15,29 +15,6 @@ const config: NextAuthConfig = {
     signIn: '/auth/signin'
   },
   providers: [
-    CredentialsProvider({
-      name: 'Credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' }
-      },
-      async authorize(credentials) {
-        // For demo purposes, allow any login with "demo@propad.co.zw" / "demo"
-        if (credentials?.email === 'demo@propad.co.zw' && credentials?.password === 'demo') {
-          return {
-            id: 'demo-user-id',
-            name: 'Demo User',
-            email: 'demo@propad.co.zw',
-            role: 'USER'
-          };
-        }
-        return null;
-      }
-    }),
-    EmailProvider({
-      server: env.EMAIL_SERVER,
-      from: env.EMAIL_FROM
-    }),
     GoogleProvider({
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET
