@@ -13,7 +13,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status === 'unauthenticated') {
       const callbackUrl = params.get('callbackUrl') ?? '/dashboard';
-      router.replace(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+      router.replace(`/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
     }
   }, [status, params, router]);
 

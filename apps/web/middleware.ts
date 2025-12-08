@@ -4,7 +4,7 @@ import { auth } from '@/auth-edge';
 const protectedRoutes = ['/dashboard'];
 
 export default auth((request) => {
-  if (!protectedRoutes.some((route) => request.nextUrl.pathname.startsWith(route))) {
+  if (!protectedRoutes.some((route) => request.nextUrl.pathname.startsWith(route)) || request.nextUrl.pathname.startsWith('/auth')) {
     return NextResponse.next();
   }
 
