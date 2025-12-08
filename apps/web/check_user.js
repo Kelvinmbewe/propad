@@ -27,6 +27,19 @@ try {
     console.error("Error loading .env", e);
 }
 
+if (process.env.DATABASE_URL) {
+    console.log("DATABASE_URL found.");
+    // Log host only
+    try {
+        const url = new URL(process.env.DATABASE_URL);
+        console.log("DB Host:", url.hostname);
+    } catch (e) {
+        console.log("Invalid DB URL format");
+    }
+} else {
+    console.log("DATABASE_URL is MISSING");
+}
+
 const prisma = new PrismaClient();
 
 async function checkUser() {
