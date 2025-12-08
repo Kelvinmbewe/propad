@@ -11,6 +11,7 @@ import type { Role } from '@propad/sdk';
 import { compare } from 'bcryptjs';
 
 const config: NextAuthConfig = {
+  secret: env.NEXTAUTH_SECRET,
   adapter: PrismaAdapter(prisma),
   pages: {
     signIn: '/auth/signin'

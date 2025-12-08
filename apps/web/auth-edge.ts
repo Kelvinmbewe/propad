@@ -2,6 +2,7 @@ import NextAuth from 'next-auth';
 import type { Role } from '@propad/sdk';
 
 const config = {
+  secret: process.env.NEXTAUTH_SECRET ?? 'development-nextauth-secret-development',
   providers: [],
   session: {
     strategy: 'jwt' as const

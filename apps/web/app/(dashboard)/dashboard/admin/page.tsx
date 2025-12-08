@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { AuroraInlineForm, AuroraPipelineModal } from '@propad/ui';
 
 const sections = [
@@ -11,6 +12,16 @@ const sections = [
 export default function AdminHomePage() {
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
+      <Suspense fallback={<div>Loading admin console...</div>}>
+        <AdminContent />
+      </Suspense>
+    </div>
+  );
+}
+
+function AdminContent() {
+  return (
+    <>
       <header className="space-y-4">
         <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--aurora-color-border)] bg-[color:var(--aurora-color-elevated)]/80 px-4 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--aurora-color-text-subtle)]">
           Admin surfaces
@@ -49,6 +60,6 @@ export default function AdminHomePage() {
           ]}
         />
       </div>
-    </div>
+    </>
   );
 }
