@@ -15,7 +15,12 @@ try {
                 const key = parts[0].trim();
                 const value = parts.slice(1).join('=').trim().replace(/^"|"$/g, '');
                 if (key && value && !key.startsWith('#')) {
-                    process.env[key] = value;
+                    if (key === 'DATABASE_URL') {
+                        process.env[key] = value.replace('postgres:5432', 'localhost:5432');
+                        console.log("Patched DATABASE_URL to use localhost");
+                    } else {
+                        process.env[key] = value;
+                    }
                 }
             }
         });
