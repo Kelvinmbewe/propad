@@ -8,6 +8,7 @@ import { prisma } from '@/lib/prisma';
 import { env } from '@propad/config';
 import { sign } from 'jsonwebtoken';
 import type { Role } from '@propad/sdk';
+import { compare } from 'bcryptjs';
 
 const config: NextAuthConfig = {
   adapter: PrismaAdapter(prisma),
@@ -18,6 +19,41 @@ const config: NextAuthConfig = {
     GoogleProvider({
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET
+    }),
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          return null;
+        }
+
+        const user = await prisma.user.findUnique({
+          where: {
+            email: credentials.email as string
+          }
+        });
+
+        if (!user || !user.password) {
+          return null;
+        }
+
+        const isPasswordValid = await compare(credentials.password as string, user.password);
+
+        if (!isPasswordValid) {
+          return null;
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        };
+      }
     })
   ],
   session: {
