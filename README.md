@@ -62,6 +62,14 @@ Follow this order to boot the full environment after cloning or unpacking the re
 3. Apply database migrations via `npx prisma migrate dev` (or `docker compose exec api npx prisma migrate deploy` inside containers).
 4. Seed baseline data using `pnpm --filter @propad/scripts seed`.
 5. Launch Docker Compose from the `infrastructure/` directory or run the API and web workspaces individually using the commands above.
+6. **Important**: If you encounter login errors like "An error occurred", your local database schema might be out of sync. Run `npx prisma db push` from the root or `apps/web` to synchronize it.
+
+### Database Management
+
+- **Migration**: Use `npx prisma migrate dev` to create and apply migrations for schema changes.
+- **Push**: Use `npx prisma db push` to push the schema state to the database without creating a migration file. This is useful for rapid local development or fixing schema drift (e.g., missing columns).
+- **Studio**: Run `npx prisma studio` to view and edit database content via a GUI.
+
 
 ### Create a zipped demo artifact
 
@@ -79,6 +87,14 @@ Populate the database with baseline roles and demo data:
 ```bash
 pnpm --filter @propad/scripts seed
 ```
+
+**Default Credentials:**
+- **Admin**: `admin@propad.co.zw` / `Admin@123`
+- **Agents**: `agent1@propad.co.zw` through `agent30@propad.co.zw` / `PropAd123!`
+- **Landlords**: `landlord1@propad.co.zw` / `PropAd123!`
+- **Verifiers**: `verifier1@propad.co.zw` / `PropAd123!`
+
+*Note: The seed script uses `upsert` but does **not** update passwords for existing users. If you cannot log in with the default password, it may have been changed manually or seeded differently previously.*
 
 ### Testing
 
