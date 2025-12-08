@@ -1,1 +1,0 @@
-postgresql://kelvin:Kellzbiax95@localhost:5432/propad?schema=public
