@@ -60,6 +60,7 @@ const config: NextAuthConfig = {
   session: {
     strategy: 'jwt' as const
   },
+  trustHost: true,
   callbacks: {
     async jwt({ token, user }) {
       const mutableToken = token as Record<string, unknown>;

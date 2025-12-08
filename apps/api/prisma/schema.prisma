@@ -56,6 +56,8 @@ enum Currency {
 enum InvoicePurpose {
   DIRECT_AD
   PROMO_BOOST
+  VERIFICATION
+  RENT_PAYMENT
   OTHER
 }
 
@@ -107,6 +109,7 @@ enum PropertyStatus {
   RENTED
   SOLD
   ARCHIVED
+  OCCUPIED
 }
 
 enum MediaKind {
@@ -319,6 +322,20 @@ enum AdCampaignStatus {
   ENDED
 }
 
+enum ReviewerType {
+  PREVIOUS_TENANT
+  NEIGHBOR
+  EXTERNAL
+  ANONYMOUS
+}
+
+enum InterestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
 model Country {
   id        String     @id @default(cuid())
   iso2      String     @unique
@@ -416,6 +433,7 @@ model User {
   passwordHash String?
   kycStatus String?
   status    String?
+  isVerified Boolean @default(false)
   createdAt DateTime @default(now())
 
   agentProfile    AgentProfile?
@@ -445,6 +463,12 @@ model User {
   buyerInvoices        Invoice[]           @relation("InvoiceBuyerUser")
   paymentMethodStatusLogs PaymentMethodStatusLog[] @relation("PaymentMethodStatusActor")
   auditLogs            AuditLog[]          @relation("AuditLogActor")
+
+  // New relations
+  interestsCreated     Interest[]          @relation("UserInterests")
+  reviewsReceived      UserReview[]        @relation("Reviewee")
+  reviewsGiven         UserReview[]        @relation("Reviewer")
+  rentPayments         RentPayment[]       @relation("TenantRentPayments")
 }
 
 model Payout {
@@ -592,6 +616,10 @@ model Property {
   watchlists      Watchlist[]
   metricsDaily    MetricListingDaily[]
   shortLinks      ShortLink[]
+
+  // New relations
+  interests       Interest[]
+  rentPayments    RentPayment[]
 
   @@index([status])
   @@index([countryId])
@@ -1271,4 +1299,60 @@ model FeatureFlag {
   enabled     Boolean  @default(false)
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
+}
+
+// New Models
+
+model Interest {
+  id          String         @id @default(cuid())
+  propertyId  String
+  userId      String
+  status      InterestStatus @default(PENDING)
+  offerAmount Decimal?       @db.Decimal(12, 2)
+  message     String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  property    Property       @relation(fields: [propertyId], references: [id])
+  user        User           @relation("UserInterests", fields: [userId], references: [id])
+
+  @@unique([propertyId, userId])
+  @@index([propertyId])
+  @@index([userId])
+}
+
+model UserReview {
+  id          String       @id @default(cuid())
+  reviewerId  String
+  revieweeId  String
+  rating      Int
+  weight      Int          @default(1)
+  comment     String?
+  type        ReviewerType @default(EXTERNAL)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  reviewer    User         @relation("Reviewer", fields: [reviewerId], references: [id])
+  reviewee    User         @relation("Reviewee", fields: [revieweeId], references: [id])
+
+  @@index([revieweeId])
+  @@index([reviewerId])
+}
+
+model RentPayment {
+  id          String    @id @default(cuid())
+  propertyId  String
+  tenantId    String
+  amount      Decimal   @db.Decimal(12, 2)
+  currency    Currency
+  paidAt      DateTime
+  proofUrl    String?
+  isVerified  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  property    Property  @relation(fields: [propertyId], references: [id])
+  tenant      User      @relation("TenantRentPayments", fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([propertyId])
 }

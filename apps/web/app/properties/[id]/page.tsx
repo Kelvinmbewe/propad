@@ -1,18 +1,23 @@
 import { prisma } from '@/lib/prisma';
 import { LandingNav } from '@/components/landing-nav';
+import { InterestButton } from '@/components/interest-button';
+import { auth } from '@/auth';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Bath, BedDouble, MapPin, Ruler } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-async function getProperty(id: string) {
+async function getProperty(id: string, userId?: string) {
     const property = await prisma.property.findUnique({
         where: { id },
         include: {
             suburb: true,
             city: true,
-            media: true
+            media: true,
+            interests: userId ? {
+                where: { userId }
+            } : false
         }
     });
 
@@ -23,12 +28,14 @@ async function getProperty(id: string) {
         title: property.title || `${property.bedrooms} Bed ${property.type} in ${property.suburb?.name || 'Harare'}`,
         location: `${property.suburb?.name || 'Harare'}, ${property.city?.name || 'Zimbabwe'}`,
         imageUrl: property.media[0]?.url || 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80',
-        price: Number(property.price)
+        price: Number(property.price),
+        isInterested: property.interests && property.interests.length > 0
     };
 }
 
 export default async function PropertyDetailsPage({ params }: { params: { id: string } }) {
-    const property: any = await getProperty(params.id);
+    const session = await auth();
+    const property: any = await getProperty(params.id, session?.user?.id);
 
     if (!property) {
         notFound();
@@ -88,15 +95,7 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
                             </div>
                         </div>
 
-                        <div className="rounded-xl border border-slate-200 p-6">
-                            <h3 className="text-lg font-bold text-slate-900">Interested?</h3>
-                            <p className="mt-2 text-sm text-slate-500">
-                                Contact our agents to schedule a viewing.
-                            </p>
-                            <button className="mt-6 w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500">
-                                Contact Agent
-                            </button>
-                        </div>
+                        <InterestButton propertyId={property.id} isInterested={property.isInterested} />
                     </div>
                 </div>
             </main>
