@@ -15,6 +15,7 @@ const config = {
   experimental: {
     instrumentationHook: true
   },
+  transpilePackages: ['@propad/sdk', '@propad/ui'],
   images: {
     remotePatterns: [
       {
