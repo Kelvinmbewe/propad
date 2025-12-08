@@ -63,7 +63,7 @@ async function checkUser() {
             console.log('User NOT found');
         }
     } catch (e) {
-        console.error("Error querying user:", e);
+        console.error("Error querying user:", e.name, e.message);
     }
 }
 
