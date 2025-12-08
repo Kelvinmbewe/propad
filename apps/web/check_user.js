@@ -1,7 +1,10 @@
 
 const fs = require('fs');
 const path = require('path');
+const { PrismaClient } = require('@prisma/client');
+const { compare } = require('bcryptjs');
 
+// Load .env manualy
 try {
     const envPath = path.resolve(__dirname, '.env');
     if (fs.existsSync(envPath)) {
@@ -24,16 +27,30 @@ try {
     console.error("Error loading .env", e);
 }
 
-const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function checkUser() {
-    const user = await prisma.user.findUnique({
-        where: { email: 'admin@propad.co.zw' },
-    });
-    console.log('User found:', user);
-    if (user) {
-        console.log('Password hash:', user.passwordHash); // Just to check if it exists, not logging the actual hash would be better safety practice but here we need to know if it's null
+    const email = 'admin@propad.co.zw';
+    console.log(`Checking user: ${email}...`);
+    try {
+        const user = await prisma.user.findUnique({
+            where: { email },
+        });
+
+        if (user) {
+            console.log('User found:', user.email);
+            console.log('Role:', user.role);
+            console.log('Password hash exists:', !!user.passwordHash);
+
+            if (user.passwordHash) {
+                const isValid = await compare('password123', user.passwordHash);
+                console.log('Password check for "password123":', isValid);
+            }
+        } else {
+            console.log('User NOT found');
+        }
+    } catch (e) {
+        console.error("Error querying user:", e);
     }
 }
 
