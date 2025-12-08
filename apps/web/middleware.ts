@@ -9,9 +9,11 @@ export default auth((request) => {
   }
 
   if (!request.auth) {
-    const loginUrl = new URL('/auth/login', request.url);
-    loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
+    if (!request.auth) {
+      const loginUrl = new URL('/auth/signin', request.url);
+      loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
+      return NextResponse.redirect(loginUrl);
+    }
   }
 
   return NextResponse.next();
