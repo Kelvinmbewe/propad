@@ -37,11 +37,11 @@ const config: NextAuthConfig = {
           }
         });
 
-        if (!user || !user.password) {
+        if (!user || !user.passwordHash) {
           return null;
         }
 
-        const isPasswordValid = await compare(credentials.password as string, user.password);
+        const isPasswordValid = await compare(credentials.password as string, user.passwordHash);
 
         if (!isPasswordValid) {
           return null;
