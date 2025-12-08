@@ -1,0 +1,17 @@
+
+> @propad/web@0.1.0 build C:\projects\propad\apps\web
+> next build
+
+  ??? Next.js 14.2.3
+  - Environments: .env.local, .env
+  - Experiments (use with caution):
+    ?? instrumentationHook
+
+   Creating an optimized production build ...
+ ??? (pwa) Compiling for server...
+ ??? (pwa) Compiling for server...
+ ??? (pwa) Compiling for client (static)...
+ ??? (pwa) Service worker: C:\projects\propad\apps\web\public\sw.js
+ ??? (pwa)   URL: /sw.js
+ ??? (pwa)   Scope: /
+???ELIFECYCLE??? Command failed with exit code 1.

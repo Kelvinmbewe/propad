@@ -1,0 +1,61 @@
+
+> @propad/web@0.1.0 build C:\projects\propad\apps\web
+> next build
+
+  ▲ Next.js 14.2.3
+  - Environments: .env.local, .env
+  - Experiments (use with caution):
+    · instrumentationHook
+
+   Creating an optimized production build ...
+ ✓ (pwa) Compiling for server...
+ ✓ (pwa) Compiling for server...
+ ✓ (pwa) Compiling for client (static)...
+ ○ (pwa) Service worker: C:\projects\propad\apps\web\public\sw.js
+ ○ (pwa)   URL: /sw.js
+ ○ (pwa)   Scope: /
+Failed to compile.
+
+../../packages/sdk/src/sdk.ts
+Module not found: Can't resolve 'ky'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+../../packages/sdk/src/index.ts
+./components/property-feed.tsx
+
+../../packages/ui/src/primitives/label.tsx
+Module not found: Can't resolve '@radix-ui/react-label'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+../../packages/ui/src/index.ts
+./app/error.tsx
+
+../../packages/ui/src/primitives/toaster.tsx
+Module not found: Can't resolve 'react-hot-toast'
+
+https://nextjs.org/docs/messages/module-not-found
+
+../../packages/ui/src/utils.ts
+Module not found: Can't resolve 'tailwind-merge'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+../../packages/ui/src/primitives/badge.tsx
+
+../../packages/sdk/src/sdk.ts
+Module not found: Can't resolve 'ky'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+../../packages/sdk/src/index.ts
+./app/listings/page.tsx
+
+
+> Build failed because of webpack errors
+ ELIFECYCLE  Command failed with exit code 1.
