@@ -25,6 +25,9 @@ services:
     env_file:
       - ../apps/api/.env.example
       - .env
+    environment:
+      WEB_ORIGIN: http://localhost:3000
+      DATABASE_URL: postgresql://kelvin:Kellzbiax95@postgres:5432/propad?schema=public
     ports:
       - '3001:3001'
     depends_on:
