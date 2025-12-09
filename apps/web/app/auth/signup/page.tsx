@@ -19,7 +19,14 @@ export default function SignUpPage() {
         const formData = new FormData(event.currentTarget);
         const email = formData.get('email') as string;
         const password = formData.get('password') as string;
+        const confirmPassword = formData.get('confirmPassword') as string;
         const name = formData.get('name') as string;
+
+        if (password !== confirmPassword) {
+            setError('Passwords do not match');
+            setIsLoading(false);
+            return;
+        }
 
         try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/register`, {
@@ -98,6 +105,21 @@ export default function SignUpPage() {
                                 <Input
                                     id="password"
                                     name="password"
+                                    type="password"
+                                    autoComplete="new-password"
+                                    required
+                                    minLength={8}
+                                    className="block w-full appearance-none rounded-md border border-slate-300 px-3 py-2 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 sm:text-sm"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <Label htmlFor="confirmPassword">Confirm Password</Label>
+                            <div className="mt-1">
+                                <Input
+                                    id="confirmPassword"
+                                    name="confirmPassword"
                                     type="password"
                                     autoComplete="new-password"
                                     required

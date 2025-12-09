@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { submitInterest } from '@/app/actions/interest';
 import { Loader2 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface InterestButtonProps {
   propertyId: string;
@@ -10,10 +12,22 @@ interface InterestButtonProps {
 }
 
 export function InterestButton({ propertyId, isInterested = false }: InterestButtonProps) {
+  const { status } = useSession();
+  const router = useRouter();
+  const pathname = usePathname();
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  function handleInitialClick() {
+    if (status === 'unauthenticated') {
+      const callbackUrl = encodeURIComponent(pathname);
+      router.push(`/auth/signin?callbackUrl=${callbackUrl}`);
+      return;
+    }
+    setShowForm(true);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,7 +65,7 @@ export function InterestButton({ propertyId, isInterested = false }: InterestBut
           Express your interest to the landlord. You can also make an offer.
         </p>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={handleInitialClick}
           className="mt-6 w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500"
         >
           I'm Interested / Make Offer
