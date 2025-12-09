@@ -103,8 +103,8 @@ async function main() {
             description: 'Luxurious family home with golf course views. Features include a modern kitchen, swimming pool, and solar power backup.',
             price: 450000,
             currency: 'USD',
-            type: PropertyType.RESIDENTIAL_SALE,
-            status: PropertyStatus.PUBLISHED,
+            type: PropertyType.HOUSE,
+            status: PropertyStatus.VERIFIED,
             landlordId: user.id,
             agentOwnerId: agent.id,
             location: {
@@ -142,8 +142,8 @@ async function main() {
             description: 'Secure garden flat close to shopping centers. Ideal for young professionals.',
             price: 1200,
             currency: 'USD',
-            type: PropertyType.RESIDENTIAL_RENTAL,
-            status: PropertyStatus.PUBLISHED,
+            type: PropertyType.APARTMENT,
+            status: PropertyStatus.VERIFIED,
             landlordId: user.id,
             agentOwnerId: agent.id,
             location: {
@@ -180,7 +180,7 @@ async function main() {
 main()
     .catch((e) => {
         console.error(e);
-        process.exit(1);
+        throw e;
     })
     .finally(async () => {
         await prisma.$disconnect();
