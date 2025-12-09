@@ -28,32 +28,44 @@ const config: NextAuthConfig = {
         password: { label: 'Password', type: 'password' }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
+        try {
+          console.log('[Auth] Authorize called with email:', credentials?.email);
 
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email as string
+          if (!credentials?.email || !credentials?.password) {
+            console.log('[Auth] Missing credentials');
+            return null;
           }
-        });
 
-        if (!user || !user.passwordHash) {
+          const user = await prisma.user.findUnique({
+            where: {
+              email: credentials.email as string
+            }
+          });
+
+          console.log('[Auth] User found:', user ? 'yes' : 'no', user?.email);
+
+          if (!user || !user.passwordHash) {
+            console.log('[Auth] No user or no password hash');
+            return null;
+          }
+
+          const isPasswordValid = await compare(credentials.password as string, user.passwordHash);
+          console.log('[Auth] Password valid:', isPasswordValid);
+
+          if (!isPasswordValid) {
+            return null;
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role
+          };
+        } catch (error) {
+          console.error('[Auth] Authorize error:', error);
           return null;
         }
-
-        const isPasswordValid = await compare(credentials.password as string, user.passwordHash);
-
-        if (!isPasswordValid) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role
-        };
       }
     })
   ],
