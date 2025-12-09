@@ -32,7 +32,8 @@
     "src/**/*",
     "test/**/*",
     "vitest.config.ts",
-    "eslint.config.mjs"
+    "eslint.config.mjs",
+    "prisma/**/*"
   ],
   "exclude": [
     "node_modules"
