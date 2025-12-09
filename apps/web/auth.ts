@@ -76,22 +76,29 @@ const config: NextAuthConfig = {
   trustHost: true,
   callbacks: {
     async jwt({ token, user }) {
-      const mutableToken = token as Record<string, unknown>;
+      try {
+        console.log('[Auth] JWT callback called, user:', user?.email);
+        const mutableToken = token as Record<string, unknown>;
 
-      if (user) {
-        const userData = user as { role?: Role; id?: string };
-        mutableToken.role = userData.role ?? (mutableToken.role as Role | undefined) ?? 'USER';
-        mutableToken.userId = userData.id ?? mutableToken.sub ?? mutableToken.userId;
+        if (user) {
+          const userData = user as { role?: Role; id?: string };
+          mutableToken.role = userData.role ?? (mutableToken.role as Role | undefined) ?? 'USER';
+          mutableToken.userId = userData.id ?? mutableToken.sub ?? mutableToken.userId;
+        }
+
+        const subject = (mutableToken.sub as string | undefined) ?? (mutableToken.userId as string | undefined);
+        const role = (mutableToken.role as Role | undefined) ?? 'USER';
+
+        if (subject) {
+          mutableToken.apiAccessToken = sign({ sub: subject, role }, env.JWT_SECRET, { expiresIn: '15m' });
+        }
+
+        console.log('[Auth] JWT callback success, subject:', subject);
+        return mutableToken;
+      } catch (error) {
+        console.error('[Auth] JWT callback error:', error);
+        throw error;
       }
-
-      const subject = (mutableToken.sub as string | undefined) ?? (mutableToken.userId as string | undefined);
-      const role = (mutableToken.role as Role | undefined) ?? 'USER';
-
-      if (subject) {
-        mutableToken.apiAccessToken = sign({ sub: subject, role }, env.JWT_SECRET, { expiresIn: '15m' });
-      }
-
-      return mutableToken;
     },
     async session({ session, token }) {
       const tokenData = token as Record<string, unknown>;
