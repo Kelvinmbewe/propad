@@ -21,25 +21,18 @@ export default function SignInPage() {
         const password = formData.get('password') as string;
 
         try {
-            const result = await signIn('credentials', {
+            // Use redirect to let NextAuth handle the flow natively
+            await signIn('credentials', {
                 email,
                 password,
-                redirect: false
+                callbackUrl: '/',
+                redirect: true
             });
-
-            console.log('SignIn result:', result);
-
-            if (result?.error) {
-                console.log('SignIn error:', result.error);
-                setError('Invalid credentials');
-            } else {
-                router.push('/');
-                router.refresh();
-            }
+            // If we get here, something went wrong with redirect
         } catch (error) {
+            // NextAuth v5 throws on failed auth even with redirect:true
             console.error('SignIn exception:', error);
-            setError('An error occurred. Please try again.');
-        } finally {
+            setError('Invalid credentials');
             setIsLoading(false);
         }
     }
