@@ -27,13 +27,17 @@ export default function SignInPage() {
                 redirect: false
             });
 
+            console.log('SignIn result:', result);
+
             if (result?.error) {
+                console.log('SignIn error:', result.error);
                 setError('Invalid credentials');
             } else {
                 router.push('/');
                 router.refresh();
             }
         } catch (error) {
+            console.error('SignIn exception:', error);
             setError('An error occurred. Please try again.');
         } finally {
             setIsLoading(false);
