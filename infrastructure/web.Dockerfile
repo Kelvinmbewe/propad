@@ -1,6 +1,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 ENV PRISMA_SKIP_AUTOINSTALL=true
+ENV NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 
 RUN apk add --no-cache openssl
 
