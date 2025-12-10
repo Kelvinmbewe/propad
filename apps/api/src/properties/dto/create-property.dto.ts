@@ -20,6 +20,7 @@ const commercialFieldsSchema = z
   .strict();
 
 const basePropertySchema = z.object({
+  title: z.string().min(1).max(200),
   landlordId: z.string().cuid().optional(),
   agentOwnerId: z.string().cuid().optional(),
   type: z.nativeEnum(PropertyType),
