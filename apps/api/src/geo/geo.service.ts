@@ -41,11 +41,13 @@ export interface SearchResult<T extends GeoLevel> {
   parentId?: string;
   provinceId?: string;
   countryId?: string;
+  cityName?: string;
+  provinceName?: string;
 }
 
 @Injectable()
 export class GeoService implements OnModuleInit {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   listPending({ level, status, search }: ListPendingGeoDto) {
     return this.prisma.pendingGeo.findMany({
@@ -346,7 +348,7 @@ export class GeoService implements OnModuleInit {
         throw new BadRequestException('Invalid pendingGeoId');
       }
 
-       if (pendingGeo.level === GeoLevel.PROVINCE) {
+      if (pendingGeo.level === GeoLevel.PROVINCE) {
         if (!pendingGeo.parentId) {
           throw new BadRequestException('Pending province requires a country parent');
         }

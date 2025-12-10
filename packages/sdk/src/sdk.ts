@@ -248,6 +248,15 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           })
           .json<GeoSearchResult[]>()
           .then((data) => GeoSearchResultSchema.array().parse(data)),
+      createPending: async (payload: {
+        level: 'SUBURB' | 'CITY' | 'PROVINCE';
+        proposedName: string;
+        parentId?: string;
+      }) =>
+        client
+          .post('geo/pending', { json: payload })
+          .json<PendingGeo>()
+          .then((data) => PendingGeoSchema.parse(data)),
     },
     ads: {
       logImpression: async (payload: {
