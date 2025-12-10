@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 import { AuroraThemeToggle, Button, cn } from '@propad/ui';
 
 const navLinks = [
@@ -12,6 +13,7 @@ const navLinks = [
 
 export function LandingNav() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const { data: session, status } = useSession();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 24);
@@ -53,22 +55,58 @@ export function LandingNav() {
                 : 'border-white/20 bg-white/10 text-white hover:border-emerald-200 hover:text-emerald-200'
             )}
           />
-          <Link href="/auth/signin">
+          {status === 'loading' ? (
             <Button
               variant="outline"
+              disabled
               className={cn(
                 'hidden rounded-full shadow-[0_0_0_rgba(0,0,0,0)] transition md:inline-flex',
                 isScrolled
-                  ? 'border-slate-200 bg-white text-slate-900 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600'
-                  : 'border-white/30 bg-white/10 text-white hover:border-emerald-300 hover:bg-emerald-400/20 hover:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]'
+                  ? 'border-slate-200 bg-white text-slate-900'
+                  : 'border-white/30 bg-white/10 text-white'
               )}
             >
-              Sign in
+              Loading...
             </Button>
-          </Link>
+          ) : session ? (
+            <>
+              <span className={cn(
+                'hidden text-sm md:inline',
+                isScrolled ? 'text-slate-600' : 'text-white/80'
+              )}>
+                {session.user?.name || session.user?.email}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => signOut({ callbackUrl: '/' })}
+                className={cn(
+                  'hidden rounded-full shadow-[0_0_0_rgba(0,0,0,0)] transition md:inline-flex',
+                  isScrolled
+                    ? 'border-slate-200 bg-white text-slate-900 hover:border-red-200 hover:bg-red-50 hover:text-red-600'
+                    : 'border-white/30 bg-white/10 text-white hover:border-red-300 hover:bg-red-400/20'
+                )}
+              >
+                Sign out
+              </Button>
+            </>
+          ) : (
+            <Link href="/auth/signin">
+              <Button
+                variant="outline"
+                className={cn(
+                  'hidden rounded-full shadow-[0_0_0_rgba(0,0,0,0)] transition md:inline-flex',
+                  isScrolled
+                    ? 'border-slate-200 bg-white text-slate-900 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600'
+                    : 'border-white/30 bg-white/10 text-white hover:border-emerald-300 hover:bg-emerald-400/20 hover:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]'
+                )}
+              >
+                Sign in
+              </Button>
+            </Link>
+          )}
           <Link href="/dashboard">
             <Button className="rounded-full bg-emerald-500 px-6 text-white shadow-[0_15px_45px_-20px_rgba(16,185,129,0.85)] transition hover:bg-emerald-400 hover:shadow-[0_18px_48px_-18px_rgba(45,212,191,0.85)]">
-              List a property
+              {session ? 'Dashboard' : 'List a property'}
             </Button>
           </Link>
         </div>
@@ -76,3 +114,4 @@ export function LandingNav() {
     </header>
   );
 }
+
