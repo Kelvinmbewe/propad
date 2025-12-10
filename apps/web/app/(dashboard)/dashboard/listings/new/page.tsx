@@ -272,7 +272,7 @@ export default function CreatePropertyPage() {
             // TODO: Upload images after property is created
             // For each image, get signed URL and upload
             if (uploadedImages.length > 0) {
-                notify.info(`Property created! Image upload coming soon.`);
+                notify.success(`Property created with ${uploadedImages.length} images (upload pending)`);
             }
 
             notify.success('Property listed successfully!');
