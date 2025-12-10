@@ -564,7 +564,9 @@ export const GeoSearchResultSchema = z.object({
   level: z.string(),
   parentId: z.string().nullish(),
   provinceId: z.string().nullish(),
-  countryId: z.string().nullish()
+  countryId: z.string().nullish(),
+  cityName: z.string().nullish(),
+  provinceName: z.string().nullish()
 });
 
 export type DashboardMetrics = z.infer<typeof DashboardMetricsSchema>;

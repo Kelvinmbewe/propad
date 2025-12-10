@@ -117,12 +117,14 @@ export class GeoService implements OnModuleInit {
       this.prisma.city.findMany({
         where: { name: { contains: normalized, mode: 'insensitive' } },
         orderBy: { name: 'asc' },
-        take: 10
+        take: 10,
+        include: { province: true }
       }),
       this.prisma.suburb.findMany({
         where: { name: { contains: normalized, mode: 'insensitive' } },
         orderBy: { name: 'asc' },
-        take: 10
+        take: 15,
+        include: { city: true, province: true }
       })
     ]);
 
@@ -147,7 +149,8 @@ export class GeoService implements OnModuleInit {
         level: GeoLevel.CITY,
         parentId: city.provinceId,
         provinceId: city.provinceId,
-        countryId: city.countryId
+        countryId: city.countryId,
+        provinceName: city.province?.name
       });
     }
     for (const suburb of suburbs) {
@@ -157,7 +160,9 @@ export class GeoService implements OnModuleInit {
         level: GeoLevel.SUBURB,
         parentId: suburb.cityId,
         provinceId: suburb.provinceId,
-        countryId: suburb.countryId
+        countryId: suburb.countryId,
+        cityName: suburb.city?.name,
+        provinceName: suburb.province?.name
       });
     }
 
