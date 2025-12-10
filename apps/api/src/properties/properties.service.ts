@@ -477,6 +477,7 @@ export class PropertiesService {
 
     const property = await this.prisma.property.create({
       data: {
+        title: dto.title,
         landlordId,
         agentOwnerId,
         type: dto.type,
