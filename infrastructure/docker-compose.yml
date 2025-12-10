@@ -28,6 +28,7 @@ services:
     environment:
       WEB_ORIGIN: http://localhost:3000
       DATABASE_URL: postgresql://kelvin:Kellzbiax95@postgres:5432/propad?schema=public
+      JWT_SECRET: this-is-a-very-secure-secret-that-is-at-least-32-chars-long
     ports:
       - '3001:3001'
     depends_on:
