@@ -22,6 +22,11 @@ const PROPERTY_TYPES = [
     { value: 'FARM', label: 'Farm' },
 ] as const;
 
+const LISTING_INTENTS = [
+    { value: 'FOR_SALE', label: 'For Sale' },
+    { value: 'TO_RENT', label: 'To Rent' },
+] as const;
+
 interface LocationSelection {
     countryId?: string;
     provinceId?: string;
@@ -250,8 +255,10 @@ export default function CreatePropertyPage() {
         const description = formData.get('description') as string;
         const price = Number(formData.get('price'));
         const type = formData.get('type') as string;
+        const listingIntent = formData.get('listingIntent') as string;
         const bedrooms = Number(formData.get('bedrooms')) || undefined;
         const bathrooms = Number(formData.get('bathrooms')) || undefined;
+        const areaSqm = Number(formData.get('areaSqm')) || undefined;
 
         try {
             const property = await sdk.properties.create({
@@ -260,6 +267,7 @@ export default function CreatePropertyPage() {
                 price,
                 currency: 'USD',
                 type,
+                listingIntent,
                 countryId: selectedLocation.countryId,
                 provinceId: selectedLocation.provinceId,
                 cityId: selectedLocation.cityId,
@@ -267,6 +275,7 @@ export default function CreatePropertyPage() {
                 pendingGeoId: selectedLocation.pendingGeoId,
                 bedrooms,
                 bathrooms,
+                areaSqm,
             });
 
             // TODO: Upload images after property is created
@@ -384,7 +393,21 @@ export default function CreatePropertyPage() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <Label htmlFor="listingIntent">Listing Type</Label>
+                        <select
+                            id="listingIntent"
+                            name="listingIntent"
+                            required
+                            className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                        >
+                            {LISTING_INTENTS.map(li => (
+                                <option key={li.value} value={li.value}>{li.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
                     <div>
                         <Label htmlFor="price">Price (USD)</Label>
                         <Input id="price" name="price" type="number" required min="0" className="mt-1" />
@@ -589,7 +612,7 @@ export default function CreatePropertyPage() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-3 gap-6">
                     <div>
                         <Label htmlFor="bedrooms">Bedrooms</Label>
                         <Input id="bedrooms" name="bedrooms" type="number" min="0" className="mt-1" />
@@ -598,6 +621,11 @@ export default function CreatePropertyPage() {
                     <div>
                         <Label htmlFor="bathrooms">Bathrooms</Label>
                         <Input id="bathrooms" name="bathrooms" type="number" min="0" className="mt-1" />
+                    </div>
+
+                    <div>
+                        <Label htmlFor="areaSqm">Area (m²)</Label>
+                        <Input id="areaSqm" name="areaSqm" type="number" min="0" step="0.01" className="mt-1" placeholder="e.g. 150" />
                     </div>
                 </div>
 

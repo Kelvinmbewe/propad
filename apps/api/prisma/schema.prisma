@@ -336,6 +336,11 @@ enum InterestStatus {
   WITHDRAWN
 }
 
+enum ListingIntent {
+  FOR_SALE
+  TO_RENT
+}
+
 model Country {
   id        String     @id @default(cuid())
   iso2      String     @unique
@@ -576,10 +581,12 @@ model Property {
   lat            Float?
   lng            Float?
   type           PropertyType
+  listingIntent  ListingIntent?
   currency       Currency
   price          Decimal             @db.Decimal(12, 2)
   bedrooms       Int?
   bathrooms      Int?
+  areaSqm        Float?
   amenities      String[]            @default([])
   furnishing     PropertyFurnishing  @default(NONE)
   availability   PropertyAvailability @default(IMMEDIATE)
