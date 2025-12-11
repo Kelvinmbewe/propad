@@ -248,6 +248,16 @@ export default function CreatePropertyPage() {
             return;
         }
 
+        if (selectedLocation.suburbId && !selectedLocation.cityId) {
+            notify.error('Invalid location: Suburb requires a City. Please re-select the location.');
+            return;
+        }
+
+        if (selectedLocation.cityId && !selectedLocation.provinceId) {
+            notify.error('Invalid location: City requires a Province. Please re-select the location.');
+            return;
+        }
+
         setIsLoading(true);
 
         const formData = new FormData(event.currentTarget);
@@ -301,7 +311,8 @@ export default function CreatePropertyPage() {
             router.refresh();
         } catch (error) {
             console.error('Create property error:', error);
-            notify.error('Failed to list property. Please try again.');
+            const message = error instanceof Error ? error.message : 'Failed to list property';
+            notify.error(message);
         } finally {
             setIsLoading(false);
         }
