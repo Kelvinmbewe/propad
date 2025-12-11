@@ -29,7 +29,9 @@ async function getProperty(id: string, userId?: string) {
         location: `${property.suburb?.name || 'Harare'}, ${property.city?.name || 'Zimbabwe'}`,
         imageUrl: property.media[0]?.url || 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80',
         price: Number(property.price),
-        isInterested: property.interests && property.interests.length > 0
+        isInterested: property.interests && property.interests.length > 0,
+        listingIntent: (property as any).listingIntent ?? 'FOR_SALE',
+        areaSqm: (property as any).areaSqm ?? null
     };
 }
 
