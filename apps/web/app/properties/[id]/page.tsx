@@ -57,8 +57,9 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-0 left-0 p-8 text-white">
                             <div className="mb-2 flex items-center gap-2">
-                                <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-bold uppercase tracking-wider">
-                                    For Sale
+                                <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${property.listingIntent === 'TO_RENT' ? 'bg-blue-500' : 'bg-emerald-500'
+                                    }`}>
+                                    {property.listingIntent === 'TO_RENT' ? 'For Rent' : 'For Sale'}
                                 </span>
                                 <span className="flex items-center gap-1 text-sm font-medium">
                                     {/* MapPin removed for debugging */}
@@ -67,7 +68,7 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
                             </div>
                             <h1 className="text-3xl font-bold sm:text-4xl">{property.title}</h1>
                             <p className="mt-2 text-2xl font-semibold text-emerald-400">
-                                ${property.price.toLocaleString()}
+                                ${property.price.toLocaleString()}{property.listingIntent === 'TO_RENT' ? '/month' : ''}
                             </p>
                         </div>
                     </div>
@@ -90,7 +91,7 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
                                 </div>
                                 <div className="flex flex-col items-center justify-center gap-2 text-slate-600">
                                     <Ruler className="h-6 w-6 text-emerald-600" />
-                                    <span className="font-semibold">-- m²</span>
+                                    <span className="font-semibold">{property.areaSqm ? `${property.areaSqm} m²` : '-- m²'}</span>
                                 </div>
                             </div>
                         </div>
