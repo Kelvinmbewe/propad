@@ -73,12 +73,12 @@ export default function EditPropertyPage() {
             setFormData({
                 title: property.title || '',
                 description: property.description || '',
-                price: property.price?.toString() || '',
+                price: String(property.price ?? ''),
                 type: property.type || 'HOUSE',
                 listingIntent: (property as any).listingIntent || 'FOR_SALE',
-                bedrooms: property.bedrooms?.toString() || '',
-                bathrooms: property.bathrooms?.toString() || '',
-                areaSqm: (property as any).areaSqm?.toString() || '',
+                bedrooms: String(property.bedrooms ?? ''),
+                bathrooms: String(property.bathrooms ?? ''),
+                areaSqm: String((property as any).areaSqm ?? ''),
             });
 
             // Set location
