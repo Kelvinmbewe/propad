@@ -126,15 +126,13 @@ export class PropertiesController {
   }
 
   @Get(':id/messages')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   listMessages(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.propertiesService.listMessages(id, req.user);
   }
 
   @Post(':id/messages')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.LANDLORD, Role.AGENT)
+  @UseGuards(JwtAuthGuard)
   sendMessage(
     @Param('id') id: string,
     @Req() req: AuthenticatedRequest,
