@@ -46,6 +46,7 @@ function buildLocation(suburb: SuburbEntry, lat: number, lng: number) {
 export const mockProperties: Property[] = [
   {
     id: 'prop-harare-001',
+    title: '3-Bedroom Apartment in Borrowdale',
     type: 'APARTMENT',
     currency: 'USD',
     price: 480,
@@ -84,6 +85,7 @@ export const mockProperties: Property[] = [
   },
   {
     id: 'prop-harare-002',
+    title: '4-Bedroom Townhouse in Helensvale',
     type: 'TOWNHOUSE',
     currency: 'USD',
     price: 520,
@@ -122,6 +124,7 @@ export const mockProperties: Property[] = [
   },
   {
     id: 'prop-harare-003',
+    title: '2-Bedroom Cottage in Mt Pleasant',
     type: 'COTTAGE',
     currency: 'USD',
     price: 380,
@@ -160,6 +163,7 @@ export const mockProperties: Property[] = [
   },
   {
     id: 'prop-harare-004',
+    title: 'Commercial Office in Avondale',
     type: 'COMMERCIAL_OFFICE',
     currency: 'USD',
     price: 1850,

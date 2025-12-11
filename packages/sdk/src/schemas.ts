@@ -120,9 +120,13 @@ const PropertyLocationSchema = z.object({
 export const PropertySchema = z
   .object({
     id: z.string(),
+    title: z.string(),
     type: z.string(),
+    listingIntent: z.string().nullish(),
     currency: z.string(),
     price: decimalToNumber,
+    areaSqm: z.number().nullish(),
+    status: z.string().optional(),
     countryId: z.string().nullish(),
     provinceId: z.string().nullish(),
     cityId: z.string().nullish(),
