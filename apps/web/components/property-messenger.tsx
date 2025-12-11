@@ -35,9 +35,11 @@ export function PropertyMessenger({ propertyId, landlordId, agentOwnerId, classN
 
   const userId = session?.user?.id;
   const role = session?.user?.role;
-  const isLandlord = role === 'LANDLORD' && landlordId && landlordId === userId;
+  // Allow access if user is the landlord (owner) of the property regardless of current role
+  const isOwner = landlordId && landlordId === userId;
+  const isLandlord = isOwner || (role === 'LANDLORD' && landlordId === userId);
   const isAgent = role === 'AGENT' && agentOwnerId && agentOwnerId === userId;
-  const isParticipant = Boolean((sdk && userId && (isLandlord || isAgent)) ?? false);
+  const isParticipant = Boolean((sdk && userId && (isOwner || isLandlord || isAgent)) ?? false);
   const hasAssignedAgent = Boolean(agentOwnerId);
 
   const { data: messages, isLoading, isError } = useQuery({

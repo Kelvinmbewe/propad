@@ -254,12 +254,20 @@ export function PropertyManagement() {
               />
             </CardContent>
             <CardFooter className="flex flex-wrap items-center justify-between gap-2">
-              <Button
-                onClick={() => handleAssign(property)}
-                disabled={assignMutation.isPending}
-              >
-                {assignMutation.isPending ? 'Assigning…' : 'Assign verified agent'}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => window.location.href = `/properties/${property.id}`}
+                >
+                  View Listing
+                </Button>
+                <Button
+                  onClick={() => handleAssign(property)}
+                  disabled={assignMutation.isPending}
+                >
+                  {assignMutation.isPending ? 'Assigning…' : 'Assign verified agent'}
+                </Button>
+              </div>
               <p className="text-xs text-neutral-500">Keep conversations here to reduce WhatsApp leakage.</p>
             </CardFooter>
           </Card>

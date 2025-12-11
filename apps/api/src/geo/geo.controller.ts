@@ -27,7 +27,7 @@ interface AuthenticatedRequest {
 
 @Controller('geo')
 export class GeoController {
-  constructor(private readonly geoService: GeoService) {}
+  constructor(private readonly geoService: GeoService) { }
 
   @Get('countries')
   listCountries() {
@@ -65,7 +65,7 @@ export class GeoController {
 
   @Post('pending')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @Roles(Role.USER, Role.AGENT, Role.LANDLORD, Role.ADMIN)
   createPending(
     @Req() req: AuthenticatedRequest,
     @Body() dto: CreatePendingGeoDto
