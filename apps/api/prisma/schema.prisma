@@ -788,15 +788,19 @@ model AppConfig {
 }
 
 model PropertyMedia {
-  id         String  @id @default(cuid())
+  id         String    @id @default(cuid())
   propertyId String
   url        String
   kind       MediaKind
+  order      Int       @default(0)
   exifJson   Json?
   hasGps     Boolean
   shotAt     DateTime?
+  createdAt  DateTime  @default(now())
 
-  property Property @relation(fields: [propertyId], references: [id])
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, order])
 }
 
 model Verification {

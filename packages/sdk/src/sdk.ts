@@ -213,6 +213,13 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .post(`properties/${id}/messages`, { json: payload })
           .json<PropertyMessage>()
           .then((data) => PropertyMessageSchema.parse(data)),
+      update: async (id: string, payload: unknown) =>
+        client
+          .patch(`properties/${id}`, { json: payload })
+          .json<Property>()
+          .then((data) => PropertySchema.parse(data)),
+      delete: async (id: string) =>
+        client.delete(`properties/${id}`).json<{ success: boolean }>(),
     },
     geo: {
       suburbs: async () =>
