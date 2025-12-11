@@ -458,6 +458,28 @@ export class PropertiesService {
     });
   }
 
+  async findById(id: string) {
+    const property = await this.prisma.property.findUnique({
+      where: { id },
+      include: {
+        country: true,
+        province: true,
+        city: true,
+        suburb: true,
+        pendingGeo: true,
+        media: true,
+        landlord: { select: { id: true, name: true, email: true } },
+        agentOwner: { select: { id: true, name: true, email: true } }
+      }
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property not found');
+    }
+
+    return this.attachLocation(property);
+  }
+
   async create(dto: CreatePropertyDto, actor: AuthContext) {
     const landlordId = dto.landlordId ?? (actor.role === Role.LANDLORD ? actor.userId : undefined);
     const agentOwnerId = dto.agentOwnerId ?? (actor.role === Role.AGENT ? actor.userId : undefined);
