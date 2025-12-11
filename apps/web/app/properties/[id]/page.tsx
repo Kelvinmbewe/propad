@@ -115,6 +115,7 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
                             )}
                         </div>
                     </div>
+                </div>
             </main>
         </div>
     );
