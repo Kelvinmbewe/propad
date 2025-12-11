@@ -769,10 +769,26 @@ export class PropertiesService {
 
   async listMessages(id: string, actor: AuthContext) {
     const property = await this.getPropertyOrThrow(id);
-    this.ensureConversationAccess(property, actor);
+
+    // Check if actor is owner or agent
+    const isOwner = property.landlordId === actor.userId || property.agentOwnerId === actor.userId;
+    const isAdmin = actor.role === Role.ADMIN;
+
+    let where: Prisma.PropertyMessageWhereInput = { propertyId: id };
+
+    if (!isOwner && !isAdmin) {
+      // Regular users only see their own messages
+      where = {
+        propertyId: id,
+        OR: [
+          { senderId: actor.userId },
+          { recipientId: actor.userId }
+        ]
+      };
+    }
 
     const messages = (await this.prisma.propertyMessage.findMany({
-      where: { propertyId: id },
+      where,
       orderBy: { createdAt: 'asc' },
       include: {
         sender: { select: { id: true, name: true, role: true } },
@@ -800,16 +816,33 @@ export class PropertiesService {
 
   async sendMessage(id: string, dto: CreateMessageDto, actor: AuthContext) {
     const property = await this.getPropertyOrThrow(id);
-    this.ensureConversationAccess(property, actor);
+
+    // Determine recipient
+    let recipientId: string;
+
+    const isOwner = property.landlordId === actor.userId;
+    const isAgent = property.agentOwnerId === actor.userId;
+
+    if (isOwner || isAgent) {
+      // Start of rudimentary reply logic:
+      // If the owner sends a message, existing logic assumes checking strict landlord-agent flow.
+      // Without recipientId in DTO, we can't properly reply to a specific tenant thread yet.
+      // Fallback to existing logic (Landlord <-> Agent) for now.
+      recipientId = isOwner ? (property.agentOwnerId ?? property.landlordId!) : property.landlordId!;
+    } else {
+      // Interested party messaging the owner (Agent preferred, else Landlord)
+      recipientId = property.agentOwnerId ?? property.landlordId ?? '';
+    }
+
+    if (!recipientId) {
+      throw new BadRequestException('Cannot send message: no recipient found');
+    }
 
     const message = await this.prisma.propertyMessage.create({
       data: {
         propertyId: id,
         senderId: actor.userId,
-        recipientId:
-          actor.userId === property.landlordId || actor.userId === property.agentOwnerId
-            ? (messagesRecipient(property, actor.userId) as string)
-            : (property.agentOwnerId ?? property.landlordId)!,
+        recipientId,
         body: dto.body
       },
       include: {

@@ -39,8 +39,10 @@ export function PropertyMessenger({ propertyId, landlordId, agentOwnerId, classN
   const isOwner = landlordId && landlordId === userId;
   const isLandlord = isOwner || (role === 'LANDLORD' && landlordId === userId);
   const isAgent = role === 'AGENT' && agentOwnerId && agentOwnerId === userId;
-  const isParticipant = Boolean((sdk && userId && (isOwner || isLandlord || isAgent)) ?? false);
-  const hasAssignedAgent = Boolean(agentOwnerId);
+
+  // Any logged in user can chat
+  const isParticipant = Boolean(sdk && userId);
+  const isInternalChat = isLandlord || isAgent;
 
   const { data: messages, isLoading, isError } = useQuery({
     queryKey: ['property', propertyId, 'messages'],
@@ -80,16 +82,22 @@ export function PropertyMessenger({ propertyId, landlordId, agentOwnerId, classN
     sendMutation.mutate(trimmed);
   };
 
-  const canSend = isAgent || (isLandlord && hasAssignedAgent);
+  const canSend = true; // Anyone authenticated can send messages now
+
+  const getTitle = () => {
+    if (isOwner || isLandlord) return 'Chat (Owner View)';
+    if (isAgent) return 'Chat (Agent View)';
+    return 'Chat with Property Owner';
+  };
 
   return (
     <div className={cn('space-y-4 rounded-lg border border-neutral-200 p-4', className)}>
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-neutral-900">
-          In-app chat with your {isLandlord ? 'agent' : 'landlord'}
+          {getTitle()}
         </h3>
-        {!hasAssignedAgent && isLandlord ? (
-          <span className="text-xs text-orange-600">Assign a verified agent to start chatting.</span>
+        {!agentOwnerId && isLandlord ? (
+          <span className="text-xs text-orange-600">No agent assigned.</span>
         ) : null}
       </div>
 
@@ -113,7 +121,10 @@ export function PropertyMessenger({ propertyId, landlordId, agentOwnerId, classN
                 >
                   {item.body}
                 </span>
-                <span className="text-xs text-neutral-500">{formatTimestamp(item.createdAt)}</span>
+                <span className="text-xs text-neutral-500">
+                  {item.sender?.name ? <span className="mr-1 font-medium">{isMine ? 'You' : item.sender.name}</span> : null}
+                  {formatTimestamp(item.createdAt)}
+                </span>
               </div>
             );
           })
@@ -126,11 +137,7 @@ export function PropertyMessenger({ propertyId, landlordId, agentOwnerId, classN
           onChange={(event) => setMessage(event.target.value)}
           rows={3}
           className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm focus:border-neutral-500 focus:outline-none"
-          placeholder={
-            canSend
-              ? 'Type your message to keep communications on PropAd'
-              : 'Assign a verified agent before starting an in-app chat'
-          }
+          placeholder="Type your message..."
           disabled={!canSend || sendMutation.isPending}
         />
         <div className="flex justify-end">
