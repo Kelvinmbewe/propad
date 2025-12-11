@@ -15,7 +15,8 @@ import {
 } from '@prisma/client';
 import { PowerPhase } from '../common/enums';
 import { createHmac, randomUUID } from 'crypto';
-import { extname } from 'path';
+import { extname, join, resolve } from 'path';
+import { mkdir, writeFile, unlink } from 'fs/promises';
 import { env } from '@propad/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -1110,20 +1111,18 @@ export class PropertiesService {
     const property = await this.getPropertyOrThrow(propertyId);
     this.ensureCanMutate(property, actor);
 
-    const fs = await import('fs/promises');
-    const path = await import('path');
-
     // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), 'uploads', 'properties', propertyId);
-    await fs.mkdir(uploadsDir, { recursive: true });
+    // Use resolve to get absolute path from project root
+    const uploadsDir = resolve('uploads', 'properties', propertyId);
+    await mkdir(uploadsDir, { recursive: true });
 
     // Generate unique filename
-    const extension = path.extname(file.filename).toLowerCase();
+    const extension = extname(file.filename).toLowerCase();
     const uniqueName = `${randomUUID()}${extension}`;
-    const filePath = path.join(uploadsDir, uniqueName);
+    const filePath = join(uploadsDir, uniqueName);
 
     // Write file to disk
-    await fs.writeFile(filePath, file.buffer);
+    await writeFile(filePath, file.buffer as unknown as Uint8Array);
 
     // Determine media kind
     const kind = file.mimetype.startsWith('video/') ? 'VIDEO' : 'IMAGE';
@@ -1171,10 +1170,9 @@ export class PropertiesService {
     // Try to delete local file if it's a local upload
     if (media.url.startsWith('/uploads/')) {
       try {
-        const fs = await import('fs/promises');
-        const path = await import('path');
-        const filePath = path.join(process.cwd(), media.url);
-        await fs.unlink(filePath);
+        // Construct path by removing leading slash from URL
+        const filePath = resolve(media.url.substring(1));
+        await unlink(filePath);
       } catch (error) {
         // File may not exist, continue with database deletion
       }

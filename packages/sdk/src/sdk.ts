@@ -220,6 +220,21 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .then((data) => PropertySchema.parse(data)),
       delete: async (id: string) =>
         client.delete(`properties/${id}`).json<{ success: boolean }>(),
+      uploadMedia: async (id: string, file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return client
+          .post(`properties/${id}/media/upload`, { body: formData })
+          .json<{ id: string; url: string; kind: string }>();
+      },
+      listMedia: async (id: string) =>
+        client
+          .get(`properties/${id}/media`)
+          .json<Array<{ id: string; url: string; kind: string }>>(),
+      deleteMedia: async (propertyId: string, mediaId: string) =>
+        client
+          .delete(`properties/${propertyId}/media/${mediaId}`)
+          .json<{ success: boolean }>(),
     },
     geo: {
       suburbs: async () =>

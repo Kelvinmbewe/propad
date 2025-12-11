@@ -8,8 +8,11 @@ import {
   Post,
   Query,
   Req,
-  UseGuards
+  UploadedFile,
+  UseGuards,
+  UseInterceptors
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -175,5 +178,31 @@ export class PropertiesController {
     @Req() req: AuthenticatedRequest
   ) {
     return this.propertiesService.deleteMedia(id, mediaId, req.user);
+  }
+
+  @Post(':id/media/upload')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @UseInterceptors(FileInterceptor('file', {
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+      const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4'];
+      if (allowedMimes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only JPEG, PNG, WebP images and MP4 videos are allowed'), false);
+      }
+    }
+  }))
+  uploadMedia(
+    @Param('id') id: string,
+    @UploadedFile() file: { originalname: string; mimetype: string; buffer: Buffer },
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.propertiesService.uploadLocalMedia(id, {
+      filename: file.originalname,
+      mimetype: file.mimetype,
+      buffer: file.buffer
+    }, req.user);
   }
 }

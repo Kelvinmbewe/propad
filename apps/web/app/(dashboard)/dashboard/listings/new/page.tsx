@@ -278,13 +278,25 @@ export default function CreatePropertyPage() {
                 areaSqm,
             });
 
-            // TODO: Upload images after property is created
-            // For each image, get signed URL and upload
+            // Upload images to the property
             if (uploadedImages.length > 0) {
-                notify.success(`Property created with ${uploadedImages.length} images (upload pending)`);
+                notify.success('Property created! Uploading images...');
+                let uploadedCount = 0;
+                for (const image of uploadedImages) {
+                    try {
+                        await sdk.properties.uploadMedia(property.id, image.file);
+                        uploadedCount++;
+                    } catch (uploadError) {
+                        console.error('Failed to upload image:', uploadError);
+                    }
+                }
+                if (uploadedCount > 0) {
+                    notify.success(`${uploadedCount} image(s) uploaded successfully!`);
+                }
+            } else {
+                notify.success('Property listed successfully!');
             }
 
-            notify.success('Property listed successfully!');
             router.push('/dashboard/listings');
             router.refresh();
         } catch (error) {
