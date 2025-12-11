@@ -7,9 +7,11 @@ import cookieParser from 'cookie-parser';
 import { randomUUID } from 'crypto';
 import pinoHttp from 'pino-http';
 import { env } from '@propad/config';
+import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true
   });
 
@@ -26,6 +28,11 @@ async function bootstrap() {
           : undefined
     })
   );
+
+  // Serve uploaded files statically
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads/',
+  });
 
   app.enableCors({
     origin: env.WEB_ORIGIN?.split(',') ?? '*',
