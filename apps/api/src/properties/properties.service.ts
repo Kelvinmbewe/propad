@@ -1097,27 +1097,7 @@ export class PropertiesService {
     return this.attachLocationToMany(properties);
   }
 
-  async findById(id: string) {
-    const property = await this.prisma.property.findUnique({
-      where: { id },
-      include: {
-        media: true,
-        landlord: true,
-        agentOwner: true,
-        country: true,
-        province: true,
-        city: true,
-        suburb: true,
-        pendingGeo: true
-      }
-    });
 
-    if (!property || property.status !== PropertyStatus.VERIFIED) {
-      throw new NotFoundException('Property not found');
-    }
-
-    return this.attachLocation(property);
-  }
 
   async createSignedUpload(dto: CreateSignedUploadDto, actor: AuthContext) {
     if (!ALLOWED_MIME_TYPES.has(dto.mimeType)) {
