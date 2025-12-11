@@ -259,13 +259,29 @@ export function PropertyManagement() {
                   variant="outline"
                   onClick={() => window.location.href = `/properties/${property.id}`}
                 >
-                  View Listing
+                  View
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => window.location.href = `/dashboard/listings/${property.id}/edit`}
+                >
+                  Edit
                 </Button>
                 <Button
                   onClick={() => handleAssign(property)}
                   disabled={assignMutation.isPending}
                 >
-                  {assignMutation.isPending ? 'Assigning…' : 'Assign verified agent'}
+                  {assignMutation.isPending ? 'Assigning…' : 'Assign Agent'}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (confirm('Are you sure you want to delete this listing? This cannot be undone.')) {
+                      window.location.href = `/dashboard/listings/${property.id}/delete`;
+                    }
+                  }}
+                >
+                  Delete
                 </Button>
               </div>
               <p className="text-xs text-neutral-500">Keep conversations here to reduce WhatsApp leakage.</p>

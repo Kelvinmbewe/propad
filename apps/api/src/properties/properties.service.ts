@@ -1097,6 +1097,101 @@ export class PropertiesService {
       expiresAt: new Date(expires * 1000)
     };
   }
+
+  /**
+   * Local image upload - stores files on disk and saves reference in database.
+   * This is a fallback for when S3/R2 is not available.
+   */
+  async uploadLocalMedia(
+    propertyId: string,
+    file: { filename: string; mimetype: string; buffer: Buffer },
+    actor: AuthContext
+  ) {
+    const property = await this.getPropertyOrThrow(propertyId);
+    this.ensureCanMutate(property, actor);
+
+    const fs = await import('fs/promises');
+    const path = await import('path');
+
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = path.join(process.cwd(), 'uploads', 'properties', propertyId);
+    await fs.mkdir(uploadsDir, { recursive: true });
+
+    // Generate unique filename
+    const extension = path.extname(file.filename).toLowerCase();
+    const uniqueName = `${randomUUID()}${extension}`;
+    const filePath = path.join(uploadsDir, uniqueName);
+
+    // Write file to disk
+    await fs.writeFile(filePath, file.buffer);
+
+    // Determine media kind
+    const kind = file.mimetype.startsWith('video/') ? 'VIDEO' : 'IMAGE';
+
+    // Save reference in database
+    const media = await this.prisma.propertyMedia.create({
+      data: {
+        propertyId,
+        url: `/uploads/properties/${propertyId}/${uniqueName}`,
+        kind,
+        hasGps: false,
+      }
+    });
+
+    await this.audit.log({
+      action: 'property.uploadMedia',
+      actorId: actor.userId,
+      targetType: 'property',
+      targetId: propertyId,
+      metadata: { mediaId: media.id, filename: file.filename }
+    });
+
+    return media;
+  }
+
+  async listMedia(propertyId: string) {
+    return this.prisma.propertyMedia.findMany({
+      where: { propertyId },
+      orderBy: { id: 'asc' }
+    });
+  }
+
+  async deleteMedia(propertyId: string, mediaId: string, actor: AuthContext) {
+    const property = await this.getPropertyOrThrow(propertyId);
+    this.ensureCanMutate(property, actor);
+
+    const media = await this.prisma.propertyMedia.findFirst({
+      where: { id: mediaId, propertyId }
+    });
+
+    if (!media) {
+      throw new NotFoundException('Media not found');
+    }
+
+    // Try to delete local file if it's a local upload
+    if (media.url.startsWith('/uploads/')) {
+      try {
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        const filePath = path.join(process.cwd(), media.url);
+        await fs.unlink(filePath);
+      } catch (error) {
+        // File may not exist, continue with database deletion
+      }
+    }
+
+    await this.prisma.propertyMedia.delete({ where: { id: mediaId } });
+
+    await this.audit.log({
+      action: 'property.deleteMedia',
+      actorId: actor.userId,
+      targetType: 'property',
+      targetId: propertyId,
+      metadata: { mediaId }
+    });
+
+    return { success: true };
+  }
 }
 
 function messagesRecipient(

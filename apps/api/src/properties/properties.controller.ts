@@ -41,7 +41,7 @@ interface AuthenticatedRequest {
 
 @Controller('properties')
 export class PropertiesController {
-  constructor(private readonly propertiesService: PropertiesService) {}
+  constructor(private readonly propertiesService: PropertiesService) { }
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -159,5 +159,21 @@ export class PropertiesController {
     @Body(new ZodValidationPipe(createSignedUploadSchema)) dto: CreateSignedUploadDto
   ) {
     return this.propertiesService.createSignedUpload(dto, req.user);
+  }
+
+  @Get(':id/media')
+  listMedia(@Param('id') id: string) {
+    return this.propertiesService.listMedia(id);
+  }
+
+  @Delete(':id/media/:mediaId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  deleteMedia(
+    @Param('id') id: string,
+    @Param('mediaId') mediaId: string,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.propertiesService.deleteMedia(id, mediaId, req.user);
   }
 }
