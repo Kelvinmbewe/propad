@@ -31,10 +31,15 @@ const config = {
   },
   async rewrites() {
     // Proxy media URLs to the API so that /uploads/* on the web host is served from the API service.
+    const apiBase =
+      process.env.NEXT_PUBLIC_API_BASE_URL && process.env.NEXT_PUBLIC_API_BASE_URL.length > 0
+        ? process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/+$/, '')
+        : 'http://localhost:3001';
+
     return [
       {
         source: '/uploads/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'}/uploads/:path*`
+        destination: `${apiBase}/uploads/:path*`
       }
     ];
   }
