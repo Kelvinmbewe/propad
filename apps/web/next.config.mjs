@@ -17,12 +17,26 @@ const config = {
   },
   transpilePackages: ['@propad/sdk', '@propad/ui'],
   images: {
+    // Allow both same-origin images (including /uploads/*) and remote HTTPS images.
     remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost'
+      },
       {
         protocol: 'https',
         hostname: '**'
       }
     ]
+  },
+  async rewrites() {
+    // Proxy media URLs to the API so that /uploads/* on the web host is served from the API service.
+    return [
+      {
+        source: '/uploads/:path*',
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'}/uploads/:path*`
+      }
+    ];
   }
 };
 
