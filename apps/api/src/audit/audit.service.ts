@@ -13,15 +13,23 @@ export interface AuditLogInput {
 export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
 
-  log(entry: AuditLogInput) {
-    return this.prisma.auditLog.create({
-      data: {
-        action: entry.action,
-        actorId: entry.actorId ?? null,
-        targetType: entry.targetType,
-        targetId: entry.targetId ?? null,
-        metadata: entry.metadata ?? undefined
-      }
-    });
+  /**
+   * Best-effort audit logging. Failures here must never break the main request flow.
+   */
+  async log(entry: AuditLogInput): Promise<void> {
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          action: entry.action,
+          actorId: entry.actorId ?? null,
+          targetType: entry.targetType,
+          targetId: entry.targetId ?? null,
+          metadata: entry.metadata ?? undefined
+        }
+      });
+    } catch {
+      // Swallow audit errors (e.g. foreign key violations if actorId no longer exists)
+      // to avoid turning non-critical logging failures into 500 responses.
+    }
   }
 }
