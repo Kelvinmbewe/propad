@@ -226,13 +226,14 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
                   : `${apiBase.replace(/\/+$/, '')}${media.url}`;
 
                 return (
-                  <div key={media.id} className="relative h-64 w-full overflow-hidden rounded-lg bg-neutral-100">
-                    <Image
+                  <div
+                    key={media.id}
+                    className="relative h-64 w-full overflow-hidden rounded-lg bg-neutral-100"
+                  >
+                    <img
                       src={src}
                       alt={`${property.type} in ${location}`}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, 50vw"
+                      className="h-full w-full object-cover"
                     />
                   </div>
                 );
