@@ -22,13 +22,21 @@ async function getProperty(id: string, userId?: string) {
         }
     });
 
-    if (!property) return null;
+  if (!property) return null;
 
-    return {
-        ...property,
-        title: property.title || `${property.bedrooms} Bed ${property.type} in ${property.suburb?.name || 'Harare'}`,
-        location: `${property.suburb?.name || 'Harare'}, ${property.city?.name || 'Zimbabwe'}`,
-        imageUrl: property.media[0]?.url || 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80',
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+  const rawImageUrl = property.media[0]?.url;
+  const imageUrl = rawImageUrl
+    ? (rawImageUrl.startsWith('http')
+        ? rawImageUrl
+        : `${apiBase.replace(/\/+$/, '')}${rawImageUrl}`)
+    : 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80';
+
+  return {
+    ...property,
+    title: property.title || `${property.bedrooms} Bed ${property.type} in ${property.suburb?.name || 'Harare'}`,
+    location: `${property.suburb?.name || 'Harare'}, ${property.city?.name || 'Zimbabwe'}`,
+    imageUrl,
         price: Number(property.price),
         isInterested: property.interests && property.interests.length > 0,
         listingIntent: (property as any).listingIntent ?? 'FOR_SALE',
