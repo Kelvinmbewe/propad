@@ -837,27 +837,53 @@ export class PropertiesService {
   }
 
   async sendMessage(id: string, dto: CreateMessageDto, actor: AuthContext) {
-    const property = await this.getPropertyOrThrow(id);
+    const property = await this.prisma.property.findUnique({
+      where: { id },
+      include: {
+        country: true,
+        province: true,
+        city: true,
+        suburb: true,
+        pendingGeo: true,
+        landlord: { select: { id: true } },
+        agentOwner: { select: { id: true } }
+      }
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property not found');
+    }
 
     // Determine recipient
-    let recipientId: string;
+    let recipientId: string | null = null;
 
     const isOwner = property.landlordId === actor.userId;
     const isAgent = property.agentOwnerId === actor.userId;
 
     if (isOwner || isAgent) {
-      // Start of rudimentary reply logic:
-      // If the owner sends a message, existing logic assumes checking strict landlord-agent flow.
-      // Without recipientId in DTO, we can't properly reply to a specific tenant thread yet.
-      // Fallback to existing logic (Landlord <-> Agent) for now.
-      recipientId = isOwner ? (property.agentOwnerId ?? property.landlordId!) : property.landlordId!;
+      // Owner/Agent replying - try to find the last person who messaged
+      const lastIncoming = await this.prisma.propertyMessage.findFirst({
+        where: {
+          propertyId: id,
+          senderId: { not: actor.userId }
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { senderId: true }
+      });
+
+      if (lastIncoming) {
+        recipientId = lastIncoming.senderId;
+      } else {
+        // No incoming messages, fallback to Landlord <-> Agent
+        recipientId = isOwner ? (property.agentOwnerId ?? property.landlordId) : property.landlordId;
+      }
     } else {
       // Interested party messaging the owner (Agent preferred, else Landlord)
-      recipientId = property.agentOwnerId ?? property.landlordId ?? '';
+      recipientId = property.agentOwnerId ?? property.landlordId;
     }
 
     if (!recipientId) {
-      throw new BadRequestException('Cannot send message: no recipient found');
+      throw new BadRequestException('Cannot send message: this property has no owner to receive messages');
     }
 
     const message = await this.prisma.propertyMessage.create({
