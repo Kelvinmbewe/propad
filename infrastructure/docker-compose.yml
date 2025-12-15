@@ -36,6 +36,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    volumes:
+      # Persist uploaded media and make it available on the host under ./uploads
+      - ../uploads:/app/uploads
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))" ]
       interval: 10s
