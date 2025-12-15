@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -197,6 +198,9 @@ export class PropertiesController {
     @UploadedFile() file: { originalname: string; mimetype: string; buffer: Buffer },
     @Req() req: AuthenticatedRequest
   ) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
     return this.propertiesService.uploadLocalMedia(id, {
       filename: file.originalname,
       mimetype: file.mimetype,
