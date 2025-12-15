@@ -21,7 +21,8 @@ const config = {
     remotePatterns: [
       {
         protocol: 'http',
-        hostname: 'localhost'
+        hostname: 'localhost',
+        port: '3001'
       },
       {
         protocol: 'https',

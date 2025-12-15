@@ -428,30 +428,37 @@ export default function EditPropertyPage() {
                     {/* Existing Images */}
                     {property.media && property.media.length > 0 ? (
                         <div className="grid grid-cols-3 gap-4 mt-4">
-                            {property.media.map((media: { id: string; url: string; kind: string }) => (
-                                <div key={media.id} className="relative group">
-                                    <img
-                                        src={media.url}
-                                        alt="Property"
-                                        className="w-full h-32 object-cover rounded-lg"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={async () => {
-                                            try {
-                                                await sdk.properties.deleteMedia(propertyId, media.id);
-                                                queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
-                                                notify.success('Image deleted');
-                                            } catch (e) {
-                                                notify.error('Failed to delete image');
-                                            }
-                                        }}
-                                        className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
-                                </div>
-                            ))}
+                            {property.media.map((media: { id: string; url: string; kind: string }) => {
+                                const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+                                const src = media.url.startsWith('http')
+                                    ? media.url
+                                    : `${apiBase.replace(/\/+$/, '')}${media.url}`;
+
+                                return (
+                                    <div key={media.id} className="relative group">
+                                        <img
+                                            src={src}
+                                            alt="Property"
+                                            className="w-full h-32 object-cover rounded-lg"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={async () => {
+                                                try {
+                                                    await sdk.properties.deleteMedia(propertyId, media.id);
+                                                    queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
+                                                    notify.success('Image deleted');
+                                                } catch (e) {
+                                                    notify.error('Failed to delete image');
+                                                }
+                                            }}
+                                            className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                );
+                            })}
                         </div>
                     ) : (
                         <p className="text-slate-500 mt-2">No images uploaded yet.</p>

@@ -219,17 +219,24 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
         <section className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             {property.media?.length ? (
-              property.media.map((media) => (
-                <div key={media.id} className="relative h-64 w-full overflow-hidden rounded-lg bg-neutral-100">
-                  <Image
-                    src={media.url}
-                    alt={`${property.type} in ${location}`}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                  />
-                </div>
-              ))
+              property.media.map((media) => {
+                const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+                const src = media.url.startsWith('http')
+                  ? media.url
+                  : `${apiBase.replace(/\/+$/, '')}${media.url}`;
+
+                return (
+                  <div key={media.id} className="relative h-64 w-full overflow-hidden rounded-lg bg-neutral-100">
+                    <Image
+                      src={src}
+                      alt={`${property.type} in ${location}`}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                    />
+                  </div>
+                );
+              })
             ) : (
               <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-neutral-300 text-neutral-500">
                 Images coming soon
