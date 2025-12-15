@@ -421,6 +421,80 @@ export default function EditPropertyPage() {
                     </div>
                 </div>
 
+                {/* Image Management Section */}
+                <div className="pt-4 border-t">
+                    <Label className="text-lg font-semibold">Property Images</Label>
+
+                    {/* Existing Images */}
+                    {property.media && property.media.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-4 mt-4">
+                            {property.media.map((media: { id: string; url: string; kind: string }) => (
+                                <div key={media.id} className="relative group">
+                                    <img
+                                        src={media.url}
+                                        alt="Property"
+                                        className="w-full h-32 object-cover rounded-lg"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            try {
+                                                await sdk.properties.deleteMedia(propertyId, media.id);
+                                                queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
+                                                notify.success('Image deleted');
+                                            } catch (e) {
+                                                notify.error('Failed to delete image');
+                                            }
+                                        }}
+                                        className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-slate-500 mt-2">No images uploaded yet.</p>
+                    )}
+
+                    {/* Upload New Images */}
+                    <div className="mt-4">
+                        <Label htmlFor="newImages" className="cursor-pointer">
+                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:border-emerald-500 transition-colors">
+                                <ImageIcon className="h-8 w-8 mx-auto text-slate-400" />
+                                <p className="mt-2 text-sm text-slate-600">Click to upload new images</p>
+                            </div>
+                        </Label>
+                        <input
+                            id="newImages"
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={async (e) => {
+                                const files = e.target.files;
+                                if (!files || files.length === 0) return;
+
+                                let uploadedCount = 0;
+                                for (const file of Array.from(files)) {
+                                    try {
+                                        await sdk.properties.uploadMedia(propertyId, file);
+                                        uploadedCount++;
+                                    } catch (err) {
+                                        console.error('Upload failed:', err);
+                                    }
+                                }
+
+                                if (uploadedCount > 0) {
+                                    queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
+                                    notify.success(`${uploadedCount} image(s) uploaded`);
+                                }
+                                e.target.value = '';
+                            }}
+                        />
+                    </div>
+                </div>
+
                 <div className="pt-4 flex gap-4">
                     <Button
                         type="button"
