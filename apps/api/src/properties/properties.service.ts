@@ -652,22 +652,26 @@ export class PropertiesService {
     const property = await this.getPropertyOrThrow(id);
     this.ensureLandlordAccess(property, actor);
 
+    // Find agent - relaxed query to allow any agent user
     const agent = await this.prisma.user.findFirst({
       where: {
         id: dto.agentId,
-        role: Role.AGENT,
-        agentProfile: {
-          verifiedListingsCount: { gt: 0 },
-          kycStatus: 'VERIFIED'
-        }
+        role: Role.AGENT
       },
       select: {
-        id: true
+        id: true,
+        name: true,
+        agentProfile: {
+          select: {
+            kycStatus: true,
+            verifiedListingsCount: true
+          }
+        }
       }
     });
 
     if (!agent) {
-      throw new BadRequestException('Agent must be verified before assignment');
+      throw new BadRequestException('Agent not found or user is not an agent');
     }
 
     const landlordId = property.landlordId ?? actor.userId;
