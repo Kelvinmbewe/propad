@@ -7,7 +7,7 @@ import cookieParser from 'cookie-parser';
 import { randomUUID } from 'crypto';
 import pinoHttp from 'pino-http';
 import { env } from '@propad/config';
-import { join } from 'path';
+import { resolve } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
@@ -29,9 +29,10 @@ async function bootstrap() {
     })
   );
 
-  // Serve uploaded files statically
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-    prefix: '/uploads/',
+  // Serve uploaded files statically from the same root path used by uploadLocalMedia (resolve('uploads', ...))
+  const uploadsRoot = resolve('uploads');
+  app.useStaticAssets(uploadsRoot, {
+    prefix: '/uploads/'
   });
 
   app.enableCors({
