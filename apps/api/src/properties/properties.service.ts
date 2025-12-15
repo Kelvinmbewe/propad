@@ -645,7 +645,7 @@ export class PropertiesService {
       targetId: id
     });
 
-    return { success: true };
+    return { success: true, id };
   }
 
   async assignVerifiedAgent(id: string, dto: AssignAgentDto, actor: AuthContext) {
