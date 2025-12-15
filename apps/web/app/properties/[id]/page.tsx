@@ -3,7 +3,6 @@ import { LandingNav } from '@/components/landing-nav';
 import { InterestButton } from '@/components/interest-button';
 import { auth } from '@/auth';
 import { PropertyMessenger } from '@/components/property-messenger';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Bath, BedDouble, MapPin, Ruler } from 'lucide-react';
 
@@ -58,12 +57,10 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
             <main className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
                 <div className="overflow-hidden rounded-2xl bg-white shadow-xl">
                     <div className="relative h-96 w-full sm:h-[500px]">
-                        <Image
+                        <img
                             src={property.imageUrl}
                             alt={property.title}
-                            fill
-                            className="object-cover"
-                            priority
+                            className="h-full w-full object-cover"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-0 left-0 p-8 text-white">
