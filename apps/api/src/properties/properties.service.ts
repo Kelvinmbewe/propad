@@ -217,8 +217,14 @@ export class PropertiesService {
   }
 
   private attachLocationToMany<T extends Record<string, unknown>>(properties: T[]) {
-    return properties.map((property) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:202',message:'attachLocationToMany entry',data:{propertyCount:properties.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    return properties.map((property, index) => {
       try {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:205',message:'attachLocationToMany processing property',data:{index,propertyId:property?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         return this.attachLocation(property);
       } catch (error) {
         // Log error but return property without location data to prevent 500 errors
@@ -610,6 +616,9 @@ export class PropertiesService {
   }
 
   async findById(id: string) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:570',message:'findById entry',data:{propertyId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     const property = await this.prisma.property.findUnique({
       where: { id },
       include: {
@@ -625,10 +634,28 @@ export class PropertiesService {
     });
 
     if (!property) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:585',message:'findById not found',data:{propertyId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       throw new NotFoundException('Property not found');
     }
 
-    return this.attachLocation(property);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:590',message:'findById before attachLocation',data:{propertyId:id,hasPrice:!!property?.price,priceType:typeof property?.price},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+
+    try {
+      const result = this.attachLocation(property);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:595',message:'findById after attachLocation',data:{propertyId:id,resultPriceType:typeof result?.price},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      return result;
+    } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:599',message:'findById error',data:{propertyId:id,errorMessage:error?.message,errorStack:error?.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      throw error;
+    }
   }
 
   async create(dto: CreatePropertyDto, actor: AuthContext) {
