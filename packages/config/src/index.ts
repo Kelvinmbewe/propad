@@ -65,7 +65,9 @@ const clientSchema = z.object({
   NEXT_PUBLIC_ADSENSE_CLIENT_ID: z.string().optional(),
   NEXT_PUBLIC_ADSENSE_FEED_SLOT: z.string().optional(),
   NEXT_PUBLIC_ADSENSE_LISTING_SLOT: z.string().optional(),
-  NEXT_PUBLIC_WS_ENABLED: z.coerce.boolean().default(true)
+  NEXT_PUBLIC_WS_ENABLED: z.coerce.boolean().default(true),
+  // Internal API URL for server-side requests (Docker service name)
+  INTERNAL_API_BASE_URL: z.string().url().optional()
 });
 
 type ServerEnv = z.infer<typeof serverSchema>;
@@ -78,3 +80,17 @@ export const env: ServerEnv & Partial<ClientEnv> = {
   ...serverEnv,
   ...clientEnv
 };
+
+/**
+ * Get the API base URL for server-side requests.
+ * In Docker, server-side requests need to use the internal service name (api:3001)
+ * while client-side requests use the public URL (localhost:3001).
+ * 
+ * This reads process.env directly to ensure runtime env vars are used in Docker.
+ */
+export function getServerApiBaseUrl(): string {
+  // Read directly from process.env at runtime to pick up Docker env vars
+  const internalUrl = process.env.INTERNAL_API_BASE_URL;
+  const publicUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  return internalUrl || publicUrl || 'http://localhost:3001';
+}

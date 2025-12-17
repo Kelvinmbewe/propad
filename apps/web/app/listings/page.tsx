@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { env } from '@propad/config';
+import { getServerApiBaseUrl } from '@propad/config';
 import { PropertySearchResultSchema, type PropertySearchResult } from '@propad/sdk';
 import { PropertyFeed } from '@/components/property-feed';
 
@@ -26,7 +26,7 @@ async function fetchProperties(params: ListingsSearchParams): Promise<PropertySe
   const parsedLimit = Number(searchParams.get('limit'));
   const perPage = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 18;
 
-  const response = await fetch(`${env.NEXT_PUBLIC_API_BASE_URL}/properties/search?${searchParams.toString()}`, {
+  const response = await fetch(`${getServerApiBaseUrl()}/properties/search?${searchParams.toString()}`, {
     next: { revalidate: 60 }
   });
 

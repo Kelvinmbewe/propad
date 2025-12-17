@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
-import { env } from '@propad/config';
+import { env, getServerApiBaseUrl } from '@propad/config';
 import { PropertySchema, type Property } from '@propad/sdk';
 import { AdSlot } from '@/components/ad-slot';
 import { ContactActions } from '@/components/contact-actions';
@@ -8,7 +8,7 @@ import { formatCurrency, formatFriendlyDate } from '@/lib/formatters';
 import { getImageUrl } from '@/lib/image-url';
 
 async function fetchProperty(id: string): Promise<Property> {
-  const response = await fetch(`${env.NEXT_PUBLIC_API_BASE_URL}/properties/${id}`, {
+  const response = await fetch(`${getServerApiBaseUrl()}/properties/${id}`, {
     cache: 'no-store'
   });
 
