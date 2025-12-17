@@ -3,7 +3,8 @@ services:
     build:
       context: ..
       dockerfile: infrastructure/web.Dockerfile
-    command: pnpm --filter @propad/web run start
+    # Run socat in background to forward localhost:3001 to api:3001, then start Next.js
+    command: sh -c "apk add --no-cache socat && socat TCP-LISTEN:3001,fork,reuseaddr TCP:api:3001 & pnpm --filter @propad/web run start"
     environment:
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: this-is-a-very-secure-secret-that-is-at-least-32-chars-long
@@ -19,7 +20,7 @@ services:
     env_file:
       - ../apps/web/.env.example
     extra_hosts:
-      - "localhost:host-gateway"
+      - "host.docker.internal:host-gateway"
 
   api:
     build:

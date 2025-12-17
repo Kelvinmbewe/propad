@@ -6,12 +6,19 @@ import { Button, notify } from '@propad/ui';
 import { PropertySearchResultSchema, type PropertySearchResult, type GeoSuburb } from '@propad/sdk';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import { AdSlot } from './ad-slot';
 import { PropertyCard } from './property-card';
 import { PropertyFeedSkeleton } from './property-feed-skeleton';
 import { EmptyState } from './empty-state';
-import { PropertyMap, type MapBounds } from './property-map';
+import type { MapBounds } from './property-map';
 import { api } from '@/lib/api-client';
+
+// Dynamic import to avoid SSR issues with Leaflet
+const PropertyMap = dynamic(
+  () => import('./property-map').then((mod) => mod.PropertyMap),
+  { ssr: false }
+);
 
 interface PropertyFeedProps {
   initialPage: PropertySearchResult;
