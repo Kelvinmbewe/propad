@@ -21,48 +21,41 @@ import { formatCurrency } from '@/lib/formatters';
 import { PropertyMessenger } from './property-messenger';
 
 export function PropertyManagement() {
-  // Debug: Return simple content first to isolate error
-  try {
-    const sdk = useAuthenticatedSDK();
-    const queryClient = useQueryClient();
-    const [serviceFees, setServiceFees] = useState<Record<string, string>>({});
-    const [selectedAgents, setSelectedAgents] = useState<Record<string, string>>({});
+  const sdk = useAuthenticatedSDK();
+  const queryClient = useQueryClient();
+  const [serviceFees, setServiceFees] = useState<Record<string, string>>({});
+  const [selectedAgents, setSelectedAgents] = useState<Record<string, string>>({});
 
-    const {
-      data: properties,
-      isLoading: loadingProperties,
-      isError: propertiesError,
-      error: queryError
-    } = useQuery({
-      queryKey: ['properties:owned'],
-      queryFn: async () => {
-        console.log('[PropertyManagement] Fetching properties...');
-        try {
-          const result = await sdk!.properties.listOwned();
-          console.log('[PropertyManagement] Properties fetched:', result?.length);
-          return result;
-        } catch (err) {
-          console.error('[PropertyManagement] Error fetching properties:', err);
-          throw err;
-        }
-      },
-      enabled: !!sdk
-    });
+  const {
+    data: properties,
+    isLoading: loadingProperties,
+    isError: propertiesError,
+    error: queryError
+  } = useQuery({
+    queryKey: ['properties:owned'],
+    queryFn: async () => {
+      console.log('[PropertyManagement] Fetching properties...');
+      const result = await sdk!.properties.listOwned();
+      console.log('[PropertyManagement] Properties fetched:', result?.length);
+      return result;
+    },
+    enabled: !!sdk
+  });
 
-    const {
-      data: agents,
-      isLoading: loadingAgents,
-      isError: agentsError
-    } = useQuery({
-      queryKey: ['agents:verified'],
-      queryFn: () => sdk!.agents.listVerified(),
-      enabled: !!sdk
-    });
+  const {
+    data: agents,
+    isLoading: loadingAgents,
+    isError: agentsError
+  } = useQuery({
+    queryKey: ['agents:verified'],
+    queryFn: () => sdk!.agents.listVerified(),
+    enabled: !!sdk
+  });
 
-    // Debug: Log query error
-    if (queryError) {
-      console.error('[PropertyManagement] Query error:', queryError);
-    }
+  // Debug: Log query error
+  if (queryError) {
+    console.error('[PropertyManagement] Query error:', queryError);
+  }
 
   const assignMutation = useMutation({
     mutationFn: ({
