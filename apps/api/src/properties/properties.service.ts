@@ -548,13 +548,13 @@ export class PropertiesService {
           // #endregion
           return this.attachLocationToMany(properties);
         })
-        .then((result) => {
+        .then((result: Array<Record<string, unknown>>) => {
           // #region agent log
           fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:506',message:'listOwned after attachLocationToMany',data:{resultCount:result.length,firstResultId:result[0]?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
           // #endregion
           return result;
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           // #region agent log
           fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:510',message:'listOwned error',data:{errorMessage:error?.message,errorStack:error?.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
           // #endregion
@@ -575,9 +575,9 @@ export class PropertiesService {
           // #endregion
           return this.attachLocationToMany(properties);
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:520',message:'listOwned error',data:{errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:520',message:'listOwned error',data:{errorMessage:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
           // #endregion
           throw error;
         });
@@ -596,7 +596,7 @@ export class PropertiesService {
           // #endregion
           return this.attachLocationToMany(properties);
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           // #region agent log
           fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:530',message:'listOwned error',data:{errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
           // #endregion
