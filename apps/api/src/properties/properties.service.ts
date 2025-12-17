@@ -257,6 +257,21 @@ export class PropertiesService {
           }
         };
       }
+    }).map((result, index) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:230',message:'attachLocationToMany result',data:{index,resultId:result?.id,hasPrice:!!result?.price,priceType:typeof result?.price,isDecimal:result?.price?.constructor?.name === 'Decimal'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      // Convert Decimal to number if present
+      if (result && typeof result === 'object' && 'price' in result) {
+        const price = (result as any).price;
+        if (price && typeof price === 'object' && 'toNumber' in price && typeof price.toNumber === 'function') {
+          (result as any).price = price.toNumber();
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:235',message:'attachLocationToMany converted Decimal',data:{index,resultId:result?.id,newPriceType:typeof (result as any).price},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+        }
+      }
+      return result;
     });
   }
 
