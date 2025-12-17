@@ -112,7 +112,12 @@ export default async function MyInterestsPage() {
                           )}
                           {interest.offerAmount && (
                             <p className="mt-1 text-sm font-medium text-slate-700">
-                              Your offer: {formatCurrency(interest.offerAmount.toNumber(), property.currency)}
+                              Your offer: {formatCurrency(
+                                interest.offerAmount && typeof interest.offerAmount === 'object' && 'toNumber' in interest.offerAmount
+                                  ? interest.offerAmount.toNumber()
+                                  : Number(interest.offerAmount),
+                                property.currency
+                              )}
                             </p>
                           )}
                           <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
