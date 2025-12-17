@@ -3,6 +3,7 @@ import { LandingNav } from '@/components/landing-nav';
 import { InterestButton } from '@/components/interest-button';
 import { auth } from '@/auth';
 import { PropertyMessenger } from '@/components/property-messenger';
+import { PropertyImage } from '@/components/property-image';
 import { notFound } from 'next/navigation';
 import { Bath, BedDouble, MapPin, Ruler } from 'lucide-react';
 import { getImageUrl } from '@/lib/image-url';
@@ -53,15 +54,10 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
             <main className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
                 <div className="overflow-hidden rounded-2xl bg-white shadow-xl">
                     <div className="relative h-96 w-full sm:h-[500px]">
-                        <img
+                        <PropertyImage
                             src={property.imageUrl}
                             alt={property.title}
                             className="h-full w-full object-cover"
-                            onError={(e) => {
-                                console.error('Image load error:', property.imageUrl, e);
-                                const target = e.target as HTMLImageElement;
-                                target.src = 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80';
-                            }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-0 left-0 p-8 text-white">

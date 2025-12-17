@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/formatters';
+import { PropertyImage } from '@/components/property-image';
 
 export const metadata: Metadata = {
   title: 'My Interests | PropAd'
@@ -80,16 +81,12 @@ export default async function MyInterestsPage() {
                       <div className="flex items-start gap-4">
                         {property.media?.[0]?.url && (
                           <Link href={`/properties/${property.id}`} className="flex-shrink-0">
-                            <img
+                            <PropertyImage
                               src={property.media[0].url.startsWith('http') 
                                 ? property.media[0].url 
                                 : `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'}${property.media[0].url}`}
                               alt={property.title}
                               className="h-24 w-32 rounded-lg object-cover"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                              }}
                             />
                           </Link>
                         )}

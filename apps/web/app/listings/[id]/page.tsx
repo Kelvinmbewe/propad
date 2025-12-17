@@ -4,6 +4,7 @@ import { env, getServerApiBaseUrl } from '@propad/config';
 import { PropertySchema, type Property } from '@propad/sdk';
 import { AdSlot } from '@/components/ad-slot';
 import { ContactActions } from '@/components/contact-actions';
+import { PropertyImage } from '@/components/property-image';
 import { formatCurrency, formatFriendlyDate } from '@/lib/formatters';
 import { getImageUrl } from '@/lib/image-url';
 
@@ -228,22 +229,10 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
                     key={media.id}
                     className="relative h-64 w-full overflow-hidden rounded-lg bg-neutral-100"
                   >
-                    <img
+                    <PropertyImage
                       src={src}
                       alt={`${property.type} in ${location}`}
                       className="h-full w-full object-cover"
-                      onError={(e) => {
-                        console.error('Image load error:', src, e);
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        const parent = target.parentElement;
-                        if (parent && !parent.querySelector('.image-error')) {
-                          const errorDiv = document.createElement('div');
-                          errorDiv.className = 'image-error h-full w-full flex items-center justify-center bg-neutral-200 text-neutral-500 text-sm';
-                          errorDiv.textContent = 'Image unavailable';
-                          parent.appendChild(errorDiv);
-                        }
-                      }}
                     />
                   </div>
                 );
