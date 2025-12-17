@@ -66,7 +66,11 @@ export default async function MyInterestsPage() {
             {interests.map((interest) => {
               const property = interest.property as any;
               const location = [property.suburb?.name, property.city?.name].filter(Boolean).join(', ') || 'Location not specified';
-              const price = formatCurrency(property.price, property.currency);
+              // Convert Decimal to number if needed (Prisma Decimal has toNumber() method)
+              const priceValue = property.price && typeof property.price === 'object' && 'toNumber' in property.price
+                ? property.price.toNumber()
+                : Number(property.price);
+              const price = formatCurrency(priceValue, property.currency);
               const listingIntent = property.listingIntent === 'TO_RENT' ? 'For Rent' : 'For Sale';
 
               return (
