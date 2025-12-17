@@ -729,6 +729,8 @@ export class PropertiesService {
       throw new BadRequestException('No agent assignment found. Please assign an agent first.');
     }
 
+    // Convert to cents if a value is provided, otherwise set to null to clear the fee
+    // In Prisma, null explicitly sets the field to NULL, while undefined means "don't update"
     const serviceFeeUsdCents =
       dto.serviceFeeUsd !== null && dto.serviceFeeUsd !== undefined
         ? Math.round(dto.serviceFeeUsd * 100)
@@ -741,7 +743,9 @@ export class PropertiesService {
     const updated = await this.prisma.agentAssignment.update({
       where: { id: latestAssignment.id },
       data: {
-        serviceFeeUsdCents: serviceFeeUsdCents ?? undefined
+        // Pass null directly to set the field to NULL in the database
+        // Using undefined would mean "don't update this field" in Prisma
+        serviceFeeUsdCents: serviceFeeUsdCents
       }
     });
 
@@ -930,13 +934,12 @@ export class PropertiesService {
       recipientId = property.agentOwnerId ?? property.landlordId;
     }
 
-    // If no recipient found, allow message to be stored with a placeholder recipient
-    // This handles edge cases where property has no assigned owner yet
-    // In production, you might want to route these to an admin inbox
+    // A property must have either a landlord or an agent owner to receive messages
+    // This ensures data quality and prevents invalid message states
     if (!recipientId) {
-      // For now, allow self-messaging as a fallback (user can see their own messages)
-      // In a real system, you'd want to route to admin or create a support ticket
-      recipientId = actor.userId;
+      throw new BadRequestException(
+        'Cannot send message: This property has no assigned owner. Please contact support if you believe this is an error.'
+      );
     }
 
     const message = await this.prisma.propertyMessage.create({
