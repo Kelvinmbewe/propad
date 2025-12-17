@@ -118,39 +118,64 @@ export class PropertiesService {
   }
 
   private attachLocation<T extends Record<string, any>>(property: T) {
-    return {
-      ...property,
-      countryName: property.country?.name ?? null,
-      provinceName: property.province?.name ?? null,
-      cityName: property.city?.name ?? null,
-      suburbName: property.suburb?.name ?? null,
-      location: {
-        countryId: property.countryId ?? null,
-        country: property.country
-          ? {
-              id: property.country.id ?? null,
-              name: property.country.name ?? null,
-              iso2: property.country.iso2 ?? null,
-              phoneCode: property.country.phoneCode ?? null
-            }
-          : null,
-        provinceId: property.provinceId ?? null,
-        province: property.province
-          ? { id: property.province.id ?? null, name: property.province.name ?? null }
-          : null,
-        cityId: property.cityId ?? null,
-        city: property.city
-          ? { id: property.city.id ?? null, name: property.city.name ?? null }
-          : null,
-        suburbId: property.suburbId ?? null,
-        suburb: property.suburb
-          ? { id: property.suburb.id ?? null, name: property.suburb.name ?? null }
-          : null,
-        pendingGeoId: property.pendingGeoId ?? null,
-        lat: typeof property.lat === 'number' ? property.lat : null,
-        lng: typeof property.lng === 'number' ? property.lng : null
-      }
-    };
+    try {
+      return {
+        ...property,
+        countryName: property.country?.name ?? null,
+        provinceName: property.province?.name ?? null,
+        cityName: property.city?.name ?? null,
+        suburbName: property.suburb?.name ?? null,
+        location: {
+          countryId: property.countryId ?? null,
+          country: property.country
+            ? {
+                id: property.country.id ?? null,
+                name: property.country.name ?? null,
+                iso2: property.country.iso2 ?? null,
+                phoneCode: property.country.phoneCode ?? null
+              }
+            : null,
+          provinceId: property.provinceId ?? null,
+          province: property.province
+            ? { id: property.province.id ?? null, name: property.province.name ?? null }
+            : null,
+          cityId: property.cityId ?? null,
+          city: property.city
+            ? { id: property.city.id ?? null, name: property.city.name ?? null }
+            : null,
+          suburbId: property.suburbId ?? null,
+          suburb: property.suburb
+            ? { id: property.suburb.id ?? null, name: property.suburb.name ?? null }
+            : null,
+          pendingGeoId: property.pendingGeoId ?? null,
+          lat: typeof property.lat === 'number' ? property.lat : null,
+          lng: typeof property.lng === 'number' ? property.lng : null
+        }
+      };
+    } catch (error) {
+      // Log error and return property with minimal location data
+      console.error('Error in attachLocation:', error, property);
+      return {
+        ...property,
+        countryName: null,
+        provinceName: null,
+        cityName: null,
+        suburbName: null,
+        location: {
+          countryId: null,
+          country: null,
+          provinceId: null,
+          province: null,
+          cityId: null,
+          city: null,
+          suburbId: null,
+          suburb: null,
+          pendingGeoId: null,
+          lat: null,
+          lng: null
+        }
+      };
+    }
   }
 
   private attachLocationToMany<T extends Record<string, unknown>>(properties: T[]) {
