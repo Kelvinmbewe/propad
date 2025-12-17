@@ -162,59 +162,17 @@ export function PropertyManagement() {
 
   const verifiedAgents = useMemo(() => agents ?? [], [agents]);
 
-  // Debug: Log properties to help diagnose React error #310
-  if (properties) {
-    console.log('[PropertyManagement] Properties loaded:', properties.length);
-    properties.forEach((p, i) => {
-      console.log(`[PropertyManagement] Property ${i}:`, {
-        id: p.id,
-        priceType: typeof p.price,
-        price: p.price,
-        currencyType: typeof p.currency,
-        currency: p.currency,
-        typeType: typeof p.type,
-        type: p.type,
-        cityNameType: typeof p.cityName,
-        cityName: p.cityName,
-        locationCityName: typeof p.location?.city?.name,
-        agentOwnerName: p.agentOwner?.name,
-        agentOwnerNameType: typeof p.agentOwner?.name
-      });
-    });
-  }
-
-  if (!sdk) {
-    return <p className="text-sm text-neutral-500">Sign in to manage your listings.</p>;
-  }
-
-  if (loadingProperties) {
-    return (
-      <div className="grid gap-4">
-        {[...Array(3)].map((_, index) => (
-          <Skeleton key={index} className="h-48" />
-        ))}
-      </div>
-    );
-  }
-
-  if (propertiesError) {
-    console.error('[PropertyManagement] Properties error:', propertiesError);
-    return <p className="text-sm text-red-600">We could not load your listings at this time.</p>;
-  }
-
-  if (!properties || properties.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center space-y-4 py-12">
-        <p className="text-sm text-neutral-600">You have not published any listings yet.</p>
-        <Button onClick={() => window.location.href = '/dashboard/listings/new'}>
-          List New Property
-        </Button>
-      </div>
-    );
-  }
-
-  // Group properties by status/type
+  // Group properties by status/type - must be called unconditionally (hooks rule)
   const groupedProperties = useMemo(() => {
+    if (!properties || properties.length === 0) {
+      return {
+        'For Sale': [] as PropertyManagementType[],
+        'To Rent': [] as PropertyManagementType[],
+        'Confirmed': [] as PropertyManagementType[],
+        'Other': [] as PropertyManagementType[]
+      };
+    }
+
     const groups: Record<string, PropertyManagementType[]> = {
       'For Sale': [],
       'To Rent': [],
@@ -239,6 +197,35 @@ export function PropertyManagement() {
 
     return groups;
   }, [properties]);
+
+  if (!sdk) {
+    return <p className="text-sm text-neutral-500">Sign in to manage your listings.</p>;
+  }
+
+  if (loadingProperties) {
+    return (
+      <div className="grid gap-4">
+        {[...Array(3)].map((_, index) => (
+          <Skeleton key={index} className="h-48" />
+        ))}
+      </div>
+    );
+  }
+
+  if (propertiesError) {
+    return <p className="text-sm text-red-600">We could not load your listings at this time.</p>;
+  }
+
+  if (!properties || properties.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center space-y-4 py-12">
+        <p className="text-sm text-neutral-600">You have not published any listings yet.</p>
+        <Button onClick={() => window.location.href = '/dashboard/listings/new'}>
+          List New Property
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
