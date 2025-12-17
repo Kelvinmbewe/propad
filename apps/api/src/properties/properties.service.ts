@@ -665,9 +665,11 @@ export class PropertiesService {
       fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:595',message:'findById after attachLocation',data:{propertyId:id,resultPriceType:typeof result?.price},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
       // #endregion
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:599',message:'findById error',data:{propertyId:id,errorMessage:error?.message,errorStack:error?.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack?.substring(0, 200) : undefined;
+      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:599',message:'findById error',data:{propertyId:id,errorMessage,errorStack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
       // #endregion
       throw error;
     }
