@@ -151,6 +151,27 @@ export function PropertyManagement() {
 
   const verifiedAgents = useMemo(() => agents ?? [], [agents]);
 
+  // Debug: Log properties to help diagnose React error #310
+  if (properties) {
+    console.log('[PropertyManagement] Properties loaded:', properties.length);
+    properties.forEach((p, i) => {
+      console.log(`[PropertyManagement] Property ${i}:`, {
+        id: p.id,
+        priceType: typeof p.price,
+        price: p.price,
+        currencyType: typeof p.currency,
+        currency: p.currency,
+        typeType: typeof p.type,
+        type: p.type,
+        cityNameType: typeof p.cityName,
+        cityName: p.cityName,
+        locationCityName: typeof p.location?.city?.name,
+        agentOwnerName: p.agentOwner?.name,
+        agentOwnerNameType: typeof p.agentOwner?.name
+      });
+    });
+  }
+
   if (!sdk) {
     return <p className="text-sm text-neutral-500">Sign in to manage your listings.</p>;
   }
@@ -166,6 +187,7 @@ export function PropertyManagement() {
   }
 
   if (propertiesError) {
+    console.error('[PropertyManagement] Properties error:', propertiesError);
     return <p className="text-sm text-red-600">We could not load your listings at this time.</p>;
   }
 
@@ -223,7 +245,13 @@ export function PropertyManagement() {
               {groupName} ({groupProperties.length})
             </h2>
             {groupProperties.map((property) => {
-        const priceLabel = formatCurrency(property.price, property.currency);
+        // Safely convert price to number if needed
+        const safePrice = typeof property.price === 'number' 
+          ? property.price 
+          : typeof property.price === 'object' && property.price !== null && 'toNumber' in property.price 
+            ? (property.price as any).toNumber() 
+            : Number(property.price);
+        const priceLabel = formatCurrency(safePrice, property.currency);
         const currentAssignment = property.assignments?.[0];
         const currentAgent = property.agentOwner?.name ?? 'Unassigned';
         const serviceFeeLabel =
