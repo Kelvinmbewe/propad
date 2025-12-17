@@ -121,6 +121,9 @@ export class PropertiesService {
   }
 
   private attachLocation<T extends Record<string, any>>(property: T) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:123',message:'attachLocation entry',data:{propertyId:property?.id,hasCountry:!!property?.country,hasProvince:!!property?.province,hasPrice:!!property?.price,priceType:typeof property?.price},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     try {
       // Safely extract location data with proper null checks
       const country = property.country && typeof property.country === 'object' ? property.country : null;
@@ -128,10 +131,18 @@ export class PropertiesService {
       const city = property.city && typeof property.city === 'object' ? property.city : null;
       const suburb = property.suburb && typeof property.suburb === 'object' ? property.suburb : null;
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:132',message:'attachLocation before spread',data:{propertyId:property?.id,countryType:typeof country,provinceType:typeof province},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
       // Exclude Prisma relation objects from the spread to avoid serialization issues
       const { country: _country, province: _province, city: _city, suburb: _suburb, pendingGeo: _pendingGeo, ...cleanProperty } = property as any;
 
-      return {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:135',message:'attachLocation after spread',data:{propertyId:property?.id,cleanPropertyKeys:Object.keys(cleanProperty).slice(0,10),hasPrice:!!cleanProperty?.price,priceType:typeof cleanProperty?.price,priceValue:cleanProperty?.price?.toString?.()?.substring(0,20)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+
+      const result = {
         ...cleanProperty,
         countryName: country?.name ?? null,
         provinceName: province?.name ?? null,
@@ -164,6 +175,12 @@ export class PropertiesService {
           lng: typeof property.lng === 'number' ? property.lng : null
         }
       };
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:166',message:'attachLocation success',data:{propertyId:property?.id,resultPriceType:typeof result?.price},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
+      return result;
     } catch (error) {
       // Log error and return property with minimal location data
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -479,6 +496,9 @@ export class PropertiesService {
   }
 
   listOwned(actor: AuthContext) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:481',message:'listOwned entry',data:{actorRole:actor.role,actorId:actor.userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     const include = {
       media: true,
       agentOwner: { select: { id: true, name: true, role: true } },
@@ -501,7 +521,24 @@ export class PropertiesService {
     if (actor.role === Role.ADMIN) {
       return this.prisma.property
         .findMany({ orderBy: { createdAt: 'desc' }, include })
-        .then((properties: Array<Record<string, unknown>>) => this.attachLocationToMany(properties));
+        .then((properties: Array<Record<string, unknown>>) => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:504',message:'listOwned before attachLocationToMany',data:{propertyCount:properties.length,firstPropertyId:properties[0]?.id,hasPrice:!!properties[0]?.price,priceType:typeof properties[0]?.price},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+          return this.attachLocationToMany(properties);
+        })
+        .then((result) => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:506',message:'listOwned after attachLocationToMany',data:{resultCount:result.length,firstResultId:result[0]?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          return result;
+        })
+        .catch((error) => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:510',message:'listOwned error',data:{errorMessage:error?.message,errorStack:error?.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          throw error;
+        });
     }
 
     if (actor.role === Role.LANDLORD) {
@@ -511,7 +548,18 @@ export class PropertiesService {
           orderBy: { createdAt: 'desc' },
           include
         })
-        .then((properties: Array<Record<string, unknown>>) => this.attachLocationToMany(properties));
+        .then((properties: Array<Record<string, unknown>>) => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:515',message:'listOwned before attachLocationToMany',data:{propertyCount:properties.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          return this.attachLocationToMany(properties);
+        })
+        .catch((error) => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:520',message:'listOwned error',data:{errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          throw error;
+        });
     }
 
     if (actor.role === Role.AGENT) {
@@ -521,7 +569,18 @@ export class PropertiesService {
           orderBy: { createdAt: 'desc' },
           include
         })
-        .then((properties: Array<Record<string, unknown>>) => this.attachLocationToMany(properties));
+        .then((properties: Array<Record<string, unknown>>) => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:525',message:'listOwned before attachLocationToMany',data:{propertyCount:properties.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          return this.attachLocationToMany(properties);
+        })
+        .catch((error) => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:530',message:'listOwned error',data:{errorMessage:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          throw error;
+        });
     }
 
     throw new ForbiddenException('Only landlords, agents, or admins can manage listings');
