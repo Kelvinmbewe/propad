@@ -61,6 +61,10 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
                             src={property.imageUrl}
                             alt={property.title}
                             className="h-full w-full object-cover"
+                            onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80';
+                            }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-0 left-0 p-8 text-white">

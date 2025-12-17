@@ -234,6 +234,17 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
                       src={src}
                       alt={`${property.type} in ${location}`}
                       className="h-full w-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent) {
+                          const errorDiv = document.createElement('div');
+                          errorDiv.className = 'h-full w-full flex items-center justify-center bg-neutral-200 text-neutral-500 text-sm';
+                          errorDiv.textContent = 'Image unavailable';
+                          parent.appendChild(errorDiv);
+                        }
+                      }}
                     />
                   </div>
                 );

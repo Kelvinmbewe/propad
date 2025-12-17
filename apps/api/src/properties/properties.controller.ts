@@ -35,6 +35,7 @@ import {
   updateDealConfirmationSchema
 } from './dto/update-deal-confirmation.dto';
 import { CreateMessageDto, createMessageSchema } from './dto/create-message.dto';
+import { UpdateServiceFeeDto, updateServiceFeeSchema } from './dto/update-service-fee.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -113,6 +114,17 @@ export class PropertiesController {
     @Body(new ZodValidationPipe(assignAgentSchema)) dto: AssignAgentDto
   ) {
     return this.propertiesService.assignVerifiedAgent(id, dto, req.user);
+  }
+
+  @Patch(':id/service-fee')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.ADMIN)
+  updateServiceFee(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(updateServiceFeeSchema)) dto: UpdateServiceFeeDto
+  ) {
+    return this.propertiesService.updateServiceFee(id, dto, req.user);
   }
 
   @Patch(':id/deal-confirmation')

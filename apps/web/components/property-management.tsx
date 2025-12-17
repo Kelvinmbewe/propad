@@ -72,6 +72,24 @@ export function PropertyManagement() {
     }
   });
 
+  const updateFeeMutation = useMutation({
+    mutationFn: ({ propertyId, serviceFeeUsd }: { propertyId: string; serviceFeeUsd: number | null }) =>
+      sdk!.properties.updateServiceFee(propertyId, { serviceFeeUsd }),
+    onSuccess: (_, variables) => {
+      notify.success(variables.serviceFeeUsd !== null ? 'Service fee saved' : 'Service fee cleared');
+      setServiceFees((prev) => ({ ...prev, [variables.propertyId]: '' }));
+      queryClient.invalidateQueries({ queryKey: ['properties:owned'] });
+    },
+    onError: (error: unknown) => {
+      const fallback = 'Unable to save service fee';
+      if (error instanceof Error) {
+        notify.error(error.message || fallback);
+      } else {
+        notify.error(fallback);
+      }
+    }
+  });
+
   const confirmMutation = useMutation({
     mutationFn: ({ propertyId, confirmed }: { propertyId: string; confirmed: boolean }) =>
       sdk!.properties.updateDealConfirmation(propertyId, { confirmed }),
@@ -111,6 +129,21 @@ export function PropertyManagement() {
     assignMutation.mutate({ propertyId: property.id, agentId: currentSelection, serviceFeeUsd: parsedFee });
   };
 
+  const handleSaveFee = (property: PropertyManagementType) => {
+    const feeInput = serviceFees[property.id]?.trim();
+    let parsedFee: number | null = null;
+    if (feeInput) {
+      const numeric = Number(feeInput);
+      if (Number.isNaN(numeric) || numeric < 0) {
+        notify.error('Enter a valid service fee (optional)');
+        return;
+      }
+      parsedFee = numeric;
+    }
+
+    updateFeeMutation.mutate({ propertyId: property.id, serviceFeeUsd: parsedFee });
+  };
+
   const handleToggleConfirmation = (property: PropertyManagementType) => {
     const confirmed = !property.dealConfirmedAt;
     confirmMutation.mutate({ propertyId: property.id, confirmed });
@@ -147,6 +180,33 @@ export function PropertyManagement() {
     );
   }
 
+  // Group properties by status/type
+  const groupedProperties = useMemo(() => {
+    const groups: Record<string, PropertyManagementType[]> = {
+      'For Sale': [],
+      'To Rent': [],
+      'Confirmed': [],
+      'Other': []
+    };
+
+    properties.forEach((property) => {
+      const listingIntent = (property as any).listingIntent;
+      const isConfirmed = property.dealConfirmedAt !== null && property.dealConfirmedAt !== undefined;
+
+      if (isConfirmed) {
+        groups['Confirmed'].push(property);
+      } else if (listingIntent === 'FOR_SALE') {
+        groups['For Sale'].push(property);
+      } else if (listingIntent === 'TO_RENT') {
+        groups['To Rent'].push(property);
+      } else {
+        groups['Other'].push(property);
+      }
+    });
+
+    return groups;
+  }, [properties]);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
@@ -154,7 +214,15 @@ export function PropertyManagement() {
           List New Property
         </Button>
       </div>
-      {properties.map((property) => {
+      {Object.entries(groupedProperties).map(([groupName, groupProperties]) => {
+        if (groupProperties.length === 0) return null;
+
+        return (
+          <div key={groupName} className="space-y-4">
+            <h2 className="text-lg font-semibold text-neutral-900 border-b pb-2">
+              {groupName} ({groupProperties.length})
+            </h2>
+            {groupProperties.map((property) => {
         const priceLabel = formatCurrency(property.price, property.currency);
         const currentAssignment = property.assignments?.[0];
         const currentAgent = property.agentOwner?.name ?? 'Unassigned';
@@ -211,19 +279,33 @@ export function PropertyManagement() {
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor={`fee-${property.id}`}>Landlord-paid service fee (optional)</Label>
-                  <Input
-                    id={`fee-${property.id}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={serviceFees[property.id] ?? ''}
-                    onChange={(event) =>
-                      setServiceFees((prev) => ({ ...prev, [property.id]: event.target.value }))
-                    }
-                    placeholder="e.g. 25"
-                    disabled={assignMutation.isPending}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id={`fee-${property.id}`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={serviceFees[property.id] ?? ''}
+                      onChange={(event) =>
+                        setServiceFees((prev) => ({ ...prev, [property.id]: event.target.value }))
+                      }
+                      placeholder="e.g. 25"
+                      disabled={updateFeeMutation.isPending || assignMutation.isPending}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={() => handleSaveFee(property)}
+                      disabled={updateFeeMutation.isPending || assignMutation.isPending || !property.agentOwnerId}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {updateFeeMutation.isPending ? 'Saving…' : 'Save'}
+                    </Button>
+                  </div>
                   <p className="text-xs text-neutral-500">Only the landlord pays this fee. Tenants are never charged.</p>
+                  {!property.agentOwnerId && (
+                    <p className="text-xs text-orange-600">Assign an agent first to save the service fee.</p>
+                  )}
                 </div>
               </div>
 
@@ -287,6 +369,9 @@ export function PropertyManagement() {
               <p className="text-xs text-neutral-500">Keep conversations here to reduce WhatsApp leakage.</p>
             </CardFooter>
           </Card>
+            );
+          })}
+          </div>
         );
       })}
     </div>

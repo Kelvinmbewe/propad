@@ -237,9 +237,25 @@ export default function EditPropertyPage() {
         );
     }
 
+    const isDealConfirmed = (property as any).dealConfirmedAt !== null && (property as any).dealConfirmedAt !== undefined;
+    const isReadOnly = isDealConfirmed;
+
     return (
         <div className="max-w-2xl mx-auto py-8 px-4">
-            <h1 className="text-2xl font-bold mb-6 text-slate-900 dark:text-slate-50">Edit Property</h1>
+            <div className="flex items-center justify-between mb-6">
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Edit Property</h1>
+                {isDealConfirmed && (
+                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                        Deal Confirmed - Read Only
+                    </span>
+                )}
+            </div>
+
+            {isDealConfirmed && (
+                <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                    This property has a confirmed deal and cannot be edited. Please contact support if you need to make changes.
+                </div>
+            )}
 
             <form onSubmit={onSubmit} className="space-y-6 bg-white dark:bg-slate-800 p-6 rounded-lg shadow">
                 <div>
@@ -251,6 +267,7 @@ export default function EditPropertyPage() {
                         required
                         placeholder="e.g. Modern 3-Bedroom House in Highlands"
                         className="mt-1"
+                        disabled={isReadOnly}
                     />
                 </div>
 
@@ -263,6 +280,7 @@ export default function EditPropertyPage() {
                         rows={4}
                         className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white"
                         placeholder="Describe the property..."
+                        disabled={isReadOnly}
                     />
                 </div>
 
@@ -275,6 +293,7 @@ export default function EditPropertyPage() {
                             onChange={(e) => setFormData({ ...formData, listingIntent: e.target.value })}
                             required
                             className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                            disabled={isReadOnly}
                         >
                             {LISTING_INTENTS.map(li => (
                                 <option key={li.value} value={li.value}>{li.label}</option>
@@ -292,6 +311,7 @@ export default function EditPropertyPage() {
                             required
                             min="0"
                             className="mt-1"
+                            disabled={isReadOnly}
                         />
                     </div>
 
@@ -303,6 +323,7 @@ export default function EditPropertyPage() {
                             onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                             required
                             className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+                            disabled={isReadOnly}
                         >
                             {PROPERTY_TYPES.map(pt => (
                                 <option key={pt.value} value={pt.value}>{pt.label}</option>
@@ -440,18 +461,34 @@ export default function EditPropertyPage() {
                                             src={src}
                                             alt="Property"
                                             className="w-full h-32 object-cover rounded-lg"
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.style.display = 'none';
+                                                const parent = target.parentElement;
+                                                if (parent) {
+                                                    const errorDiv = document.createElement('div');
+                                                    errorDiv.className = 'w-full h-32 flex items-center justify-center bg-red-50 border border-red-200 rounded-lg text-xs text-red-600';
+                                                    errorDiv.textContent = 'Image failed to load';
+                                                    parent.appendChild(errorDiv);
+                                                }
+                                            }}
                                         />
                                         <button
                                             type="button"
-                                            onClick={async () => {
-                                                try {
-                                                    await sdk.properties.deleteMedia(propertyId, media.id);
-                                                    queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
-                                                    notify.success('Image deleted');
-                                                } catch (e) {
-                                                    notify.error('Failed to delete image');
-                                                }
-                                            }}
+                            onClick={async () => {
+                                if (isReadOnly) {
+                                    notify.error('Cannot delete images for confirmed deals');
+                                    return;
+                                }
+                                try {
+                                    await sdk.properties.deleteMedia(propertyId, media.id);
+                                    queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
+                                    notify.success('Image deleted');
+                                } catch (e) {
+                                    notify.error('Failed to delete image');
+                                }
+                            }}
+                            disabled={isReadOnly}
                                             className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                                         >
                                             <Trash2 className="h-4 w-4" />
@@ -479,6 +516,11 @@ export default function EditPropertyPage() {
                             multiple
                             className="hidden"
                             onChange={async (e) => {
+                                if (isReadOnly) {
+                                    notify.error('Cannot upload images for confirmed deals');
+                                    e.target.value = '';
+                                    return;
+                                }
                                 const files = e.target.files;
                                 if (!files || files.length === 0) return;
 
@@ -498,6 +540,7 @@ export default function EditPropertyPage() {
                                 }
                                 e.target.value = '';
                             }}
+                            disabled={isReadOnly}
                         />
                     </div>
                 </div>
@@ -513,11 +556,11 @@ export default function EditPropertyPage() {
                     </Button>
                     <Button
                         type="submit"
-                        disabled={isLoading}
+                        disabled={isLoading || isReadOnly}
                         className="flex-1 justify-center bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
                     >
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Changes
+                        {isReadOnly ? 'Editing Disabled (Deal Confirmed)' : 'Save Changes'}
                     </Button>
                 </div>
             </form>

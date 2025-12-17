@@ -195,6 +195,14 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .post(`properties/${id}/assign-agent`, { json: payload })
           .json<AgentAssignment>()
           .then((data) => AgentAssignmentSchema.parse(data)),
+      updateServiceFee: async (
+        id: string,
+        payload: { serviceFeeUsd: number | null },
+      ) =>
+        client
+          .patch(`properties/${id}/service-fee`, { json: payload })
+          .json<AgentAssignment>()
+          .then((data) => AgentAssignmentSchema.parse(data)),
       updateDealConfirmation: async (
         id: string,
         payload: { confirmed: boolean },
