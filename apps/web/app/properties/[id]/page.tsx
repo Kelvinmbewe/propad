@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { PropertyMessenger } from '@/components/property-messenger';
 import { notFound } from 'next/navigation';
 import { Bath, BedDouble, MapPin, Ruler } from 'lucide-react';
+import { getImageUrl } from '@/lib/image-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,13 +24,8 @@ async function getProperty(id: string, userId?: string) {
 
   if (!property) return null;
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
   const rawImageUrl = property.media[0]?.url;
-  const imageUrl = rawImageUrl
-    ? (rawImageUrl.startsWith('http')
-        ? rawImageUrl
-        : `${apiBase.replace(/\/+$/, '')}${rawImageUrl}`)
-    : 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80';
+  const imageUrl = getImageUrl(rawImageUrl);
 
   return {
     ...property,
@@ -62,6 +58,7 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
                             alt={property.title}
                             className="h-full w-full object-cover"
                             onError={(e) => {
+                                console.error('Image load error:', property.imageUrl, e);
                                 const target = e.target as HTMLImageElement;
                                 target.src = 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80';
                             }}

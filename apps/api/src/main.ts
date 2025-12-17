@@ -17,7 +17,17 @@ async function bootstrap() {
 
   const logger = new Logger('HTTP');
   app.useLogger(logger);
-  app.use(helmet());
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'https:', 'http://localhost:3001', 'http://localhost:3000'],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
+      },
+    },
+  }));
   app.use(cookieParser());
   app.use(
     pinoHttp({

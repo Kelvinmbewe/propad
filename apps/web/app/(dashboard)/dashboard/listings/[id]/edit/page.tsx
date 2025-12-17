@@ -7,6 +7,7 @@ import { Button, Input, Label, notify } from '@propad/ui';
 import { Loader2, Search, X, MapPin, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import type { GeoSearchResult } from '@propad/sdk';
+import { getImageUrl } from '@/lib/image-url';
 
 const PROPERTY_TYPES = [
     { value: 'ROOM', label: 'Room' },
@@ -450,10 +451,7 @@ export default function EditPropertyPage() {
                     {property.media && property.media.length > 0 ? (
                         <div className="grid grid-cols-3 gap-4 mt-4">
                             {property.media.map((media: { id: string; url: string; kind: string }) => {
-                                const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
-                                const src = media.url.startsWith('http')
-                                    ? media.url
-                                    : `${apiBase.replace(/\/+$/, '')}${media.url}`;
+                                const src = getImageUrl(media.url);
 
                                 return (
                                     <div key={media.id} className="relative group">
@@ -462,12 +460,13 @@ export default function EditPropertyPage() {
                                             alt="Property"
                                             className="w-full h-32 object-cover rounded-lg"
                                             onError={(e) => {
+                                                console.error('Image load error:', src, e);
                                                 const target = e.target as HTMLImageElement;
                                                 target.style.display = 'none';
                                                 const parent = target.parentElement;
-                                                if (parent) {
+                                                if (parent && !parent.querySelector('.image-error')) {
                                                     const errorDiv = document.createElement('div');
-                                                    errorDiv.className = 'w-full h-32 flex items-center justify-center bg-red-50 border border-red-200 rounded-lg text-xs text-red-600';
+                                                    errorDiv.className = 'image-error w-full h-32 flex items-center justify-center bg-red-50 border border-red-200 rounded-lg text-xs text-red-600';
                                                     errorDiv.textContent = 'Image failed to load';
                                                     parent.appendChild(errorDiv);
                                                 }

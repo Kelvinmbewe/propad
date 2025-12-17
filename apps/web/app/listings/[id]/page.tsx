@@ -5,6 +5,7 @@ import { PropertySchema, type Property } from '@propad/sdk';
 import { AdSlot } from '@/components/ad-slot';
 import { ContactActions } from '@/components/contact-actions';
 import { formatCurrency, formatFriendlyDate } from '@/lib/formatters';
+import { getImageUrl } from '@/lib/image-url';
 
 async function fetchProperty(id: string): Promise<Property> {
   const response = await fetch(`${env.NEXT_PUBLIC_API_BASE_URL}/properties/${id}`, {
@@ -220,10 +221,7 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
           <div className="grid gap-4 md:grid-cols-2">
             {property.media?.length ? (
               property.media.map((media) => {
-                const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
-                const src = media.url.startsWith('http')
-                  ? media.url
-                  : `${apiBase.replace(/\/+$/, '')}${media.url}`;
+                const src = getImageUrl(media.url);
 
                 return (
                   <div
@@ -235,12 +233,13 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
                       alt={`${property.type} in ${location}`}
                       className="h-full w-full object-cover"
                       onError={(e) => {
+                        console.error('Image load error:', src, e);
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
                         const parent = target.parentElement;
-                        if (parent) {
+                        if (parent && !parent.querySelector('.image-error')) {
                           const errorDiv = document.createElement('div');
-                          errorDiv.className = 'h-full w-full flex items-center justify-center bg-neutral-200 text-neutral-500 text-sm';
+                          errorDiv.className = 'image-error h-full w-full flex items-center justify-center bg-neutral-200 text-neutral-500 text-sm';
                           errorDiv.textContent = 'Image unavailable';
                           parent.appendChild(errorDiv);
                         }
