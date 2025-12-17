@@ -127,14 +127,25 @@ export class PropertiesService {
       location: {
         countryId: property.countryId ?? null,
         country: property.country
-          ? { id: property.country.id, name: property.country.name, iso2: property.country.iso2, phoneCode: property.country.phoneCode }
+          ? {
+              id: property.country.id ?? null,
+              name: property.country.name ?? null,
+              iso2: property.country.iso2 ?? null,
+              phoneCode: property.country.phoneCode ?? null
+            }
           : null,
         provinceId: property.provinceId ?? null,
-        province: property.province ? { id: property.province.id, name: property.province.name } : null,
+        province: property.province
+          ? { id: property.province.id ?? null, name: property.province.name ?? null }
+          : null,
         cityId: property.cityId ?? null,
-        city: property.city ? { id: property.city.id, name: property.city.name } : null,
+        city: property.city
+          ? { id: property.city.id ?? null, name: property.city.name ?? null }
+          : null,
         suburbId: property.suburbId ?? null,
-        suburb: property.suburb ? { id: property.suburb.id, name: property.suburb.name } : null,
+        suburb: property.suburb
+          ? { id: property.suburb.id ?? null, name: property.suburb.name ?? null }
+          : null,
         pendingGeoId: property.pendingGeoId ?? null,
         lat: typeof property.lat === 'number' ? property.lat : null,
         lng: typeof property.lng === 'number' ? property.lng : null
@@ -143,7 +154,34 @@ export class PropertiesService {
   }
 
   private attachLocationToMany<T extends Record<string, unknown>>(properties: T[]) {
-    return properties.map((property) => this.attachLocation(property));
+    return properties.map((property) => {
+      try {
+        return this.attachLocation(property);
+      } catch (error) {
+        // Log error but return property without location data to prevent 500 errors
+        console.error('Error attaching location to property:', error, property);
+        return {
+          ...property,
+          countryName: null,
+          provinceName: null,
+          cityName: null,
+          suburbName: null,
+          location: {
+            countryId: null,
+            country: null,
+            provinceId: null,
+            province: null,
+            cityId: null,
+            city: null,
+            suburbId: null,
+            suburb: null,
+            pendingGeoId: null,
+            lat: null,
+            lng: null
+          }
+        };
+      }
+    });
   }
 
   private normalizeCommercialFields(
