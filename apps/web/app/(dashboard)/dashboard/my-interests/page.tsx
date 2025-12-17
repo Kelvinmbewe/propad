@@ -110,7 +110,7 @@ export default async function MyInterestsPage() {
                           {interest.message && (
                             <p className="mt-2 text-sm text-slate-600">Your message: "{interest.message}"</p>
                           )}
-                          {interest.offerAmount && (
+                          {interest.offerAmount !== null && interest.offerAmount !== undefined && (
                             <p className="mt-1 text-sm font-medium text-slate-700">
                               Your offer: {formatCurrency(
                                 interest.offerAmount && typeof interest.offerAmount === 'object' && 'toNumber' in interest.offerAmount
