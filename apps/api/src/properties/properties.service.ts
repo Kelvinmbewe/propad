@@ -157,7 +157,12 @@ export class PropertiesService {
       };
     } catch (error) {
       // Log error and return property with minimal location data
-      this.logger.error('Error in attachLocation', error, property?.id);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Error in attachLocation${property?.id ? ` for property ${property.id}` : ''}: ${errorMessage}`,
+        errorStack
+      );
       return {
         ...property,
         countryName: null,
@@ -187,7 +192,12 @@ export class PropertiesService {
         return this.attachLocation(property);
       } catch (error) {
         // Log error but return property without location data to prevent 500 errors
-        this.logger.error('Error attaching location to property', error, property?.id);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        this.logger.error(
+          `Error attaching location to property${property?.id ? ` ${property.id}` : ''}: ${errorMessage}`,
+          errorStack
+        );
         return {
           ...property,
           countryName: null,
