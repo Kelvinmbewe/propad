@@ -261,8 +261,8 @@ export default function CreatePropertyPage() {
         setIsLoading(true);
 
         const formData = new FormData(event.currentTarget);
-        const title = formData.get('title') as string;
-        const description = formData.get('description') as string;
+        const title = (formData.get('title') as string)?.trim();
+        const description = (formData.get('description') as string)?.trim() || undefined;
         const price = Number(formData.get('price'));
         const type = formData.get('type') as string;
         const listingIntent = formData.get('listingIntent') as string;
@@ -270,23 +270,42 @@ export default function CreatePropertyPage() {
         const bathrooms = Number(formData.get('bathrooms')) || undefined;
         const areaSqm = Number(formData.get('areaSqm')) || undefined;
 
+        if (!title || title.length === 0) {
+            notify.error('Property title is required');
+            setIsLoading(false);
+            return;
+        }
+
+        if (price <= 0 || isNaN(price)) {
+            notify.error('Price must be a positive number');
+            setIsLoading(false);
+            return;
+        }
+
         try {
-            const property = await sdk.properties.create({
+            // Clean payload: remove undefined and empty string values
+            const payload: any = {
                 title,
-                description,
                 price,
                 currency: 'USD',
-                type,
-                listingIntent,
-                countryId: selectedLocation.countryId,
-                provinceId: selectedLocation.provinceId,
-                cityId: selectedLocation.cityId,
-                suburbId: selectedLocation.suburbId,
-                pendingGeoId: selectedLocation.pendingGeoId,
-                bedrooms,
-                bathrooms,
-                areaSqm,
-            });
+                type: type as any,
+            };
+
+            // Only include optional fields if they have values
+            if (description) payload.description = description;
+            if (listingIntent) payload.listingIntent = listingIntent;
+            if (bedrooms !== undefined) payload.bedrooms = bedrooms;
+            if (bathrooms !== undefined) payload.bathrooms = bathrooms;
+            if (areaSqm !== undefined) payload.areaSqm = areaSqm;
+
+            // Only include location fields if they have values
+            if (selectedLocation.countryId) payload.countryId = selectedLocation.countryId;
+            if (selectedLocation.provinceId) payload.provinceId = selectedLocation.provinceId;
+            if (selectedLocation.cityId) payload.cityId = selectedLocation.cityId;
+            if (selectedLocation.suburbId) payload.suburbId = selectedLocation.suburbId;
+            if (selectedLocation.pendingGeoId) payload.pendingGeoId = selectedLocation.pendingGeoId;
+
+            const property = await sdk.properties.create(payload);
 
             // Upload images to the property
             if (uploadedImages.length > 0) {

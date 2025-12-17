@@ -173,21 +173,48 @@ export default function EditPropertyPage() {
 
         setIsLoading(true);
 
+        const title = formData.title?.trim();
+        const description = formData.description?.trim() || undefined;
+        const price = Number(formData.price);
+        const bedrooms = formData.bedrooms ? Number(formData.bedrooms) : undefined;
+        const bathrooms = formData.bathrooms ? Number(formData.bathrooms) : undefined;
+        const areaSqm = formData.areaSqm ? Number(formData.areaSqm) : undefined;
+
+        if (!title || title.length === 0) {
+            notify.error('Property title is required');
+            setIsLoading(false);
+            return;
+        }
+
+        if (price <= 0 || isNaN(price)) {
+            notify.error('Price must be a positive number');
+            setIsLoading(false);
+            return;
+        }
+
         try {
-            await sdk.properties.update(propertyId, {
-                title: formData.title,
-                description: formData.description,
-                price: Number(formData.price),
-                type: formData.type,
-                listingIntent: formData.listingIntent,
-                countryId: selectedLocation?.countryId,
-                provinceId: selectedLocation?.provinceId,
-                cityId: selectedLocation?.cityId,
-                suburbId: selectedLocation?.suburbId,
-                bedrooms: Number(formData.bedrooms) || undefined,
-                bathrooms: Number(formData.bathrooms) || undefined,
-                areaSqm: Number(formData.areaSqm) || undefined,
-            } as any);
+            // Clean payload: remove undefined and empty string values
+            const payload: any = {
+                title,
+                price,
+                type: formData.type as any,
+            };
+
+            // Only include optional fields if they have values
+            if (description) payload.description = description;
+            if (formData.listingIntent) payload.listingIntent = formData.listingIntent;
+            if (bedrooms !== undefined) payload.bedrooms = bedrooms;
+            if (bathrooms !== undefined) payload.bathrooms = bathrooms;
+            if (areaSqm !== undefined) payload.areaSqm = areaSqm;
+
+            // Only include location fields if they have values
+            if (selectedLocation?.countryId) payload.countryId = selectedLocation.countryId;
+            if (selectedLocation?.provinceId) payload.provinceId = selectedLocation.provinceId;
+            if (selectedLocation?.cityId) payload.cityId = selectedLocation.cityId;
+            if (selectedLocation?.suburbId) payload.suburbId = selectedLocation.suburbId;
+            if (selectedLocation?.pendingGeoId) payload.pendingGeoId = selectedLocation.pendingGeoId;
+
+            await sdk.properties.update(propertyId, payload);
 
             notify.success('Property updated successfully!');
             queryClient.invalidateQueries({ queryKey: ['properties:owned'] });
