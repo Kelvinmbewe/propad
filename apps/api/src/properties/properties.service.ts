@@ -142,7 +142,7 @@ export class PropertiesService {
       fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:135',message:'attachLocation after spread',data:{propertyId:property?.id,cleanPropertyKeys:Object.keys(cleanProperty).slice(0,10),hasPrice:!!cleanProperty?.price,priceType:typeof cleanProperty?.price,priceValue:cleanProperty?.price?.toString?.()?.substring(0,20)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
 
-      const result = {
+      const result: any = {
         ...cleanProperty,
         countryName: country?.name ?? null,
         provinceName: province?.name ?? null,
@@ -176,8 +176,25 @@ export class PropertiesService {
         }
       };
 
+      // Convert Prisma Decimal types to numbers for JSON serialization
+      if (result.price && typeof result.price === 'object' && 'toNumber' in result.price && typeof result.price.toNumber === 'function') {
+        result.price = result.price.toNumber();
+      }
+      if (result.areaSqm && typeof result.areaSqm === 'object' && 'toNumber' in result.areaSqm && typeof result.areaSqm.toNumber === 'function') {
+        result.areaSqm = result.areaSqm.toNumber();
+      }
+      // Convert Decimal in assignments if present
+      if (result.assignments && Array.isArray(result.assignments)) {
+        result.assignments = result.assignments.map((assignment: any) => {
+          if (assignment.serviceFeeUsdCents && typeof assignment.serviceFeeUsdCents === 'object' && 'toNumber' in assignment.serviceFeeUsdCents && typeof assignment.serviceFeeUsdCents.toNumber === 'function') {
+            assignment.serviceFeeUsdCents = assignment.serviceFeeUsdCents.toNumber();
+          }
+          return assignment;
+        });
+      }
+
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:166',message:'attachLocation success',data:{propertyId:property?.id,resultPriceType:typeof result?.price},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:195',message:'attachLocation success',data:{propertyId:property?.id,resultPriceType:typeof result?.price,resultAreaSqmType:typeof result?.areaSqm},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
 
       return result;
@@ -193,7 +210,7 @@ export class PropertiesService {
       // Return a safe, serializable object with only essential fields
       // Create a clean serializable object, excluding Prisma relation objects
       const { country, province, city, suburb, pendingGeo, ...cleanProperty } = property as any;
-      return {
+      const errorResult: any = {
         ...cleanProperty,
         countryName: null,
         provinceName: null,
@@ -213,6 +230,24 @@ export class PropertiesService {
           lng: null
         }
       };
+
+      // Convert Prisma Decimal types to numbers for JSON serialization
+      if (errorResult.price && typeof errorResult.price === 'object' && 'toNumber' in errorResult.price && typeof errorResult.price.toNumber === 'function') {
+        errorResult.price = errorResult.price.toNumber();
+      }
+      if (errorResult.areaSqm && typeof errorResult.areaSqm === 'object' && 'toNumber' in errorResult.areaSqm && typeof errorResult.areaSqm.toNumber === 'function') {
+        errorResult.areaSqm = errorResult.areaSqm.toNumber();
+      }
+      if (errorResult.assignments && Array.isArray(errorResult.assignments)) {
+        errorResult.assignments = errorResult.assignments.map((assignment: any) => {
+          if (assignment.serviceFeeUsdCents && typeof assignment.serviceFeeUsdCents === 'object' && 'toNumber' in assignment.serviceFeeUsdCents && typeof assignment.serviceFeeUsdCents.toNumber === 'function') {
+            assignment.serviceFeeUsdCents = assignment.serviceFeeUsdCents.toNumber();
+          }
+          return assignment;
+        });
+      }
+
+      return errorResult;
     }
   }
 
@@ -236,7 +271,7 @@ export class PropertiesService {
         );
         // Create a clean serializable object, excluding Prisma relation objects
         const { country, province, city, suburb, pendingGeo, ...cleanProperty } = property as any;
-        return {
+        const errorResult: any = {
           ...cleanProperty,
           countryName: null,
           provinceName: null,
@@ -256,6 +291,24 @@ export class PropertiesService {
             lng: null
           }
         };
+
+        // Convert Prisma Decimal types to numbers for JSON serialization
+        if (errorResult.price && typeof errorResult.price === 'object' && 'toNumber' in errorResult.price && typeof errorResult.price.toNumber === 'function') {
+          errorResult.price = errorResult.price.toNumber();
+        }
+        if (errorResult.areaSqm && typeof errorResult.areaSqm === 'object' && 'toNumber' in errorResult.areaSqm && typeof errorResult.areaSqm.toNumber === 'function') {
+          errorResult.areaSqm = errorResult.areaSqm.toNumber();
+        }
+        if (errorResult.assignments && Array.isArray(errorResult.assignments)) {
+          errorResult.assignments = errorResult.assignments.map((assignment: any) => {
+            if (assignment.serviceFeeUsdCents && typeof assignment.serviceFeeUsdCents === 'object' && 'toNumber' in assignment.serviceFeeUsdCents && typeof assignment.serviceFeeUsdCents.toNumber === 'function') {
+              assignment.serviceFeeUsdCents = assignment.serviceFeeUsdCents.toNumber();
+            }
+            return assignment;
+          });
+        }
+
+        return errorResult;
       }
     }).map((result, index) => {
       // #region agent log
