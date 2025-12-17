@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException
 } from '@nestjs/common';
 import {
@@ -87,6 +88,8 @@ type NormalizedFilters = {
 
 @Injectable()
 export class PropertiesService {
+  private readonly logger = new Logger(PropertiesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
@@ -154,7 +157,7 @@ export class PropertiesService {
       };
     } catch (error) {
       // Log error and return property with minimal location data
-      console.error('Error in attachLocation:', error, property);
+      this.logger.error('Error in attachLocation', error, property?.id);
       return {
         ...property,
         countryName: null,
@@ -184,7 +187,7 @@ export class PropertiesService {
         return this.attachLocation(property);
       } catch (error) {
         // Log error but return property without location data to prevent 500 errors
-        console.error('Error attaching location to property:', error, property);
+        this.logger.error('Error attaching location to property', error, property?.id);
         return {
           ...property,
           countryName: null,
