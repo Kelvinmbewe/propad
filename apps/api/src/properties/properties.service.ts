@@ -17,7 +17,7 @@ import {
 import { PowerPhase } from '../common/enums';
 import { createHmac, randomUUID } from 'crypto';
 import { extname, join, resolve } from 'path';
-import { mkdir, writeFile, unlink } from 'fs/promises';
+import { mkdir, writeFile, unlink, appendFile } from 'fs/promises';
 import { env } from '@propad/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -96,6 +96,90 @@ export class PropertiesService {
     private readonly geo: GeoService
   ) { }
 
+  /**
+   * Recursively convert Prisma Decimal types and Date objects for JSON serialization
+   * Uses a Set to track visited objects and prevent circular reference issues
+   */
+  private convertDecimalsToNumbers(obj: any, visited: Set<any> = new Set()): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+
+    // Prevent circular references
+    if (typeof obj === 'object') {
+      if (visited.has(obj)) {
+        return '[Circular]';
+      }
+      visited.add(obj);
+    }
+
+    try {
+      // Check if it's a Prisma Decimal
+      if (obj && typeof obj === 'object' && 'toNumber' in obj && typeof obj.toNumber === 'function') {
+        return obj.toNumber();
+      }
+
+      // Check if it's a Date object - convert to ISO string
+      if (obj instanceof Date) {
+        return obj.toISOString();
+      }
+
+      // Handle arrays
+      if (Array.isArray(obj)) {
+        return obj.map(item => this.convertDecimalsToNumbers(item, visited));
+      }
+
+      // Handle objects (but skip functions and special objects)
+      if (typeof obj === 'object') {
+        // Skip Buffer and other special objects
+        if (obj instanceof Buffer || obj.constructor?.name === 'Buffer') {
+          return obj;
+        }
+        
+        const converted: any = {};
+        for (const key in obj) {
+          if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            try {
+              converted[key] = this.convertDecimalsToNumbers(obj[key], visited);
+            } catch (error) {
+              // Skip properties that can't be converted
+              this.logger.warn(`Failed to convert property ${key}: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          }
+        }
+        return converted;
+      }
+
+      return obj;
+    } finally {
+      // Clean up visited set for this branch
+      if (typeof obj === 'object') {
+        visited.delete(obj);
+      }
+    }
+  }
+
+  /**
+   * Log debug information to file
+   */
+  private async logDebug(location: string, message: string, data: any, hypothesisId?: string): Promise<void> {
+    try {
+      const logEntry = JSON.stringify({
+        location,
+        message,
+        data,
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId
+      }) + '\n';
+      await mkdir('.cursor', { recursive: true }).catch(() => {});
+      await appendFile('.cursor/debug.log', logEntry).catch(() => {});
+    } catch {
+      // Ignore logging errors
+    }
+  }
+
   private pickString(...values: Array<string | null | undefined>): string | undefined {
     for (const value of values) {
       if (typeof value === 'string') {
@@ -122,7 +206,7 @@ export class PropertiesService {
 
   private attachLocation<T extends Record<string, any>>(property: T) {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:123',message:'attachLocation entry',data:{propertyId:property?.id,hasCountry:!!property?.country,hasProvince:!!property?.province,hasPrice:!!property?.price,priceType:typeof property?.price},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    this.logDebug('properties.service.ts:207', 'attachLocation entry', { propertyId: property?.id, hasCountry: !!property?.country, hasProvince: !!property?.province, hasPrice: !!property?.price, priceType: typeof property?.price }, 'A').catch(() => {});
     // #endregion
     try {
       // Safely extract location data with proper null checks
@@ -132,14 +216,14 @@ export class PropertiesService {
       const suburb = property.suburb && typeof property.suburb === 'object' ? property.suburb : null;
 
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:132',message:'attachLocation before spread',data:{propertyId:property?.id,countryType:typeof country,provinceType:typeof province},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      this.logDebug('properties.service.ts:219', 'attachLocation before spread', { propertyId: property?.id, countryType: typeof country, provinceType: typeof province }, 'A').catch(() => {});
       // #endregion
 
       // Exclude Prisma relation objects from the spread to avoid serialization issues
       const { country: _country, province: _province, city: _city, suburb: _suburb, pendingGeo: _pendingGeo, ...cleanProperty } = property as any;
 
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:135',message:'attachLocation after spread',data:{propertyId:property?.id,cleanPropertyKeys:Object.keys(cleanProperty).slice(0,10),hasPrice:!!cleanProperty?.price,priceType:typeof cleanProperty?.price,priceValue:cleanProperty?.price?.toString?.()?.substring(0,20)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      this.logDebug('properties.service.ts:226', 'attachLocation after spread', { propertyId: property?.id, cleanPropertyKeys: Object.keys(cleanProperty).slice(0, 10), hasPrice: !!cleanProperty?.price, priceType: typeof cleanProperty?.price, priceValue: cleanProperty?.price?.toString?.()?.substring(0, 20) }, 'B').catch(() => {});
       // #endregion
 
       const result: any = {
@@ -176,28 +260,14 @@ export class PropertiesService {
         }
       };
 
-      // Convert Prisma Decimal types to numbers for JSON serialization
-      if (result.price && typeof result.price === 'object' && 'toNumber' in result.price && typeof result.price.toNumber === 'function') {
-        result.price = result.price.toNumber();
-      }
-      if (result.areaSqm && typeof result.areaSqm === 'object' && 'toNumber' in result.areaSqm && typeof result.areaSqm.toNumber === 'function') {
-        result.areaSqm = result.areaSqm.toNumber();
-      }
-      // Convert Decimal in assignments if present
-      if (result.assignments && Array.isArray(result.assignments)) {
-        result.assignments = result.assignments.map((assignment: any) => {
-          if (assignment.serviceFeeUsdCents && typeof assignment.serviceFeeUsdCents === 'object' && 'toNumber' in assignment.serviceFeeUsdCents && typeof assignment.serviceFeeUsdCents.toNumber === 'function') {
-            assignment.serviceFeeUsdCents = assignment.serviceFeeUsdCents.toNumber();
-          }
-          return assignment;
-        });
-      }
+      // Convert all Prisma Decimal types recursively for JSON serialization
+      const convertedResult = this.convertDecimalsToNumbers(result);
 
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:195',message:'attachLocation success',data:{propertyId:property?.id,resultPriceType:typeof result?.price,resultAreaSqmType:typeof result?.areaSqm},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      this.logDebug('properties.service.ts:267', 'attachLocation success', { propertyId: property?.id, resultPriceType: typeof convertedResult?.price, resultAreaSqmType: typeof convertedResult?.areaSqm }, 'B').catch(() => {});
       // #endregion
 
-      return result;
+      return convertedResult;
     } catch (error) {
       // Log error and return property with minimal location data
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -231,34 +301,19 @@ export class PropertiesService {
         }
       };
 
-      // Convert Prisma Decimal types to numbers for JSON serialization
-      if (errorResult.price && typeof errorResult.price === 'object' && 'toNumber' in errorResult.price && typeof errorResult.price.toNumber === 'function') {
-        errorResult.price = errorResult.price.toNumber();
-      }
-      if (errorResult.areaSqm && typeof errorResult.areaSqm === 'object' && 'toNumber' in errorResult.areaSqm && typeof errorResult.areaSqm.toNumber === 'function') {
-        errorResult.areaSqm = errorResult.areaSqm.toNumber();
-      }
-      if (errorResult.assignments && Array.isArray(errorResult.assignments)) {
-        errorResult.assignments = errorResult.assignments.map((assignment: any) => {
-          if (assignment.serviceFeeUsdCents && typeof assignment.serviceFeeUsdCents === 'object' && 'toNumber' in assignment.serviceFeeUsdCents && typeof assignment.serviceFeeUsdCents.toNumber === 'function') {
-            assignment.serviceFeeUsdCents = assignment.serviceFeeUsdCents.toNumber();
-          }
-          return assignment;
-        });
-      }
-
-      return errorResult;
+      // Convert all Prisma Decimal types recursively for JSON serialization
+      return this.convertDecimalsToNumbers(errorResult);
     }
   }
 
   private attachLocationToMany<T extends Record<string, unknown>>(properties: T[]) {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:202',message:'attachLocationToMany entry',data:{propertyCount:properties.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    this.logDebug('properties.service.ts:310', 'attachLocationToMany entry', { propertyCount: properties.length }, 'C').catch(() => {});
     // #endregion
     return properties.map((property, index) => {
       try {
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:205',message:'attachLocationToMany processing property',data:{index,propertyId:property?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        this.logDebug('properties.service.ts:316', 'attachLocationToMany processing property', { index, propertyId: property?.id }, 'C').catch(() => {});
         // #endregion
         return this.attachLocation(property);
       } catch (error) {
@@ -292,39 +347,19 @@ export class PropertiesService {
           }
         };
 
-        // Convert Prisma Decimal types to numbers for JSON serialization
-        if (errorResult.price && typeof errorResult.price === 'object' && 'toNumber' in errorResult.price && typeof errorResult.price.toNumber === 'function') {
-          errorResult.price = errorResult.price.toNumber();
-        }
-        if (errorResult.areaSqm && typeof errorResult.areaSqm === 'object' && 'toNumber' in errorResult.areaSqm && typeof errorResult.areaSqm.toNumber === 'function') {
-          errorResult.areaSqm = errorResult.areaSqm.toNumber();
-        }
-        if (errorResult.assignments && Array.isArray(errorResult.assignments)) {
-          errorResult.assignments = errorResult.assignments.map((assignment: any) => {
-            if (assignment.serviceFeeUsdCents && typeof assignment.serviceFeeUsdCents === 'object' && 'toNumber' in assignment.serviceFeeUsdCents && typeof assignment.serviceFeeUsdCents.toNumber === 'function') {
-              assignment.serviceFeeUsdCents = assignment.serviceFeeUsdCents.toNumber();
-            }
-            return assignment;
-          });
-        }
-
-        return errorResult;
+        // Convert all Prisma Decimal types recursively for JSON serialization
+        return this.convertDecimalsToNumbers(errorResult);
       }
     }).map((result, index) => {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:230',message:'attachLocationToMany result',data:{index,resultId:result?.id,hasPrice:!!result?.price,priceType:typeof result?.price,isDecimal:result?.price?.constructor?.name === 'Decimal'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      this.logDebug('properties.service.ts:355', 'attachLocationToMany result', { index, resultId: result?.id, hasPrice: !!result?.price, priceType: typeof result?.price, isDecimal: result?.price?.constructor?.name === 'Decimal' }, 'B').catch(() => {});
       // #endregion
-      // Convert Decimal to number if present
-      if (result && typeof result === 'object' && 'price' in result) {
-        const price = (result as any).price;
-        if (price && typeof price === 'object' && 'toNumber' in price && typeof price.toNumber === 'function') {
-          (result as any).price = price.toNumber();
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:235',message:'attachLocationToMany converted Decimal',data:{index,resultId:result?.id,newPriceType:typeof (result as any).price},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
-        }
-      }
-      return result;
+      // Convert all Decimal types recursively
+      const converted = this.convertDecimalsToNumbers(result);
+      // #region agent log
+      this.logDebug('properties.service.ts:360', 'attachLocationToMany converted Decimal', { index, resultId: converted?.id, newPriceType: typeof converted?.price }, 'B').catch(() => {});
+      // #endregion
+      return converted;
     });
   }
 
@@ -571,7 +606,7 @@ export class PropertiesService {
 
   listOwned(actor: AuthContext) {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:481',message:'listOwned entry',data:{actorRole:actor.role,actorId:actor.userId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    this.logDebug('properties.service.ts:481', 'listOwned entry', { actorRole: actor.role, actorId: actor.userId }, 'C');
     // #endregion
     const include = {
       media: true,
@@ -595,23 +630,35 @@ export class PropertiesService {
     if (actor.role === Role.ADMIN) {
       return this.prisma.property
         .findMany({ orderBy: { createdAt: 'desc' }, include })
-        .then((properties: Array<Record<string, unknown>>) => {
+        .then(async (properties: Array<Record<string, unknown>>) => {
           // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:504',message:'listOwned before attachLocationToMany',data:{propertyCount:properties.length,firstPropertyId:properties[0]?.id,hasPrice:!!properties[0]?.price,priceType:typeof properties[0]?.price},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          await this.logDebug('properties.service.ts:504', 'listOwned before attachLocationToMany', { propertyCount: properties.length, firstPropertyId: properties[0]?.id, hasPrice: !!properties[0]?.price, priceType: typeof properties[0]?.price }, 'B');
           // #endregion
           return this.attachLocationToMany(properties);
         })
-        .then((result: Array<Record<string, unknown>>) => {
+        .then(async (result: Array<Record<string, unknown>>) => {
           // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:506',message:'listOwned after attachLocationToMany',data:{resultCount:result.length,firstResultId:result[0]?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          await this.logDebug('properties.service.ts:506', 'listOwned after attachLocationToMany', { resultCount: result.length, firstResultId: result[0]?.id }, 'C');
           // #endregion
+          // Test JSON serialization before returning
+          try {
+            JSON.stringify(result);
+            // #region agent log
+            await this.logDebug('properties.service.ts:510', 'listOwned JSON serialization success', {}, 'B');
+            // #endregion
+          } catch (serialError) {
+            // #region agent log
+            await this.logDebug('properties.service.ts:513', 'listOwned JSON serialization failed', { error: serialError instanceof Error ? serialError.message : String(serialError) }, 'B');
+            // #endregion
+            throw serialError;
+          }
           return result;
         })
-        .catch((error: unknown) => {
+        .catch(async (error: unknown) => {
           // #region agent log
           const errorMessage = error instanceof Error ? error.message : String(error);
           const errorStack = error instanceof Error ? error.stack?.substring(0, 200) : undefined;
-          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:510',message:'listOwned error',data:{errorMessage,errorStack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          await this.logDebug('properties.service.ts:520', 'listOwned error', { errorMessage, errorStack }, 'C');
           // #endregion
           throw error;
         });
@@ -624,15 +671,31 @@ export class PropertiesService {
           orderBy: { createdAt: 'desc' },
           include
         })
-        .then((properties: Array<Record<string, unknown>>) => {
+        .then(async (properties: Array<Record<string, unknown>>) => {
           // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:515',message:'listOwned before attachLocationToMany',data:{propertyCount:properties.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          await this.logDebug('properties.service.ts:674', 'listOwned LANDLORD before attachLocationToMany', { propertyCount: properties.length }, 'C');
           // #endregion
           return this.attachLocationToMany(properties);
         })
-        .catch((error: unknown) => {
+        .then(async (result: Array<Record<string, unknown>>) => {
+          // Test JSON serialization
+          try {
+            JSON.stringify(result);
+            // #region agent log
+            await this.logDebug('properties.service.ts:681', 'listOwned LANDLORD JSON serialization success', {}, 'B');
+            // #endregion
+          } catch (serialError) {
+            // #region agent log
+            await this.logDebug('properties.service.ts:684', 'listOwned LANDLORD JSON serialization failed', { error: serialError instanceof Error ? serialError.message : String(serialError) }, 'B');
+            // #endregion
+            throw serialError;
+          }
+          return result;
+        })
+        .catch(async (error: unknown) => {
           // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:520',message:'listOwned error',data:{errorMessage:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          await this.logDebug('properties.service.ts:691', 'listOwned LANDLORD error', { errorMessage }, 'C');
           // #endregion
           throw error;
         });
@@ -645,16 +708,31 @@ export class PropertiesService {
           orderBy: { createdAt: 'desc' },
           include
         })
-        .then((properties: Array<Record<string, unknown>>) => {
+        .then(async (properties: Array<Record<string, unknown>>) => {
           // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:525',message:'listOwned before attachLocationToMany',data:{propertyCount:properties.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          await this.logDebug('properties.service.ts:705', 'listOwned AGENT before attachLocationToMany', { propertyCount: properties.length }, 'C');
           // #endregion
           return this.attachLocationToMany(properties);
         })
-        .catch((error: unknown) => {
+        .then(async (result: Array<Record<string, unknown>>) => {
+          // Test JSON serialization
+          try {
+            JSON.stringify(result);
+            // #region agent log
+            await this.logDebug('properties.service.ts:712', 'listOwned AGENT JSON serialization success', {}, 'B');
+            // #endregion
+          } catch (serialError) {
+            // #region agent log
+            await this.logDebug('properties.service.ts:715', 'listOwned AGENT JSON serialization failed', { error: serialError instanceof Error ? serialError.message : String(serialError) }, 'B');
+            // #endregion
+            throw serialError;
+          }
+          return result;
+        })
+        .catch(async (error: unknown) => {
           // #region agent log
           const errorMessage = error instanceof Error ? error.message : String(error);
-          fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:530',message:'listOwned error',data:{errorMessage},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          await this.logDebug('properties.service.ts:722', 'listOwned AGENT error', { errorMessage }, 'C');
           // #endregion
           throw error;
         });
@@ -688,7 +766,7 @@ export class PropertiesService {
 
   async findById(id: string) {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:570',message:'findById entry',data:{propertyId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    await this.logDebug('properties.service.ts:735', 'findById entry', { propertyId: id }, 'D');
     // #endregion
     const property = await this.prisma.property.findUnique({
       where: { id },
@@ -706,26 +784,40 @@ export class PropertiesService {
 
     if (!property) {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:585',message:'findById not found',data:{propertyId:id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      await this.logDebug('properties.service.ts:753', 'findById not found', { propertyId: id }, 'D');
       // #endregion
       throw new NotFoundException('Property not found');
     }
 
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:590',message:'findById before attachLocation',data:{propertyId:id,hasPrice:!!property?.price,priceType:typeof property?.price},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    await this.logDebug('properties.service.ts:760', 'findById before attachLocation', { propertyId: id, hasPrice: !!property?.price, priceType: typeof property?.price }, 'D');
     // #endregion
 
     try {
       const result = this.attachLocation(property);
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:595',message:'findById after attachLocation',data:{propertyId:id,resultPriceType:typeof result?.price},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      await this.logDebug('properties.service.ts:765', 'findById after attachLocation', { propertyId: id, resultPriceType: typeof result?.price }, 'D');
       // #endregion
+      
+      // Test JSON serialization
+      try {
+        JSON.stringify(result);
+        // #region agent log
+        await this.logDebug('properties.service.ts:770', 'findById JSON serialization success', {}, 'B');
+        // #endregion
+      } catch (serialError) {
+        // #region agent log
+        await this.logDebug('properties.service.ts:773', 'findById JSON serialization failed', { error: serialError instanceof Error ? serialError.message : String(serialError) }, 'B');
+        // #endregion
+        throw serialError;
+      }
+      
       return result;
     } catch (error: unknown) {
       // #region agent log
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack?.substring(0, 200) : undefined;
-      fetch('http://127.0.0.1:7242/ingest/0b600287-1ea7-48df-8869-101e6273f228',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'properties.service.ts:599',message:'findById error',data:{propertyId:id,errorMessage,errorStack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      await this.logDebug('properties.service.ts:780', 'findById error', { propertyId: id, errorMessage, errorStack }, 'D');
       // #endregion
       throw error;
     }

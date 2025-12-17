@@ -51,8 +51,17 @@ export class PropertiesController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
-  listOwned(@Req() req: AuthenticatedRequest) {
-    return this.propertiesService.listOwned(req.user);
+  async listOwned(@Req() req: AuthenticatedRequest) {
+    try {
+      const result = await this.propertiesService.listOwned(req.user);
+      // Test serialization
+      JSON.stringify(result);
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[PropertiesController] listOwned error:', errorMessage, error instanceof Error ? error.stack : '');
+      throw error;
+    }
   }
 
   @Get('agents/verified')
@@ -73,8 +82,17 @@ export class PropertiesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.propertiesService.findById(id);
+  async findOne(@Param('id') id: string) {
+    try {
+      const result = await this.propertiesService.findById(id);
+      // Test serialization
+      JSON.stringify(result);
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[PropertiesController] findOne error:', errorMessage, error instanceof Error ? error.stack : '');
+      throw error;
+    }
   }
 
   @Post()
