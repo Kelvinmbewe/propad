@@ -122,33 +122,42 @@ export class PropertiesService {
 
   private attachLocation<T extends Record<string, any>>(property: T) {
     try {
+      // Safely extract location data with proper null checks
+      const country = property.country && typeof property.country === 'object' ? property.country : null;
+      const province = property.province && typeof property.province === 'object' ? property.province : null;
+      const city = property.city && typeof property.city === 'object' ? property.city : null;
+      const suburb = property.suburb && typeof property.suburb === 'object' ? property.suburb : null;
+
+      // Exclude Prisma relation objects from the spread to avoid serialization issues
+      const { country: _country, province: _province, city: _city, suburb: _suburb, pendingGeo: _pendingGeo, ...cleanProperty } = property as any;
+
       return {
-        ...property,
-        countryName: property.country?.name ?? null,
-        provinceName: property.province?.name ?? null,
-        cityName: property.city?.name ?? null,
-        suburbName: property.suburb?.name ?? null,
+        ...cleanProperty,
+        countryName: country?.name ?? null,
+        provinceName: province?.name ?? null,
+        cityName: city?.name ?? null,
+        suburbName: suburb?.name ?? null,
         location: {
           countryId: property.countryId ?? null,
-          country: property.country
+          country: country
             ? {
-                id: property.country.id ?? null,
-                name: property.country.name ?? null,
-                iso2: property.country.iso2 ?? null,
-                phoneCode: property.country.phoneCode ?? null
+                id: String(country.id ?? ''),
+                name: String(country.name ?? ''),
+                iso2: String(country.iso2 ?? ''),
+                phoneCode: String(country.phoneCode ?? '')
               }
             : null,
           provinceId: property.provinceId ?? null,
-          province: property.province
-            ? { id: property.province.id ?? null, name: property.province.name ?? null }
+          province: province
+            ? { id: String(province.id ?? ''), name: String(province.name ?? '') }
             : null,
           cityId: property.cityId ?? null,
-          city: property.city
-            ? { id: property.city.id ?? null, name: property.city.name ?? null }
+          city: city
+            ? { id: String(city.id ?? ''), name: String(city.name ?? '') }
             : null,
           suburbId: property.suburbId ?? null,
-          suburb: property.suburb
-            ? { id: property.suburb.id ?? null, name: property.suburb.name ?? null }
+          suburb: suburb
+            ? { id: String(suburb.id ?? ''), name: String(suburb.name ?? '') }
             : null,
           pendingGeoId: property.pendingGeoId ?? null,
           lat: typeof property.lat === 'number' ? property.lat : null,
@@ -163,8 +172,12 @@ export class PropertiesService {
         `Error in attachLocation${property?.id ? ` for property ${property.id}` : ''}: ${errorMessage}`,
         errorStack
       );
+      
+      // Return a safe, serializable object with only essential fields
+      // Create a clean serializable object, excluding Prisma relation objects
+      const { country, province, city, suburb, pendingGeo, ...cleanProperty } = property as any;
       return {
-        ...property,
+        ...cleanProperty,
         countryName: null,
         provinceName: null,
         cityName: null,
@@ -198,8 +211,10 @@ export class PropertiesService {
           `Error attaching location to property${property?.id ? ` ${property.id}` : ''}: ${errorMessage}`,
           errorStack
         );
+        // Create a clean serializable object, excluding Prisma relation objects
+        const { country, province, city, suburb, pendingGeo, ...cleanProperty } = property as any;
         return {
-          ...property,
+          ...cleanProperty,
           countryName: null,
           provinceName: null,
           cityName: null,
