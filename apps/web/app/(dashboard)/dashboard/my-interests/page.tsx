@@ -108,7 +108,7 @@ export default async function MyInterestsPage() {
                           )}
                           {interest.offerAmount && (
                             <p className="mt-1 text-sm font-medium text-slate-700">
-                              Your offer: {formatCurrency(interest.offerAmount, property.currency)}
+                              Your offer: {formatCurrency(interest.offerAmount.toNumber(), property.currency)}
                             </p>
                           )}
                           <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
