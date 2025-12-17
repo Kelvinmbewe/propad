@@ -8,8 +8,7 @@ COPY packages ./packages
 COPY apps/api ./apps/api
 COPY apps/api/prisma ./prisma
 
-RUN corepack enable \
-    && corepack prepare pnpm@10.19.0 --activate
+RUN npm install -g pnpm@10.19.0
 
 RUN pnpm config set fetch-retries 5 \
     && pnpm config set fetch-retry-mintimeout 20000 \
@@ -26,8 +25,7 @@ ENV NODE_ENV=production
 
 RUN apk add --no-cache openssl
 
-RUN corepack enable \
-    && corepack prepare pnpm@10.19.0 --activate
+RUN npm install -g pnpm@10.19.0
 
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
