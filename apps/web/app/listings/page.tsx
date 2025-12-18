@@ -11,26 +11,58 @@ export const metadata: Metadata = {
 type ListingsSearchParams = Record<string, string>;
 
 async function fetchProperties(params: ListingsSearchParams): Promise<PropertySearchResult> {
-  const searchParams = new URLSearchParams(params);
+  try {
+    const searchParams = new URLSearchParams(params);
 
-  if (!searchParams.has('limit')) {
-    searchParams.set('limit', '18');
-  }
+    if (!searchParams.has('limit')) {
+      searchParams.set('limit', '18');
+    }
 
-  if (!searchParams.has('page')) {
-    searchParams.set('page', '1');
-  }
+    if (!searchParams.has('page')) {
+      searchParams.set('page', '1');
+    }
 
-  const parsedPage = Number(searchParams.get('page'));
-  const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
-  const parsedLimit = Number(searchParams.get('limit'));
-  const perPage = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 18;
+    const parsedPage = Number(searchParams.get('page'));
+    const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const parsedLimit = Number(searchParams.get('limit'));
+    const perPage = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 18;
 
-  const response = await fetch(`${getServerApiBaseUrl()}/properties/search?${searchParams.toString()}`, {
-    next: { revalidate: 60 }
-  });
+    const apiBaseUrl = getServerApiBaseUrl();
+    if (!apiBaseUrl) {
+      throw new Error('API base URL is not configured');
+    }
 
-  if (!response.ok) {
+    const response = await fetch(`${apiBaseUrl}/properties/search?${searchParams.toString()}`, {
+      next: { revalidate: 60 }
+    });
+
+    if (!response.ok) {
+      console.error(`API returned ${response.status}: ${response.statusText}`);
+      return {
+        items: [],
+        page,
+        perPage,
+        total: 0,
+        totalPages: 0,
+        hasNextPage: false,
+        facets: {
+          price: { min: 0, max: 0 },
+          types: [],
+          suburbs: []
+        }
+      } satisfies PropertySearchResult;
+    }
+
+    const json = await response.json();
+    return PropertySearchResultSchema.parse(json);
+  } catch (error) {
+    console.error('Failed to fetch properties:', error);
+    // Return empty result instead of throwing
+    const parsedPage = Number(params.page ?? '1');
+    const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const parsedLimit = Number(params.limit ?? '18');
+    const perPage = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50) : 18;
+    
     return {
       items: [],
       page,
@@ -45,9 +77,6 @@ async function fetchProperties(params: ListingsSearchParams): Promise<PropertySe
       }
     } satisfies PropertySearchResult;
   }
-
-  const json = await response.json();
-  return PropertySearchResultSchema.parse(json);
 }
 
 function normalizeSearchParams(

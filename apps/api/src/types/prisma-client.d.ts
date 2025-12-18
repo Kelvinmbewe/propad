@@ -68,6 +68,7 @@ declare module '@prisma/client' {
     | 'RENTED'
     | 'SOLD'
     | 'ARCHIVED'
+    | 'OCCUPIED'
   >;
   export type PropertyStatus = EnumValues<typeof PropertyStatus>;
 

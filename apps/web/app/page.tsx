@@ -41,34 +41,40 @@ import { PropertyStatus } from '@prisma/client';
 // ... (keep imports)
 
 async function getFeaturedProperties(): Promise<ShowcaseProperty[]> {
-  const properties = await prisma.property.findMany({
-    where: {
-      status: PropertyStatus.VERIFIED
-    },
-    take: 6,
-    orderBy: {
-      createdAt: 'desc'
-    },
-    include: {
-      media: true,
-      city: true,
-      suburb: true
-    }
-  });
+  try {
+    const properties = await prisma.property.findMany({
+      where: {
+        status: PropertyStatus.VERIFIED
+      },
+      take: 6,
+      orderBy: {
+        createdAt: 'desc'
+      },
+      include: {
+        media: true,
+        city: true,
+        suburb: true
+      }
+    });
 
-  return properties.map((p: any) => ({
-    id: p.id,
-    title: p.title,
-    location: `${p.suburb?.name || 'Harare'}, ${p.city?.name || 'Zimbabwe'}`,
-    price: p.currency === 'USD' ? `US$${p.price.toLocaleString()}` : `ZWL$${p.price.toLocaleString()}`,
-    status: p.type === 'RESIDENTIAL_SALE' ? 'FOR SALE' : 'FOR RENT',
-    statusTone: p.type === 'RESIDENTIAL_SALE' ? 'sale' : 'rent',
-    imageUrl: p.media[0]?.url || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
-    beds: p.bedrooms || 0,
-    baths: p.bathrooms || 0,
-    area: 0, // Field missing in schema
-    coordinates: (p.lat && p.lng) ? [p.lat, p.lng] : [-17.8216, 31.0492]
-  })) as ShowcaseProperty[];
+    return properties.map((p: any) => ({
+      id: p.id,
+      title: p.title,
+      location: `${p.suburb?.name || 'Harare'}, ${p.city?.name || 'Zimbabwe'}`,
+      price: p.currency === 'USD' ? `US$${p.price.toLocaleString()}` : `ZWL$${p.price.toLocaleString()}`,
+      status: p.type === 'RESIDENTIAL_SALE' ? 'FOR SALE' : 'FOR RENT',
+      statusTone: p.type === 'RESIDENTIAL_SALE' ? 'sale' : 'rent',
+      imageUrl: p.media[0]?.url || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
+      beds: p.bedrooms || 0,
+      baths: p.bathrooms || 0,
+      area: 0, // Field missing in schema
+      coordinates: (p.lat && p.lng) ? [p.lat, p.lng] : [-17.8216, 31.0492]
+    })) as ShowcaseProperty[];
+  } catch (error) {
+    console.error('Failed to fetch featured properties:', error);
+    // Return empty array instead of throwing
+    return [];
+  }
 }
 
 export default async function HomePage() {
