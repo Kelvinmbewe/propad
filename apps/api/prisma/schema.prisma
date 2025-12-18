@@ -645,6 +645,7 @@ model Property {
   watchlists      Watchlist[]
   metricsDaily    MetricListingDaily[]
   shortLinks      ShortLink[]
+  reviews         UserReview[]
 
   // Role-Aware
   createdByRole ListingCreatorRole @default(LANDLORD)
