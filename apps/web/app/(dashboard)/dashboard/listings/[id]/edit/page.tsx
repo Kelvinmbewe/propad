@@ -216,14 +216,15 @@ export default function EditPropertyPage() {
 
             // Only include location fields if they have values
             // If pendingGeoId is present, only send that (not regular location fields)
-            if (selectedLocation?.pendingGeoId) {
-                payload.pendingGeoId = selectedLocation.pendingGeoId;
-            } else if (selectedLocation) {
+            const location = selectedLocation as LocationSelection | null;
+            if (location?.pendingGeoId) {
+                payload.pendingGeoId = location.pendingGeoId;
+            } else if (location) {
                 // Only send regular location fields if no pendingGeoId
-                if (selectedLocation.countryId) payload.countryId = selectedLocation.countryId;
-                if (selectedLocation.provinceId) payload.provinceId = selectedLocation.provinceId;
-                if (selectedLocation.cityId) payload.cityId = selectedLocation.cityId;
-                if (selectedLocation.suburbId) payload.suburbId = selectedLocation.suburbId;
+                if (location.countryId) payload.countryId = location.countryId;
+                if (location.provinceId) payload.provinceId = location.provinceId;
+                if (location.cityId) payload.cityId = location.cityId;
+                if (location.suburbId) payload.suburbId = location.suburbId;
             }
 
             await sdk.properties.update(propertyId, payload);
