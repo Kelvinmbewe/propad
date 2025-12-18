@@ -12,6 +12,7 @@ import { getInterestsForProperty, updateInterestStatus, getChatThreads, getThrea
 import { getPropertyVerification, requestPropertyVerification } from '@/app/actions/verification';
 import { getFeaturedStatus, createFeaturedListing, completeFeaturedPayment } from '@/app/actions/featured';
 import { getPropertyPayments } from '@/app/actions/payments';
+import { submitRating, getPropertyRatings } from '@/app/actions/ratings';
 import { Check, X, MessageSquare, Send, Calendar, Clock, MapPin, ShieldCheck, AlertTriangle, Loader2, CreditCard, TrendingUp, Star } from 'lucide-react';
 
 const formatDate = (date: Date | string) => {
@@ -79,6 +80,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
         { id: 'viewings', label: 'Viewings' },
         { id: 'payments', label: 'Payments' },
         { id: 'verification', label: 'Verification' },
+        { id: 'ratings', label: 'Ratings' },
         { id: 'logs', label: 'Logs' },
     ];
 
@@ -135,6 +137,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
                 {activeTab === 'viewings' && <ViewingsTab propertyId={propertyId} />}
                 {activeTab === 'payments' && <PaymentsTab propertyId={propertyId} />}
                 {activeTab === 'verification' && <VerificationTab propertyId={propertyId} />}
+                {activeTab === 'ratings' && <RatingsTab propertyId={propertyId} />}
                 {activeTab === 'logs' && <PlaceholderTab title="Logs" />}
             </div>
         </div>
@@ -632,6 +635,82 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                             ))}
                         </div>
                     )}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+function RatingsTab({ propertyId }: { propertyId: string }) {
+    const { data: ratings, isLoading, refetch } = useQuery({
+        queryKey: ['ratings', propertyId],
+        queryFn: () => getPropertyRatings(propertyId)
+    });
+
+    const [rating, setRating] = useState(0);
+    const [comment, setComment] = useState('');
+
+    const submitMut = useMutation({
+        mutationFn: () => submitRating('target-user-id-placeholder', propertyId, rating, comment), // In real app, target correct user (landlord/tenant)
+        onSuccess: () => {
+            notify.success('Rating submitted');
+            setRating(0);
+            setComment('');
+            refetch();
+        }
+    });
+
+    if (isLoading) return <Skeleton className="h-64" />;
+
+    return (
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Ratings & Reviews</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="mb-6 p-4 bg-neutral-50 rounded-lg">
+                        <h4 className="font-medium mb-2">Leave a Rating</h4>
+                        <div className="flex gap-2 mb-4">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                    key={star}
+                                    className={`h-6 w-6 cursor-pointer ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-neutral-300'}`}
+                                    onClick={() => setRating(star)}
+                                />
+                            ))}
+                        </div>
+                        <textarea
+                            className="w-full p-2 border rounded mb-2"
+                            placeholder="Share your experience..."
+                            value={comment}
+                            onChange={e => setComment(e.target.value)}
+                        />
+                        <Button onClick={() => submitMut.mutate()} disabled={submitMut.isPending || rating === 0}>
+                            Submit Review
+                        </Button>
+                    </div>
+
+                    <div className="space-y-4">
+                        {ratings?.map((r: any) => (
+                            <div key={r.id} className="border-b pb-4 last:border-0">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-8 w-8 bg-neutral-200 rounded-full flex items-center justify-center font-bold text-xs">
+                                            {r.reviewer.name?.[0]}
+                                        </div>
+                                        <span className="font-semibold">{r.reviewer.name}</span>
+                                    </div>
+                                    <div className="flex">
+                                        {[...Array(5)].map((_, i) => (
+                                            <Star key={i} className={`h-4 w-4 ${i < r.rating ? 'fill-yellow-400 text-yellow-400' : 'text-neutral-300'}`} />
+                                        ))}
+                                    </div>
+                                </div>
+                                <p className="text-neutral-600">{r.comment}</p>
+                            </div>
+                        ))}
+                    </div>
                 </CardContent>
             </Card>
         </div>

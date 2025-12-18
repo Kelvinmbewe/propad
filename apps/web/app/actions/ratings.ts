@@ -29,7 +29,7 @@ export async function getPropertyRatings(propertyId: string) {
     return prisma.userReview.findMany({
         where: { propertyId },
         include: {
-            reviewer: { select: { id: true, name: true, image: true } }
+            reviewer: { select: { id: true, name: true } }
         },
         orderBy: { createdAt: 'desc' }
     });
