@@ -21,7 +21,7 @@ const formatDate = (date: Date | string) => {
     }).format(new Date(date));
 }
 
-type Tab = 'overview' | 'management' | 'interest' | 'chats' | 'viewings' | 'payments' | 'verification' | 'logs';
+type Tab = 'overview' | 'management' | 'interest' | 'chats' | 'viewings' | 'payments' | 'verification' | 'ratings' | 'logs';
 
 export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     const sdk = useAuthenticatedSDK();
@@ -557,8 +557,8 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                 <CardContent className="p-6">
                     <div className="flex items-center gap-4 mb-6">
                         <div className={`h-12 w-12 rounded-full flex items-center justify-center ${isApproved ? 'bg-emerald-100 text-emerald-600' :
-                                isPending ? 'bg-yellow-100 text-yellow-600' :
-                                    'bg-red-100 text-red-600'
+                            isPending ? 'bg-yellow-100 text-yellow-600' :
+                                'bg-red-100 text-red-600'
                             }`}>
                             {isApproved ? <ShieldCheck className="h-6 w-6" /> :
                                 isPending ? <Loader2 className="h-6 w-6 animate-spin" /> :
