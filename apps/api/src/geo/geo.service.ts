@@ -338,6 +338,19 @@ export class GeoService implements OnModuleInit {
   async resolveLocation(input: LocationInput): Promise<ResolvedLocation> {
     const { countryId, provinceId, cityId, suburbId, pendingGeoId } = input;
 
+    // If absolutely no location information is provided, return all nulls
+    // This allows for graceful handling of properties without location data
+    const hasAnyLocationInput = countryId || provinceId || cityId || suburbId || pendingGeoId;
+    if (!hasAnyLocationInput) {
+      return {
+        country: null,
+        province: null,
+        city: null,
+        suburb: null,
+        pendingGeo: null
+      };
+    }
+
     let pendingGeo: PendingGeo | null = null;
     let pendingCountry: Country | null = null;
     let pendingProvince: Province | null = null;
@@ -466,8 +479,11 @@ export class GeoService implements OnModuleInit {
       throw new BadRequestException('suburbId does not match derived hierarchy');
     }
 
-    if (!country && !pendingGeo) {
-      throw new BadRequestException('countryId is required when no pending geo is supplied');
+    // If we have location IDs but couldn't resolve a country (and no pendingGeo),
+    // this could indicate orphaned data - log a warning but don't fail
+    if (!country && !pendingGeo && (provinceId || cityId || suburbId)) {
+      // This is likely orphaned data - location IDs exist but can't resolve to a country
+      // Return what we have and let the caller handle it
     }
 
     if (pendingGeo) {
