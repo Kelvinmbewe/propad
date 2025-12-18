@@ -191,6 +191,10 @@ export class GeoService implements OnModuleInit {
         proposedName: normalized,
         parentId: parentId ?? null,
         proposedByUserId
+      },
+      include: {
+        properties: { select: { id: true } },
+        proposedBy: { select: { id: true, name: true, email: true } }
       }
     });
   }
