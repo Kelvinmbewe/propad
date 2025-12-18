@@ -546,37 +546,41 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
 
     if (isLoading) return <Skeleton className="h-64" />;
 
-    const status = verification?.status || 'NOT_VERIFIED';
+    const status = verification?.status || 'PENDING';
+    const isApproved = status === 'APPROVED';
+    const isPending = status === 'PENDING';
+    const isRejected = status === 'REJECTED';
 
     return (
         <div className="space-y-6">
             <Card>
                 <CardContent className="p-6">
                     <div className="flex items-center gap-4 mb-6">
-                        <div className={`h-12 w-12 rounded-full flex items-center justify-center ${status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-600' :
-                            status === 'PENDING' ? 'bg-yellow-100 text-yellow-600' :
-                                'bg-neutral-100 text-neutral-500'
+                        <div className={`h-12 w-12 rounded-full flex items-center justify-center ${isApproved ? 'bg-emerald-100 text-emerald-600' :
+                                isPending ? 'bg-yellow-100 text-yellow-600' :
+                                    'bg-red-100 text-red-600'
                             }`}>
-                            {status === 'VERIFIED' ? <ShieldCheck className="h-6 w-6" /> :
-                                status === 'PENDING' ? <Loader2 className="h-6 w-6 animate-spin" /> :
+                            {isApproved ? <ShieldCheck className="h-6 w-6" /> :
+                                isPending ? <Loader2 className="h-6 w-6 animate-spin" /> :
                                     <AlertTriangle className="h-6 w-6" />
                             }
                         </div>
                         <div>
                             <h3 className="text-lg font-semibold">
-                                {status === 'VERIFIED' ? 'Property Verified' :
-                                    status === 'PENDING' ? 'Verification Pending' :
-                                        'Not Verified'}
+                                {isApproved ? 'Property Verified' :
+                                    isPending ? 'Verification Pending' :
+                                        'Verification Rejected'}
                             </h3>
                             <p className="text-sm text-neutral-500">
-                                {status === 'VERIFIED' ? 'This property has been verified by our team.' :
-                                    status === 'PENDING' ? 'Our team is reviewing your documentation.' :
-                                        'Verify your property to increase trust and visibility.'}
+                                {isApproved ? 'This property has been verified by our team.' :
+                                    isPending ? 'Our team is reviewing your documentation.' :
+                                        isRejected ? 'Verification was rejected. Please submit new documentation.' :
+                                            'Verify your property to increase trust and visibility.'}
                             </p>
                         </div>
                     </div>
 
-                    {status === 'NOT_VERIFIED' && (
+                    {!verification && (
                         <div className="space-y-4">
                             <div className="bg-neutral-50 p-4 rounded-lg border border-neutral-200">
                                 <h4 className="font-medium mb-2">Required for Verification:</h4>

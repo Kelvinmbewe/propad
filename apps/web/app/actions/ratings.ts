@@ -36,9 +36,9 @@ export async function getPropertyRatings(propertyId: string) {
 }
 
 export async function computeTrustScore(userId: string) {
-    // 1. Verification status (Verified = +30)
+    // 1. Verification status (Approved = +30)
     const verification = await prisma.verification.findFirst({
-        where: { userId, status: 'VERIFIED' } // Simplified, usually check for ID verification specifically
+        where: { requesterId: userId, status: 'APPROVED' } // Check if user has approved verification
     });
 
     // 2. Ratings average (0-5 stars -> 0-50 points)
