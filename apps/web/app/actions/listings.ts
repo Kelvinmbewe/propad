@@ -29,8 +29,7 @@ export async function getInterestsForProperty(propertyId: string) {
                     id: true,
                     name: true,
                     email: true,
-                    isVerified: true,
-                    image: true
+                    isVerified: true
                 }
             }
         },
@@ -62,14 +61,14 @@ export async function getChatThreads(propertyId: string) {
         where: { propertyId },
         orderBy: { createdAt: 'desc' },
         include: {
-            sender: { select: { id: true, name: true, image: true } },
-            recipient: { select: { id: true, name: true, image: true } }
+            sender: { select: { id: true, name: true } },
+            recipient: { select: { id: true, name: true } }
         }
     });
 
     const threads = new Map();
 
-    messages.forEach(msg => {
+    messages.forEach((msg: any) => {
         const isMe = msg.senderId === session.user.id;
         const counterparty = isMe ? msg.recipient : msg.sender;
         const threadId = counterparty.id;
@@ -106,7 +105,7 @@ export async function getThreadMessages(propertyId: string, counterpartyId: stri
         },
         orderBy: { createdAt: 'asc' },
         include: {
-            sender: { select: { id: true, name: true, image: true } }
+            sender: { select: { id: true, name: true } }
         }
     });
 }
