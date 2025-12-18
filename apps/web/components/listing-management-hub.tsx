@@ -10,7 +10,9 @@ import Link from 'next/link';
 
 import { getInterestsForProperty, updateInterestStatus, getChatThreads, getThreadMessages, sendMessage, getViewings } from '@/app/actions/listings';
 import { getPropertyVerification, requestPropertyVerification } from '@/app/actions/verification';
-import { Check, X, MessageSquare, Send, Calendar, Clock, MapPin, ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react';
+import { getFeaturedStatus, createFeaturedListing, completeFeaturedPayment } from '@/app/actions/featured';
+import { getPropertyPayments } from '@/app/actions/payments';
+import { Check, X, MessageSquare, Send, Calendar, Clock, MapPin, ShieldCheck, AlertTriangle, Loader2, CreditCard, TrendingUp, Star } from 'lucide-react';
 
 const formatDate = (date: Date | string) => {
     return new Intl.DateTimeFormat('en-ZW', {
@@ -131,7 +133,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
                     <ChatsTab propertyId={propertyId} />
                 )}
                 {activeTab === 'viewings' && <ViewingsTab propertyId={propertyId} />}
-                {activeTab === 'payments' && <PlaceholderTab title="Payments" />}
+                {activeTab === 'payments' && <PaymentsTab propertyId={propertyId} />}
                 {activeTab === 'verification' && <VerificationTab propertyId={propertyId} />}
                 {activeTab === 'logs' && <PlaceholderTab title="Logs" />}
             </div>
@@ -228,7 +230,74 @@ function ManagementTab({
                     )}
                 </CardContent>
             </Card>
+
+            <FeaturedSection propertyId={property.id} />
         </div>
+    );
+}
+
+function FeaturedSection({ propertyId }: { propertyId: string }) {
+    const { data: featured, refetch } = useQuery({
+        queryKey: ['featured', propertyId],
+        queryFn: () => getFeaturedStatus(propertyId)
+    });
+
+    const createMut = useMutation({
+        mutationFn: () => createFeaturedListing(propertyId, 7, 1), // Default 7 days
+        onSuccess: () => refetch()
+    });
+
+    const payMut = useMutation({
+        mutationFn: (id: string) => completeFeaturedPayment(id),
+        onSuccess: () => {
+            notify.success('Payment successful! Listing is now featured.');
+            refetch();
+        }
+    });
+
+    const isActive = featured?.status === 'ACTIVE' && new Date(featured.endsAt) > new Date();
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-purple-600" />
+                    Featured Listing
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                {isActive ? (
+                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                        <p className="font-semibold text-purple-800">Your listing is featured!</p>
+                        <p className="text-sm text-purple-600">Expires on {new Date(featured.endsAt).toLocaleDateString()}</p>
+                    </div>
+                ) : featured?.status === 'PENDING_PAYMENT' ? (
+                    <div className="space-y-4">
+                        <p className="text-sm text-neutral-600 mb-2">Payment pending for 7-day boost.</p>
+                        <Button
+                            variant="default"
+                            className="w-full bg-purple-600 hover:bg-purple-700"
+                            onClick={() => payMut.mutate(featured.id)}
+                            disabled={payMut.isPending}
+                        >
+                            {payMut.isPending ? 'Processing...' : 'Pay $20 to Activate'}
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <p className="text-sm text-neutral-600">Boost your listing to get up to 3x more views.</p>
+                        <Button
+                            variant="outline"
+                            className="w-full border-purple-200 text-purple-700 hover:bg-purple-50"
+                            onClick={() => createMut.mutate()}
+                            disabled={createMut.isPending}
+                        >
+                            {createMut.isPending ? 'Processing...' : 'Boost for 7 days ($20)'}
+                        </Button>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }
 
@@ -482,8 +551,8 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                 <CardContent className="p-6">
                     <div className="flex items-center gap-4 mb-6">
                         <div className={`h-12 w-12 rounded-full flex items-center justify-center ${status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-600' :
-                                status === 'PENDING' ? 'bg-yellow-100 text-yellow-600' :
-                                    'bg-neutral-100 text-neutral-500'
+                            status === 'PENDING' ? 'bg-yellow-100 text-yellow-600' :
+                                'bg-neutral-100 text-neutral-500'
                             }`}>
                             {status === 'VERIFIED' ? <ShieldCheck className="h-6 w-6" /> :
                                 status === 'PENDING' ? <Loader2 className="h-6 w-6 animate-spin" /> :
@@ -517,6 +586,50 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                             <Button onClick={() => requestMut.mutate()} disabled={requestMut.isPending}>
                                 {requestMut.isPending ? 'Requesting...' : 'Request Verification'}
                             </Button>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+
+function PaymentsTab({ propertyId }: { propertyId: string }) {
+    const { data: payments, isLoading } = useQuery({
+        queryKey: ['payments', propertyId],
+        queryFn: () => getPropertyPayments(propertyId)
+    });
+
+    if (isLoading) return <Skeleton className="h-64" />;
+
+    return (
+        <div className="space-y-4">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <CreditCard className="h-5 w-5" />
+                        Transaction History
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {!payments?.length ? (
+                        <p className="text-center text-neutral-500 py-4">No transactions found.</p>
+                    ) : (
+                        <div className="space-y-4">
+                            {payments.map((p: any) => (
+                                <div key={p.id} className="flex justify-between items-center p-3 border-b last:border-0">
+                                    <div>
+                                        <p className="font-medium">{p.description}</p>
+                                        <p className="text-xs text-neutral-500">{new Date(p.date).toLocaleDateString()}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="font-bold">{p.currency} {p.amount}</p>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full ${p.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'
+                                            }`}>{p.status}</span>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </CardContent>
