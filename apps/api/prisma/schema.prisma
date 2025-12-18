@@ -830,22 +830,52 @@ model PropertyMedia {
   @@index([propertyId, order])
 }
 
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Verification {
   id          String               @id @default(cuid())
-  propertyId  String
+  propertyId  String?              // Optional now as we have polymorphic targetId
   verifierId  String?
-  method      VerificationMethod
-  result      VerificationResult
+  requesterId String?
+  method      VerificationMethod   @default(DOCS)
+  result      VerificationResult?
+  status      VerificationStatus   @default(PENDING)
   notes       String?
   evidenceUrl String?
   createdAt   DateTime @default(now())
 
-  property Property @relation(fields: [propertyId], references: [id])
+  property Property? @relation(fields: [propertyId], references: [id])
   verifier User?    @relation("VerificationVerifier", fields: [verifierId], references: [id])
+  requester User?   @relation("VerificationRequester", fields: [requesterId], references: [id])
   
   // Polymorphic fields
   targetType  String   @default("property") // property, user, agent, landlord
-  targetId    String   @default("") // will correspond to propertyId if property
+  targetId    String   @default("") 
+}
+
+model UserReview {
+  id          String       @id @default(cuid())
+  reviewerId  String
+  revieweeId  String
+  propertyId  String?
+  rating      Int
+  weight      Int          @default(1)
+  comment     String?
+  type        ReviewerType @default(EXTERNAL)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  reviewer    User         @relation("Reviewer", fields: [reviewerId], references: [id])
+  reviewee    User         @relation("Reviewee", fields: [revieweeId], references: [id])
+  property    Property?    @relation(fields: [propertyId], references: [id])
+
+  @@index([revieweeId])
+  @@index([reviewerId])
+  @@index([propertyId])
 }
 
 model Viewing {

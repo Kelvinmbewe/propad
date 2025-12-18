@@ -34,14 +34,13 @@ export async function requestPropertyVerification(propertyId: string, type: 'OWN
 
     const verification = await prisma.verification.create({
         data: {
-            type,
             status: 'PENDING',
             targetType: 'property',
             targetId: propertyId,
-            userId: session.user.id,
+            requesterId: session.user.id,
+            propertyId, // Explicitly link property relation too
             // Mock data for required fields if any
-            provider: 'MANUAL',
-            method: 'DOCUMENT',
+            method: 'DOCS',
         }
     });
 
