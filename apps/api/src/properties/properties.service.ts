@@ -135,7 +135,7 @@ export class PropertiesService {
         if (obj instanceof Buffer || obj.constructor?.name === 'Buffer') {
           return obj;
         }
-        
+
         const converted: any = {};
         for (const key in obj) {
           if (Object.prototype.hasOwnProperty.call(obj, key)) {
@@ -173,8 +173,8 @@ export class PropertiesService {
         runId: 'run1',
         hypothesisId
       }) + '\n';
-      await mkdir('.cursor', { recursive: true }).catch(() => {});
-      await appendFile('.cursor/debug.log', logEntry).catch(() => {});
+      await mkdir('.cursor', { recursive: true }).catch(() => { });
+      await appendFile('.cursor/debug.log', logEntry).catch(() => { });
     } catch {
       // Ignore logging errors
     }
@@ -206,7 +206,7 @@ export class PropertiesService {
 
   private attachLocation<T extends Record<string, any>>(property: T) {
     // #region agent log
-    this.logDebug('properties.service.ts:207', 'attachLocation entry', { propertyId: property?.id, hasCountry: !!property?.country, hasProvince: !!property?.province, hasPrice: !!property?.price, priceType: typeof property?.price }, 'A').catch(() => {});
+    this.logDebug('properties.service.ts:207', 'attachLocation entry', { propertyId: property?.id, hasCountry: !!property?.country, hasProvince: !!property?.province, hasPrice: !!property?.price, priceType: typeof property?.price }, 'A').catch(() => { });
     // #endregion
     try {
       // Safely extract location data with proper null checks
@@ -214,33 +214,37 @@ export class PropertiesService {
       const province = property.province && typeof property.province === 'object' ? property.province : null;
       const city = property.city && typeof property.city === 'object' ? property.city : null;
       const suburb = property.suburb && typeof property.suburb === 'object' ? property.suburb : null;
+      const pendingGeo = property.pendingGeo && typeof property.pendingGeo === 'object' ? property.pendingGeo : null;
 
       // #region agent log
-      this.logDebug('properties.service.ts:219', 'attachLocation before spread', { propertyId: property?.id, countryType: typeof country, provinceType: typeof province }, 'A').catch(() => {});
+      this.logDebug('properties.service.ts:219', 'attachLocation before spread', { propertyId: property?.id, countryType: typeof country, provinceType: typeof province }, 'A').catch(() => { });
       // #endregion
 
       // Exclude Prisma relation objects from the spread to avoid serialization issues
       const { country: _country, province: _province, city: _city, suburb: _suburb, pendingGeo: _pendingGeo, ...cleanProperty } = property as any;
 
       // #region agent log
-      this.logDebug('properties.service.ts:226', 'attachLocation after spread', { propertyId: property?.id, cleanPropertyKeys: Object.keys(cleanProperty).slice(0, 10), hasPrice: !!cleanProperty?.price, priceType: typeof cleanProperty?.price, priceValue: cleanProperty?.price?.toString?.()?.substring(0, 20) }, 'B').catch(() => {});
+      this.logDebug('properties.service.ts:226', 'attachLocation after spread', { propertyId: property?.id, cleanPropertyKeys: Object.keys(cleanProperty).slice(0, 10), hasPrice: !!cleanProperty?.price, priceType: typeof cleanProperty?.price, priceValue: cleanProperty?.price?.toString?.()?.substring(0, 20) }, 'B').catch(() => { });
       // #endregion
+
+      // Use pending geo's proposed name as suburb name if no regular suburb exists
+      const suburbName = suburb?.name ?? (pendingGeo?.proposedName ? `${pendingGeo.proposedName} (pending)` : null);
 
       const result: any = {
         ...cleanProperty,
         countryName: country?.name ?? null,
         provinceName: province?.name ?? null,
         cityName: city?.name ?? null,
-        suburbName: suburb?.name ?? null,
+        suburbName,
         location: {
           countryId: property.countryId ?? null,
           country: country
             ? {
-                id: String(country.id ?? ''),
-                name: String(country.name ?? ''),
-                iso2: String(country.iso2 ?? ''),
-                phoneCode: String(country.phoneCode ?? '')
-              }
+              id: String(country.id ?? ''),
+              name: String(country.name ?? ''),
+              iso2: String(country.iso2 ?? ''),
+              phoneCode: String(country.phoneCode ?? '')
+            }
             : null,
           provinceId: property.provinceId ?? null,
           province: province
@@ -255,6 +259,14 @@ export class PropertiesService {
             ? { id: String(suburb.id ?? ''), name: String(suburb.name ?? '') }
             : null,
           pendingGeoId: property.pendingGeoId ?? null,
+          pendingGeo: pendingGeo
+            ? {
+              id: String(pendingGeo.id ?? ''),
+              proposedName: String(pendingGeo.proposedName ?? ''),
+              level: String(pendingGeo.level ?? ''),
+              status: String(pendingGeo.status ?? '')
+            }
+            : null,
           lat: typeof property.lat === 'number' ? property.lat : null,
           lng: typeof property.lng === 'number' ? property.lng : null
         }
@@ -264,7 +276,7 @@ export class PropertiesService {
       const convertedResult = this.convertDecimalsToNumbers(result);
 
       // #region agent log
-      this.logDebug('properties.service.ts:267', 'attachLocation success', { propertyId: property?.id, resultPriceType: typeof convertedResult?.price, resultAreaSqmType: typeof convertedResult?.areaSqm }, 'B').catch(() => {});
+      this.logDebug('properties.service.ts:267', 'attachLocation success', { propertyId: property?.id, resultPriceType: typeof convertedResult?.price, resultAreaSqmType: typeof convertedResult?.areaSqm }, 'B').catch(() => { });
       // #endregion
 
       return convertedResult;
@@ -276,7 +288,7 @@ export class PropertiesService {
         `Error in attachLocation${property?.id ? ` for property ${property.id}` : ''}: ${errorMessage}`,
         errorStack
       );
-      
+
       // Return a safe, serializable object with only essential fields
       // Create a clean serializable object, excluding Prisma relation objects
       const { country, province, city, suburb, pendingGeo, ...cleanProperty } = property as any;
@@ -308,12 +320,12 @@ export class PropertiesService {
 
   private attachLocationToMany<T extends Record<string, unknown>>(properties: T[]) {
     // #region agent log
-    this.logDebug('properties.service.ts:310', 'attachLocationToMany entry', { propertyCount: properties.length }, 'C').catch(() => {});
+    this.logDebug('properties.service.ts:310', 'attachLocationToMany entry', { propertyCount: properties.length }, 'C').catch(() => { });
     // #endregion
     return properties.map((property, index) => {
       try {
         // #region agent log
-        this.logDebug('properties.service.ts:316', 'attachLocationToMany processing property', { index, propertyId: property?.id }, 'C').catch(() => {});
+        this.logDebug('properties.service.ts:316', 'attachLocationToMany processing property', { index, propertyId: property?.id }, 'C').catch(() => { });
         // #endregion
         return this.attachLocation(property);
       } catch (error) {
@@ -352,12 +364,12 @@ export class PropertiesService {
       }
     }).map((result, index) => {
       // #region agent log
-      this.logDebug('properties.service.ts:355', 'attachLocationToMany result', { index, resultId: result?.id, hasPrice: !!result?.price, priceType: typeof result?.price, isDecimal: result?.price?.constructor?.name === 'Decimal' }, 'B').catch(() => {});
+      this.logDebug('properties.service.ts:355', 'attachLocationToMany result', { index, resultId: result?.id, hasPrice: !!result?.price, priceType: typeof result?.price, isDecimal: result?.price?.constructor?.name === 'Decimal' }, 'B').catch(() => { });
       // #endregion
       // Convert all Decimal types recursively
       const converted = this.convertDecimalsToNumbers(result);
       // #region agent log
-      this.logDebug('properties.service.ts:360', 'attachLocationToMany converted Decimal', { index, resultId: converted?.id, newPriceType: typeof converted?.price }, 'B').catch(() => {});
+      this.logDebug('properties.service.ts:360', 'attachLocationToMany converted Decimal', { index, resultId: converted?.id, newPriceType: typeof converted?.price }, 'B').catch(() => { });
       // #endregion
       return converted;
     });
@@ -798,7 +810,7 @@ export class PropertiesService {
       // #region agent log
       await this.logDebug('properties.service.ts:765', 'findById after attachLocation', { propertyId: id, resultPriceType: typeof result?.price }, 'D');
       // #endregion
-      
+
       // Test JSON serialization
       try {
         JSON.stringify(result);
@@ -811,7 +823,7 @@ export class PropertiesService {
         // #endregion
         throw serialError;
       }
-      
+
       return result;
     } catch (error: unknown) {
       // #region agent log
@@ -920,7 +932,7 @@ export class PropertiesService {
     } = rest;
 
     // Determine if location fields are being updated
-    const isUpdatingLocation = 
+    const isUpdatingLocation =
       countryId !== undefined ||
       provinceId !== undefined ||
       cityId !== undefined ||
@@ -928,7 +940,7 @@ export class PropertiesService {
       pendingGeoId !== undefined;
 
     let location: Awaited<ReturnType<typeof this.geo.resolveLocation>>;
-    
+
     if (isUpdatingLocation) {
       // User is updating location - resolve the new location
       try {

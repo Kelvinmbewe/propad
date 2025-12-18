@@ -85,17 +85,23 @@ export default function EditPropertyPage() {
 
             // Set location
             const locationParts = [];
-            if ((property as any).suburbName) locationParts.push((property as any).suburbName);
+            // Use suburbName (which now includes pending suburb with "(pending)" suffix) or pending geo name
+            if ((property as any).suburbName) {
+                locationParts.push((property as any).suburbName);
+            } else if ((property as any).location?.pendingGeo?.proposedName) {
+                locationParts.push(`${(property as any).location.pendingGeo.proposedName} (pending)`);
+            }
             if ((property as any).cityName) locationParts.push((property as any).cityName);
             if ((property as any).provinceName) locationParts.push((property as any).provinceName);
 
-            if (locationParts.length > 0) {
+            if (locationParts.length > 0 || (property as any).pendingGeoId) {
                 setSelectedLocation({
                     countryId: (property as any).countryId,
                     provinceId: (property as any).provinceId,
                     cityId: (property as any).cityId,
                     suburbId: (property as any).suburbId,
-                    displayName: locationParts.join(', '),
+                    pendingGeoId: (property as any).pendingGeoId,
+                    displayName: locationParts.join(', ') || 'Pending location',
                 });
             }
         }

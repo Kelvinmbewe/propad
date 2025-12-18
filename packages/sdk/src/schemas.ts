@@ -113,6 +113,12 @@ const PropertyLocationSchema = z.object({
   suburbId: z.string().nullish(),
   suburb: LocationEntitySchema.nullish(),
   pendingGeoId: z.string().nullish(),
+  pendingGeo: z.object({
+    id: z.string(),
+    proposedName: z.string(),
+    level: z.string(),
+    status: z.string()
+  }).nullish(),
   lat: z.number().nullish(),
   lng: z.number().nullish()
 });
