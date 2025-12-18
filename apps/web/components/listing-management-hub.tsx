@@ -8,6 +8,10 @@ import { formatCurrency } from '@/lib/formatters';
 import { ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
+import { getInterestsForProperty, updateInterestStatus, getChatThreads, getThreadMessages, sendMessage } from '@/app/actions/listings';
+import { format } from 'date-fns';
+import { Check, X, MessageSquare, Send } from 'lucide-react';
+
 type Tab = 'overview' | 'management' | 'interest' | 'chats' | 'viewings' | 'payments' | 'verification' | 'logs';
 
 export function ListingManagementHub({ propertyId }: { propertyId: string }) {
@@ -87,8 +91,8 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.id
-                                ? 'border-emerald-600 text-emerald-600'
-                                : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                            ? 'border-emerald-600 text-emerald-600'
+                            : 'border-transparent text-neutral-500 hover:text-neutral-700'
                             }`}
                     >
                         {tab.label}
@@ -115,10 +119,11 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
                     />
                 )}
                 {activeTab === 'interest' && (
-                    <PlaceholderTab title="Interest & Offers" />
-                    // TODO: Reuse existing Interest module
+                    <InterestTab propertyId={propertyId} />
                 )}
-                {activeTab === 'chats' && <PlaceholderTab title="Chats" />}
+                {activeTab === 'chats' && (
+                    <ChatsTab propertyId={propertyId} />
+                )}
                 {activeTab === 'viewings' && <PlaceholderTab title="Viewings" />}
                 {activeTab === 'payments' && <PlaceholderTab title="Payments" />}
                 {activeTab === 'verification' && <PlaceholderTab title="Verification" />}
@@ -219,6 +224,179 @@ function ManagementTab({
             </Card>
         </div>
     );
+}
+
+
+function InterestTab({ propertyId }: { propertyId: string }) {
+    const { data: interests, isLoading, refetch } = useQuery({
+        queryKey: ['interests', propertyId],
+        queryFn: () => getInterestsForProperty(propertyId)
+    });
+
+    const handleStatus = async (id: string, status: 'ACCEPTED' | 'REJECTED') => {
+        try {
+            await updateInterestStatus(id, status);
+            notify.success(`Interest ${status.toLowerCase()}`);
+            refetch();
+        } catch (e) {
+            notify.error('Failed to update status');
+        }
+    };
+
+    if (isLoading) return <Skeleton className="h-64" />;
+    if (!interests?.length) return <div className="p-8 text-center text-neutral-500">No interest requests yet.</div>;
+
+    return (
+        <div className="space-y-4">
+            {interests.map((interest: any) => (
+                <Card key={interest.id} className="overflow-hidden">
+                    <CardContent className="p-6">
+                        <div className="flex justify-between items-start gap-4">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-semibold text-lg">{interest.user.name || 'Anonymous'}</span>
+                                    {interest.user.isVerified && <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">Verified</span>}
+                                    <span className={`px-2 py-0.5 text-xs rounded-full border ${interest.status === 'ACCEPTED' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                                            interest.status === 'REJECTED' ? 'bg-red-50 border-red-200 text-red-700' :
+                                                'bg-neutral-100 border-neutral-200 text-neutral-600'
+                                        }`}>{interest.status}</span>
+                                </div>
+                                <p className="text-sm text-neutral-500 mb-2">Expressed on {new Date(interest.createdAt).toLocaleDateString()}</p>
+
+                                {interest.offerAmount && (
+                                    <p className="font-medium text-emerald-600 mb-2">
+                                        Offer: {formatCurrency(Number(interest.offerAmount), 'USD')}
+                                    </p>
+                                )}
+                                {interest.message && (
+                                    <div className="bg-neutral-50 p-3 rounded text-sm text-neutral-700 italic">"{interest.message}"</div>
+                                )}
+                            </div>
+                            <div className="flex gap-2">
+                                {interest.status === 'PENDING' && (
+                                    <>
+                                        <Button size="sm" variant="outline" className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={() => handleStatus(interest.id, 'ACCEPTED')}>
+                                            <Check className="h-4 w-4 mr-1" /> Accept
+                                        </Button>
+                                        <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleStatus(interest.id, 'REJECTED')}>
+                                            <X className="h-4 w-4 mr-1" /> Reject
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+        </div>
+    );
+}
+
+function ChatsTab({ propertyId }: { propertyId: string }) {
+    const [selectedThread, setSelectedThread] = useState<string | null>(null);
+
+    // List threads
+    const { data: threads, isLoading: threadsLoading } = useQuery({
+        queryKey: ['chat-threads', propertyId],
+        queryFn: () => getChatThreads(propertyId),
+        refetchInterval: 10000
+    });
+
+    if (threadsLoading) return <Skeleton className="h-96" />;
+
+    if (selectedThread) {
+        return <ChatThreadView propertyId={propertyId} userId={selectedThread} onBack={() => setSelectedThread(null)} />;
+    }
+
+    if (!threads?.length) return <div className="p-8 text-center text-neutral-500">No active chats.</div>;
+
+    return (
+        <div className="space-y-2">
+            {threads.map((thread: any) => (
+                <div
+                    key={thread.user.id}
+                    className="flex items-center p-4 border rounded-lg hover:bg-neutral-50 cursor-pointer transition-colors"
+                    onClick={() => setSelectedThread(thread.user.id)}
+                >
+                    <div className="h-10 w-10 bg-neutral-200 rounded-full flex items-center justify-center text-neutral-500 font-bold mr-3">
+                        {thread.user.name?.[0] || '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center mb-1">
+                            <span className="font-semibold truncate">{thread.user.name || 'Anonymous'}</span>
+                            <span className="text-xs text-neutral-400">{format(new Date(thread.lastMessage.createdAt), 'MMM d, h:mm a')}</span>
+                        </div>
+                        <p className="text-sm text-neutral-600 truncate">{thread.lastMessage.body}</p>
+                    </div>
+                    {thread.unreadCount > 0 && (
+                        <span className="ml-2 h-5 w-5 bg-red-500 text-white text-xs flex items-center justify-center rounded-full">
+                            {thread.unreadCount}
+                        </span>
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function ChatThreadView({ propertyId, userId, onBack }: { propertyId: string, userId: string, onBack: () => void }) {
+    const [text, setText] = useState('');
+    const queryClient = useQueryClient();
+
+    const { data: messages, isLoading } = useQuery({
+        queryKey: ['chat-messages', propertyId, userId],
+        queryFn: () => getThreadMessages(propertyId, userId),
+        refetchInterval: 5000
+    });
+
+    const sendMut = useMutation({
+        mutationFn: (body: string) => sendMessage(propertyId, userId, body),
+        onSuccess: () => {
+            setText('');
+            queryClient.invalidateQueries({ queryKey: ['chat-messages', propertyId, userId] });
+        }
+    });
+
+    const handleSend = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!text.trim()) return;
+        sendMut.mutate(text);
+    }
+
+    if (isLoading) return <Skeleton className="h-96" />;
+
+    return (
+        <div className="h-[600px] flex flex-col border rounded-lg">
+            <div className="p-3 border-b flex items-center gap-2 bg-neutral-50">
+                <Button variant="ghost" size="sm" onClick={onBack}>
+                    <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <span className="font-semibold">Chat</span>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages?.map((msg: any) => {
+                    const isMe = msg.senderId !== userId; // userId is the counterparty
+                    return (
+                        <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[80%] rounded-lg p-3 ${isMe ? 'bg-emerald-600 text-white' : 'bg-neutral-100 text-neutral-800'
+                                }`}>
+                                <p className="text-sm">{msg.body}</p>
+                                <p className={`text-[10px] mt-1 ${isMe ? 'text-emerald-100' : 'text-neutral-400'}`}>
+                                    {format(new Date(msg.createdAt), 'h:mm a')}
+                                </p>
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+            <form onSubmit={handleSend} className="p-3 border-t flex gap-2">
+                <Input value={text} onChange={e => setText(e.target.value)} placeholder="Type a message..." disabled={sendMut.isPending} />
+                <Button type="submit" size="icon" disabled={sendMut.isPending}>
+                    <Send className="h-4 w-4" />
+                </Button>
+            </form>
+        </div>
+    )
 }
 
 function PlaceholderTab({ title }: { title: string }) {
