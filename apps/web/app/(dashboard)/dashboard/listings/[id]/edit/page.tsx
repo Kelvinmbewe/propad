@@ -208,11 +208,16 @@ export default function EditPropertyPage() {
             if (areaSqm !== undefined) payload.areaSqm = areaSqm;
 
             // Only include location fields if they have values
-            if (selectedLocation?.countryId) payload.countryId = selectedLocation.countryId;
-            if (selectedLocation?.provinceId) payload.provinceId = selectedLocation.provinceId;
-            if (selectedLocation?.cityId) payload.cityId = selectedLocation.cityId;
-            if (selectedLocation?.suburbId) payload.suburbId = selectedLocation.suburbId;
-            if (selectedLocation?.pendingGeoId) payload.pendingGeoId = selectedLocation.pendingGeoId;
+            // If pendingGeoId is present, only send that (not regular location fields)
+            if (selectedLocation?.pendingGeoId) {
+                payload.pendingGeoId = selectedLocation.pendingGeoId;
+            } else if (selectedLocation) {
+                // Only send regular location fields if no pendingGeoId
+                if (selectedLocation.countryId) payload.countryId = selectedLocation.countryId;
+                if (selectedLocation.provinceId) payload.provinceId = selectedLocation.provinceId;
+                if (selectedLocation.cityId) payload.cityId = selectedLocation.cityId;
+                if (selectedLocation.suburbId) payload.suburbId = selectedLocation.suburbId;
+            }
 
             await sdk.properties.update(propertyId, payload);
 

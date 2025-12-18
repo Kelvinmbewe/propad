@@ -827,13 +827,20 @@ export class PropertiesService {
     const landlordId = dto.landlordId ?? (actor.role === Role.LANDLORD ? actor.userId : undefined);
     const agentOwnerId = dto.agentOwnerId ?? (actor.role === Role.AGENT ? actor.userId : undefined);
 
-    const location = await this.geo.resolveLocation({
-      countryId: dto.countryId ?? null,
-      provinceId: dto.provinceId ?? null,
-      cityId: dto.cityId ?? null,
-      suburbId: dto.suburbId ?? null,
-      pendingGeoId: dto.pendingGeoId ?? null
-    });
+    let location: Awaited<ReturnType<typeof this.geo.resolveLocation>>;
+    try {
+      location = await this.geo.resolveLocation({
+        countryId: dto.countryId ?? null,
+        provinceId: dto.provinceId ?? null,
+        cityId: dto.cityId ?? null,
+        suburbId: dto.suburbId ?? null,
+        pendingGeoId: dto.pendingGeoId ?? null
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to resolve location for property creation: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
+      throw new BadRequestException(`Invalid location: ${errorMessage}`);
+    }
 
     const availableFrom =
       dto.availability === PropertyAvailability.DATE && dto.availableFrom
@@ -912,21 +919,41 @@ export class PropertiesService {
       ...other
     } = rest;
 
-    const location = await this.geo.resolveLocation({
-      countryId: countryId ?? existing.countryId ?? null,
-      provinceId: provinceId ?? existing.provinceId ?? null,
-      cityId: cityId ?? existing.cityId ?? null,
-      suburbId: suburbId ?? existing.suburbId ?? null,
-      pendingGeoId:
-        pendingGeoId !== undefined
-          ? pendingGeoId
-          : countryId !== undefined ||
-            provinceId !== undefined ||
-            cityId !== undefined ||
-            suburbId !== undefined
-            ? null
-            : existing.pendingGeoId ?? null
-    });
+    // Determine if location fields are being updated
+    const isUpdatingLocation = 
+      countryId !== undefined ||
+      provinceId !== undefined ||
+      cityId !== undefined ||
+      suburbId !== undefined ||
+      pendingGeoId !== undefined;
+
+    let location: Awaited<ReturnType<typeof this.geo.resolveLocation>>;
+    
+    if (isUpdatingLocation) {
+      // User is updating location - resolve the new location
+      try {
+        location = await this.geo.resolveLocation({
+          countryId: countryId ?? null,
+          provinceId: provinceId ?? null,
+          cityId: cityId ?? null,
+          suburbId: suburbId ?? null,
+          pendingGeoId: pendingGeoId ?? null
+        });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Failed to resolve location for property update ${id}: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
+        throw new BadRequestException(`Invalid location: ${errorMessage}`);
+      }
+    } else {
+      // User is not updating location - use existing location
+      location = {
+        country: existing.country,
+        province: existing.province,
+        city: existing.city,
+        suburb: existing.suburb,
+        pendingGeo: existing.pendingGeo
+      };
+    }
 
     const availableFrom =
       availableFromInput !== undefined
@@ -943,11 +970,13 @@ export class PropertiesService {
       where: { id },
       data: {
         ...filtered,
-        countryId: location.country?.id ?? existing.countryId,
-        provinceId: location.province?.id ?? existing.provinceId,
-        cityId: location.city?.id ?? existing.cityId,
-        suburbId: location.suburb?.id ?? existing.suburbId,
-        pendingGeoId: location.pendingGeo?.id ?? null,
+        ...(isUpdatingLocation ? {
+          countryId: location.country?.id ?? null,
+          provinceId: location.province?.id ?? null,
+          cityId: location.city?.id ?? null,
+          suburbId: location.suburb?.id ?? null,
+          pendingGeoId: location.pendingGeo?.id ?? null,
+        } : {}),
         ...(lat !== undefined ? { lat } : {}),
         ...(lng !== undefined ? { lng } : {}),
         ...(price !== undefined ? { price } : {}),
