@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Button,
   Card,
@@ -10,188 +10,50 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-  Input,
-  Label,
   Skeleton,
-  notify
+  Badge,
 } from '@propad/ui';
-import type { AgentSummary, PropertyManagement as PropertyManagementType } from '@propad/sdk';
+import type { PropertyManagement as PropertyManagementType } from '@propad/sdk';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { formatCurrency } from '@/lib/formatters';
-import { PropertyMessenger } from './property-messenger';
+import Link from 'next/link';
+import { MapPin, Home, DollarSign, CheckCircle2 } from 'lucide-react';
 
 export function PropertyManagement() {
   const sdk = useAuthenticatedSDK();
-  const queryClient = useQueryClient();
-  const [serviceFees, setServiceFees] = useState<Record<string, string>>({});
-  const [selectedAgents, setSelectedAgents] = useState<Record<string, string>>({});
 
   const {
     data: properties,
     isLoading: loadingProperties,
     isError: propertiesError,
-    error: queryError
   } = useQuery({
     queryKey: ['properties:owned'],
     queryFn: async () => {
-      console.log('[PropertyManagement] Fetching properties...');
       const result = await sdk!.properties.listOwned();
-      console.log('[PropertyManagement] Properties fetched:', result?.length);
       return result;
     },
     enabled: !!sdk
   });
 
-  const {
-    data: agents,
-    isLoading: loadingAgents,
-    isError: agentsError
-  } = useQuery({
-    queryKey: ['agents:verified'],
-    queryFn: () => sdk!.agents.listVerified(),
-    enabled: !!sdk
-  });
-
-  // Debug: Log query error
-  if (queryError) {
-    console.error('[PropertyManagement] Query error:', queryError);
-  }
-
-  const assignMutation = useMutation({
-    mutationFn: ({
-      propertyId,
-      agentId,
-      serviceFeeUsd
-    }: {
-      propertyId: string;
-      agentId: string;
-      serviceFeeUsd?: number;
-    }) => sdk!.properties.assignAgent(propertyId, { agentId, serviceFeeUsd }),
-    onSuccess: (_, variables) => {
-      notify.success('Verified agent assignment saved');
-      setServiceFees((prev) => ({ ...prev, [variables.propertyId]: '' }));
-      queryClient.invalidateQueries({ queryKey: ['properties:owned'] });
-      queryClient.invalidateQueries({ queryKey: ['property', variables.propertyId, 'messages'] });
-    },
-    onError: (error: unknown) => {
-      const fallback = 'Unable to assign agent right now';
-      if (error instanceof Error) {
-        notify.error(error.message || fallback);
-      } else {
-        notify.error(fallback);
-      }
-    }
-  });
-
-  const updateFeeMutation = useMutation({
-    mutationFn: ({ propertyId, serviceFeeUsd }: { propertyId: string; serviceFeeUsd: number | null }) =>
-      sdk!.properties.updateServiceFee(propertyId, { serviceFeeUsd }),
-    onSuccess: (_, variables) => {
-      notify.success(variables.serviceFeeUsd !== null ? 'Service fee saved' : 'Service fee cleared');
-      setServiceFees((prev) => ({ ...prev, [variables.propertyId]: '' }));
-      queryClient.invalidateQueries({ queryKey: ['properties:owned'] });
-    },
-    onError: (error: unknown) => {
-      const fallback = 'Unable to save service fee';
-      if (error instanceof Error) {
-        notify.error(error.message || fallback);
-      } else {
-        notify.error(fallback);
-      }
-    }
-  });
-
-  const confirmMutation = useMutation({
-    mutationFn: ({ propertyId, confirmed }: { propertyId: string; confirmed: boolean }) =>
-      sdk!.properties.updateDealConfirmation(propertyId, { confirmed }),
-    onSuccess: (_, variables) => {
-      notify.success(variables.confirmed ? 'Deal confirmed' : 'Deal confirmation cleared');
-      queryClient.invalidateQueries({ queryKey: ['properties:owned'] });
-    },
-    onError: (error: unknown) => {
-      const fallback = 'Unable to update confirmation';
-      if (error instanceof Error) {
-        notify.error(error.message || fallback);
-      } else {
-        notify.error(fallback);
-      }
-    }
-  });
-
-  const handleAssign = (property: PropertyManagementType) => {
-    const currentSelection = selectedAgents[property.id] ?? property.agentOwner?.id ?? '';
-
-    if (!currentSelection) {
-      notify.error('Select a verified agent before assigning');
-      return;
-    }
-
-    const feeInput = serviceFees[property.id]?.trim();
-    let parsedFee: number | undefined;
-    if (feeInput) {
-      const numeric = Number(feeInput);
-      if (Number.isNaN(numeric) || numeric < 0) {
-        notify.error('Enter a valid service fee (optional)');
-        return;
-      }
-      parsedFee = numeric;
-    }
-
-    assignMutation.mutate({ propertyId: property.id, agentId: currentSelection, serviceFeeUsd: parsedFee });
-  };
-
-  const handleSaveFee = (property: PropertyManagementType) => {
-    const feeInput = serviceFees[property.id]?.trim();
-    let parsedFee: number | null = null;
-    if (feeInput) {
-      const numeric = Number(feeInput);
-      if (Number.isNaN(numeric) || numeric < 0) {
-        notify.error('Enter a valid service fee (optional)');
-        return;
-      }
-      parsedFee = numeric;
-    }
-
-    updateFeeMutation.mutate({ propertyId: property.id, serviceFeeUsd: parsedFee });
-  };
-
-  const handleToggleConfirmation = (property: PropertyManagementType) => {
-    const confirmed = !property.dealConfirmedAt;
-    confirmMutation.mutate({ propertyId: property.id, confirmed });
-  };
-
-  const verifiedAgents = useMemo(() => agents ?? [], [agents]);
-
-  // Group properties by status/type - must be called unconditionally (hooks rule)
+  // Group properties by status/type
   const groupedProperties = useMemo(() => {
     if (!properties || properties.length === 0) {
-      return {
-        'For Sale': [] as PropertyManagementType[],
-        'To Rent': [] as PropertyManagementType[],
-        'Confirmed': [] as PropertyManagementType[],
-        'Other': [] as PropertyManagementType[]
-      };
+      return {};
     }
 
     const groups: Record<string, PropertyManagementType[]> = {
-      'For Sale': [],
-      'To Rent': [],
-      'Confirmed': [],
-      'Other': []
+      'Active Listings': [],
+      'Drafts': [],
+      'Archived': []
     };
 
     properties.forEach((property) => {
-      const listingIntent = (property as any).listingIntent;
-      const isConfirmed = property.dealConfirmedAt !== null && property.dealConfirmedAt !== undefined;
-
-      if (isConfirmed) {
-        groups['Confirmed'].push(property);
-      } else if (listingIntent === 'FOR_SALE') {
-        groups['For Sale'].push(property);
-      } else if (listingIntent === 'TO_RENT') {
-        groups['To Rent'].push(property);
+      if (property.status === 'DRAFT') {
+        groups['Drafts'].push(property);
+      } else if (property.status === 'ARCHIVED') {
+        groups['Archived'].push(property);
       } else {
-        groups['Other'].push(property);
+        groups['Active Listings'].push(property); // Includes VERIFIED, PENDING_VERIFY, etc.
       }
     });
 
@@ -204,9 +66,9 @@ export function PropertyManagement() {
 
   if (loadingProperties) {
     return (
-      <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {[...Array(3)].map((_, index) => (
-          <Skeleton key={index} className="h-48" />
+          <Skeleton key={index} className="h-64 rounded-xl" />
         ))}
       </div>
     );
@@ -218,185 +80,92 @@ export function PropertyManagement() {
 
   if (!properties || properties.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center space-y-4 py-12">
+      <div className="flex flex-col items-center justify-center space-y-4 py-12 border-2 border-dashed rounded-xl bg-neutral-50/50">
+        <Home className="h-12 w-12 text-neutral-300" />
         <p className="text-sm text-neutral-600">You have not published any listings yet.</p>
-        <Button onClick={() => window.location.href = '/dashboard/listings/new'}>
-          List New Property
-        </Button>
+        <Link href="/dashboard/listings/new">
+          <Button>List New Property</Button>
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button onClick={() => window.location.href = '/dashboard/listings/new'}>
-          List New Property
-        </Button>
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold tracking-tight">Your Properties</h2>
+        <Link href="/dashboard/listings/new">
+          <Button>List New Property</Button>
+        </Link>
       </div>
+
       {Object.entries(groupedProperties).map(([groupName, groupProperties]) => {
         if (groupProperties.length === 0) return null;
 
         return (
           <div key={groupName} className="space-y-4">
-            <h2 className="text-lg font-semibold text-neutral-900 border-b pb-2">
-              {groupName} ({groupProperties.length})
-            </h2>
-            {groupProperties.map((property) => {
-        // Safely convert price to number if needed
-        const safePrice = typeof property.price === 'number' 
-          ? property.price 
-          : typeof property.price === 'object' && property.price !== null && 'toNumber' in property.price 
-            ? (property.price as any).toNumber() 
-            : Number(property.price);
-        const priceLabel = formatCurrency(safePrice, property.currency);
-        const currentAssignment = property.assignments?.[0];
-        const currentAgent = property.agentOwner?.name ?? 'Unassigned';
-        const serviceFeeLabel =
-          currentAssignment?.serviceFeeUsdCents !== null && currentAssignment?.serviceFeeUsdCents !== undefined
-            ? `$${(currentAssignment.serviceFeeUsdCents / 100).toFixed(2)} landlord paid`
-            : 'No service fee recorded';
-        const dealConfirmedAt = property.dealConfirmedAt
-          ? new Date(property.dealConfirmedAt).toLocaleString('en-ZW', {
-            dateStyle: 'medium',
-            timeStyle: 'short'
-          })
-          : null;
+            <h3 className="text-lg font-semibold text-neutral-900 border-b pb-2">
+              {groupName} <span className="text-neutral-500 font-normal text-sm ml-2">({groupProperties.length})</span>
+            </h3>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {groupProperties.map((property) => {
+                const safePrice = Number(property.price);
+                const priceLabel = formatCurrency(safePrice, property.currency);
+                const locationLabel = [
+                  property.suburbName ?? property.location.suburb?.name,
+                  property.cityName ?? property.location.city?.name
+                ].filter(Boolean).join(', ');
 
-        const cityLabel =
-          property.cityName ?? property.location.city?.name ?? property.provinceName ?? property.location.province?.name ?? null;
-        const suburbLabel = property.suburbName ?? property.location.suburb?.name ?? null;
-
-        return (
-          <Card key={property.id} className="border-neutral-200">
-            <CardHeader>
-              <CardTitle className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-lg font-semibold capitalize">{property.type.toLowerCase()}</span>
-                <span className="text-base font-medium text-emerald-600">{priceLabel}</span>
-              </CardTitle>
-              <CardDescription>
-                {cityLabel ?? property.countryName ?? property.location.country?.name ?? 'Zimbabwe'}
-                {suburbLabel ? ` • ${suburbLabel}` : ''}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-              <div className="grid gap-2 md:grid-cols-2">
-                <div className="space-y-1">
-                  <Label htmlFor={`agent-${property.id}`}>Verified agent</Label>
-                  <select
-                    id={`agent-${property.id}`}
-                    className="w-full rounded-md border border-neutral-300 bg-white p-2 text-sm"
-                    value={selectedAgents[property.id] ?? property.agentOwner?.id ?? ''}
-                    onChange={(event) =>
-                      setSelectedAgents((prev) => ({ ...prev, [property.id]: event.target.value }))
-                    }
-                    disabled={assignMutation.isPending || loadingAgents}
-                  >
-                    <option value="">Select a verified agent</option>
-                    {verifiedAgents.map((agent: AgentSummary) => (
-                      <option key={agent.id} value={agent.id}>
-                        {agent.name ?? agent.id} • {agent.agentProfile?.verifiedListingsCount ?? 0} verified
-                      </option>
-                    ))}
-                  </select>
-                  {agentsError ? (
-                    <p className="text-xs text-red-600">Unable to load verified agents.</p>
-                  ) : null}
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor={`fee-${property.id}`}>Landlord-paid service fee (optional)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id={`fee-${property.id}`}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={serviceFees[property.id] ?? ''}
-                      onChange={(event) =>
-                        setServiceFees((prev) => ({ ...prev, [property.id]: event.target.value }))
-                      }
-                      placeholder="e.g. 25"
-                      disabled={updateFeeMutation.isPending || assignMutation.isPending}
-                      className="flex-1"
-                    />
-                    <Button
-                      onClick={() => handleSaveFee(property)}
-                      disabled={updateFeeMutation.isPending || assignMutation.isPending || !property.agentOwnerId}
-                      variant="outline"
-                      size="sm"
-                    >
-                      {updateFeeMutation.isPending ? 'Saving…' : 'Save'}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-neutral-500">Only the landlord pays this fee. Tenants are never charged.</p>
-                  {!property.agentOwnerId && (
-                    <p className="text-xs text-orange-600">Assign an agent first to save the service fee.</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-neutral-600">
-                <span>Currently assigned to: {currentAgent}</span>
-                <span>{serviceFeeLabel}</span>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-neutral-600">
-                <span>Deal status: {dealConfirmedAt ? `Confirmed ${dealConfirmedAt}` : 'Awaiting confirmation'}</span>
-                <Button
-                  variant={dealConfirmedAt ? 'outline' : 'default'}
-                  onClick={() => handleToggleConfirmation(property)}
-                  disabled={confirmMutation.isPending}
-                >
-                  {confirmMutation.isPending
-                    ? 'Saving…'
-                    : dealConfirmedAt
-                      ? 'Clear confirmation'
-                      : 'Mark deal confirmed'}
-                </Button>
-              </div>
-
-              <PropertyMessenger
-                propertyId={property.id}
-                landlordId={property.landlordId}
-                agentOwnerId={property.agentOwnerId}
-              />
-            </CardContent>
-            <CardFooter className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => window.location.href = `/properties/${property.id}`}
-                >
-                  View
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => window.location.href = `/dashboard/listings/${property.id}/edit`}
-                >
-                  Edit
-                </Button>
-                <Button
-                  onClick={() => handleAssign(property)}
-                  disabled={assignMutation.isPending}
-                >
-                  {assignMutation.isPending ? 'Assigning…' : 'Assign Agent'}
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    if (confirm('Are you sure you want to delete this listing? This cannot be undone.')) {
-                      window.location.href = `/dashboard/listings/${property.id}/delete`;
-                    }
-                  }}
-                >
-                  Delete
-                </Button>
-              </div>
-              <p className="text-xs text-neutral-500">Keep conversations here to reduce WhatsApp leakage.</p>
-            </CardFooter>
-          </Card>
-            );
-          })}
+                return (
+                  <Card key={property.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                    <div className="h-40 bg-neutral-100 relative">
+                      {/* Placeholder for image - in real app would use proper media */}
+                      {property.media?.[0]?.url ? (
+                        <img src={property.media[0].url} alt={property.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-neutral-400">
+                          <Home className="h-10 w-10" />
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2">
+                        <Badge variant={
+                          property.status === 'VERIFIED' ? 'default' :
+                            property.status === 'DRAFT' ? 'secondary' : 'outline'
+                        }>
+                          {property.status}
+                        </Badge>
+                      </div>
+                    </div>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base font-semibold truncate" title={property.title}>
+                        {property.title}
+                      </CardTitle>
+                      <CardDescription className="flex items-center gap-1 text-xs">
+                        <MapPin className="h-3 w-3" /> {locationLabel || 'No location set'}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <div className="text-lg font-bold text-emerald-600 flex items-center gap-1">
+                        {priceLabel}
+                        <span className="text-xs font-normal text-neutral-500">
+                          {property.listingIntent === 'TO_RENT' ? '/ month' : ''}
+                        </span>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="pt-2 flex justify-between gap-2 border-t bg-neutral-50/50">
+                      <Link href={`/dashboard/listings/${property.id}`} className="flex-1">
+                        <Button variant="default" className="w-full" size="sm">
+                          Manage
+                        </Button>
+                      </Link>
+                      <Link href={`/dashboard/listings/${property.id}/edit`}>
+                        <Button variant="ghost" size="sm">Edit</Button>
+                      </Link>
+                    </CardFooter>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
         );
       })}
