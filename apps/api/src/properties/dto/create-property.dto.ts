@@ -45,8 +45,9 @@ const basePropertySchema = z.object({
   commercialFields: commercialFieldsSchema.optional()
 });
 
-const withPropertyRefinements = <T extends z.ZodTypeAny>(schema: T) =>
+const withCreateRefinements = <T extends z.ZodTypeAny>(schema: T) =>
   schema.superRefine((data, ctx) => {
+    // For create: countryId OR pendingGeoId is required
     if (!data.countryId && !data.pendingGeoId) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -55,6 +56,7 @@ const withPropertyRefinements = <T extends z.ZodTypeAny>(schema: T) =>
       });
     }
 
+    // Location hierarchy checks for create
     if (data.suburbId && !data.cityId) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -88,7 +90,52 @@ const withPropertyRefinements = <T extends z.ZodTypeAny>(schema: T) =>
     }
   });
 
-export const createPropertySchema = withPropertyRefinements(basePropertySchema);
-export const updatePropertySchema = withPropertyRefinements(basePropertySchema.partial());
+const withUpdateRefinements = <T extends z.ZodTypeAny>(schema: T) =>
+  schema.superRefine((data, ctx) => {
+    // For update: only validate location hierarchy if location fields are being updated
+    const hasLocationUpdate = data.countryId !== undefined || 
+                               data.provinceId !== undefined || 
+                               data.cityId !== undefined || 
+                               data.suburbId !== undefined ||
+                               data.pendingGeoId !== undefined;
+
+    if (hasLocationUpdate) {
+      // If updating location, validate hierarchy only for provided fields
+      if (data.suburbId && !data.cityId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'suburbId requires a cityId',
+          path: ['suburbId']
+        });
+      }
+
+      if (data.cityId && !data.provinceId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'cityId requires a provinceId',
+          path: ['cityId']
+        });
+      }
+
+      if (data.provinceId && !data.countryId && !data.pendingGeoId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'provinceId requires a countryId or pendingGeoId',
+          path: ['provinceId']
+        });
+      }
+    }
+
+    if (data.availability === PropertyAvailability.DATE && !data.availableFrom) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'availableFrom is required when availability is DATE',
+        path: ['availableFrom']
+      });
+    }
+  });
+
+export const createPropertySchema = withCreateRefinements(basePropertySchema);
+export const updatePropertySchema = withUpdateRefinements(basePropertySchema.partial());
 
 export type CreatePropertyDto = z.infer<typeof createPropertySchema>;
