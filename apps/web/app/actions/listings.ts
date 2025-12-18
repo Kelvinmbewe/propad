@@ -139,3 +139,24 @@ export async function updateInterestStatus(interestId: string, status: 'ACCEPTED
 
     revalidatePath('/dashboard/listings');
 }
+
+export async function getViewings(propertyId: string) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error('Unauthorized');
+
+    const property = await prisma.property.findFirst({
+        where: { id: propertyId, OR: [{ landlordId: session.user.id }, { agentOwnerId: session.user.id }] }
+    });
+    if (!property) throw new Error('Access denied');
+
+    return prisma.viewing.findMany({
+        where: { propertyId },
+        include: {
+            viewer: { select: { id: true, name: true, phone: true } },
+            agent: { select: { id: true, name: true } },
+            landlord: { select: { id: true, name: true } }
+        },
+        orderBy: { scheduledAt: 'asc' }
+    });
+}
+
