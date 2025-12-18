@@ -11,7 +11,6 @@ import { BarChart3, Compass, Globe2, LayoutDashboard, ShieldCheck, Wallet2 } fro
 const links: Array<{ href: string; label: string; roles: Role[]; icon: ReactNode }> = [
   { href: '/dashboard', label: 'Overview', roles: ['ADMIN', 'VERIFIER', 'AGENT', 'LANDLORD', 'USER'], icon: <LayoutDashboard className="h-4 w-4" /> },
   { href: '/dashboard/listings', label: 'Listings', roles: ['ADMIN', 'AGENT', 'LANDLORD'], icon: <Compass className="h-4 w-4" /> },
-  { href: '/dashboard/listings', label: 'Listings', roles: ['ADMIN', 'AGENT', 'LANDLORD'], icon: <Compass className="h-4 w-4" /> },
   { href: '/dashboard/interests', label: 'Offer & Interest', roles: ['ADMIN', 'AGENT', 'LANDLORD'], icon: <Wallet2 className="h-4 w-4" /> },
   { href: '/dashboard/verifications', label: 'Verifications', roles: ['ADMIN', 'VERIFIER'], icon: <ShieldCheck className="h-4 w-4" /> },
   { href: '/dashboard/reward-pool', label: 'Reward pool', roles: ['ADMIN'], icon: <BarChart3 className="h-4 w-4" /> },
