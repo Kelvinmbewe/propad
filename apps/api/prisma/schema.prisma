@@ -234,6 +234,25 @@ enum OwnerType {
   AGENCY
 }
 
+enum ListingCreatorRole {
+  LANDLORD
+  AGENT
+  ADMIN
+}
+
+enum ViewingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum FeaturedListingStatus {
+  ACTIVE
+  EXPIRED
+  PENDING_PAYMENT
+}
+
 enum PayoutMethod {
   ECOCASH
   BANK
@@ -474,6 +493,9 @@ model User {
   reviewsReceived      UserReview[]        @relation("Reviewee")
   reviewsGiven         UserReview[]        @relation("Reviewer")
   rentPayments         RentPayment[]       @relation("TenantRentPayments")
+  viewingsAsViewer     Viewing[]           @relation("ViewingViewer")
+  viewingsAsAgent      Viewing[]           @relation("ViewingAgent")
+  viewingsAsLandlord   Viewing[]           @relation("ViewingLandlord")
 }
 
 model Payout {
@@ -624,9 +646,14 @@ model Property {
   metricsDaily    MetricListingDaily[]
   shortLinks      ShortLink[]
 
+  // Role-Aware
+  createdByRole ListingCreatorRole @default(LANDLORD)
+
   // New relations
   interests       Interest[]
   rentPayments    RentPayment[]
+  viewings        Viewing[]
+  featuredListing FeaturedListing?
 
   @@index([status])
   @@index([countryId])
@@ -815,6 +842,48 @@ model Verification {
 
   property Property @relation(fields: [propertyId], references: [id])
   verifier User?    @relation("VerificationVerifier", fields: [verifierId], references: [id])
+  
+  // Polymorphic fields
+  targetType  String   @default("property") // property, user, agent, landlord
+  targetId    String   @default("") // will correspond to propertyId if property
+}
+
+model Viewing {
+  id          String        @id @default(cuid())
+  propertyId  String
+  viewerId    String
+  agentId     String?       // If assigned agent is handling
+  landlordId  String?       // If landlord is handling
+  scheduledAt DateTime
+  status      ViewingStatus @default(SCHEDULED)
+  notes       String?
+  locationLat Float?
+  locationLng Float?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id])
+  viewer   User     @relation("ViewingViewer", fields: [viewerId], references: [id])
+  agent    User?    @relation("ViewingAgent", fields: [agentId], references: [id])
+  landlord User?    @relation("ViewingLandlord", fields: [landlordId], references: [id])
+
+  @@index([propertyId, scheduledAt])
+  @@index([viewerId])
+  @@index([agentId])
+}
+
+model FeaturedListing {
+  id            String   @id @default(cuid())
+  listingId     String   @unique
+  startsAt      DateTime
+  endsAt        DateTime
+  paymentId     String?
+  priorityLevel Int      @default(1)
+  status        FeaturedListingStatus @default(ACTIVE)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  property Property @relation(fields: [listingId], references: [id])
 }
 
 model Lead {
