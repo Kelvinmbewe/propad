@@ -9,7 +9,8 @@ import { ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 import { getInterestsForProperty, updateInterestStatus, getChatThreads, getThreadMessages, sendMessage, getViewings } from '@/app/actions/listings';
-import { Check, X, MessageSquare, Send, Calendar, Clock, MapPin } from 'lucide-react';
+import { getPropertyVerification, requestPropertyVerification } from '@/app/actions/verification';
+import { Check, X, MessageSquare, Send, Calendar, Clock, MapPin, ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react';
 
 const formatDate = (date: Date | string) => {
     return new Intl.DateTimeFormat('en-ZW', {
@@ -131,7 +132,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
                 )}
                 {activeTab === 'viewings' && <ViewingsTab propertyId={propertyId} />}
                 {activeTab === 'payments' && <PlaceholderTab title="Payments" />}
-                {activeTab === 'verification' && <PlaceholderTab title="Verification" />}
+                {activeTab === 'verification' && <VerificationTab propertyId={propertyId} />}
                 {activeTab === 'logs' && <PlaceholderTab title="Logs" />}
             </div>
         </div>
@@ -453,6 +454,73 @@ function ViewingsTab({ propertyId }: { propertyId: string }) {
                     </Card>
                 ))
             )}
+        </div>
+    );
+}
+
+function VerificationTab({ propertyId }: { propertyId: string }) {
+    const { data: verification, isLoading, refetch } = useQuery({
+        queryKey: ['verification', propertyId],
+        queryFn: () => getPropertyVerification(propertyId)
+    });
+
+    const requestMut = useMutation({
+        mutationFn: () => requestPropertyVerification(propertyId),
+        onSuccess: () => {
+            notify.success('Verification requested');
+            refetch();
+        }
+    });
+
+    if (isLoading) return <Skeleton className="h-64" />;
+
+    const status = verification?.status || 'NOT_VERIFIED';
+
+    return (
+        <div className="space-y-6">
+            <Card>
+                <CardContent className="p-6">
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className={`h-12 w-12 rounded-full flex items-center justify-center ${status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-600' :
+                                status === 'PENDING' ? 'bg-yellow-100 text-yellow-600' :
+                                    'bg-neutral-100 text-neutral-500'
+                            }`}>
+                            {status === 'VERIFIED' ? <ShieldCheck className="h-6 w-6" /> :
+                                status === 'PENDING' ? <Loader2 className="h-6 w-6 animate-spin" /> :
+                                    <AlertTriangle className="h-6 w-6" />
+                            }
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold">
+                                {status === 'VERIFIED' ? 'Property Verified' :
+                                    status === 'PENDING' ? 'Verification Pending' :
+                                        'Not Verified'}
+                            </h3>
+                            <p className="text-sm text-neutral-500">
+                                {status === 'VERIFIED' ? 'This property has been verified by our team.' :
+                                    status === 'PENDING' ? 'Our team is reviewing your documentation.' :
+                                        'Verify your property to increase trust and visibility.'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {status === 'NOT_VERIFIED' && (
+                        <div className="space-y-4">
+                            <div className="bg-neutral-50 p-4 rounded-lg border border-neutral-200">
+                                <h4 className="font-medium mb-2">Required for Verification:</h4>
+                                <ul className="list-disc list-inside text-sm text-neutral-600 space-y-1">
+                                    <li>Proof of Ownership (Title Deed or Utility Bill)</li>
+                                    <li>Location Confirmation (On-site visit or Geo-tag)</li>
+                                    <li>Valid Property Photos</li>
+                                </ul>
+                            </div>
+                            <Button onClick={() => requestMut.mutate()} disabled={requestMut.isPending}>
+                                {requestMut.isPending ? 'Requesting...' : 'Request Verification'}
+                            </Button>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
         </div>
     );
 }
