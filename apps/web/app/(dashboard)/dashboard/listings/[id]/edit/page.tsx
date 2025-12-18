@@ -34,6 +34,7 @@ interface LocationSelection {
     provinceId?: string;
     cityId?: string;
     suburbId?: string;
+    pendingGeoId?: string;
     displayName: string;
 }
 
@@ -506,20 +507,20 @@ export default function EditPropertyPage() {
                                         />
                                         <button
                                             type="button"
-                            onClick={async () => {
-                                if (isReadOnly) {
-                                    notify.error('Cannot delete images for confirmed deals');
-                                    return;
-                                }
-                                try {
-                                    await sdk.properties.deleteMedia(propertyId, media.id);
-                                    queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
-                                    notify.success('Image deleted');
-                                } catch (e) {
-                                    notify.error('Failed to delete image');
-                                }
-                            }}
-                            disabled={isReadOnly}
+                                            onClick={async () => {
+                                                if (isReadOnly) {
+                                                    notify.error('Cannot delete images for confirmed deals');
+                                                    return;
+                                                }
+                                                try {
+                                                    await sdk.properties.deleteMedia(propertyId, media.id);
+                                                    queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
+                                                    notify.success('Image deleted');
+                                                } catch (e) {
+                                                    notify.error('Failed to delete image');
+                                                }
+                                            }}
+                                            disabled={isReadOnly}
                                             className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                                         >
                                             <Trash2 className="h-4 w-4" />
