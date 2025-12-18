@@ -466,6 +466,7 @@ model User {
   properties      Property[]      @relation("LandlordProperties")
   leads           Lead[]
   verifications   Verification[]  @relation("VerificationVerifier")
+  verificationsRequested Verification[] @relation("VerificationRequester")
   rewardEvents    RewardEvent[]
   payouts         Payout[]
   adImpressions   AdImpression[]
