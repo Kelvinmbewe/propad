@@ -8,9 +8,14 @@ import { formatCurrency } from '@/lib/formatters';
 import { ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
-import { getInterestsForProperty, updateInterestStatus, getChatThreads, getThreadMessages, sendMessage } from '@/app/actions/listings';
-import { format } from 'date-fns';
-import { Check, X, MessageSquare, Send } from 'lucide-react';
+import { getInterestsForProperty, updateInterestStatus, getChatThreads, getThreadMessages, sendMessage, getViewings } from '@/app/actions/listings';
+import { Check, X, MessageSquare, Send, Calendar, Clock, MapPin } from 'lucide-react';
+
+const formatDate = (date: Date | string) => {
+    return new Intl.DateTimeFormat('en-ZW', {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric'
+    }).format(new Date(date));
+}
 
 type Tab = 'overview' | 'management' | 'interest' | 'chats' | 'viewings' | 'payments' | 'verification' | 'logs';
 
@@ -124,7 +129,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
                 {activeTab === 'chats' && (
                     <ChatsTab propertyId={propertyId} />
                 )}
-                {activeTab === 'viewings' && <PlaceholderTab title="Viewings" />}
+                {activeTab === 'viewings' && <ViewingsTab propertyId={propertyId} />}
                 {activeTab === 'payments' && <PlaceholderTab title="Payments" />}
                 {activeTab === 'verification' && <PlaceholderTab title="Verification" />}
                 {activeTab === 'logs' && <PlaceholderTab title="Logs" />}
@@ -257,8 +262,8 @@ function InterestTab({ propertyId }: { propertyId: string }) {
                                     <span className="font-semibold text-lg">{interest.user.name || 'Anonymous'}</span>
                                     {interest.user.isVerified && <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">Verified</span>}
                                     <span className={`px-2 py-0.5 text-xs rounded-full border ${interest.status === 'ACCEPTED' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
-                                            interest.status === 'REJECTED' ? 'bg-red-50 border-red-200 text-red-700' :
-                                                'bg-neutral-100 border-neutral-200 text-neutral-600'
+                                        interest.status === 'REJECTED' ? 'bg-red-50 border-red-200 text-red-700' :
+                                            'bg-neutral-100 border-neutral-200 text-neutral-600'
                                         }`}>{interest.status}</span>
                                 </div>
                                 <p className="text-sm text-neutral-500 mb-2">Expressed on {new Date(interest.createdAt).toLocaleDateString()}</p>
@@ -324,7 +329,7 @@ function ChatsTab({ propertyId }: { propertyId: string }) {
                     <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-center mb-1">
                             <span className="font-semibold truncate">{thread.user.name || 'Anonymous'}</span>
-                            <span className="text-xs text-neutral-400">{format(new Date(thread.lastMessage.createdAt), 'MMM d, h:mm a')}</span>
+                            <span className="text-xs text-neutral-400">{formatDate(thread.lastMessage.createdAt)}</span>
                         </div>
                         <p className="text-sm text-neutral-600 truncate">{thread.lastMessage.body}</p>
                     </div>
@@ -382,7 +387,7 @@ function ChatThreadView({ propertyId, userId, onBack }: { propertyId: string, us
                                 }`}>
                                 <p className="text-sm">{msg.body}</p>
                                 <p className={`text-[10px] mt-1 ${isMe ? 'text-emerald-100' : 'text-neutral-400'}`}>
-                                    {format(new Date(msg.createdAt), 'h:mm a')}
+                                    {formatDate(msg.createdAt)}
                                 </p>
                             </div>
                         </div>
@@ -397,6 +402,59 @@ function ChatThreadView({ propertyId, userId, onBack }: { propertyId: string, us
             </form>
         </div>
     )
+}
+
+function ViewingsTab({ propertyId }: { propertyId: string }) {
+    const { data: viewings, isLoading } = useQuery({
+        queryKey: ['viewings', propertyId],
+        queryFn: () => getViewings(propertyId)
+    });
+
+    if (isLoading) return <Skeleton className="h-64" />;
+
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-between items-center bg-blue-50 p-4 rounded-lg">
+                <div className="flex gap-2 items-center text-blue-800">
+                    <Calendar className="h-5 w-5" />
+                    <span className="font-medium">Schedule Viewing</span>
+                </div>
+                {/* Simplified sharing flow */}
+                <Button size="sm" variant="outline">Share Availability</Button>
+            </div>
+
+            {!viewings?.length ? (
+                <div className="p-8 text-center text-neutral-500">No upcoming viewings scheduled.</div>
+            ) : (
+                viewings.map((v: any) => (
+                    <Card key={v.id}>
+                        <CardContent className="p-4 flex justify-between items-center">
+                            <div className="flex gap-3">
+                                <div className="bg-neutral-100 p-2 rounded-lg flex flex-col items-center justify-center min-w-[60px]">
+                                    <span className="text-xs text-neutral-500">{new Date(v.scheduledAt).toLocaleDateString(undefined, { month: 'short' }).toUpperCase()}</span>
+                                    <span className="text-xl font-bold">{new Date(v.scheduledAt).getDate()}</span>
+                                </div>
+                                <div>
+                                    <h4 className="font-semibold">{v.viewer.name}</h4>
+                                    <div className="flex items-center gap-2 text-sm text-neutral-500">
+                                        <Clock className="h-3 w-3" />
+                                        <span>{formatDate(v.scheduledAt)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm text-neutral-500">
+                                        <MapPin className="h-3 w-3" />
+                                        <span>On-site</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <span className="px-3 py-1 bg-neutral-100 rounded-full text-xs font-medium">
+                                {v.status}
+                            </span>
+                        </CardContent>
+                    </Card>
+                ))
+            )}
+        </div>
+    );
 }
 
 function PlaceholderTab({ title }: { title: string }) {
