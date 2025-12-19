@@ -297,9 +297,11 @@ export default function CreatePropertyPage() {
         const formData = new FormData(event.currentTarget);
         const title = (formData.get('title') as string)?.trim();
         const description = (formData.get('description') as string)?.trim() || undefined;
-        const price = Number(formData.get('price'));
+        const priceRaw = formData.get('price');
+        const price = priceRaw ? Number(priceRaw) : 0;
         const type = formData.get('type') as string;
-        const listingIntent = formData.get('listingIntent') as string;
+        const listingIntentRaw = formData.get('listingIntent');
+        const listingIntent = listingIntentRaw && listingIntentRaw !== '' ? listingIntentRaw as string : undefined;
         const bedroomsRaw = formData.get('bedrooms');
         const bedrooms = bedroomsRaw && bedroomsRaw !== '' ? Number(bedroomsRaw) : undefined;
         const bathroomsRaw = formData.get('bathrooms');
@@ -330,9 +332,13 @@ export default function CreatePropertyPage() {
 
             // Only include optional fields if they have values
             if (description && description.trim()) payload.description = description.trim();
-            if (listingIntent) payload.listingIntent = listingIntent;
-            if (bedrooms !== undefined && bedrooms > 0) payload.bedrooms = bedrooms;
-            if (bathrooms !== undefined && bathrooms > 0) payload.bathrooms = bathrooms;
+            // Only include listingIntent if it's a valid enum value
+            if (listingIntent && (listingIntent === 'FOR_SALE' || listingIntent === 'TO_RENT')) {
+                payload.listingIntent = listingIntent;
+            }
+            // Ensure numeric fields are integers
+            if (bedrooms !== undefined && bedrooms > 0) payload.bedrooms = Math.floor(bedrooms);
+            if (bathrooms !== undefined && bathrooms > 0) payload.bathrooms = Math.floor(bathrooms);
             if (areaSqm !== undefined && areaSqm > 0) payload.areaSqm = areaSqm;
 
             // Only include location fields if they have values
