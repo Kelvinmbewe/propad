@@ -25,31 +25,35 @@ const optionalCuid = z.preprocess(
   z.string().cuid().optional()
 );
 
-// Helper to preprocess enum values from strings
-const preprocessEnum = <T extends Record<string, string | number>>(enumObject: T) =>
-  z.preprocess(
-    (val) => {
-      if (typeof val === 'string') {
-        // Try direct enum key lookup
-        const enumValue = enumObject[val as keyof T];
-        if (enumValue !== undefined) return enumValue;
-        // Try case-insensitive lookup
-        const upperVal = val.toUpperCase();
-        const enumKey = Object.keys(enumObject).find(k => k.toUpperCase() === upperVal);
-        if (enumKey) return enumObject[enumKey as keyof T];
+// Safe enum preprocessing helper - only preprocesses values, doesn't use generics with z.nativeEnum
+function preprocessEnumValue<E extends Record<string, string | number>>(enumObj: E) {
+  return (val: unknown) => {
+    if (typeof val === 'string') {
+      // Try direct enum key lookup
+      if (val in enumObj) {
+        return enumObj[val as keyof E];
       }
-      return val;
-    },
-    z.nativeEnum(enumObject)
-  );
+      // Try case-insensitive lookup
+      const upperVal = val.toUpperCase();
+      const enumKey = Object.keys(enumObj).find(k => k.toUpperCase() === upperVal);
+      if (enumKey) {
+        return enumObj[enumKey as keyof E];
+      }
+    }
+    return val;
+  };
+}
 
 const basePropertySchema = z.object({
   title: z.string().min(1).max(200),
   landlordId: optionalCuid,
   agentOwnerId: optionalCuid,
-  type: preprocessEnum(PropertyType),
-  listingIntent: z.enum(['FOR_SALE', 'TO_RENT']).optional(),
-  currency: preprocessEnum(Currency),
+  type: z.preprocess(preprocessEnumValue(PropertyType), z.nativeEnum(PropertyType)),
+  listingIntent: z.preprocess(
+    preprocessEnumValue({ FOR_SALE: 'FOR_SALE', TO_RENT: 'TO_RENT' }),
+    z.enum(['FOR_SALE', 'TO_RENT'])
+  ).optional(),
+  currency: z.preprocess(preprocessEnumValue(Currency), z.nativeEnum(Currency)),
   price: z.number().positive(),
   countryId: optionalCuid,
   provinceId: optionalCuid,
@@ -64,30 +68,11 @@ const basePropertySchema = z.object({
   amenities: z.array(z.string().min(1)).max(50).optional(),
   description: z.string().max(5000).optional(),
   furnishing: z.preprocess(
-    (val) => {
-      if (typeof val === 'string') {
-        const enumValue = PropertyFurnishing[val as keyof typeof PropertyFurnishing];
-        if (enumValue) return enumValue;
-        // If string doesn't match enum key, try direct comparison
-        if (val === 'NONE') return PropertyFurnishing.NONE;
-        if (val === 'PARTLY') return PropertyFurnishing.PARTLY;
-        if (val === 'FULLY') return PropertyFurnishing.FULLY;
-      }
-      return val;
-    },
+    preprocessEnumValue(PropertyFurnishing),
     z.nativeEnum(PropertyFurnishing).default(PropertyFurnishing.NONE)
   ),
   availability: z.preprocess(
-    (val) => {
-      if (typeof val === 'string') {
-        const enumValue = PropertyAvailability[val as keyof typeof PropertyAvailability];
-        if (enumValue) return enumValue;
-        // If string doesn't match enum key, try direct comparison
-        if (val === 'IMMEDIATE') return PropertyAvailability.IMMEDIATE;
-        if (val === 'DATE') return PropertyAvailability.DATE;
-      }
-      return val;
-    },
+    preprocessEnumValue(PropertyAvailability),
     z.nativeEnum(PropertyAvailability).default(PropertyAvailability.IMMEDIATE)
   ),
   availableFrom: z.string().datetime().optional(),
