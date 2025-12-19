@@ -5,6 +5,7 @@ import {
   KycStatus,
   LeadSource,
   LeadStatus,
+  ListingIntent,
   MediaKind,
   OwnerType,
   PolicyStrikeReason,
@@ -575,6 +576,8 @@ async function main() {
       : Prisma.JsonNull;
     const bedrooms = isResidential ? (type === PropertyType.ROOM ? 1 : getRandomInt(1, 5)) : null;
     const bathrooms = isResidential ? (type === PropertyType.ROOM ? 1 : getRandomInt(1, 3)) : null;
+    const areaSqm = isResidential ? (bedrooms ? bedrooms * 25 + getRandomInt(0, 50) : null) : null;
+    const listingIntent = isSaleListing ? ListingIntent.FOR_SALE : ListingIntent.TO_RENT;
     const typeLabel = type.replace(/_/g, ' ').toLowerCase();
     const description = isCommercial
       ? `${typeLabel} with ${amenities.join(', ')} and flexible lease terms.`
@@ -588,6 +591,7 @@ async function main() {
         agentOwnerId: agent.id,
         // agencyId: null, // Optional, can be omitted
         type,
+        listingIntent,
         currency,
         price: new Prisma.Decimal(priceBase.toFixed(2)),
         title: `${bedrooms ? bedrooms + ' Bed ' : ''}${typeLabel} in ${suburb}`,
@@ -600,14 +604,15 @@ async function main() {
         lng,
         bedrooms,
         bathrooms,
+        areaSqm,
         amenities,
         furnishing,
         availability,
-        // availableFrom, // Removed as it might not be in schema, or check schema
+        availableFrom,
         commercialFields: commercialFieldsValue,
         description,
-        // status, // Check if status exists on Property model
-        // verifiedAt: status === PropertyStatus.VERIFIED ? new Date(Date.now() - getRandomInt(1, 100) * 43200000) : null,
+        status,
+        verifiedAt: status === PropertyStatus.VERIFIED ? new Date(Date.now() - getRandomInt(1, 100) * 43200000) : null,
         media: {
           create: [
             {

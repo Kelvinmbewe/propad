@@ -26,13 +26,20 @@ export function PropertyManagement() {
     data: properties,
     isLoading: loadingProperties,
     isError: propertiesError,
+    error: propertiesErrorDetails,
   } = useQuery({
     queryKey: ['properties:owned'],
     queryFn: async () => {
-      const result = await sdk!.properties.listOwned();
-      return result;
+      try {
+        const result = await sdk!.properties.listOwned();
+        return result;
+      } catch (error) {
+        console.error('Failed to load properties:', error);
+        throw error;
+      }
     },
-    enabled: !!sdk
+    enabled: !!sdk,
+    retry: 1,
   });
 
   // Group properties by status/type
@@ -75,7 +82,17 @@ export function PropertyManagement() {
   }
 
   if (propertiesError) {
-    return <p className="text-sm text-red-600">We could not load your listings at this time.</p>;
+    const errorMessage = propertiesErrorDetails instanceof Error 
+      ? propertiesErrorDetails.message 
+      : 'Unknown error';
+    console.error('Properties error:', propertiesErrorDetails);
+    return (
+      <div className="flex flex-col items-center justify-center space-y-4 py-12 border-2 border-dashed border-red-200 rounded-xl bg-red-50/50">
+        <p className="text-sm text-red-600 font-semibold">We could not load your listings at this time.</p>
+        <p className="text-xs text-red-500">Error: {errorMessage}</p>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
+      </div>
+    );
   }
 
   if (!properties || properties.length === 0) {
