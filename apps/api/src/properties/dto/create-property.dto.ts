@@ -19,19 +19,25 @@ const commercialFieldsSchema = z
   })
   .strict();
 
+// Helper to normalize optional CUID fields (convert empty strings to undefined)
+const optionalCuid = z.preprocess(
+  (val) => (typeof val === 'string' && val.trim() === '') ? undefined : val,
+  z.string().cuid().optional()
+);
+
 const basePropertySchema = z.object({
   title: z.string().min(1).max(200),
-  landlordId: z.string().cuid().optional(),
-  agentOwnerId: z.string().cuid().optional(),
+  landlordId: optionalCuid,
+  agentOwnerId: optionalCuid,
   type: z.nativeEnum(PropertyType),
   listingIntent: z.enum(['FOR_SALE', 'TO_RENT']).optional(),
   currency: z.nativeEnum(Currency),
   price: z.number().positive(),
-  countryId: z.string().cuid().optional(),
-  provinceId: z.string().cuid().optional(),
-  cityId: z.string().cuid().optional(),
-  suburbId: z.string().cuid().optional(),
-  pendingGeoId: z.string().cuid().optional(),
+  countryId: optionalCuid,
+  provinceId: optionalCuid,
+  cityId: optionalCuid,
+  suburbId: optionalCuid,
+  pendingGeoId: optionalCuid,
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
   bedrooms: z.number().int().min(0).max(20).optional(),
@@ -42,7 +48,12 @@ const basePropertySchema = z.object({
   furnishing: z.preprocess(
     (val) => {
       if (typeof val === 'string') {
-        return PropertyFurnishing[val as keyof typeof PropertyFurnishing] ?? val;
+        const enumValue = PropertyFurnishing[val as keyof typeof PropertyFurnishing];
+        if (enumValue) return enumValue;
+        // If string doesn't match enum key, try direct comparison
+        if (val === 'NONE') return PropertyFurnishing.NONE;
+        if (val === 'PARTLY') return PropertyFurnishing.PARTLY;
+        if (val === 'FULLY') return PropertyFurnishing.FULLY;
       }
       return val;
     },
@@ -51,7 +62,11 @@ const basePropertySchema = z.object({
   availability: z.preprocess(
     (val) => {
       if (typeof val === 'string') {
-        return PropertyAvailability[val as keyof typeof PropertyAvailability] ?? val;
+        const enumValue = PropertyAvailability[val as keyof typeof PropertyAvailability];
+        if (enumValue) return enumValue;
+        // If string doesn't match enum key, try direct comparison
+        if (val === 'IMMEDIATE') return PropertyAvailability.IMMEDIATE;
+        if (val === 'DATE') return PropertyAvailability.DATE;
       }
       return val;
     },

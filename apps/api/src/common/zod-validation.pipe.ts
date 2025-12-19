@@ -9,12 +9,12 @@ export class ZodValidationPipe implements PipeTransform {
     const result = this.schema.safeParse(value);
     if (!result.success) {
       const flattened = result.error.flatten();
-      // Include both fieldErrors and formErrors for better error messages
-      const errorDetails = {
-        fieldErrors: flattened.fieldErrors,
-        formErrors: flattened.formErrors,
-        message: 'Validation failed',
-        details: result.error.errors.map(err => ({
+      // Return fieldErrors at top level for frontend compatibility
+      // Frontend expects either fieldErrors directly or an object without 'message'/'error'
+      const errorDetails: any = {
+        ...flattened.fieldErrors,
+        _formErrors: flattened.formErrors,
+        _details: result.error.errors.map(err => ({
           path: err.path.join('.'),
           message: err.message,
           code: err.code
