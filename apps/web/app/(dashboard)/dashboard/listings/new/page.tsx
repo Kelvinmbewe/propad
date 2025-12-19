@@ -329,9 +329,9 @@ export default function CreatePropertyPage() {
                 price: Number(price), // Ensure it's a number
                 currency: 'USD',
                 type: type, // Should already be a valid PropertyType enum value
-                // Set defaults for required fields with defaults
-                furnishing: 'NONE', // Default from schema
-                availability: 'IMMEDIATE', // Default from schema
+                // Set defaults for required fields with defaults (using enum string values)
+                furnishing: 'NONE', // PropertyFurnishing.NONE - Default from schema
+                availability: 'IMMEDIATE', // PropertyAvailability.IMMEDIATE - Default from schema
             };
 
             // Only include optional fields if they have values
@@ -371,10 +371,21 @@ export default function CreatePropertyPage() {
                 return;
             }
 
-            // Remove any undefined values from payload (they can cause validation issues)
+            // Remove any undefined, null, or empty string values from payload (they can cause validation issues)
+            // But keep enum string values like 'NONE' and 'IMMEDIATE'
             const cleanPayload = Object.fromEntries(
-                Object.entries(payload).filter(([_, value]) => value !== undefined && value !== null && value !== '')
+                Object.entries(payload).filter(([key, value]) => {
+                    if (value === undefined || value === null) return false;
+                    // Don't filter out enum string values even if they're empty-looking
+                    if (key === 'furnishing' || key === 'availability') return true;
+                    if (typeof value === 'string' && value.trim() === '') return false;
+                    return true;
+                })
             ) as any;
+
+            // Ensure required enum fields are present (they have defaults in schema but we set them explicitly)
+            if (!cleanPayload.furnishing) cleanPayload.furnishing = 'NONE';
+            if (!cleanPayload.availability) cleanPayload.availability = 'IMMEDIATE';
 
             // Log payload for debugging
             console.log('Creating property with payload:', JSON.stringify(cleanPayload, null, 2));
@@ -384,7 +395,9 @@ export default function CreatePropertyPage() {
                 hasPendingGeoId: !!cleanPayload.pendingGeoId,
                 hasProvinceId: !!cleanPayload.provinceId,
                 hasCityId: !!cleanPayload.cityId,
-                hasSuburbId: !!cleanPayload.suburbId
+                hasSuburbId: !!cleanPayload.suburbId,
+                furnishing: cleanPayload.furnishing,
+                availability: cleanPayload.availability
             });
 
             const property = await sdk.properties.create(cleanPayload);
