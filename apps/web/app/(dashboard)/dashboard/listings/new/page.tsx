@@ -375,6 +375,14 @@ export default function CreatePropertyPage() {
 
             // Log payload for debugging
             console.log('Creating property with payload:', JSON.stringify(cleanPayload, null, 2));
+            console.log('Selected location:', selectedLocation);
+            console.log('Location validation check:', {
+                hasCountryId: !!cleanPayload.countryId,
+                hasPendingGeoId: !!cleanPayload.pendingGeoId,
+                hasProvinceId: !!cleanPayload.provinceId,
+                hasCityId: !!cleanPayload.cityId,
+                hasSuburbId: !!cleanPayload.suburbId
+            });
 
             const property = await sdk.properties.create(cleanPayload);
 
