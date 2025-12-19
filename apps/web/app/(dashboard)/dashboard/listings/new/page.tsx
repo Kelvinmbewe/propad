@@ -391,19 +391,42 @@ export default function CreatePropertyPage() {
             console.error('Create property error:', error);
             // Extract more detailed error message
             let message = 'Failed to list property';
+            
             if (error?.response?.data) {
                 // Handle API error response
                 const errorData = error.response.data;
-                if (typeof errorData === 'string') {
+                
+                // Handle Zod validation errors (fieldErrors object)
+                if (typeof errorData === 'object' && !errorData.message && !errorData.error) {
+                    // This is likely a Zod validation error with fieldErrors
+                    const fieldErrors: Record<string, string[]> = errorData;
+                    const errorMessages: string[] = [];
+                    
+                    for (const [field, errors] of Object.entries(fieldErrors)) {
+                        if (Array.isArray(errors) && errors.length > 0) {
+                            errorMessages.push(`${field}: ${errors.join(', ')}`);
+                        }
+                    }
+                    
+                    if (errorMessages.length > 0) {
+                        message = `Validation error: ${errorMessages.join('; ')}`;
+                    } else {
+                        message = 'Validation error. Please check all fields.';
+                    }
+                } else if (typeof errorData === 'string') {
                     message = errorData;
                 } else if (errorData?.message) {
                     message = errorData.message;
                 } else if (errorData?.error) {
                     message = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
+                } else {
+                    message = JSON.stringify(errorData);
                 }
             } else if (error instanceof Error) {
                 message = error.message;
             }
+            
+            console.error('Error details:', error?.response?.data);
             notify.error(message);
         } finally {
             setIsLoading(false);
