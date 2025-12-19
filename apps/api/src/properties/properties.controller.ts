@@ -127,8 +127,13 @@ export class PropertiesController {
       const errorStack = error instanceof Error ? error.stack : '';
       console.error('[PropertiesController] create error:', errorMessage);
       console.error('[PropertiesController] create error stack:', errorStack);
+      
       // Re-throw BadRequestException and other HTTP exceptions as-is
+      // This preserves validation error details from ZodValidationPipe
       if (error instanceof BadRequestException) {
+        // Log the error response for debugging
+        const errorResponse = error.getResponse();
+        console.error('[PropertiesController] Validation error details:', JSON.stringify(errorResponse, null, 2));
         throw error;
       }
       // For other errors, wrap in BadRequestException with a user-friendly message

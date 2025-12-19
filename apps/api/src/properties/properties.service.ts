@@ -861,20 +861,28 @@ export class PropertiesService {
           : null;
       const commercialFields = this.normalizeCommercialFields(dto.commercialFields);
 
+      // Build location data - use conditional spreading only for truly optional fields
+      const resolvedCountryId = location.country?.id ?? dto.countryId ?? null;
+      const resolvedProvinceId = location.province?.id ?? dto.provinceId ?? null;
+      const resolvedCityId = location.city?.id ?? dto.cityId ?? null;
+      const resolvedSuburbId = location.suburb?.id ?? dto.suburbId ?? null;
+      const resolvedPendingGeoId = location.pendingGeo?.id ?? null;
+
       const property = await this.prisma.property.create({
         data: {
           title: dto.title,
-          landlordId,
-          agentOwnerId,
+          ...(landlordId && { landlordId }),
+          ...(agentOwnerId && { agentOwnerId }),
           type: dto.type,
           listingIntent: dto.listingIntent ?? null,
           currency: dto.currency,
           price: new Prisma.Decimal(dto.price),
-          countryId: location.country?.id ?? dto.countryId ?? null,
-          provinceId: location.province?.id ?? dto.provinceId ?? null,
-          cityId: location.city?.id ?? dto.cityId ?? null,
-          suburbId: location.suburb?.id ?? dto.suburbId ?? null,
-          pendingGeoId: location.pendingGeo?.id ?? null,
+          countryId: resolvedCountryId,
+          provinceId: resolvedProvinceId,
+          cityId: resolvedCityId,
+          // Only include suburbId if it has a value (conditional spreading for optional field)
+          ...(resolvedSuburbId && { suburbId: resolvedSuburbId }),
+          ...(resolvedPendingGeoId && { pendingGeoId: resolvedPendingGeoId }),
           lat: typeof dto.lat === 'number' ? dto.lat : null,
           lng: typeof dto.lng === 'number' ? dto.lng : null,
           bedrooms: dto.bedrooms,

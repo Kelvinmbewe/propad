@@ -25,13 +25,31 @@ const optionalCuid = z.preprocess(
   z.string().cuid().optional()
 );
 
+// Helper to preprocess enum values from strings
+const preprocessEnum = <T extends Record<string, string | number>>(enumObject: T) =>
+  z.preprocess(
+    (val) => {
+      if (typeof val === 'string') {
+        // Try direct enum key lookup
+        const enumValue = enumObject[val as keyof T];
+        if (enumValue !== undefined) return enumValue;
+        // Try case-insensitive lookup
+        const upperVal = val.toUpperCase();
+        const enumKey = Object.keys(enumObject).find(k => k.toUpperCase() === upperVal);
+        if (enumKey) return enumObject[enumKey as keyof T];
+      }
+      return val;
+    },
+    z.nativeEnum(enumObject)
+  );
+
 const basePropertySchema = z.object({
   title: z.string().min(1).max(200),
   landlordId: optionalCuid,
   agentOwnerId: optionalCuid,
-  type: z.nativeEnum(PropertyType),
+  type: preprocessEnum(PropertyType),
   listingIntent: z.enum(['FOR_SALE', 'TO_RENT']).optional(),
-  currency: z.nativeEnum(Currency),
+  currency: preprocessEnum(Currency),
   price: z.number().positive(),
   countryId: optionalCuid,
   provinceId: optionalCuid,
