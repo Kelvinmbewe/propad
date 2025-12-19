@@ -1,8 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
-import { MessageSquare, Check, X } from 'lucide-react';
-import Link from 'next/link';
+import { InterestActions } from '@/components/interest-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -111,10 +110,14 @@ export default async function InterestsPage() {
                   <div className="flex items-center gap-2">
                      {/* Client component wrapper for actions would be better, but using form actions for simplicity in this step */}
                      {interest.status === 'PENDING' && (
-                        <form action={async () => {
+                        <form action={async (formData: FormData) => {
                             'use server';
                             const { acceptInterest } = await import('@/app/actions/landlord');
-                            await acceptInterest(interest.id);
+                            const result = await acceptInterest(interest.id);
+                            if (result.error) {
+                              // In a real app, you'd want to show this error to the user
+                              console.error('Failed to accept interest:', result.error);
+                            }
                         }}>
                              <button
                                type="submit"
@@ -125,10 +128,13 @@ export default async function InterestsPage() {
                              </button>
                         </form>
                      )}
-                    <button className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    <Link
+                      href={`/dashboard/listings/${interest.property.id}`}
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
                       <MessageSquare className="h-4 w-4" />
                       Chat
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </li>

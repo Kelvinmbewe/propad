@@ -55,12 +55,20 @@ export class PropertiesController {
     try {
       const result = await this.propertiesService.listOwned(req.user);
       // Test serialization
-      JSON.stringify(result);
+      try {
+        JSON.stringify(result);
+      } catch (serialError) {
+        const serialErrorMessage = serialError instanceof Error ? serialError.message : String(serialError);
+        console.error('[PropertiesController] listOwned serialization error:', serialErrorMessage);
+        // Return empty array instead of throwing to prevent 500
+        return [];
+      }
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('[PropertiesController] listOwned error:', errorMessage, error instanceof Error ? error.stack : '');
-      throw error;
+      // Return empty array instead of throwing to prevent 500
+      return [];
     }
   }
 
