@@ -323,11 +323,12 @@ export default function CreatePropertyPage() {
 
         try {
             // Clean payload: remove undefined and empty string values
+            // Ensure type is a valid PropertyType enum value
             const payload: any = {
-                title,
-                price,
+                title: title.trim(),
+                price: Number(price), // Ensure it's a number
                 currency: 'USD',
-                type: type as any,
+                type: type, // Should already be a valid PropertyType enum value
             };
 
             // Only include optional fields if they have values
@@ -342,35 +343,40 @@ export default function CreatePropertyPage() {
             if (areaSqm !== undefined && areaSqm > 0) payload.areaSqm = areaSqm;
 
             // Only include location fields if they have values
-            // If pendingGeoId is present, only send that (not regular location fields)
+            // If pendingGeoId is present, send it (validation allows countryId OR pendingGeoId)
             if (selectedLocation.pendingGeoId) {
                 payload.pendingGeoId = selectedLocation.pendingGeoId;
-                // Also send countryId if available (for validation)
-                if (selectedLocation.countryId) {
-                    payload.countryId = selectedLocation.countryId;
-                }
+                // Don't send other location fields when using pendingGeoId
             } else {
-                // Always send countryId if available (required by validation)
-                if (selectedLocation.countryId) {
-                    payload.countryId = selectedLocation.countryId;
+                // For regular locations, we MUST have countryId (required by validation)
+                if (!selectedLocation.countryId) {
+                    notify.error('Location must include a country. Please re-select the location.');
+                    setIsLoading(false);
+                    return;
                 }
-                // Send other location fields in hierarchy order
+                payload.countryId = selectedLocation.countryId;
+                // Send other location fields in hierarchy order (only if they exist)
                 if (selectedLocation.provinceId) payload.provinceId = selectedLocation.provinceId;
                 if (selectedLocation.cityId) payload.cityId = selectedLocation.cityId;
                 if (selectedLocation.suburbId) payload.suburbId = selectedLocation.suburbId;
             }
 
-            // Validate that we have at least countryId or pendingGeoId
+            // Final validation: must have countryId OR pendingGeoId
             if (!payload.countryId && !payload.pendingGeoId) {
                 notify.error('Location must include a country. Please re-select the location.');
                 setIsLoading(false);
                 return;
             }
 
-            // Log payload for debugging
-            console.log('Creating property with payload:', JSON.stringify(payload, null, 2));
+            // Remove any undefined values from payload (they can cause validation issues)
+            const cleanPayload = Object.fromEntries(
+                Object.entries(payload).filter(([_, value]) => value !== undefined && value !== null && value !== '')
+            ) as any;
 
-            const property = await sdk.properties.create(payload);
+            // Log payload for debugging
+            console.log('Creating property with payload:', JSON.stringify(cleanPayload, null, 2));
+
+            const property = await sdk.properties.create(cleanPayload);
 
             // Upload images to the property
             if (uploadedImages.length > 0) {
