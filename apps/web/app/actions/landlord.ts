@@ -15,7 +15,15 @@ export async function acceptInterest(interestId: string) {
     // Verify ownership
     const interest = await prisma.interest.findUnique({
       where: { id: interestId },
-      include: { property: true }
+      include: {
+        property: {
+          select: {
+            id: true,
+            landlordId: true,
+            agentOwnerId: true
+          }
+        }
+      }
     });
 
     if (!interest) {

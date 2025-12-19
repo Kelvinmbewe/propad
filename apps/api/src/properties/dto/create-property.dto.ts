@@ -39,8 +39,24 @@ const basePropertySchema = z.object({
   areaSqm: z.number().positive().max(1_000_000).optional(),
   amenities: z.array(z.string().min(1)).max(50).optional(),
   description: z.string().max(5000).optional(),
-  furnishing: z.nativeEnum(PropertyFurnishing).default(PropertyFurnishing.NONE),
-  availability: z.nativeEnum(PropertyAvailability).default(PropertyAvailability.IMMEDIATE),
+  furnishing: z.preprocess(
+    (val) => {
+      if (typeof val === 'string') {
+        return PropertyFurnishing[val as keyof typeof PropertyFurnishing] ?? val;
+      }
+      return val;
+    },
+    z.nativeEnum(PropertyFurnishing).default(PropertyFurnishing.NONE)
+  ),
+  availability: z.preprocess(
+    (val) => {
+      if (typeof val === 'string') {
+        return PropertyAvailability[val as keyof typeof PropertyAvailability] ?? val;
+      }
+      return val;
+    },
+    z.nativeEnum(PropertyAvailability).default(PropertyAvailability.IMMEDIATE)
+  ),
   availableFrom: z.string().datetime().optional(),
   commercialFields: commercialFieldsSchema.optional()
 });
