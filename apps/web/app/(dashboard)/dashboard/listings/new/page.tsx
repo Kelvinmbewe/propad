@@ -350,6 +350,9 @@ export default function CreatePropertyPage() {
                 if (selectedLocation.suburbId) payload.suburbId = selectedLocation.suburbId;
             }
 
+            // Log payload for debugging
+            console.log('Creating property with payload:', JSON.stringify(payload, null, 2));
+
             const property = await sdk.properties.create(payload);
 
             // Upload images to the property
@@ -373,9 +376,23 @@ export default function CreatePropertyPage() {
 
             router.push('/dashboard/listings');
             router.refresh();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Create property error:', error);
-            const message = error instanceof Error ? error.message : 'Failed to list property';
+            // Extract more detailed error message
+            let message = 'Failed to list property';
+            if (error?.response?.data) {
+                // Handle API error response
+                const errorData = error.response.data;
+                if (typeof errorData === 'string') {
+                    message = errorData;
+                } else if (errorData?.message) {
+                    message = errorData.message;
+                } else if (errorData?.error) {
+                    message = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
+                }
+            } else if (error instanceof Error) {
+                message = error.message;
+            }
             notify.error(message);
         } finally {
             setIsLoading(false);

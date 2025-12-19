@@ -111,6 +111,7 @@ export class PropertiesController {
     @Body(new ZodValidationPipe(createPropertySchema)) dto: CreatePropertyDto
   ) {
     try {
+      console.log('[PropertiesController] Creating property with DTO:', JSON.stringify(dto, null, 2));
       const result = await this.propertiesService.create(dto, req.user);
       // Test serialization
       try {
@@ -123,8 +124,15 @@ export class PropertiesController {
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[PropertiesController] create error:', errorMessage, error instanceof Error ? error.stack : '');
-      throw error;
+      const errorStack = error instanceof Error ? error.stack : '';
+      console.error('[PropertiesController] create error:', errorMessage);
+      console.error('[PropertiesController] create error stack:', errorStack);
+      // Re-throw BadRequestException and other HTTP exceptions as-is
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      // For other errors, wrap in BadRequestException with a user-friendly message
+      throw new BadRequestException(`Failed to create property: ${errorMessage}`);
     }
   }
 
