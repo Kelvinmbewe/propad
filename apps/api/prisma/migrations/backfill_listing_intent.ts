@@ -9,11 +9,50 @@
  */
 
 import { PrismaClient, PropertyType, ListingIntent } from '@prisma/client';
-import { config } from 'dotenv';
+import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
-// Load environment variables from .env file if it exists
-// Try multiple possible locations
+// Simple function to load .env file without dotenv package
+function loadEnvFile(filePath: string): void {
+  if (!existsSync(filePath)) {
+    return;
+  }
+  
+  try {
+    const content = readFileSync(filePath, 'utf-8');
+    const lines = content.split('\n');
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // Skip comments and empty lines
+      if (!trimmed || trimmed.startsWith('#')) {
+        continue;
+      }
+      
+      // Parse KEY=VALUE format
+      const match = trimmed.match(/^([^=]+)=(.*)$/);
+      if (match) {
+        const key = match[1].trim();
+        let value = match[2].trim();
+        
+        // Remove quotes if present
+        if ((value.startsWith('"') && value.endsWith('"')) || 
+            (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
+        
+        // Only set if not already in environment
+        if (!process.env[key]) {
+          process.env[key] = value;
+        }
+      }
+    }
+  } catch (error) {
+    // Silently fail if file can't be read
+  }
+}
+
+// Try to load .env files from common locations
 const envPaths = [
   resolve(__dirname, '../../.env'),
   resolve(__dirname, '../../../.env'),
@@ -22,15 +61,7 @@ const envPaths = [
 ];
 
 for (const envPath of envPaths) {
-  try {
-    config({ path: envPath });
-    if (process.env.DATABASE_URL) {
-      console.log(`Loaded DATABASE_URL from ${envPath}`);
-      break;
-    }
-  } catch (error) {
-    // Continue to next path
-  }
+  loadEnvFile(envPath);
 }
 
 // Check if DATABASE_URL is set and warn if it looks like Docker
@@ -39,12 +70,21 @@ if (!dbUrl) {
   console.error('ERROR: DATABASE_URL environment variable is not set.');
   console.error('Please set it in your .env file or environment:');
   console.error('  DATABASE_URL=postgresql://user:password@localhost:5432/propad?schema=public');
-  process.exit(1);
+  console.error('');
+  console.error('You can also set it in PowerShell before running:');
+  console.error('  $env:DATABASE_URL="postgresql://user:password@localhost:5432/propad?schema=public"');
+  if (typeof process !== 'undefined' && process.exit) {
+    process.exit(1);
+  } else {
+    throw new Error('DATABASE_URL not set');
+  }
 }
 
 if (dbUrl.includes('postgres:5432') || dbUrl.includes('@postgres:')) {
   console.error('ERROR: DATABASE_URL appears to be configured for Docker (postgres:5432)');
   console.error('This script needs to run against your local database.');
+  console.error('');
+  console.error('Current DATABASE_URL:', dbUrl);
   console.error('');
   console.error('Options:');
   console.error('1. Set DATABASE_URL in your environment before running:');
@@ -54,15 +94,21 @@ if (dbUrl.includes('postgres:5432') || dbUrl.includes('@postgres:')) {
   console.error('2. Or run the script with an explicit DATABASE_URL:');
   console.error('   $env:DATABASE_URL="postgresql://user:password@localhost:5432/propad?schema=public"; npx tsx apps/api/prisma/migrations/backfill_listing_intent.ts');
   console.error('');
-  console.error('3. Or update your .env file to use localhost instead of postgres');
-  process.exit(1);
+  console.error('3. Or update your apps/api/.env file to use localhost instead of postgres');
+  if (typeof process !== 'undefined' && process.exit) {
+    process.exit(1);
+  } else {
+    throw new Error('DATABASE_URL configured for Docker');
+  }
 }
 
 const prisma = new PrismaClient();
 
 async function backfillListingIntent() {
   console.log('Starting backfill of listingIntent for existing properties...');
-  console.log(`Connecting to database: ${dbUrl.replace(/:[^:@]+@/, ':****@')}`); // Hide password
+  // Hide password in log
+  const safeUrl = dbUrl.replace(/:[^:@]+@/, ':****@');
+  console.log(`Connecting to database: ${safeUrl}`);
 
   // Properties that are typically for sale
   const saleTypes: PropertyType[] = [
