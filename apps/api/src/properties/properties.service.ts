@@ -879,7 +879,7 @@ export class PropertiesService {
           lng: typeof dto.lng === 'number' ? dto.lng : null,
           bedrooms: dto.bedrooms,
           bathrooms: dto.bathrooms,
-          areaSqm: dto.areaSqm ?? null,
+          areaSqm: dto.areaSqm && dto.areaSqm > 0 ? dto.areaSqm : null,
           amenities: dto.amenities ?? [],
           furnishing: dto.furnishing ?? PropertyFurnishing.NONE,
           availability: dto.availability ?? PropertyAvailability.IMMEDIATE,

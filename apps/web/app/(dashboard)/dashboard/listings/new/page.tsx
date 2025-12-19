@@ -134,16 +134,31 @@ export default function CreatePropertyPage() {
         if (result.level === 'COUNTRY') {
             location.countryId = result.id;
         } else if (result.level === 'PROVINCE') {
-            location.countryId = result.countryId ?? undefined;
+            // Province requires countryId
+            if (!result.countryId) {
+                notify.error('Province selection requires a country. Please select a country first.');
+                return;
+            }
+            location.countryId = result.countryId;
             location.provinceId = result.id;
         } else if (result.level === 'CITY') {
-            location.countryId = result.countryId ?? undefined;
-            location.provinceId = result.provinceId ?? undefined;
+            // City requires provinceId and countryId
+            if (!result.provinceId || !result.countryId) {
+                notify.error('City selection requires a province and country. Please select a complete location.');
+                return;
+            }
+            location.countryId = result.countryId;
+            location.provinceId = result.provinceId;
             location.cityId = result.id;
         } else if (result.level === 'SUBURB') {
-            location.countryId = result.countryId ?? undefined;
-            location.provinceId = result.provinceId ?? undefined;
-            location.cityId = result.parentId ?? undefined;
+            // Suburb requires cityId, provinceId, and countryId
+            if (!result.parentId || !result.provinceId || !result.countryId) {
+                notify.error('Suburb selection requires a city, province, and country. Please select a complete location.');
+                return;
+            }
+            location.countryId = result.countryId;
+            location.provinceId = result.provinceId;
+            location.cityId = result.parentId;
             location.suburbId = result.id;
         }
 
@@ -243,19 +258,38 @@ export default function CreatePropertyPage() {
             return;
         }
 
-        if (!selectedLocation?.countryId && !selectedLocation?.pendingGeoId) {
+        // Validate location selection
+        if (!selectedLocation) {
             notify.error('Please select a location');
+            setIsLoading(false);
             return;
         }
 
-        if (selectedLocation.suburbId && !selectedLocation.cityId) {
-            notify.error('Invalid location: Suburb requires a City. Please re-select the location.');
+        if (!selectedLocation.countryId && !selectedLocation.pendingGeoId) {
+            notify.error('Please select a location with a country');
+            setIsLoading(false);
             return;
         }
 
-        if (selectedLocation.cityId && !selectedLocation.provinceId) {
-            notify.error('Invalid location: City requires a Province. Please re-select the location.');
-            return;
+        // Validate location hierarchy if not using pendingGeo
+        if (!selectedLocation.pendingGeoId) {
+            if (selectedLocation.suburbId && !selectedLocation.cityId) {
+                notify.error('Invalid location: Suburb requires a City. Please re-select the location.');
+                setIsLoading(false);
+                return;
+            }
+
+            if (selectedLocation.cityId && !selectedLocation.provinceId) {
+                notify.error('Invalid location: City requires a Province. Please re-select the location.');
+                setIsLoading(false);
+                return;
+            }
+
+            if (selectedLocation.provinceId && !selectedLocation.countryId) {
+                notify.error('Invalid location: Province requires a Country. Please re-select the location.');
+                setIsLoading(false);
+                return;
+            }
         }
 
         setIsLoading(true);
@@ -266,9 +300,12 @@ export default function CreatePropertyPage() {
         const price = Number(formData.get('price'));
         const type = formData.get('type') as string;
         const listingIntent = formData.get('listingIntent') as string;
-        const bedrooms = Number(formData.get('bedrooms')) || undefined;
-        const bathrooms = Number(formData.get('bathrooms')) || undefined;
-        const areaSqm = Number(formData.get('areaSqm')) || undefined;
+        const bedroomsRaw = formData.get('bedrooms');
+        const bedrooms = bedroomsRaw && bedroomsRaw !== '' ? Number(bedroomsRaw) : undefined;
+        const bathroomsRaw = formData.get('bathrooms');
+        const bathrooms = bathroomsRaw && bathroomsRaw !== '' ? Number(bathroomsRaw) : undefined;
+        const areaSqmRaw = formData.get('areaSqm');
+        const areaSqm = areaSqmRaw && areaSqmRaw !== '' && Number(areaSqmRaw) > 0 ? Number(areaSqmRaw) : undefined;
 
         if (!title || title.length === 0) {
             notify.error('Property title is required');
@@ -292,19 +329,22 @@ export default function CreatePropertyPage() {
             };
 
             // Only include optional fields if they have values
-            if (description) payload.description = description;
+            if (description && description.trim()) payload.description = description.trim();
             if (listingIntent) payload.listingIntent = listingIntent;
-            if (bedrooms !== undefined) payload.bedrooms = bedrooms;
-            if (bathrooms !== undefined) payload.bathrooms = bathrooms;
-            if (areaSqm !== undefined) payload.areaSqm = areaSqm;
+            if (bedrooms !== undefined && bedrooms > 0) payload.bedrooms = bedrooms;
+            if (bathrooms !== undefined && bathrooms > 0) payload.bathrooms = bathrooms;
+            if (areaSqm !== undefined && areaSqm > 0) payload.areaSqm = areaSqm;
 
             // Only include location fields if they have values
             // If pendingGeoId is present, only send that (not regular location fields)
             if (selectedLocation.pendingGeoId) {
                 payload.pendingGeoId = selectedLocation.pendingGeoId;
             } else {
-                // Only send regular location fields if no pendingGeoId
-                if (selectedLocation.countryId) payload.countryId = selectedLocation.countryId;
+                // Always send countryId if available (required by validation)
+                if (selectedLocation.countryId) {
+                    payload.countryId = selectedLocation.countryId;
+                }
+                // Send other location fields in hierarchy order
                 if (selectedLocation.provinceId) payload.provinceId = selectedLocation.provinceId;
                 if (selectedLocation.cityId) payload.cityId = selectedLocation.cityId;
                 if (selectedLocation.suburbId) payload.suburbId = selectedLocation.suburbId;
@@ -383,7 +423,6 @@ export default function CreatePropertyPage() {
                     <textarea
                         id="description"
                         name="description"
-                        required
                         rows={4}
                         className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white"
                         placeholder="Describe the property..."
