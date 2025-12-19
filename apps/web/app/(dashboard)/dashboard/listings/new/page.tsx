@@ -339,6 +339,10 @@ export default function CreatePropertyPage() {
             // If pendingGeoId is present, only send that (not regular location fields)
             if (selectedLocation.pendingGeoId) {
                 payload.pendingGeoId = selectedLocation.pendingGeoId;
+                // Also send countryId if available (for validation)
+                if (selectedLocation.countryId) {
+                    payload.countryId = selectedLocation.countryId;
+                }
             } else {
                 // Always send countryId if available (required by validation)
                 if (selectedLocation.countryId) {
@@ -348,6 +352,13 @@ export default function CreatePropertyPage() {
                 if (selectedLocation.provinceId) payload.provinceId = selectedLocation.provinceId;
                 if (selectedLocation.cityId) payload.cityId = selectedLocation.cityId;
                 if (selectedLocation.suburbId) payload.suburbId = selectedLocation.suburbId;
+            }
+
+            // Validate that we have at least countryId or pendingGeoId
+            if (!payload.countryId && !payload.pendingGeoId) {
+                notify.error('Location must include a country. Please re-select the location.');
+                setIsLoading(false);
+                return;
             }
 
             // Log payload for debugging
