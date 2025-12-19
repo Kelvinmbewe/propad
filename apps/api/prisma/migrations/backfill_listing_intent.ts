@@ -98,6 +98,11 @@ async function backfillListingIntent() {
 backfillListingIntent()
   .catch((error) => {
     console.error('Migration failed:', error);
-    process.exit(1);
+    // Use a type-safe exit
+    if (typeof process !== 'undefined' && process.exit) {
+      process.exit(1);
+    } else {
+      throw error;
+    }
   });
 

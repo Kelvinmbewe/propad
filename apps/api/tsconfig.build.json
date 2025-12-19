@@ -6,6 +6,7 @@
     "dist",
     "**/*spec.ts",
     "vitest.config.ts",
-    "eslint.config.mjs"
+    "eslint.config.mjs",
+    "prisma/migrations/**/*"
   ]
 }
