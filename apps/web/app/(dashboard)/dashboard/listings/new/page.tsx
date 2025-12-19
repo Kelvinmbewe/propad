@@ -329,6 +329,9 @@ export default function CreatePropertyPage() {
                 price: Number(price), // Ensure it's a number
                 currency: 'USD',
                 type: type, // Should already be a valid PropertyType enum value
+                // Set defaults for required fields with defaults
+                furnishing: 'NONE', // Default from schema
+                availability: 'IMMEDIATE', // Default from schema
             };
 
             // Only include optional fields if they have values

@@ -105,11 +105,13 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
                             <InterestButton propertyId={property.id} isInterested={property.isInterested} />
 
                             {session?.user ? (
-                                <PropertyMessenger
-                                    propertyId={property.id}
-                                    landlordId={property.landlordId}
-                                    agentOwnerId={property.agentOwnerId}
-                                />
+                                <div id="chat">
+                                    <PropertyMessenger
+                                        propertyId={property.id}
+                                        landlordId={property.landlordId}
+                                        agentOwnerId={property.agentOwnerId}
+                                    />
+                                </div>
                             ) : (
                                 <div className="rounded-lg border border-neutral-200 bg-white p-4 text-center">
                                     <p className="text-sm text-neutral-600">Sign in to chat with the owner</p>

@@ -3,7 +3,7 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { PropertyStatus } from '@prisma/client';
+import { PropertyStatus, InterestStatus } from '@prisma/client';
 
 export async function acceptInterest(interestId: string) {
   try {
@@ -30,7 +30,7 @@ export async function acceptInterest(interestId: string) {
     await prisma.$transaction([
       prisma.interest.update({
         where: { id: interestId },
-        data: { status: 'ACCEPTED' }
+        data: { status: InterestStatus.ACCEPTED }
       }),
       prisma.property.update({
         where: { id: interest.propertyId },

@@ -59,8 +59,17 @@ export function InterestActions({ interestId, propertyId, status, landlordId, ag
         </Button>
       )}
       <Link
-        href={`/properties/${propertyId}`}
+        href={`/properties/${propertyId}#chat`}
         className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        onClick={(e) => {
+          // Scroll to chat section after navigation
+          setTimeout(() => {
+            const chatElement = document.getElementById('chat');
+            if (chatElement) {
+              chatElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, 100);
+        }}
       >
         <MessageSquare className="h-4 w-4" />
         Chat
