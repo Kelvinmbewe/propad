@@ -107,35 +107,11 @@ export default async function InterestsPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                     {/* Client component wrapper for actions would be better, but using form actions for simplicity in this step */}
-                     {interest.status === 'PENDING' && (
-                        <form action={async (formData: FormData) => {
-                            'use server';
-                            const { acceptInterest } = await import('@/app/actions/landlord');
-                            const result = await acceptInterest(interest.id);
-                            if (result.error) {
-                              // In a real app, you'd want to show this error to the user
-                              console.error('Failed to accept interest:', result.error);
-                            }
-                        }}>
-                             <button
-                               type="submit"
-                               className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
-                             >
-                                <Check className="h-4 w-4" />
-                                Accept
-                             </button>
-                        </form>
-                     )}
-                    <Link
-                      href={`/dashboard/listings/${interest.property.id}`}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      Chat
-                    </Link>
-                  </div>
+                  <InterestActions
+                    interestId={interest.id}
+                    propertyId={interest.property.id}
+                    status={interest.status}
+                  />
                 </div>
               </li>
             ))}
