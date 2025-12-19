@@ -836,75 +836,111 @@ export class PropertiesService {
   }
 
   async create(dto: CreatePropertyDto, actor: AuthContext) {
-    const landlordId = dto.landlordId ?? (actor.role === Role.LANDLORD ? actor.userId : undefined);
-    const agentOwnerId = dto.agentOwnerId ?? (actor.role === Role.AGENT ? actor.userId : undefined);
-
-    let location: Awaited<ReturnType<typeof this.geo.resolveLocation>>;
     try {
-      location = await this.geo.resolveLocation({
-        countryId: dto.countryId ?? null,
-        provinceId: dto.provinceId ?? null,
-        cityId: dto.cityId ?? null,
-        suburbId: dto.suburbId ?? null,
-        pendingGeoId: dto.pendingGeoId ?? null
+      const landlordId = dto.landlordId ?? (actor.role === Role.LANDLORD ? actor.userId : undefined);
+      const agentOwnerId = dto.agentOwnerId ?? (actor.role === Role.AGENT ? actor.userId : undefined);
+
+      let location: Awaited<ReturnType<typeof this.geo.resolveLocation>>;
+      try {
+        location = await this.geo.resolveLocation({
+          countryId: dto.countryId ?? null,
+          provinceId: dto.provinceId ?? null,
+          cityId: dto.cityId ?? null,
+          suburbId: dto.suburbId ?? null,
+          pendingGeoId: dto.pendingGeoId ?? null
+        });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Failed to resolve location for property creation: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
+        throw new BadRequestException(`Invalid location: ${errorMessage}`);
+      }
+
+      const availableFrom =
+        dto.availability === PropertyAvailability.DATE && dto.availableFrom
+          ? new Date(dto.availableFrom)
+          : null;
+      const commercialFields = this.normalizeCommercialFields(dto.commercialFields);
+
+      const property = await this.prisma.property.create({
+        data: {
+          title: dto.title,
+          landlordId,
+          agentOwnerId,
+          type: dto.type,
+          listingIntent: dto.listingIntent ?? null,
+          currency: dto.currency,
+          price: new Prisma.Decimal(dto.price),
+          countryId: location.country?.id ?? dto.countryId ?? null,
+          provinceId: location.province?.id ?? dto.provinceId ?? null,
+          cityId: location.city?.id ?? dto.cityId ?? null,
+          suburbId: location.suburb?.id ?? dto.suburbId ?? null,
+          pendingGeoId: location.pendingGeo?.id ?? null,
+          lat: typeof dto.lat === 'number' ? dto.lat : null,
+          lng: typeof dto.lng === 'number' ? dto.lng : null,
+          bedrooms: dto.bedrooms,
+          bathrooms: dto.bathrooms,
+          areaSqm: dto.areaSqm ?? null,
+          amenities: dto.amenities ?? [],
+          furnishing: dto.furnishing ?? PropertyFurnishing.NONE,
+          availability: dto.availability ?? PropertyAvailability.IMMEDIATE,
+          availableFrom,
+          commercialFields,
+          description: dto.description,
+          status: PropertyStatus.DRAFT
+        },
+        include: {
+          country: true,
+          province: true,
+          city: true,
+          suburb: true,
+          pendingGeo: true
+        }
       });
+
+      await this.audit.log({
+        action: 'property.create',
+        actorId: actor.userId,
+        targetType: 'property',
+        targetId: property.id,
+        metadata: { landlordId, agentOwnerId }
+      });
+
+      try {
+        return this.attachLocation(property);
+      } catch (attachError) {
+        // If attachLocation fails, return property without location data
+        const errorMessage = attachError instanceof Error ? attachError.message : String(attachError);
+        this.logger.error(`Failed to attach location to created property ${property.id}: ${errorMessage}`, attachError instanceof Error ? attachError.stack : undefined);
+        
+        // Return a minimal serializable version
+        const { country, province, city, suburb, pendingGeo, ...cleanProperty } = property as any;
+        return this.convertDecimalsToNumbers({
+          ...cleanProperty,
+          countryName: null,
+          provinceName: null,
+          cityName: null,
+          suburbName: null,
+          location: {
+            countryId: property.countryId,
+            country: null,
+            provinceId: property.provinceId,
+            province: null,
+            cityId: property.cityId,
+            city: null,
+            suburbId: property.suburbId,
+            suburb: null,
+            pendingGeoId: property.pendingGeoId,
+            pendingGeo: null,
+            lat: property.lat,
+            lng: property.lng
+          }
+        });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to resolve location for property creation: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
-      throw new BadRequestException(`Invalid location: ${errorMessage}`);
+      this.logger.error(`Failed to create property: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
+      throw error;
     }
-
-    const availableFrom =
-      dto.availability === PropertyAvailability.DATE && dto.availableFrom
-        ? new Date(dto.availableFrom)
-        : null;
-    const commercialFields = this.normalizeCommercialFields(dto.commercialFields);
-
-    const property = await this.prisma.property.create({
-      data: {
-        title: dto.title,
-        landlordId,
-        agentOwnerId,
-        type: dto.type,
-        listingIntent: (dto as any).listingIntent ?? null,
-        currency: dto.currency,
-        price: new Prisma.Decimal(dto.price),
-        countryId: location.country?.id ?? dto.countryId ?? null,
-        provinceId: location.province?.id ?? dto.provinceId ?? null,
-        cityId: location.city?.id ?? dto.cityId ?? null,
-        suburbId: location.suburb?.id ?? dto.suburbId ?? null,
-        pendingGeoId: location.pendingGeo?.id ?? null,
-        lat: typeof dto.lat === 'number' ? dto.lat : null,
-        lng: typeof dto.lng === 'number' ? dto.lng : null,
-        bedrooms: dto.bedrooms,
-        bathrooms: dto.bathrooms,
-        areaSqm: (dto as any).areaSqm ?? null,
-        amenities: dto.amenities ?? [],
-        furnishing: dto.furnishing ?? PropertyFurnishing.NONE,
-        availability: dto.availability ?? PropertyAvailability.IMMEDIATE,
-        availableFrom,
-        commercialFields,
-        description: dto.description,
-        status: PropertyStatus.DRAFT
-      },
-      include: {
-        country: true,
-        province: true,
-        city: true,
-        suburb: true,
-        pendingGeo: true
-      }
-    });
-
-    await this.audit.log({
-      action: 'property.create',
-      actorId: actor.userId,
-      targetType: 'property',
-      targetId: property.id,
-      metadata: { landlordId, agentOwnerId }
-    });
-
-    return this.attachLocation(property);
   }
 
   async update(id: string, dto: UpdatePropertyDto, actor: AuthContext) {

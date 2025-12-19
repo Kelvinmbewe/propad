@@ -106,11 +106,26 @@ export class PropertiesController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
-  create(
+  async create(
     @Req() req: AuthenticatedRequest,
     @Body(new ZodValidationPipe(createPropertySchema)) dto: CreatePropertyDto
   ) {
-    return this.propertiesService.create(dto, req.user);
+    try {
+      const result = await this.propertiesService.create(dto, req.user);
+      // Test serialization
+      try {
+        JSON.stringify(result);
+      } catch (serialError) {
+        const serialErrorMessage = serialError instanceof Error ? serialError.message : String(serialError);
+        console.error('[PropertiesController] create serialization error:', serialErrorMessage);
+        // Return the result anyway - serialization test is just for debugging
+      }
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[PropertiesController] create error:', errorMessage, error instanceof Error ? error.stack : '');
+      throw error;
+    }
   }
 
   @Patch(':id')
