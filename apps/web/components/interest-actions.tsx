@@ -11,9 +11,11 @@ interface InterestActionsProps {
   interestId: string;
   propertyId: string;
   status: string;
+  landlordId?: string | null;
+  agentOwnerId?: string | null;
 }
 
-export function InterestActions({ interestId, propertyId, status }: InterestActionsProps) {
+export function InterestActions({ interestId, propertyId, status, landlordId, agentOwnerId }: InterestActionsProps) {
   const router = useRouter();
   const [isAccepting, setIsAccepting] = useState(false);
 
@@ -57,7 +59,7 @@ export function InterestActions({ interestId, propertyId, status }: InterestActi
         </Button>
       )}
       <Link
-        href={`/dashboard/listings/${propertyId}`}
+        href={`/properties/${propertyId}`}
         className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
       >
         <MessageSquare className="h-4 w-4" />

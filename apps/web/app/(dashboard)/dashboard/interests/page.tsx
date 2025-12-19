@@ -24,7 +24,9 @@ async function getLandlordInterests(userId: string) {
           id: true,
           title: true,
           price: true,
-          currency: true
+          currency: true,
+          landlordId: true,
+          agentOwnerId: true
         }
       },
       user: {
@@ -112,6 +114,8 @@ export default async function InterestsPage() {
                     interestId={interest.id}
                     propertyId={interest.property.id}
                     status={interest.status}
+                    landlordId={interest.property.landlordId}
+                    agentOwnerId={interest.property.agentOwnerId}
                   />
                 </div>
               </li>

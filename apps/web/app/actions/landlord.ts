@@ -3,6 +3,7 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { PropertyStatus } from '@prisma/client';
 
 export async function acceptInterest(interestId: string) {
   try {
@@ -33,11 +34,12 @@ export async function acceptInterest(interestId: string) {
       }),
       prisma.property.update({
         where: { id: interest.propertyId },
-        data: { status: 'UNDER_OFFER' }
+        data: { status: PropertyStatus.UNDER_OFFER }
       })
     ]);
 
     revalidatePath('/dashboard/interests');
+    revalidatePath(`/dashboard/listings/${interest.propertyId}`);
     return { success: true };
   } catch (error) {
     console.error('Error accepting interest:', error);
