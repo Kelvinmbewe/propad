@@ -11,7 +11,6 @@ import Link from 'next/link';
 import { getInterestsForProperty, getChatThreads, getThreadMessages, sendMessage, getViewings } from '@/app/actions/listings';
 import { acceptInterest, rejectInterest } from '@/app/actions/landlord';
 import { getFeaturedStatus, createFeaturedListing, completeFeaturedPayment } from '@/app/actions/featured';
-import { submitRating, getPropertyRatings } from '@/app/actions/ratings';
 import { Check, X, MessageSquare, Send, Calendar, Clock, MapPin, ShieldCheck, AlertTriangle, Loader2, CreditCard, TrendingUp, Star, Upload, MapPin as MapPinIcon, Camera, FileText, Navigation } from 'lucide-react';
 
 const formatDate = (date: Date | string) => {
@@ -1306,75 +1305,324 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
 }
 
 function RatingsTab({ propertyId }: { propertyId: string }) {
-    const { data: ratings, isLoading, refetch } = useQuery({
+    const sdk = useAuthenticatedSDK();
+    const queryClient = useQueryClient();
+
+    const { data: ratingsData, isLoading, error } = useQuery({
         queryKey: ['ratings', propertyId],
-        queryFn: () => getPropertyRatings(propertyId)
+        queryFn: () => sdk!.properties.getRatings(propertyId),
+        enabled: !!sdk
     });
 
     const [rating, setRating] = useState(0);
+    const [hoverRating, setHoverRating] = useState(0);
     const [comment, setComment] = useState('');
+    const [isAnonymous, setIsAnonymous] = useState(false);
+    const [ratingType, setRatingType] = useState<'PREVIOUS_TENANT' | 'CURRENT_TENANT' | 'VISITOR'>('VISITOR');
 
     const submitMut = useMutation({
-        mutationFn: () => submitRating('target-user-id-placeholder', propertyId, rating, comment), // In real app, target correct user (landlord/tenant)
+        mutationFn: (payload: any) => sdk!.properties.submitRating(propertyId, payload),
         onSuccess: () => {
-            notify.success('Rating submitted');
+            notify.success('Rating submitted successfully');
             setRating(0);
             setComment('');
-            refetch();
+            setIsAnonymous(false);
+            queryClient.invalidateQueries({ queryKey: ['ratings', propertyId] });
+        },
+        onError: (err: any) => {
+            const errorMessage = err.message || 'Failed to submit rating';
+            if (errorMessage.includes('cannot rate your own')) {
+                notify.error('You cannot rate your own property');
+            } else if (errorMessage.includes('already rated')) {
+                notify.error('You have already rated this property');
+            } else {
+                notify.error(errorMessage);
+            }
         }
     });
 
+    const getReviewerLabel = (type: string, isVerifiedTenant?: boolean) => {
+        switch (type) {
+            case 'PREVIOUS_TENANT':
+                return isVerifiedTenant ? 'Verified Previous Tenant' : 'Previous Tenant';
+            case 'CURRENT_TENANT':
+                return 'Current Tenant';
+            case 'VISITOR':
+                return 'Visitor';
+            case 'ANONYMOUS':
+                return 'Anonymous Tenant';
+            default:
+                return 'Reviewer';
+        }
+    };
+
+    const renderStars = (value: number, size: 'sm' | 'md' | 'lg' = 'md') => {
+        const sizeClasses = {
+            sm: 'h-3 w-3',
+            md: 'h-4 w-4',
+            lg: 'h-6 w-6'
+        };
+        return (
+            <div className="flex gap-0.5">
+                {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                        key={star}
+                        className={`${sizeClasses[size]} ${star <= value ? 'fill-yellow-400 text-yellow-400' : 'text-neutral-300'}`}
+                    />
+                ))}
+            </div>
+        );
+    };
+
     if (isLoading) return <Skeleton className="h-64" />;
+
+    if (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to load ratings';
+        return (
+            <Card>
+                <CardContent className="p-8 text-center">
+                    <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                    <p className="text-red-600">Failed to load ratings: {errorMessage}</p>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    const aggregate = ratingsData?.aggregate;
+    const ratings = ratingsData?.ratings || [];
+    const userRating = ratingsData?.userRating;
+    const canSubmitRating = !userRating;
 
     return (
         <div className="space-y-6">
+            {/* Aggregated Rating Overview */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Ratings & Reviews</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                        <Star className="h-5 w-5 text-yellow-400 fill-yellow-400" />
+                        Ratings & Reviews
+                    </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="mb-6 p-4 bg-neutral-50 rounded-lg">
-                        <h4 className="font-medium mb-2">Leave a Rating</h4>
-                        <div className="flex gap-2 mb-4">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                                <Star
-                                    key={star}
-                                    className={`h-6 w-6 cursor-pointer ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-neutral-300'}`}
-                                    onClick={() => setRating(star)}
+                    {aggregate && aggregate.totalCount > 0 ? (
+                        <div className="space-y-6">
+                            {/* Overall Rating Display */}
+                            <div className="flex items-center gap-6">
+                                <div className="text-center">
+                                    <div className="text-5xl font-bold text-neutral-900 mb-1">
+                                        {aggregate.average.toFixed(1)}
+                                    </div>
+                                    <div className="mb-2">{renderStars(Math.round(aggregate.average), 'md')}</div>
+                                    <p className="text-sm text-neutral-500">
+                                        {aggregate.totalCount} {aggregate.totalCount === 1 ? 'rating' : 'ratings'}
+                                    </p>
+                                </div>
+
+                                {/* Rating Distribution */}
+                                <div className="flex-1 space-y-2">
+                                    {[5, 4, 3, 2, 1].map((starValue) => {
+                                        const count = aggregate.ratingCounts[starValue as keyof typeof aggregate.ratingCounts] || 0;
+                                        const percentage = aggregate.totalCount > 0 ? (count / aggregate.totalCount) * 100 : 0;
+                                        return (
+                                            <div key={starValue} className="flex items-center gap-3">
+                                                <div className="flex items-center gap-1 w-16">
+                                                    <span className="text-sm font-medium">{starValue}</span>
+                                                    <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+                                                </div>
+                                                <div className="flex-1 h-2 bg-neutral-200 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-yellow-400 transition-all"
+                                                        style={{ width: `${percentage}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-xs text-neutral-500 w-8 text-right">{count}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-8">
+                            <Star className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
+                            <p className="text-neutral-500">No ratings yet for this property.</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Submit Rating Form */}
+            {canSubmitRating && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Leave a Rating</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            <div>
+                                <Label>Your Rating</Label>
+                                <div className="flex gap-1 mt-2">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            type="button"
+                                            className="focus:outline-none"
+                                            onMouseEnter={() => setHoverRating(star)}
+                                            onMouseLeave={() => setHoverRating(0)}
+                                            onClick={() => setRating(star)}
+                                        >
+                                            <Star
+                                                className={`h-8 w-8 transition-colors ${
+                                                    star <= (hoverRating || rating)
+                                                        ? 'fill-yellow-400 text-yellow-400'
+                                                        : 'text-neutral-300'
+                                                }`}
+                                            />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <Label>Reviewer Type</Label>
+                                <select
+                                    value={ratingType}
+                                    onChange={(e) => setRatingType(e.target.value as any)}
+                                    className="mt-1 block w-full rounded-md border-neutral-300 py-2 px-3 text-sm"
+                                >
+                                    <option value="VISITOR">Visitor</option>
+                                    <option value="PREVIOUS_TENANT">Previous Tenant</option>
+                                    <option value="CURRENT_TENANT">Current Tenant</option>
+                                </select>
+                            </div>
+
+                            {ratingType === 'CURRENT_TENANT' && (
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        id="anonymous"
+                                        checked={isAnonymous}
+                                        onChange={(e) => setIsAnonymous(e.target.checked)}
+                                        className="rounded"
+                                    />
+                                    <Label htmlFor="anonymous" className="font-normal cursor-pointer">
+                                        Submit anonymously
+                                    </Label>
+                                </div>
+                            )}
+
+                            <div>
+                                <Label>Comment (Optional)</Label>
+                                <textarea
+                                    className="mt-1 block w-full rounded-md border-neutral-300 py-2 px-3 text-sm min-h-[100px]"
+                                    placeholder="Share your experience..."
+                                    value={comment}
+                                    onChange={(e) => setComment(e.target.value)}
+                                    maxLength={1000}
                                 />
+                                <p className="text-xs text-neutral-500 mt-1">{comment.length}/1000 characters</p>
+                            </div>
+
+                            <Button
+                                onClick={() => {
+                                    if (rating === 0) {
+                                        notify.error('Please select a rating');
+                                        return;
+                                    }
+                                    submitMut.mutate({
+                                        rating,
+                                        comment: comment || undefined,
+                                        type: ratingType,
+                                        isAnonymous: ratingType === 'CURRENT_TENANT' ? isAnonymous : false
+                                    });
+                                }}
+                                disabled={submitMut.isPending || rating === 0}
+                            >
+                                {submitMut.isPending ? 'Submitting...' : 'Submit Rating'}
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* User's Existing Rating */}
+            {userRating && (
+                <Card className="border-emerald-200 bg-emerald-50">
+                    <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                            <div className="flex-1">
+                                <p className="font-medium text-emerald-900">You have already rated this property</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    {renderStars(userRating.rating, 'sm')}
+                                    {userRating.comment && (
+                                        <p className="text-sm text-emerald-700 italic">"{userRating.comment}"</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Ratings List */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>All Ratings ({ratings.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {ratings.length === 0 ? (
+                        <div className="text-center py-8 text-neutral-500">
+                            <p>No ratings yet.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {ratings.map((r: any) => (
+                                <div key={r.id} className="border-b pb-4 last:border-0 last:border-b-0">
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                {r.isAnonymous ? (
+                                                    <>
+                                                        <div className="h-8 w-8 bg-neutral-200 rounded-full flex items-center justify-center font-bold text-xs text-neutral-500">
+                                                            ?
+                                                        </div>
+                                                        <span className="font-semibold text-neutral-600">Anonymous</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <div className="h-8 w-8 bg-neutral-200 rounded-full flex items-center justify-center font-bold text-xs">
+                                                            {r.reviewer?.name?.[0] || '?'}
+                                                        </div>
+                                                        <span className="font-semibold">{r.reviewer?.name || 'Anonymous'}</span>
+                                                        {r.reviewer?.isVerified && (
+                                                            <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                                                                Verified
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                )}
+                                                <span className="text-xs text-neutral-500">
+                                                    {getReviewerLabel(r.type, r.reviewer?.isVerified)}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-neutral-400">
+                                                {new Date(r.createdAt).toLocaleDateString('en-ZW', {
+                                                    year: 'numeric',
+                                                    month: 'long',
+                                                    day: 'numeric'
+                                                })}
+                                            </p>
+                                        </div>
+                                        <div>{renderStars(r.rating, 'sm')}</div>
+                                    </div>
+                                    {r.comment && (
+                                        <p className="text-neutral-700 mt-2">{r.comment}</p>
+                                    )}
+                                </div>
                             ))}
                         </div>
-                        <textarea
-                            className="w-full p-2 border rounded mb-2"
-                            placeholder="Share your experience..."
-                            value={comment}
-                            onChange={e => setComment(e.target.value)}
-                        />
-                        <Button onClick={() => submitMut.mutate()} disabled={submitMut.isPending || rating === 0}>
-                            Submit Review
-                        </Button>
-                    </div>
-
-                    <div className="space-y-4">
-                        {ratings?.map((r: any) => (
-                            <div key={r.id} className="border-b pb-4 last:border-0">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-8 w-8 bg-neutral-200 rounded-full flex items-center justify-center font-bold text-xs">
-                                            {r.reviewer.name?.[0]}
-                                        </div>
-                                        <span className="font-semibold">{r.reviewer.name}</span>
-                                    </div>
-                                    <div className="flex">
-                                        {[...Array(5)].map((_, i) => (
-                                            <Star key={i} className={`h-4 w-4 ${i < r.rating ? 'fill-yellow-400 text-yellow-400' : 'text-neutral-300'}`} />
-                                        ))}
-                                    </div>
-                                </div>
-                                <p className="text-neutral-600">{r.comment}</p>
-                            </div>
-                        ))}
-                    </div>
+                    )}
                 </CardContent>
             </Card>
         </div>

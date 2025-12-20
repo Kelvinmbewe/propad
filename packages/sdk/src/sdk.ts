@@ -337,6 +337,58 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             gpsLng: number | null;
             notes: string | null;
           }>(),
+      getRatings: async (id: string) =>
+        client
+          .get(`properties/${id}/ratings`)
+          .json<{
+            ratings: Array<{
+              id: string;
+              rating: number;
+              comment: string | null;
+              type: 'PREVIOUS_TENANT' | 'CURRENT_TENANT' | 'VISITOR' | 'ANONYMOUS';
+              isAnonymous: boolean;
+              createdAt: string;
+              reviewer?: { id: string; name: string; isVerified: boolean } | null;
+            }>;
+            aggregate: {
+              average: number;
+              totalCount: number;
+              weightedAverage: number;
+              totalWeight: number;
+              ratingCounts: {
+                5: number;
+                4: number;
+                3: number;
+                2: number;
+                1: number;
+              };
+            };
+            userRating: {
+              id: string;
+              rating: number;
+              comment: string | null;
+            } | null;
+          }>(),
+      submitRating: async (
+        id: string,
+        payload: {
+          rating: number;
+          comment?: string;
+          type: 'PREVIOUS_TENANT' | 'CURRENT_TENANT' | 'VISITOR' | 'ANONYMOUS';
+          isAnonymous?: boolean;
+          tenantMonths?: number;
+        }
+      ) =>
+        client
+          .post(`properties/${id}/ratings`, { json: payload })
+          .json<{
+            id: string;
+            rating: number;
+            comment: string | null;
+            type: string;
+            isAnonymous: boolean;
+            createdAt: string;
+          }>(),
     },
     geo: {
       suburbs: async () =>
