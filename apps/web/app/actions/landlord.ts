@@ -35,11 +35,23 @@ export async function acceptInterest(interestId: string) {
     }
 
     // Update interest status and property status
+    // Enforce one ACCEPTED offer per listing - set all other offers to ON_HOLD
     await prisma.$transaction([
+      // Set all other offers on this property to ON_HOLD
+      prisma.interest.updateMany({
+        where: {
+          propertyId: interest.propertyId,
+          id: { not: interestId },
+          status: { in: [InterestStatus.PENDING, InterestStatus.ACCEPTED] }
+        },
+        data: { status: InterestStatus.ON_HOLD }
+      }),
+      // Accept the selected offer
       prisma.interest.update({
         where: { id: interestId },
         data: { status: InterestStatus.ACCEPTED }
       }),
+      // Update property status
       prisma.property.update({
         where: { id: interest.propertyId },
         data: { status: PropertyStatus.UNDER_OFFER }

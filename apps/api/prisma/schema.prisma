@@ -351,7 +351,9 @@ enum ReviewerType {
 enum InterestStatus {
   PENDING
   ACCEPTED
+  ON_HOLD
   REJECTED
+  CONFIRMED
   WITHDRAWN
 }
 

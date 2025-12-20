@@ -6,6 +6,7 @@ import {
   NotFoundException
 } from '@nestjs/common';
 import {
+  InterestStatus,
   ListingCreatorRole,
   Prisma,
   PropertyAvailability,
@@ -1309,6 +1310,34 @@ export class PropertiesService {
       const agentId = propertyUpdate.agentOwnerId;
 
       if (isConfirming) {
+        // When listing is confirmed:
+        // - ACCEPTED offer → CONFIRMED
+        // - All other offers → REJECTED
+        const acceptedOffer = await tx.interest.findFirst({
+          where: {
+            propertyId: id,
+            status: InterestStatus.ACCEPTED
+          }
+        });
+
+        if (acceptedOffer) {
+          // Confirm the accepted offer
+          await tx.interest.update({
+            where: { id: acceptedOffer.id },
+            data: { status: InterestStatus.CONFIRMED }
+          });
+
+          // Reject all other offers
+          await tx.interest.updateMany({
+            where: {
+              propertyId: id,
+              id: { not: acceptedOffer.id },
+              status: { not: InterestStatus.CONFIRMED }
+            },
+            data: { status: InterestStatus.REJECTED }
+          });
+        }
+
         if (agentId) {
           if (existingEvent) {
             if (existingEvent.agentId !== agentId) {
@@ -1776,6 +1805,70 @@ export class PropertiesService {
       where: { propertyId },
       orderBy: { id: 'asc' }
     });
+  }
+
+  /**
+   * Auto-confirm accepted offers older than 30 days
+   * Called by scheduled task
+   */
+  async autoConfirmOldOffers(): Promise<void> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const oldAcceptedOffers = await this.prisma.interest.findMany({
+      where: {
+        status: InterestStatus.ACCEPTED,
+        updatedAt: { lte: thirtyDaysAgo }
+      },
+      include: {
+        property: {
+          select: {
+            id: true,
+            dealConfirmedAt: true
+          }
+        }
+      }
+    });
+
+    for (const offer of oldAcceptedOffers) {
+      // Skip if property is already confirmed
+      if (offer.property.dealConfirmedAt) {
+        continue;
+      }
+
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          // Confirm the accepted offer
+          await tx.interest.update({
+            where: { id: offer.id },
+            data: { status: InterestStatus.CONFIRMED }
+          });
+
+          // Reject all other offers on this property
+          await tx.interest.updateMany({
+            where: {
+              propertyId: offer.propertyId,
+              id: { not: offer.id },
+              status: { not: InterestStatus.CONFIRMED }
+            },
+            data: { status: InterestStatus.REJECTED }
+          });
+
+          // Mark property as confirmed
+          await tx.property.update({
+            where: { id: offer.propertyId },
+            data: {
+              dealConfirmedAt: new Date(),
+              dealConfirmedById: null // System auto-confirmation
+            }
+          });
+        });
+
+        this.logger.log(`Auto-confirmed offer ${offer.id} for property ${offer.propertyId}`);
+      } catch (error) {
+        this.logger.error(`Failed to auto-confirm offer ${offer.id}:`, error);
+      }
+    }
   }
 
   async deleteMedia(propertyId: string, mediaId: string, actor: AuthContext) {
