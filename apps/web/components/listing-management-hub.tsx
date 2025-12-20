@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { getInterestsForProperty, getChatThreads, getThreadMessages, sendMessage, getViewings } from '@/app/actions/listings';
 import { acceptInterest, rejectInterest } from '@/app/actions/landlord';
 import { getFeaturedStatus, createFeaturedListing, completeFeaturedPayment } from '@/app/actions/featured';
-import { Check, X, MessageSquare, Send, Calendar, Clock, MapPin, ShieldCheck, AlertTriangle, Loader2, CreditCard, TrendingUp, Star, Upload, MapPin as MapPinIcon, Camera, FileText, Navigation } from 'lucide-react';
+import { Check, X, MessageSquare, Send, Calendar, Clock, MapPin, ShieldCheck, AlertTriangle, Loader2, CreditCard, TrendingUp, Star, Upload, MapPin as MapPinIcon, Camera, FileText, Navigation, UserCheck, UserX, Eye, Handshake, DollarSign, CheckCircle2, XCircle, Ban, History } from 'lucide-react';
 
 const formatDate = (date: Date | string) => {
     return new Intl.DateTimeFormat('en-ZW', {
@@ -184,7 +184,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
                 {activeTab === 'payments' && <PaymentsTab propertyId={propertyId} />}
                 {activeTab === 'verification' && <VerificationTab propertyId={propertyId} />}
                 {activeTab === 'ratings' && <RatingsTab propertyId={propertyId} />}
-                {activeTab === 'logs' && <PlaceholderTab title="Logs" />}
+                {activeTab === 'logs' && <LogsTab propertyId={propertyId} />}
             </div>
         </div>
     );
@@ -1619,6 +1619,246 @@ function RatingsTab({ propertyId }: { propertyId: string }) {
                                     {r.comment && (
                                         <p className="text-neutral-700 mt-2">{r.comment}</p>
                                     )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+function LogsTab({ propertyId }: { propertyId: string }) {
+    const sdk = useAuthenticatedSDK();
+
+    const { data: activityData, isLoading, error } = useQuery({
+        queryKey: ['activity-logs', propertyId],
+        queryFn: () => sdk!.properties.getActivityLogs(propertyId),
+        enabled: !!sdk
+    });
+
+    const getActivityIcon = (type: string) => {
+        switch (type) {
+            case 'OFFER_RECEIVED': return <MessageSquare className="h-4 w-4 text-blue-500" />;
+            case 'OFFER_ACCEPTED': return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
+            case 'OFFER_REJECTED': return <XCircle className="h-4 w-4 text-red-500" />;
+            case 'OFFER_CONFIRMED': return <Handshake className="h-4 w-4 text-emerald-600" />;
+            case 'OFFER_ON_HOLD': return <Clock className="h-4 w-4 text-yellow-500" />;
+            case 'AGENT_ASSIGNED': return <UserCheck className="h-4 w-4 text-blue-600" />;
+            case 'AGENT_UNASSIGNED': return <UserX className="h-4 w-4 text-neutral-500" />;
+            case 'PAYMENT_CREATED': return <CreditCard className="h-4 w-4 text-blue-500" />;
+            case 'PAYMENT_PAID': return <DollarSign className="h-4 w-4 text-emerald-500" />;
+            case 'PAYMENT_FAILED': return <XCircle className="h-4 w-4 text-red-500" />;
+            case 'VERIFICATION_SUBMITTED': return <ShieldCheck className="h-4 w-4 text-blue-500" />;
+            case 'VERIFICATION_APPROVED': return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
+            case 'VERIFICATION_REJECTED': return <XCircle className="h-4 w-4 text-red-500" />;
+            case 'VIEWING_SCHEDULED': return <Calendar className="h-4 w-4 text-blue-500" />;
+            case 'VIEWING_ACCEPTED': return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
+            case 'VIEWING_POSTPONED': return <Clock className="h-4 w-4 text-yellow-500" />;
+            case 'VIEWING_CANCELLED': return <XCircle className="h-4 w-4 text-red-500" />;
+            case 'CHAT_MESSAGE': return <MessageSquare className="h-4 w-4 text-neutral-500" />;
+            case 'RATING_SUBMITTED': return <Star className="h-4 w-4 text-yellow-500" />;
+            case 'PROPERTY_VIEWED': return <Eye className="h-4 w-4 text-neutral-400" />;
+            default: return <History className="h-4 w-4 text-neutral-400" />;
+        }
+    };
+
+    const getActivityTitle = (type: string, metadata: Record<string, unknown> | null) => {
+        switch (type) {
+            case 'OFFER_RECEIVED': return 'Offer Received';
+            case 'OFFER_ACCEPTED': return 'Offer Accepted';
+            case 'OFFER_REJECTED': return metadata?.count ? `${metadata.count} Offers Rejected` : 'Offer Rejected';
+            case 'OFFER_CONFIRMED': return 'Offer Confirmed';
+            case 'OFFER_ON_HOLD': return 'Offer On Hold';
+            case 'AGENT_ASSIGNED': return metadata?.agentName ? `Agent Assigned: ${metadata.agentName}` : 'Agent Assigned';
+            case 'AGENT_UNASSIGNED': return 'Agent Unassigned';
+            case 'PAYMENT_CREATED': return 'Payment Created';
+            case 'PAYMENT_PAID': return 'Payment Completed';
+            case 'PAYMENT_FAILED': return 'Payment Failed';
+            case 'VERIFICATION_SUBMITTED': return 'Verification Submitted';
+            case 'VERIFICATION_APPROVED': return 'Verification Approved';
+            case 'VERIFICATION_REJECTED': return 'Verification Rejected';
+            case 'VIEWING_SCHEDULED': return 'Viewing Scheduled';
+            case 'VIEWING_ACCEPTED': return 'Viewing Accepted';
+            case 'VIEWING_POSTPONED': return 'Viewing Postponed';
+            case 'VIEWING_CANCELLED': return 'Viewing Cancelled';
+            case 'CHAT_MESSAGE': return 'Chat Message';
+            case 'RATING_SUBMITTED': return 'Rating Submitted';
+            case 'PROPERTY_VIEWED': return 'Property Viewed';
+            default: return type.replace(/_/g, ' ');
+        }
+    };
+
+    const getActivityDescription = (type: string, metadata: Record<string, unknown> | null) => {
+        const parts: string[] = [];
+        if (metadata) {
+            if (metadata.offerAmount) parts.push(`Amount: ${formatCurrency(Number(metadata.offerAmount), 'USD')}`);
+            if (metadata.agentName) parts.push(`Agent: ${metadata.agentName}`);
+            if (metadata.reason) parts.push(`Reason: ${metadata.reason}`);
+            if (metadata.count && type !== 'OFFER_REJECTED') parts.push(`Count: ${metadata.count}`);
+        }
+        return parts.length > 0 ? parts.join(' • ') : null;
+    };
+
+    const formatLogDate = (dateString: string) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const logDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        if (logDate.getTime() === today.getTime()) {
+            return { label: 'Today', time: date.toLocaleTimeString('en-ZW', { hour: 'numeric', minute: '2-digit' }) };
+        } else if (logDate.getTime() === yesterday.getTime()) {
+            return { label: 'Yesterday', time: date.toLocaleTimeString('en-ZW', { hour: 'numeric', minute: '2-digit' }) };
+        } else {
+            return {
+                label: date.toLocaleDateString('en-ZW', { month: 'long', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined }),
+                time: date.toLocaleTimeString('en-ZW', { hour: 'numeric', minute: '2-digit' })
+            };
+        }
+    };
+
+    const groupLogsByDay = (logs: typeof activityData?.logs) => {
+        if (!logs) return {};
+        const groups: Record<string, typeof logs> = {};
+        logs.forEach((log) => {
+            const { label } = formatLogDate(log.createdAt);
+            if (!groups[label]) groups[label] = [];
+            groups[label].push(log);
+        });
+        return groups;
+    };
+
+    if (isLoading) return <Skeleton className="h-64" />;
+
+    if (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to load activity logs';
+        if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+            return (
+                <Card>
+                    <CardContent className="p-8 text-center">
+                        <AlertCircle className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+                        <p className="text-neutral-600">You don't have permission to view activity logs for this listing.</p>
+                    </CardContent>
+                </Card>
+            );
+        }
+        return (
+            <Card>
+                <CardContent className="p-8 text-center">
+                    <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                    <p className="text-red-600">Failed to load activity logs: {errorMessage}</p>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    const stats = activityData?.statistics;
+    const logs = activityData?.logs || [];
+    const groupedLogs = groupLogsByDay(logs);
+    const dayLabels = Object.keys(groupedLogs).sort((a, b) => {
+        if (a === 'Today') return -1;
+        if (b === 'Today') return 1;
+        if (a === 'Yesterday') return -1;
+        if (b === 'Yesterday') return 1;
+        return b.localeCompare(a);
+    });
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card>
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-neutral-500">Offers</p>
+                                <p className="text-2xl font-bold text-neutral-900">{stats ? stats.offers.received : 0}</p>
+                                <p className="text-xs text-neutral-400 mt-1">{stats ? `${stats.offers.accepted} accepted, ${stats.offers.confirmed} confirmed` : ''}</p>
+                            </div>
+                            <MessageSquare className="h-8 w-8 text-blue-500" />
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-neutral-500">Viewings</p>
+                                <p className="text-2xl font-bold text-neutral-900">{stats ? stats.viewings.scheduled : 0}</p>
+                                <p className="text-xs text-neutral-400 mt-1">{stats ? `${stats.viewings.accepted} accepted` : ''}</p>
+                            </div>
+                            <Calendar className="h-8 w-8 text-blue-500" />
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-neutral-500">Payments</p>
+                                <p className="text-2xl font-bold text-neutral-900">{stats ? stats.payments.paid : 0}</p>
+                                <p className="text-xs text-neutral-400 mt-1">{stats ? `${stats.payments.totalAmount > 0 ? formatCurrency(stats.payments.totalAmount, 'USD') : 'No revenue'}` : ''}</p>
+                            </div>
+                            <CreditCard className="h-8 w-8 text-emerald-500" />
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-neutral-500">Verification</p>
+                                <p className="text-2xl font-bold text-neutral-900">{stats ? (stats.verification.approved > 0 ? 'Verified' : stats.verification.submitted > 0 ? 'Pending' : 'None') : 'None'}</p>
+                                <p className="text-xs text-neutral-400 mt-1">{stats ? `${stats.verification.approved} approved` : ''}</p>
+                            </div>
+                            <ShieldCheck className="h-8 w-8 text-emerald-500" />
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Activity Timeline</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {logs.length === 0 ? (
+                        <div className="text-center py-12 text-neutral-500">
+                            <History className="h-12 w-12 mx-auto mb-4 text-neutral-300" />
+                            <p>No activity logs yet for this listing.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            {dayLabels.map((dayLabel) => (
+                                <div key={dayLabel}>
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <div className="h-px flex-1 bg-neutral-200" />
+                                        <span className="text-sm font-semibold text-neutral-600 px-2">{dayLabel}</span>
+                                        <div className="h-px flex-1 bg-neutral-200" />
+                                    </div>
+                                    <div className="space-y-3">
+                                        {groupedLogs[dayLabel].map((log) => {
+                                            const { time } = formatLogDate(log.createdAt);
+                                            const title = getActivityTitle(log.type, log.metadata as Record<string, unknown> | null);
+                                            const description = getActivityDescription(log.type, log.metadata as Record<string, unknown> | null);
+                                            return (
+                                                <div key={log.id} className="flex items-start gap-3 pb-3 border-b last:border-0">
+                                                    <div className="mt-0.5">{getActivityIcon(log.type)}</div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <div className="flex-1">
+                                                                <p className="font-medium text-neutral-900">{title}</p>
+                                                                {description && <p className="text-sm text-neutral-500 mt-1">{description}</p>}
+                                                                {log.actor && <p className="text-xs text-neutral-400 mt-1">by {log.actor.name}</p>}
+                                                            </div>
+                                                            <span className="text-xs text-neutral-400 whitespace-nowrap">{time}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             ))}
                         </div>

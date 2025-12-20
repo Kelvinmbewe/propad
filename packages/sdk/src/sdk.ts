@@ -389,6 +389,48 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             isAnonymous: boolean;
             createdAt: string;
           }>(),
+      getActivityLogs: async (id: string) =>
+        client
+          .get(`properties/${id}/activity-logs`)
+          .json<{
+            logs: Array<{
+              id: string;
+              type: string;
+              actorId: string | null;
+              metadata: Record<string, unknown> | null;
+              createdAt: string;
+              actor?: { id: string; name: string; email: string } | null;
+            }>;
+            statistics: {
+              offers: {
+                received: number;
+                accepted: number;
+                rejected: number;
+                confirmed: number;
+                onHold: number;
+              };
+              payments: {
+                created: number;
+                paid: number;
+                failed: number;
+                totalAmount: number;
+              };
+              verification: {
+                submitted: number;
+                approved: number;
+                rejected: number;
+              };
+              viewings: {
+                scheduled: number;
+                accepted: number;
+                postponed: number;
+                cancelled: number;
+              };
+              chatMessages: number;
+              ratings: number;
+              views: number;
+            };
+          }>(),
     },
     geo: {
       suburbs: async () =>
