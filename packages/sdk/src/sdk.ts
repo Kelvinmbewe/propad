@@ -270,6 +270,73 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
               }>;
             } | null;
           }>>(),
+      getVerificationRequest: async (id: string) =>
+        client
+          .get(`properties/${id}/verification-request`)
+          .json<{
+            id: string;
+            propertyId: string;
+            requesterId: string;
+            status: 'PENDING' | 'APPROVED' | 'REJECTED';
+            notes: string | null;
+            createdAt: string;
+            updatedAt: string;
+            items: Array<{
+              id: string;
+              type: 'PROOF_OF_OWNERSHIP' | 'LOCATION_CONFIRMATION' | 'PROPERTY_PHOTOS';
+              status: 'PENDING' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+              evidenceUrls: string[];
+              gpsLat: number | null;
+              gpsLng: number | null;
+              notes: string | null;
+              verifierId: string | null;
+              reviewedAt: string | null;
+              verifier?: { id: string; name: string } | null;
+            }>;
+            requester: { id: string; name: string; email: string };
+          } | null>(),
+      submitForVerification: async (
+        id: string,
+        payload: {
+          notes?: string;
+          proofOfOwnershipUrls?: string[];
+          locationGpsLat?: number;
+          locationGpsLng?: number;
+          requestOnSiteVisit?: boolean;
+          propertyPhotoUrls?: string[];
+        }
+      ) =>
+        client
+          .post(`properties/${id}/submit`, { json: payload })
+          .json<{
+            property: Property;
+            verificationRequest: {
+              id: string;
+              items: Array<{ id: string; type: string; status: string }>;
+            };
+            payment: { id: string; status: string };
+          }>(),
+      updateVerificationItem: async (
+        propertyId: string,
+        itemId: string,
+        payload: {
+          evidenceUrls?: string[];
+          gpsLat?: number;
+          gpsLng?: number;
+          notes?: string;
+        }
+      ) =>
+        client
+          .patch(`properties/${propertyId}/verification-items/${itemId}`, { json: payload })
+          .json<{
+            id: string;
+            type: string;
+            status: string;
+            evidenceUrls: string[];
+            gpsLat: number | null;
+            gpsLng: number | null;
+            notes: string | null;
+          }>(),
     },
     geo: {
       suburbs: async () =>
