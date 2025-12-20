@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, CardContent, CardHeader, CardTitle, notify, Skeleton, Input, Label } from '@propad/ui';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
@@ -29,6 +29,10 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     const [activeTab, setActiveTab] = useState<Tab>('overview');
     const [serviceFee, setServiceFee] = useState('');
     const [selectedAgent, setSelectedAgent] = useState('');
+    const [agentSearchQuery, setAgentSearchQuery] = useState('');
+    const [agentSearchResults, setAgentSearchResults] = useState<any[]>([]);
+    const [isSearchingAgents, setIsSearchingAgents] = useState(false);
+    const [showAgentDropdown, setShowAgentDropdown] = useState(false);
 
     const { data: property, isLoading, error } = useQuery({
         queryKey: ['property', propertyId],
@@ -41,6 +45,43 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
         queryFn: () => sdk!.agents.listVerified(),
         enabled: !!sdk
     });
+
+    // Initialize selectedAgent and search query when property loads with existing agent
+    useEffect(() => {
+        if (property?.agentOwnerId && !selectedAgent) {
+            setSelectedAgent(property.agentOwnerId);
+            // Set search query to agent name if available
+            const existingAgent = agents?.find((a: any) => a.id === property.agentOwnerId);
+            if (existingAgent?.name) {
+                setAgentSearchQuery(existingAgent.name);
+            }
+        }
+    }, [property?.agentOwnerId, selectedAgent, agents]);
+
+    // Debounced agent search
+    useEffect(() => {
+        if (!sdk || agentSearchQuery.length < 2) {
+            setAgentSearchResults([]);
+            setShowAgentDropdown(false);
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            setIsSearchingAgents(true);
+            try {
+                const results = await sdk.agents.search(agentSearchQuery);
+                setAgentSearchResults(results);
+                setShowAgentDropdown(true);
+            } catch (error) {
+                console.error('Agent search failed:', error);
+                setAgentSearchResults([]);
+            } finally {
+                setIsSearchingAgents(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [agentSearchQuery, sdk]);
 
     const assignMutation = useMutation({
         mutationFn: ({ agentId, serviceFeeUsd }: { agentId: string; serviceFeeUsd?: number }) =>
@@ -120,6 +161,12 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
                         agents={agents}
                         selectedAgent={selectedAgent}
                         setSelectedAgent={setSelectedAgent}
+                        agentSearchQuery={agentSearchQuery}
+                        setAgentSearchQuery={setAgentSearchQuery}
+                        agentSearchResults={agentSearchResults}
+                        isSearchingAgents={isSearchingAgents}
+                        showAgentDropdown={showAgentDropdown}
+                        setShowAgentDropdown={setShowAgentDropdown}
                         serviceFee={serviceFee}
                         setServiceFee={setServiceFee}
                         handleAssign={handleAssign}
@@ -159,7 +206,7 @@ function OverviewTab({ property }: { property: any }) {
                 </div>
                 <div>
                     <p className="text-sm font-medium text-neutral-500">Location</p>
-                    <p>{[property.suburb?.name, property.city?.name].filter(Boolean).join(', ')}</p>
+                    <p>{property.displayLocation || 'Location not specified'}</p>
                 </div>
                 <div>
                     <p className="text-sm font-medium text-neutral-500">Status</p>
@@ -178,10 +225,34 @@ function OverviewTab({ property }: { property: any }) {
 
 function ManagementTab({
     property, agents, selectedAgent, setSelectedAgent,
+    agentSearchQuery, setAgentSearchQuery, agentSearchResults, isSearchingAgents,
+    showAgentDropdown, setShowAgentDropdown,
     serviceFee, setServiceFee, handleAssign, isAssigning,
     updateFee, isUpdatingFee
 }: any) {
     const assignment = property.assignments?.[0];
+    const selectedAgentData = agentSearchResults.find((a: any) => a.id === selectedAgent) || 
+                              agents?.find((a: any) => a.id === selectedAgent);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const handleAgentSelect = (agent: any) => {
+        setSelectedAgent(agent.id);
+        setAgentSearchQuery(agent.name || '');
+        setShowAgentDropdown(false);
+    };
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setShowAgentDropdown(false);
+            }
+        };
+        if (showAgentDropdown) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [showAgentDropdown]);
 
     return (
         <div className="grid gap-6 md:grid-cols-2">
@@ -190,19 +261,58 @@ function ManagementTab({
                     <CardTitle>Agent Assignment</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label>Select Agent</Label>
-                        <select
-                            className="w-full p-2 border rounded-md"
-                            value={selectedAgent || property.agentOwnerId || ''}
-                            onChange={(e) => setSelectedAgent(e.target.value)}
-                            disabled={!!assignment}
-                        >
-                            <option value="">Select Agent...</option>
-                            {agents?.map((a: any) => (
-                                <option key={a.id} value={a.id}>{a.name} ({a.agentProfile?.verifiedListingsCount} verified)</option>
-                            ))}
-                        </select>
+                    <div className="space-y-2 relative">
+                        <Label>Search Agent</Label>
+                        <div className="relative" ref={dropdownRef}>
+                            <Input
+                                type="text"
+                                placeholder="Type agent name to search..."
+                                value={agentSearchQuery}
+                                onChange={(e) => {
+                                    setAgentSearchQuery(e.target.value);
+                                    if (e.target.value.length < 2) {
+                                        setSelectedAgent('');
+                                        setShowAgentDropdown(false);
+                                    } else {
+                                        setShowAgentDropdown(true);
+                                    }
+                                }}
+                                onFocus={() => {
+                                    if (agentSearchResults.length > 0) {
+                                        setShowAgentDropdown(true);
+                                    }
+                                }}
+                                disabled={!!assignment}
+                                className="w-full"
+                            />
+                            {isSearchingAgents && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                    <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />
+                                </div>
+                            )}
+                            {showAgentDropdown && agentSearchResults.length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                                    {agentSearchResults.map((agent: any) => (
+                                        <div
+                                            key={agent.id}
+                                            onClick={() => handleAgentSelect(agent)}
+                                            className="px-4 py-2 hover:bg-neutral-50 cursor-pointer border-b last:border-0"
+                                        >
+                                            <div className="font-medium">{agent.name || 'Unnamed Agent'}</div>
+                                            <div className="text-xs text-neutral-500">
+                                                {agent.agentProfile?.verifiedListingsCount || 0} verified listings
+                                                {agent.agentProfile?.rating ? ` • Rating: ${agent.agentProfile.rating.toFixed(1)}` : ''}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        {selectedAgentData && (
+                            <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded-md text-sm">
+                                <span className="font-medium text-emerald-800">Selected: {selectedAgentData.name}</span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-2">

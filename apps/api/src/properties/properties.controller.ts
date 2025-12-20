@@ -79,6 +79,13 @@ export class PropertiesController {
     return this.propertiesService.listVerifiedAgents();
   }
 
+  @Get('agents/search')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.ADMIN)
+  searchAgents(@Query('q') query: string) {
+    return this.propertiesService.searchAgents(query || '');
+  }
+
   @Get('search')
   search(@Query() dto: SearchPropertiesDto) {
     return this.propertiesService.search(dto);

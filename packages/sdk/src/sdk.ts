@@ -349,6 +349,11 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .get('properties/agents/verified')
           .json<AgentSummary[]>()
           .then((data) => AgentSummarySchema.array().parse(data)),
+      search: async (query: string) =>
+        client
+          .get('properties/agents/search', { searchParams: { q: query } })
+          .json<AgentSummary[]>()
+          .then((data) => AgentSummarySchema.array().parse(data)),
     },
     facebook: {
       publish: async (payload: {

@@ -231,12 +231,21 @@ export class PropertiesService {
       // Use pending geo's proposed name as suburb name if no regular suburb exists
       const suburbName = suburb?.name ?? (pendingGeo?.proposedName ? `${pendingGeo.proposedName} (pending)` : null);
 
+      // Build display location using resolved hierarchy: Suburb → City → Province → Country
+      const locationParts: string[] = [];
+      if (suburbName) locationParts.push(suburbName);
+      if (city?.name) locationParts.push(city.name);
+      if (province?.name) locationParts.push(province.name);
+      if (country?.name) locationParts.push(country.name);
+      const displayLocation = locationParts.length > 0 ? locationParts.join(', ') : null;
+
       const result: any = {
         ...cleanProperty,
         countryName: country?.name ?? null,
         provinceName: province?.name ?? null,
         cityName: city?.name ?? null,
         suburbName,
+        displayLocation,
         location: {
           countryId: property.countryId ?? null,
           country: country
@@ -299,6 +308,7 @@ export class PropertiesService {
         provinceName: null,
         cityName: null,
         suburbName: null,
+        displayLocation: null,
         location: {
           countryId: null,
           country: null,
@@ -777,6 +787,45 @@ export class PropertiesService {
     });
   }
 
+  searchAgents(query: string) {
+    const searchTerm = query.trim().toLowerCase();
+    if (!searchTerm) {
+      return this.listVerifiedAgents();
+    }
+
+    return this.prisma.user.findMany({
+      where: {
+        role: Role.AGENT,
+        agentProfile: {
+          verifiedListingsCount: { gt: 0 },
+          kycStatus: 'VERIFIED'
+        },
+        name: {
+          contains: searchTerm,
+          mode: 'insensitive'
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        agentProfile: { 
+          select: { 
+            verifiedListingsCount: true, 
+            leadsCount: true,
+            rating: true
+          } 
+        }
+      },
+      orderBy: {
+        agentProfile: {
+          verifiedListingsCount: 'desc'
+        }
+      },
+      take: 20 // Limit results for performance
+    });
+  }
+
   async findById(id: string) {
     // #region agent log
     await this.logDebug('properties.service.ts:735', 'findById entry', { propertyId: id }, 'D');
@@ -1104,6 +1153,11 @@ export class PropertiesService {
   async assignVerifiedAgent(id: string, dto: AssignAgentDto, actor: AuthContext) {
     const property = await this.getPropertyOrThrow(id);
     this.ensureLandlordAccess(property, actor);
+
+    // Validate agentId is provided
+    if (!dto.agentId || dto.agentId.trim() === '') {
+      throw new BadRequestException('Agent ID is required. Please select an agent.');
+    }
 
     // Find agent - relaxed query to allow any agent user
     const agent = await this.prisma.user.findFirst({
