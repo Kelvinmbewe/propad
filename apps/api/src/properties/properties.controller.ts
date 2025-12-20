@@ -386,4 +386,13 @@ export class PropertiesController {
   ) {
     return this.propertiesService.getPropertyRatings(id, req.user);
   }
+
+  @Get(':id/activity-logs')
+  @UseGuards(JwtAuthGuard)
+  getActivityLogs(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.propertiesService.getActivityLogs(id, req.user);
+  }
 }

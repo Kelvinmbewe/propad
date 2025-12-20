@@ -8,6 +8,7 @@ import {
 import {
   Currency,
   InterestStatus,
+  ListingActivityType,
   ListingCreatorRole,
   ListingPaymentStatus,
   ListingPaymentType,
@@ -1246,6 +1247,12 @@ export class PropertiesService {
       }
     });
 
+    // Log activity
+    await this.logActivity(id, ListingActivityType.AGENT_ASSIGNED, actor.userId, {
+      agentId: dto.agentId,
+      agentName: agent.name
+    });
+
     return assignment;
   }
 
@@ -1398,6 +1405,34 @@ export class PropertiesService {
       targetId: id,
       metadata: { confirmed: dto.confirmed }
     });
+
+    // Log activities for offer confirmations/rejections (done after transaction)
+    if (dto.confirmed) {
+      const acceptedOffer = await this.prisma.interest.findFirst({
+        where: {
+          propertyId: id,
+          status: InterestStatus.CONFIRMED
+        }
+      });
+      if (acceptedOffer) {
+        await this.logActivity(id, ListingActivityType.OFFER_CONFIRMED, actor.userId, {
+          offerId: acceptedOffer.id,
+          offerAmount: acceptedOffer.offerAmount
+        });
+        const rejectedCount = await this.prisma.interest.count({
+          where: {
+            propertyId: id,
+            status: InterestStatus.REJECTED
+          }
+        });
+        if (rejectedCount > 0) {
+          await this.logActivity(id, ListingActivityType.OFFER_REJECTED, actor.userId, {
+            count: rejectedCount,
+            reason: 'Deal confirmed'
+          });
+        }
+      }
+    }
 
     return this.attachLocation(updated);
   }
@@ -1805,6 +1840,11 @@ export class PropertiesService {
       }
     });
 
+    // Log activity
+    await this.logActivity(id, ListingActivityType.VERIFICATION_SUBMITTED, actor.userId, {
+      verificationRequestId: verificationRequest.id
+    });
+
     return {
       property: this.attachLocation(updated),
       verificationRequest,
@@ -1974,6 +2014,15 @@ export class PropertiesService {
       targetType: 'verificationRequestItem',
       targetId: itemId,
       metadata: { propertyId, status: dto.status }
+    });
+
+    // Log activity
+    const activityType = dto.status === 'APPROVED' 
+      ? ListingActivityType.VERIFICATION_APPROVED 
+      : ListingActivityType.VERIFICATION_REJECTED;
+    await this.logActivity(propertyId, activityType, actor.userId, {
+      verificationRequestId: item.verificationRequest.id,
+      itemType: item.type
     });
 
     return updated;
@@ -2250,6 +2299,12 @@ export class PropertiesService {
       metadata: { propertyId, scheduledAt: dto.scheduledAt }
     });
 
+    // Log activity
+    await this.logActivity(propertyId, ListingActivityType.VIEWING_SCHEDULED, actor.userId, {
+      viewingId: viewing.id,
+      scheduledAt: dto.scheduledAt
+    });
+
     return viewing;
   }
 
@@ -2299,6 +2354,22 @@ export class PropertiesService {
       targetType: 'viewing',
       targetId: viewingId,
       metadata: { status: dto.status }
+    });
+
+    // Log activity
+    let activityType: ListingActivityType;
+    if (dto.status === 'ACCEPTED') {
+      activityType = ListingActivityType.VIEWING_ACCEPTED;
+    } else if (dto.status === 'POSTPONED') {
+      activityType = ListingActivityType.VIEWING_POSTPONED;
+    } else if (dto.status === 'CANCELLED') {
+      activityType = ListingActivityType.VIEWING_CANCELLED;
+    } else {
+      return updated; // Unknown status, skip logging
+    }
+    await this.logActivity(viewing.property.id, activityType, actor.userId, {
+      viewingId,
+      status: dto.status
     });
 
     return updated;
@@ -2484,6 +2555,13 @@ export class PropertiesService {
       }
     });
 
+    // Log activity
+    await this.logActivity(propertyId, ListingActivityType.RATING_SUBMITTED, dto.isAnonymous ? null : actor.userId, {
+      ratingId: rating.id,
+      rating: dto.rating,
+      type: dto.type
+    });
+
     return rating;
   }
 
@@ -2532,6 +2610,149 @@ export class PropertiesService {
         }
       },
       userRating: ratings.find((r: { reviewerId: string | null; isAnonymous: boolean }) => r.reviewerId === actor.userId && !r.isAnonymous) || null
+    };
+  }
+
+  /**
+   * Log a listing activity (non-blocking)
+   */
+  private async logActivity(
+    propertyId: string,
+    type: ListingActivityType,
+    actorId: string | null,
+    metadata?: Record<string, unknown>
+  ): Promise<void> {
+    try {
+      await this.prisma.listingActivityLog.create({
+        data: {
+          propertyId,
+          type,
+          actorId,
+          metadata: metadata ? (metadata as Prisma.JsonObject) : undefined
+        }
+      });
+    } catch (error) {
+      // Non-blocking: log errors but don't fail the main operation
+      this.logger.warn(`Failed to log activity ${type} for property ${propertyId}`, error);
+    }
+  }
+
+  async getActivityLogs(propertyId: string, actor: AuthContext) {
+    const property = await this.getPropertyOrThrow(propertyId);
+
+    // Fetch all activity logs
+    const logs = await this.prisma.listingActivityLog.findMany({
+      where: { propertyId },
+      include: {
+        actor: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100 // Limit to most recent 100 activities
+    });
+
+    // Aggregate statistics
+    const stats = {
+      offers: {
+        received: 0,
+        accepted: 0,
+        rejected: 0,
+        confirmed: 0,
+        onHold: 0
+      },
+      payments: {
+        created: 0,
+        paid: 0,
+        failed: 0,
+        totalAmount: 0
+      },
+      verification: {
+        submitted: 0,
+        approved: 0,
+        rejected: 0
+      },
+      viewings: {
+        scheduled: 0,
+        accepted: 0,
+        postponed: 0,
+        cancelled: 0
+      },
+      chatMessages: 0,
+      ratings: 0,
+      views: 0
+    };
+
+    // Count activities by type
+    logs.forEach((log: { type: ListingActivityType; metadata: unknown }) => {
+      switch (log.type) {
+        case ListingActivityType.OFFER_RECEIVED:
+          stats.offers.received++;
+          break;
+        case ListingActivityType.OFFER_ACCEPTED:
+          stats.offers.accepted++;
+          break;
+        case ListingActivityType.OFFER_REJECTED:
+          stats.offers.rejected++;
+          break;
+        case ListingActivityType.OFFER_CONFIRMED:
+          stats.offers.confirmed++;
+          break;
+        case ListingActivityType.OFFER_ON_HOLD:
+          stats.offers.onHold++;
+          break;
+        case ListingActivityType.PAYMENT_CREATED:
+          stats.payments.created++;
+          break;
+        case ListingActivityType.PAYMENT_PAID:
+          stats.payments.paid++;
+          if (log.metadata && typeof log.metadata === 'object' && 'amount' in log.metadata) {
+            stats.payments.totalAmount += Number(log.metadata.amount) || 0;
+          }
+          break;
+        case ListingActivityType.PAYMENT_FAILED:
+          stats.payments.failed++;
+          break;
+        case ListingActivityType.VERIFICATION_SUBMITTED:
+          stats.verification.submitted++;
+          break;
+        case ListingActivityType.VERIFICATION_APPROVED:
+          stats.verification.approved++;
+          break;
+        case ListingActivityType.VERIFICATION_REJECTED:
+          stats.verification.rejected++;
+          break;
+        case ListingActivityType.VIEWING_SCHEDULED:
+          stats.viewings.scheduled++;
+          break;
+        case ListingActivityType.VIEWING_ACCEPTED:
+          stats.viewings.accepted++;
+          break;
+        case ListingActivityType.VIEWING_POSTPONED:
+          stats.viewings.postponed++;
+          break;
+        case ListingActivityType.VIEWING_CANCELLED:
+          stats.viewings.cancelled++;
+          break;
+        case ListingActivityType.CHAT_MESSAGE:
+          stats.chatMessages++;
+          break;
+        case ListingActivityType.RATING_SUBMITTED:
+          stats.ratings++;
+          break;
+        case ListingActivityType.PROPERTY_VIEWED:
+          stats.views++;
+          break;
+      }
+    });
+
+    return {
+      logs,
+      statistics: stats
     };
   }
 

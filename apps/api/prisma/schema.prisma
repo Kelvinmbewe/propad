@@ -201,6 +201,29 @@ enum ListingEventType {
   UNDER_OFFER
 }
 
+enum ListingActivityType {
+  OFFER_RECEIVED
+  OFFER_ACCEPTED
+  OFFER_REJECTED
+  OFFER_CONFIRMED
+  OFFER_ON_HOLD
+  AGENT_ASSIGNED
+  AGENT_UNASSIGNED
+  PAYMENT_CREATED
+  PAYMENT_PAID
+  PAYMENT_FAILED
+  VERIFICATION_SUBMITTED
+  VERIFICATION_APPROVED
+  VERIFICATION_REJECTED
+  VIEWING_SCHEDULED
+  VIEWING_ACCEPTED
+  VIEWING_POSTPONED
+  VIEWING_CANCELLED
+  CHAT_MESSAGE
+  PROPERTY_VIEWED
+  RATING_SUBMITTED
+}
+
 enum NotificationType {
   RENTED
   SOLD
@@ -520,6 +543,7 @@ model User {
   reviewsReceived      UserReview[]        @relation("Reviewee")
   reviewsGiven         UserReview[]        @relation("Reviewer")
   propertyRatingsGiven PropertyRating[]    @relation("PropertyRatingReviewer")
+  listingActivitiesCreated ListingActivityLog[] @relation("ListingActivityActor")
   rentPayments         RentPayment[]       @relation("TenantRentPayments")
   viewingsAsViewer     Viewing[]           @relation("ViewingViewer")
   viewingsAsAgent      Viewing[]           @relation("ViewingAgent")
@@ -686,6 +710,7 @@ model Property {
   listingPayments ListingPayment[]
   verificationRequests VerificationRequest[]
   propertyRatings PropertyRating[]
+  activityLogs ListingActivityLog[]
 
   @@index([status])
   @@index([countryId])
@@ -983,6 +1008,21 @@ model PropertyRating {
   @@index([propertyId, createdAt(sort: Desc)])
   @@index([reviewerId])
   @@index([type, weight])
+}
+
+model ListingActivityLog {
+  id          String              @id @default(cuid())
+  propertyId  String
+  type        ListingActivityType
+  actorId     String?              // User who performed the action
+  metadata    Json?                // Additional context (offer amount, agent name, etc.)
+  createdAt   DateTime             @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  actor     User?    @relation("ListingActivityActor", fields: [actorId], references: [id])
+
+  @@index([propertyId, createdAt(sort: Desc)])
+  @@index([type, createdAt(sort: Desc)])
 }
 
 model Viewing {
