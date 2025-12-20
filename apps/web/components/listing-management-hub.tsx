@@ -139,6 +139,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
                 {tabs.map(tab => (
                     <button
                         key={tab.id}
+                        data-tab={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.id
                             ? 'border-emerald-600 text-emerald-600'
@@ -698,73 +699,464 @@ function ViewingsTab({ propertyId }: { propertyId: string }) {
 }
 
 function VerificationTab({ propertyId }: { propertyId: string }) {
-    const { data: verification, isLoading, refetch } = useQuery({
-        queryKey: ['verification', propertyId],
-        queryFn: () => getPropertyVerification(propertyId)
+    const sdk = useAuthenticatedSDK();
+    const queryClient = useQueryClient();
+
+    const { data: verificationRequest, isLoading, error } = useQuery({
+        queryKey: ['verification-request', propertyId],
+        queryFn: () => sdk!.properties.getVerificationRequest(propertyId),
+        enabled: !!sdk
     });
 
-    const requestMut = useMutation({
-        mutationFn: () => requestPropertyVerification(propertyId),
+    const { data: payments } = useQuery({
+        queryKey: ['payments', propertyId],
+        queryFn: () => sdk!.properties.getPayments(propertyId),
+        enabled: !!sdk
+    });
+
+    const verificationPayment = payments?.find((p: any) => p.type === 'VERIFICATION' && p.status === 'PENDING');
+
+    const submitMut = useMutation({
+        mutationFn: (payload: any) => sdk!.properties.submitForVerification(propertyId, payload),
         onSuccess: () => {
-            notify.success('Verification requested');
-            refetch();
-        }
+            notify.success('Verification request submitted');
+            queryClient.invalidateQueries({ queryKey: ['verification-request', propertyId] });
+            queryClient.invalidateQueries({ queryKey: ['payments', propertyId] });
+        },
+        onError: (err: any) => notify.error(err.message || 'Failed to submit verification')
+    });
+
+    const updateItemMut = useMutation({
+        mutationFn: ({ itemId, payload }: { itemId: string; payload: any }) =>
+            sdk!.properties.updateVerificationItem(propertyId, itemId, payload),
+        onSuccess: () => {
+            notify.success('Verification item updated');
+            queryClient.invalidateQueries({ queryKey: ['verification-request', propertyId] });
+        },
+        onError: (err: any) => notify.error(err.message || 'Failed to update item')
     });
 
     if (isLoading) return <Skeleton className="h-64" />;
 
-    const status = verification?.status || 'PENDING';
-    const isApproved = status === 'APPROVED';
-    const isPending = status === 'PENDING';
-    const isRejected = status === 'REJECTED';
+    if (error) {
+        return (
+            <Card>
+                <CardContent className="p-8 text-center">
+                    <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                    <p className="text-red-600">Failed to load verification request</p>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    const overallStatus = verificationRequest?.status || 'NONE';
+    const items = verificationRequest?.items || [];
+    const proofItem = items.find((i: any) => i.type === 'PROOF_OF_OWNERSHIP');
+    const locationItem = items.find((i: any) => i.type === 'LOCATION_CONFIRMATION');
+    const photosItem = items.find((i: any) => i.type === 'PROPERTY_PHOTOS');
+
+    const getStatusBadge = (status: string) => {
+        const config: Record<string, { bg: string; text: string; label: string }> = {
+            PENDING: { bg: 'bg-neutral-100', text: 'text-neutral-700', label: 'Pending' },
+            SUBMITTED: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Submitted' },
+            APPROVED: { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Approved' },
+            REJECTED: { bg: 'bg-red-100', text: 'text-red-700', label: 'Rejected' }
+        };
+        const style = config[status] || config.PENDING;
+        return (
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${style.bg} ${style.text}`}>
+                {style.label}
+            </span>
+        );
+    };
 
     return (
         <div className="space-y-6">
+            {/* Payment Notice */}
+            {verificationPayment && (
+                <Card className="border-amber-200 bg-amber-50">
+                    <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                            <AlertTriangle className="h-5 w-5 text-amber-600" />
+                            <div className="flex-1">
+                                <p className="font-medium text-amber-900">Verification payment required</p>
+                                <p className="text-sm text-amber-700">Please complete payment before verification can proceed.</p>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                    const paymentsTab = document.querySelector('[data-tab="payments"]') as HTMLElement;
+                                    paymentsTab?.click();
+                                }}
+                            >
+                                Go to Payments
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Overall Status */}
             <Card>
-                <CardContent className="p-6">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <ShieldCheck className="h-5 w-5" />
+                        Verification Status
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
                     <div className="flex items-center gap-4 mb-6">
-                        <div className={`h-12 w-12 rounded-full flex items-center justify-center ${isApproved ? 'bg-emerald-100 text-emerald-600' :
-                            isPending ? 'bg-yellow-100 text-yellow-600' :
-                                'bg-red-100 text-red-600'
-                            }`}>
-                            {isApproved ? <ShieldCheck className="h-6 w-6" /> :
-                                isPending ? <Loader2 className="h-6 w-6 animate-spin" /> :
-                                    <AlertTriangle className="h-6 w-6" />
+                        <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
+                            overallStatus === 'APPROVED' ? 'bg-emerald-100 text-emerald-600' :
+                            overallStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-600' :
+                            overallStatus === 'REJECTED' ? 'bg-red-100 text-red-600' :
+                            'bg-neutral-100 text-neutral-600'
+                        }`}>
+                            {overallStatus === 'APPROVED' ? <ShieldCheck className="h-6 w-6" /> :
+                                overallStatus === 'PENDING' ? <Loader2 className="h-6 w-6 animate-spin" /> :
+                                overallStatus === 'REJECTED' ? <AlertTriangle className="h-6 w-6" /> :
+                                <ShieldCheck className="h-6 w-6" />
                             }
                         </div>
                         <div>
                             <h3 className="text-lg font-semibold">
-                                {isApproved ? 'Property Verified' :
-                                    isPending ? 'Verification Pending' :
-                                        'Verification Rejected'}
+                                {overallStatus === 'APPROVED' ? 'Property Verified' :
+                                    overallStatus === 'PENDING' ? 'Verification Pending' :
+                                    overallStatus === 'REJECTED' ? 'Verification Rejected' :
+                                    'Not Started'}
                             </h3>
                             <p className="text-sm text-neutral-500">
-                                {isApproved ? 'This property has been verified by our team.' :
-                                    isPending ? 'Our team is reviewing your documentation.' :
-                                        isRejected ? 'Verification was rejected. Please submit new documentation.' :
-                                            'Verify your property to increase trust and visibility.'}
+                                {overallStatus === 'APPROVED' ? 'This property has been verified by our team.' :
+                                    overallStatus === 'PENDING' ? 'Our team is reviewing your documentation.' :
+                                    overallStatus === 'REJECTED' ? 'Verification was rejected. Please submit new documentation.' :
+                                    'Complete all steps below to request verification.'}
                             </p>
                         </div>
                     </div>
-
-                    {!verification && (
-                        <div className="space-y-4">
-                            <div className="bg-neutral-50 p-4 rounded-lg border border-neutral-200">
-                                <h4 className="font-medium mb-2">Required for Verification:</h4>
-                                <ul className="list-disc list-inside text-sm text-neutral-600 space-y-1">
-                                    <li>Proof of Ownership (Title Deed or Utility Bill)</li>
-                                    <li>Location Confirmation (On-site visit or Geo-tag)</li>
-                                    <li>Valid Property Photos</li>
-                                </ul>
-                            </div>
-                            <Button onClick={() => requestMut.mutate()} disabled={requestMut.isPending}>
-                                {requestMut.isPending ? 'Requesting...' : 'Request Verification'}
-                            </Button>
-                        </div>
-                    )}
                 </CardContent>
             </Card>
+
+            {/* Verification Steps */}
+            <div className="space-y-4">
+                {/* Step 1: Proof of Ownership */}
+                <VerificationStep
+                    title="Proof of Ownership"
+                    description="Upload title deed or utility bill"
+                    icon={<FileText className="h-5 w-5" />}
+                    item={proofItem}
+                    statusBadge={getStatusBadge(proofItem?.status || 'PENDING')}
+                    isDisabled={proofItem?.status === 'APPROVED' || !!verificationPayment}
+                    onSubmit={(evidenceUrls) => {
+                        if (verificationRequest && proofItem) {
+                            updateItemMut.mutate({
+                                itemId: proofItem.id,
+                                payload: { evidenceUrls }
+                            });
+                        } else {
+                            submitMut.mutate({
+                                proofOfOwnershipUrls: evidenceUrls
+                            });
+                        }
+                    }}
+                    type="proof"
+                    propertyId={propertyId}
+                />
+
+                {/* Step 2: Location Confirmation */}
+                <VerificationStep
+                    title="Location Confirmation"
+                    description="Submit GPS coordinates or request on-site visit"
+                    icon={<MapPinIcon className="h-5 w-5" />}
+                    item={locationItem}
+                    statusBadge={getStatusBadge(locationItem?.status || 'PENDING')}
+                    isDisabled={locationItem?.status === 'APPROVED' || !!verificationPayment}
+                    onSubmit={(data) => {
+                        if (verificationRequest && locationItem) {
+                            updateItemMut.mutate({
+                                itemId: locationItem.id,
+                                payload: data
+                            });
+                        } else {
+                            submitMut.mutate({
+                                locationGpsLat: data.gpsLat,
+                                locationGpsLng: data.gpsLng,
+                                requestOnSiteVisit: data.requestOnSiteVisit
+                            });
+                        }
+                    }}
+                    type="location"
+                    propertyId={propertyId}
+                />
+
+                {/* Step 3: Property Photos */}
+                <VerificationStep
+                    title="Property Photos"
+                    description="Upload current photos of the property"
+                    icon={<Camera className="h-5 w-5" />}
+                    item={photosItem}
+                    statusBadge={getStatusBadge(photosItem?.status || 'PENDING')}
+                    isDisabled={photosItem?.status === 'APPROVED' || !!verificationPayment}
+                    onSubmit={(evidenceUrls) => {
+                        if (verificationRequest && photosItem) {
+                            updateItemMut.mutate({
+                                itemId: photosItem.id,
+                                payload: { evidenceUrls }
+                            });
+                        } else {
+                            submitMut.mutate({
+                                propertyPhotoUrls: evidenceUrls
+                            });
+                        }
+                    }}
+                    type="photos"
+                    propertyId={propertyId}
+                />
+            </div>
         </div>
+    );
+}
+
+function VerificationStep({
+    title,
+    description,
+    icon,
+    item,
+    statusBadge,
+    isDisabled,
+    onSubmit,
+    type,
+    propertyId
+}: {
+    title: string;
+    description: string;
+    icon: React.ReactNode;
+    item: any;
+    statusBadge: React.ReactNode;
+    isDisabled: boolean;
+    onSubmit: (data: any) => void;
+    type: 'proof' | 'location' | 'photos';
+    propertyId: string;
+}) {
+    const sdk = useAuthenticatedSDK();
+    const [evidenceUrls, setEvidenceUrls] = useState<string[]>(item?.evidenceUrls || []);
+    const [gpsLat, setGpsLat] = useState<number | undefined>(item?.gpsLat || undefined);
+    const [gpsLng, setGpsLng] = useState<number | undefined>(item?.gpsLng || undefined);
+    const [requestOnSiteVisit, setRequestOnSiteVisit] = useState<boolean>(!!item?.notes?.includes('On-site visit'));
+    const [uploading, setUploading] = useState(false);
+
+    // Sync with item when it changes
+    useEffect(() => {
+        if (item) {
+            setEvidenceUrls(item.evidenceUrls || []);
+            setGpsLat(item.gpsLat || undefined);
+            setGpsLng(item.gpsLng || undefined);
+            setRequestOnSiteVisit(!!item.notes?.includes('On-site visit'));
+        }
+    }, [item]);
+
+    const handleFileUpload = async (files: FileList | null) => {
+        if (!files || files.length === 0 || !sdk) return;
+        
+        setUploading(true);
+        try {
+            const uploadPromises = Array.from(files).map(async (file) => {
+                const result = await sdk.properties.uploadMedia(propertyId, file);
+                return result.url;
+            });
+            
+            const urls = await Promise.all(uploadPromises);
+            setEvidenceUrls(prev => [...prev, ...urls]);
+            notify.success(`${urls.length} file(s) uploaded successfully`);
+        } catch (error) {
+            notify.error('Failed to upload files');
+            console.error('Upload error:', error);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleCaptureGPS = () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setGpsLat(position.coords.latitude);
+                    setGpsLng(position.coords.longitude);
+                    notify.success('GPS coordinates captured');
+                },
+                () => notify.error('Failed to get GPS coordinates')
+            );
+        } else {
+            notify.error('GPS not available in this browser');
+        }
+    };
+
+    const handleSubmit = () => {
+        if (type === 'location') {
+            onSubmit({ gpsLat, gpsLng, requestOnSiteVisit });
+        } else {
+            onSubmit(evidenceUrls);
+        }
+    };
+
+    return (
+        <Card>
+            <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-600">
+                            {icon}
+                        </div>
+                        <div>
+                            <h4 className="font-semibold">{title}</h4>
+                            <p className="text-sm text-neutral-500">{description}</p>
+                        </div>
+                    </div>
+                    {statusBadge}
+                </div>
+
+                {item?.notes && item.verifier && (
+                    <div className={`mb-4 p-3 rounded-lg ${
+                        item.status === 'APPROVED' ? 'bg-emerald-50 border border-emerald-200' :
+                        item.status === 'REJECTED' ? 'bg-red-50 border border-red-200' :
+                        'bg-neutral-50 border border-neutral-200'
+                    }`}>
+                        <p className="text-sm font-medium mb-1">
+                            {item.status === 'APPROVED' ? 'Approved' : 'Rejected'} by {item.verifier.name}
+                        </p>
+                        <p className="text-xs text-neutral-600">{item.notes}</p>
+                    </div>
+                )}
+
+                {!isDisabled && (
+                    <div className="space-y-4">
+                        {type === 'proof' || type === 'photos' ? (
+                            <>
+                                <div>
+                                    <Label>Upload Files</Label>
+                                    <input
+                                        type="file"
+                                        multiple
+                                        accept="image/*,.pdf"
+                                        onChange={(e) => handleFileUpload(e.target.files)}
+                                        disabled={uploading}
+                                        className="mt-1 block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 disabled:opacity-50"
+                                    />
+                                    {uploading && <p className="text-xs text-neutral-500 mt-1">Uploading...</p>}
+                                </div>
+                                {evidenceUrls.length > 0 && (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {evidenceUrls.map((url, idx) => (
+                                            <div key={idx} className="relative aspect-video bg-neutral-100 rounded overflow-hidden group">
+                                                {url.endsWith('.pdf') ? (
+                                                    <div className="w-full h-full flex items-center justify-center">
+                                                        <FileText className="h-8 w-8 text-neutral-400" />
+                                                    </div>
+                                                ) : (
+                                                    <img src={url} alt={`Evidence ${idx + 1}`} className="w-full h-full object-cover" />
+                                                )}
+                                                {!isDisabled && (
+                                                    <button
+                                                        onClick={() => setEvidenceUrls(prev => prev.filter((_, i) => i !== idx))}
+                                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <X className="h-3 w-3" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <div className="space-y-3">
+                                    <div>
+                                        <Label>GPS Coordinates</Label>
+                                        <div className="flex gap-2 mt-1">
+                                            <Input
+                                                type="number"
+                                                placeholder="Latitude"
+                                                value={gpsLat || ''}
+                                                onChange={(e) => setGpsLat(parseFloat(e.target.value))}
+                                                step="any"
+                                            />
+                                            <Input
+                                                type="number"
+                                                placeholder="Longitude"
+                                                value={gpsLng || ''}
+                                                onChange={(e) => setGpsLng(parseFloat(e.target.value))}
+                                                step="any"
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={handleCaptureGPS}
+                                                className="whitespace-nowrap"
+                                            >
+                                                <Navigation className="h-4 w-4 mr-1" />
+                                                Capture GPS
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            id="onSiteVisit"
+                                            checked={requestOnSiteVisit}
+                                            onChange={(e) => setRequestOnSiteVisit(e.target.checked)}
+                                            className="rounded"
+                                        />
+                                        <Label htmlFor="onSiteVisit" className="font-normal cursor-pointer">
+                                            Request on-site visit instead
+                                        </Label>
+                                    </div>
+                                    {(gpsLat && gpsLng) && (
+                                        <div className="flex items-center justify-between p-2 bg-neutral-50 rounded text-xs text-neutral-600">
+                                            <span>Coordinates: {gpsLat.toFixed(6)}, {gpsLng.toFixed(6)}</span>
+                                            {!isDisabled && (
+                                                <button
+                                                    onClick={() => {
+                                                        setGpsLat(undefined);
+                                                        setGpsLng(undefined);
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700"
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                    {requestOnSiteVisit && (
+                                        <div className="flex items-center justify-between p-2 bg-blue-50 rounded text-xs text-blue-700">
+                                            <span>On-site visit requested</span>
+                                            {!isDisabled && (
+                                                <button
+                                                    onClick={() => setRequestOnSiteVisit(false)}
+                                                    className="text-red-500 hover:text-red-700"
+                                                >
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                        <Button
+                            onClick={handleSubmit}
+                            disabled={
+                                uploading ||
+                                ((type === 'proof' || type === 'photos') ? evidenceUrls.length === 0 :
+                                type === 'location' ? !((gpsLat && gpsLng) || requestOnSiteVisit) : false)
+                            }
+                        >
+                            {uploading ? 'Uploading...' : item ? 'Update' : 'Submit'}
+                        </Button>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }
 
