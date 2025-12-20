@@ -1032,7 +1032,7 @@ model Viewing {
   agentId     String?       // If assigned agent is handling
   landlordId  String?       // If landlord is handling
   scheduledAt DateTime
-  status      ViewingStatus @default(SCHEDULED)
+  status      ViewingStatus @default(PENDING)
   notes       String?
   locationLat Float?
   locationLng Float?
