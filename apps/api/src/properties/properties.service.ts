@@ -852,7 +852,22 @@ export class PropertiesService {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         this.logger.error(`Failed to resolve location for property creation: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
-        throw new BadRequestException(`Invalid location: ${errorMessage}`);
+        // DIAGNOSTIC: Return detailed location resolution error
+        throw new BadRequestException({
+          message: 'Property creation validation failed',
+          issues: [{
+            path: 'location',
+            message: `Invalid location: ${errorMessage}`,
+            code: 'custom',
+            locationInput: {
+              countryId: dto.countryId ?? null,
+              provinceId: dto.provinceId ?? null,
+              cityId: dto.cityId ?? null,
+              suburbId: dto.suburbId ?? null,
+              pendingGeoId: dto.pendingGeoId ?? null
+            }
+          }]
+        });
       }
 
       const availableFrom =

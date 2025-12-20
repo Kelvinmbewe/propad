@@ -128,16 +128,23 @@ export class PropertiesController {
       console.error('[PropertiesController] create error:', errorMessage);
       console.error('[PropertiesController] create error stack:', errorStack);
       
-      // Re-throw BadRequestException and other HTTP exceptions as-is
+      // DIAGNOSTIC: Re-throw BadRequestException with full details
       // This preserves validation error details from ZodValidationPipe
       if (error instanceof BadRequestException) {
-        // Log the error response for debugging
+        // Log the full error response for debugging
         const errorResponse = error.getResponse();
-        console.error('[PropertiesController] Validation error details:', JSON.stringify(errorResponse, null, 2));
+        console.error('[PropertiesController] Full validation error response:', JSON.stringify(errorResponse, null, 2));
+        // Ensure the error response is returned as-is with all diagnostic details
         throw error;
       }
-      // For other errors, wrap in BadRequestException with a user-friendly message
-      throw new BadRequestException(`Failed to create property: ${errorMessage}`);
+      // For other errors, wrap in BadRequestException with diagnostic details
+      const diagnosticError = {
+        message: 'Failed to create property',
+        error: errorMessage,
+        stack: errorStack,
+        type: error?.constructor?.name || 'UnknownError'
+      };
+      throw new BadRequestException(diagnosticError);
     }
   }
 

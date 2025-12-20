@@ -9,16 +9,22 @@ export class ZodValidationPipe implements PipeTransform {
     const result = this.schema.safeParse(value);
     if (!result.success) {
       const flattened = result.error.flatten();
-      // Return fieldErrors at top level for frontend compatibility
-      // Frontend expects either fieldErrors directly or an object without 'message'/'error'
+      // DIAGNOSTIC: Return full validation error details
       const errorDetails: any = {
-        ...flattened.fieldErrors,
-        _formErrors: flattened.formErrors,
-        _details: result.error.errors.map(err => ({
-          path: err.path.join('.'),
+        message: 'Property creation validation failed',
+        issues: result.error.errors.map(err => ({
+          path: err.path.join('.') || 'root',
           message: err.message,
-          code: err.code
-        }))
+          code: err.code,
+          received: err.path.length > 0 ? (value as any)?.[err.path[0]] : undefined
+        })),
+        fieldErrors: flattened.fieldErrors,
+        formErrors: flattened.formErrors,
+        // Include raw Zod error for full diagnostic context
+        _zodError: {
+          issues: result.error.issues,
+          name: result.error.name
+        }
       };
       throw new BadRequestException(errorDetails);
     }
