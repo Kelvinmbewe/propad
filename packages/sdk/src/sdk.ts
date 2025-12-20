@@ -243,6 +243,33 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         client
           .delete(`properties/${propertyId}/media/${mediaId}`)
           .json<{ success: boolean }>(),
+      getPayments: async (id: string) =>
+        client
+          .get(`properties/${id}/payments`)
+          .json<Array<{
+            id: string;
+            propertyId: string;
+            type: 'AGENT_FEE' | 'FEATURED' | 'VERIFICATION' | 'OTHER';
+            amountCents: number;
+            currency: string;
+            status: 'PENDING' | 'PAID' | 'FAILED';
+            reference: string | null;
+            invoiceId: string | null;
+            metadata: Record<string, unknown> | null;
+            createdAt: string;
+            updatedAt: string;
+            invoice?: {
+              id: string;
+              invoiceNo: string | null;
+              status: string;
+              paymentIntents?: Array<{
+                id: string;
+                redirectUrl: string | null;
+                status: string;
+                gateway: string;
+              }>;
+            } | null;
+          }>>(),
     },
     geo: {
       suburbs: async () =>

@@ -12,7 +12,6 @@ import { getInterestsForProperty, getChatThreads, getThreadMessages, sendMessage
 import { acceptInterest, rejectInterest } from '@/app/actions/landlord';
 import { getPropertyVerification, requestPropertyVerification } from '@/app/actions/verification';
 import { getFeaturedStatus, createFeaturedListing, completeFeaturedPayment } from '@/app/actions/featured';
-import { getPropertyPayments } from '@/app/actions/payments';
 import { submitRating, getPropertyRatings } from '@/app/actions/ratings';
 import { Check, X, MessageSquare, Send, Calendar, Clock, MapPin, ShieldCheck, AlertTriangle, Loader2, CreditCard, TrendingUp, Star } from 'lucide-react';
 
@@ -772,12 +771,75 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
 
 
 function PaymentsTab({ propertyId }: { propertyId: string }) {
-    const { data: payments, isLoading } = useQuery({
+    const sdk = useAuthenticatedSDK();
+
+    const { data: payments, isLoading, error } = useQuery({
         queryKey: ['payments', propertyId],
-        queryFn: () => getPropertyPayments(propertyId)
+        queryFn: () => sdk!.properties.getPayments(propertyId),
+        enabled: !!sdk
     });
 
+    const getPaymentTitle = (type: string, metadata: any) => {
+        switch (type) {
+            case 'AGENT_FEE':
+                return `Agent Service Fee${metadata?.agentName ? ` - ${metadata.agentName}` : ''}`;
+            case 'FEATURED':
+                return 'Featured Listing';
+            case 'VERIFICATION':
+                return 'Property Verification';
+            case 'OTHER':
+                return metadata?.description || 'Other Payment';
+            default:
+                return type;
+        }
+    };
+
+    const getStatusBadge = (status: string) => {
+        const config: Record<string, { bg: string; text: string; label: string }> = {
+            PENDING: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Pending' },
+            PAID: { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Paid' },
+            FAILED: { bg: 'bg-red-100', text: 'text-red-700', label: 'Failed' }
+        };
+        const style = config[status] || config.PENDING;
+        return (
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${style.bg} ${style.text}`}>
+                {style.label}
+            </span>
+        );
+    };
+
+    const handlePayNow = (payment: any) => {
+        const redirectUrl = payment.invoice?.paymentIntents?.[0]?.redirectUrl;
+        if (redirectUrl) {
+            window.location.href = redirectUrl;
+        } else {
+            notify.error('Payment URL not available. Please contact support.');
+        }
+    };
+
     if (isLoading) return <Skeleton className="h-64" />;
+
+    if (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to load payments';
+        if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+            return (
+                <Card>
+                    <CardContent className="p-8 text-center">
+                        <AlertCircle className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+                        <p className="text-neutral-600">You don't have permission to view payments for this listing.</p>
+                    </CardContent>
+                </Card>
+            );
+        }
+        return (
+            <Card>
+                <CardContent className="p-8 text-center">
+                    <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+                    <p className="text-red-600">Failed to load payments: {errorMessage}</p>
+                </CardContent>
+            </Card>
+        );
+    }
 
     return (
         <div className="space-y-4">
@@ -785,27 +847,65 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <CreditCard className="h-5 w-5" />
-                        Transaction History
+                        Payment Ledger
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     {!payments?.length ? (
-                        <p className="text-center text-neutral-500 py-4">No transactions found.</p>
+                        <div className="text-center py-8">
+                            <CreditCard className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
+                            <p className="text-neutral-500">No payments yet for this listing.</p>
+                        </div>
                     ) : (
-                        <div className="space-y-4">
-                            {payments.map((p: any) => (
-                                <div key={p.id} className="flex justify-between items-center p-3 border-b last:border-0">
-                                    <div>
-                                        <p className="font-medium">{p.description}</p>
-                                        <p className="text-xs text-neutral-500">{new Date(p.date).toLocaleDateString()}</p>
+                        <div className="space-y-3">
+                            {payments.map((payment: any) => {
+                                const isPending = payment.status === 'PENDING';
+                                const canPay = isPending && payment.invoice?.paymentIntents?.[0]?.redirectUrl;
+                                const amount = payment.amountCents / 100;
+                                const formattedAmount = formatCurrency(amount, payment.currency as any);
+
+                                return (
+                                    <div
+                                        key={payment.id}
+                                        className="flex justify-between items-start p-4 border rounded-lg hover:bg-neutral-50 transition-colors"
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <p className="font-medium text-neutral-900">
+                                                    {getPaymentTitle(payment.type, payment.metadata)}
+                                                </p>
+                                                {getStatusBadge(payment.status)}
+                                            </div>
+                                            <p className="text-xs text-neutral-500 mb-2">
+                                                {new Date(payment.createdAt).toLocaleDateString('en-ZW', {
+                                                    year: 'numeric',
+                                                    month: 'short',
+                                                    day: 'numeric',
+                                                    hour: 'numeric',
+                                                    minute: '2-digit'
+                                                })}
+                                            </p>
+                                            {payment.reference && (
+                                                <p className="text-xs text-neutral-400">Ref: {payment.reference}</p>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-4 ml-4">
+                                            <div className="text-right">
+                                                <p className="font-bold text-lg text-neutral-900">{formattedAmount}</p>
+                                            </div>
+                                            {canPay && (
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => handlePayNow(payment)}
+                                                    className="bg-emerald-600 hover:bg-emerald-700"
+                                                >
+                                                    Pay Now
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="font-bold">{p.currency} {p.amount}</p>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full ${p.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'
-                                            }`}>{p.status}</span>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </CardContent>
