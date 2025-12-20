@@ -1720,7 +1720,7 @@ function LogsTab({ propertyId }: { propertyId: string }) {
         }
     };
 
-    const groupLogsByDay = (logs: typeof activityData?.logs) => {
+    const groupLogsByDay = (logs: NonNullable<typeof activityData>["logs"]) => {
         if (!logs) return {};
         const groups: Record<string, typeof logs> = {};
         logs.forEach((log) => {
