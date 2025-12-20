@@ -320,4 +320,14 @@ export class PropertiesController {
   ) {
     return this.propertiesService.listViewings(id, req.user);
   }
+
+  @Get(':id/payments')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  listPayments(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.propertiesService.listPayments(id, req.user);
+  }
 }

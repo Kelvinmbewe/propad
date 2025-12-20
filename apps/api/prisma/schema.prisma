@@ -255,6 +255,19 @@ enum FeaturedListingStatus {
   PENDING_PAYMENT
 }
 
+enum ListingPaymentType {
+  AGENT_FEE
+  FEATURED
+  VERIFICATION
+  OTHER
+}
+
+enum ListingPaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
 enum PayoutMethod {
   ECOCASH
   BANK
@@ -660,6 +673,7 @@ model Property {
   rentPayments    RentPayment[]
   viewings        Viewing[]
   featuredListing FeaturedListing?
+  listingPayments ListingPayment[]
 
   @@index([status])
   @@index([countryId])
@@ -1262,6 +1276,7 @@ model Invoice {
   campaign    AdCampaign? @relation("AdCampaignInvoice")
   promoBoost  PromoBoost? @relation("PromoBoostInvoice")
   fxRate      FxRate?   @relation(fields: [fxRateId], references: [id])
+  listingPayments ListingPayment[] @relation("ListingPaymentInvoice")
 
   @@index([status, dueAt])
 }
@@ -1455,4 +1470,25 @@ model RentPayment {
 
   @@index([tenantId])
   @@index([propertyId])
+}
+
+model ListingPayment {
+  id          String              @id @default(cuid())
+  propertyId String
+  type       ListingPaymentType
+  amountCents Int
+  currency   Currency
+  status     ListingPaymentStatus @default(PENDING)
+  reference  String?              // Payment reference or invoice number
+  invoiceId  String?               // Link to Invoice if applicable
+  metadata   Json?                 // Additional context (e.g., agent assignment ID, featured listing ID)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  property Property  @relation(fields: [propertyId], references: [id])
+  invoice  Invoice?  @relation("ListingPaymentInvoice", fields: [invoiceId], references: [id])
+
+  @@index([propertyId, createdAt(sort: Desc)])
+  @@index([status])
+  @@index([type])
 }

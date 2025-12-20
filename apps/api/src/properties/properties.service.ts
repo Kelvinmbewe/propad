@@ -6,8 +6,11 @@ import {
   NotFoundException
 } from '@nestjs/common';
 import {
+  Currency,
   InterestStatus,
   ListingCreatorRole,
+  ListingPaymentStatus,
+  ListingPaymentType,
   Prisma,
   PropertyAvailability,
   PropertyFurnishing,
@@ -1210,6 +1213,25 @@ export class PropertiesService {
       })
     ]);
 
+    // Auto-generate payment ledger entry if service fee is set
+    if (serviceFeeUsdCents !== null && serviceFeeUsdCents > 0) {
+      await this.prisma.listingPayment.create({
+        data: {
+          propertyId: id,
+          type: ListingPaymentType.AGENT_FEE,
+          amountCents: serviceFeeUsdCents,
+          currency: Currency.USD,
+          status: ListingPaymentStatus.PENDING,
+          reference: `AGENT_FEE_${id}_${assignment.id}`,
+          metadata: {
+            assignmentId: assignment.id,
+            agentId: agent.id,
+            agentName: agent.name
+          }
+        }
+      });
+    }
+
     await this.audit.log({
       action: 'property.assignAgent',
       actorId: actor.userId,
@@ -2024,6 +2046,42 @@ export class PropertiesService {
     });
 
     return updated;
+  }
+
+  async listPayments(propertyId: string, actor: AuthContext) {
+    const property = await this.getPropertyOrThrow(propertyId);
+
+    // Verify actor is landlord or agent
+    const isAuthorized = property.landlordId === actor.userId || property.agentOwnerId === actor.userId;
+    if (!isAuthorized && actor.role !== Role.ADMIN) {
+      throw new ForbiddenException('Only the property owner or assigned agent can view payments');
+    }
+
+    const payments = await this.prisma.listingPayment.findMany({
+      where: { propertyId },
+      include: {
+        invoice: {
+          select: {
+            id: true,
+            invoiceNo: true,
+            status: true,
+            paymentIntents: {
+              select: {
+                id: true,
+                redirectUrl: true,
+                status: true,
+                gateway: true
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 1
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return payments;
   }
 
   async listViewings(propertyId: string, actor: AuthContext) {
