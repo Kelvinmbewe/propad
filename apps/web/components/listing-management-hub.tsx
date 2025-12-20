@@ -5,13 +5,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, CardContent, CardHeader, CardTitle, notify, Skeleton, Input, Label } from '@propad/ui';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { formatCurrency } from '@/lib/formatters';
-import { ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 import { getInterestsForProperty, getChatThreads, getThreadMessages, sendMessage, getViewings } from '@/app/actions/listings';
 import { acceptInterest, rejectInterest } from '@/app/actions/landlord';
 import { getFeaturedStatus, createFeaturedListing, completeFeaturedPayment } from '@/app/actions/featured';
-import { Check, X, MessageSquare, Send, Calendar, Clock, MapPin, ShieldCheck, AlertTriangle, Loader2, CreditCard, TrendingUp, Star, Upload, MapPin as MapPinIcon, Camera, FileText, Navigation, UserCheck, UserX, Eye, Handshake, DollarSign, CheckCircle2, XCircle, Ban, History } from 'lucide-react';
+import { ArrowLeft, Check, X, MessageSquare, Send, Calendar, Clock, MapPin, ShieldCheck, AlertTriangle, Loader2, CreditCard, TrendingUp, Star, Upload, MapPin as MapPinIcon, Camera, FileText, Navigation, UserCheck, UserX, Eye, Handshake, DollarSign, CheckCircle2, XCircle, Ban, History, AlertCircle } from 'lucide-react';
 
 const formatDate = (date: Date | string) => {
     return new Intl.DateTimeFormat('en-ZW', {
