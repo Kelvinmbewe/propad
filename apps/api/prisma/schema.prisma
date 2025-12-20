@@ -363,6 +363,13 @@ enum ReviewerType {
   ANONYMOUS
 }
 
+enum PropertyRatingType {
+  PREVIOUS_TENANT
+  CURRENT_TENANT
+  VISITOR
+  ANONYMOUS
+}
+
 enum InterestStatus {
   PENDING
   ACCEPTED
@@ -512,6 +519,7 @@ model User {
   interestsCreated     Interest[]          @relation("UserInterests")
   reviewsReceived      UserReview[]        @relation("Reviewee")
   reviewsGiven         UserReview[]        @relation("Reviewer")
+  propertyRatingsGiven PropertyRating[]    @relation("PropertyRatingReviewer")
   rentPayments         RentPayment[]       @relation("TenantRentPayments")
   viewingsAsViewer     Viewing[]           @relation("ViewingViewer")
   viewingsAsAgent      Viewing[]           @relation("ViewingAgent")
@@ -677,6 +685,7 @@ model Property {
   featuredListing FeaturedListing?
   listingPayments ListingPayment[]
   verificationRequests VerificationRequest[]
+  propertyRatings PropertyRating[]
 
   @@index([status])
   @@index([countryId])
@@ -951,6 +960,29 @@ model UserReview {
   @@index([revieweeId])
   @@index([reviewerId])
   @@index([propertyId])
+}
+
+model PropertyRating {
+  id              String              @id @default(cuid())
+  propertyId      String
+  reviewerId      String?              // Null if anonymous
+  rating          Int                  // 1-5 stars
+  weight          Int                  @default(1) // Calculated weight
+  comment         String?
+  type            PropertyRatingType
+  isAnonymous     Boolean              @default(false) // For current tenants
+  tenantMonths    Int?                // Length of tenancy in months (for weight calculation)
+  isVerifiedTenant Boolean             @default(false) // Verified tenant status
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id])
+  reviewer User?    @relation("PropertyRatingReviewer", fields: [reviewerId], references: [id])
+
+  @@unique([propertyId, reviewerId]) // One rating per user per property (unless anonymous)
+  @@index([propertyId, createdAt(sort: Desc)])
+  @@index([reviewerId])
+  @@index([type, weight])
 }
 
 model Viewing {

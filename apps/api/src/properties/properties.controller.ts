@@ -40,6 +40,7 @@ import { ScheduleViewingDto, scheduleViewingSchema } from './dto/schedule-viewin
 import { RespondViewingDto, respondViewingSchema } from './dto/respond-viewing.dto';
 import { UpdateVerificationItemDto, updateVerificationItemSchema } from './dto/update-verification-item.dto';
 import { ReviewVerificationItemDto, reviewVerificationItemSchema } from './dto/review-verification-item.dto';
+import { SubmitPropertyRatingDto, submitPropertyRatingSchema } from './dto/submit-property-rating.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -365,5 +366,24 @@ export class PropertiesController {
     @Req() req: AuthenticatedRequest
   ) {
     return this.propertiesService.reviewVerificationItem(propertyId, itemId, dto, req.user);
+  }
+
+  @Post(':id/ratings')
+  @UseGuards(JwtAuthGuard)
+  submitPropertyRating(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(submitPropertyRatingSchema)) dto: SubmitPropertyRatingDto
+  ) {
+    return this.propertiesService.submitPropertyRating(id, dto, req.user);
+  }
+
+  @Get(':id/ratings')
+  @UseGuards(JwtAuthGuard)
+  getPropertyRatings(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.propertiesService.getPropertyRatings(id, req.user);
   }
 }

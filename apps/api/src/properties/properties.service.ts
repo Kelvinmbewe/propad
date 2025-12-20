@@ -14,6 +14,7 @@ import {
   Prisma,
   PropertyAvailability,
   PropertyFurnishing,
+  PropertyRatingType,
   PropertyStatus,
   PropertyType,
   Role,
@@ -1738,8 +1739,7 @@ export class PropertiesService {
               // Location confirmation item
               {
                 type: 'LOCATION_CONFIRMATION' as const,
-                status: (dto.locationGpsLat && dto.locationGpsLng ? 'SUBMITTED' : 
-                        dto.requestOnSiteVisit ? 'PENDING' : 'PENDING') as const,
+                status: (dto.locationGpsLat && dto.locationGpsLng ? ('SUBMITTED' as const) : ('PENDING' as const)),
                 gpsLat: dto.locationGpsLat ?? null,
                 gpsLng: dto.locationGpsLng ?? null,
                 notes: dto.requestOnSiteVisit ? 'On-site visit requested' : null
@@ -1801,7 +1801,7 @@ export class PropertiesService {
       metadata: {
         verificationRequestId: verificationRequest.id,
         paymentId: payment.id,
-        itemsSubmitted: verificationRequest.items.filter(i => i.status === 'SUBMITTED').length
+        itemsSubmitted: verificationRequest.items.filter((i: { status: string }) => i.status === 'SUBMITTED').length
       }
     });
 
@@ -2338,6 +2338,201 @@ export class PropertiesService {
     });
 
     return payments;
+  }
+
+  /**
+   * Calculate weight for a property rating based on:
+   * - Verified tenant > unverified
+   * - Long-term tenant > short-term
+   * - Current tenants (anonymous) have lower weight
+   */
+  private calculateRatingWeight(
+    type: PropertyRatingType,
+    isVerifiedTenant: boolean,
+    tenantMonths?: number | null,
+    isAnonymous: boolean = false
+  ): number {
+    let baseWeight = 1;
+
+    // Base weight by type
+    switch (type) {
+      case PropertyRatingType.PREVIOUS_TENANT:
+        baseWeight = 10;
+        break;
+      case PropertyRatingType.CURRENT_TENANT:
+        baseWeight = isAnonymous ? 3 : 5; // Anonymous current tenants have lower weight
+        break;
+      case PropertyRatingType.VISITOR:
+        baseWeight = 2;
+        break;
+      case PropertyRatingType.ANONYMOUS:
+        baseWeight = 1;
+        break;
+    }
+
+    // Verified tenant bonus
+    if (isVerifiedTenant) {
+      baseWeight *= 1.5;
+    }
+
+    // Long-term tenant bonus (6+ months)
+    if (tenantMonths && tenantMonths >= 6) {
+      baseWeight *= 1.3;
+    }
+    // Very long-term tenant bonus (12+ months)
+    if (tenantMonths && tenantMonths >= 12) {
+      baseWeight *= 1.2;
+    }
+
+    return Math.round(baseWeight);
+  }
+
+  async submitPropertyRating(propertyId: string, dto: {
+    rating: number;
+    comment?: string;
+    type: string;
+    isAnonymous?: boolean;
+    tenantMonths?: number;
+  }, actor: AuthContext) {
+    const property = await this.getPropertyOrThrow(propertyId);
+
+    // Role restriction: Landlords/Agents cannot rate their own property
+    if (property.landlordId === actor.userId || property.agentOwnerId === actor.userId) {
+      throw new ForbiddenException('You cannot rate your own property');
+    }
+
+    // Check if user already rated this property (unless anonymous)
+    if (!dto.isAnonymous) {
+      const existingRating = await this.prisma.propertyRating.findUnique({
+        where: {
+          propertyId_reviewerId: {
+            propertyId,
+            reviewerId: actor.userId
+          }
+        }
+      });
+
+      if (existingRating) {
+        throw new BadRequestException('You have already rated this property');
+      }
+    }
+
+    // Determine if user is a verified tenant
+    // Check rent payments to determine tenant status
+    const rentPayments = await this.prisma.rentPayment.findMany({
+      where: {
+        propertyId,
+        tenantId: actor.userId,
+        isVerified: true
+      },
+      orderBy: { paidAt: 'asc' }
+    });
+
+    const isVerifiedTenant = rentPayments.length > 0;
+    const firstPayment = rentPayments[0];
+    const lastPayment = rentPayments[rentPayments.length - 1];
+    
+    // Calculate tenant months if not provided
+    let tenantMonths = dto.tenantMonths;
+    if (!tenantMonths && firstPayment && lastPayment) {
+      const monthsDiff = (lastPayment.paidAt.getTime() - firstPayment.paidAt.getTime()) / (1000 * 60 * 60 * 24 * 30);
+      tenantMonths = Math.round(monthsDiff);
+    }
+
+    // Calculate weight
+    const weight = this.calculateRatingWeight(
+      dto.type as PropertyRatingType,
+      isVerifiedTenant,
+      tenantMonths,
+      dto.isAnonymous
+    );
+
+    const rating = await this.prisma.propertyRating.create({
+      data: {
+        propertyId,
+        reviewerId: dto.isAnonymous ? null : actor.userId,
+        rating: dto.rating,
+        weight,
+        comment: dto.comment ?? null,
+        type: dto.type as PropertyRatingType,
+        isAnonymous: dto.isAnonymous ?? false,
+        tenantMonths: tenantMonths ?? null,
+        isVerifiedTenant
+      },
+      include: {
+        reviewer: {
+          select: {
+            id: true,
+            name: true,
+            isVerified: true
+          }
+        }
+      }
+    });
+
+    await this.audit.log({
+      action: 'property.rating.submit',
+      actorId: actor.userId,
+      targetType: 'property',
+      targetId: propertyId,
+      metadata: {
+        ratingId: rating.id,
+        rating: dto.rating,
+        weight,
+        type: dto.type,
+        isAnonymous: dto.isAnonymous
+      }
+    });
+
+    return rating;
+  }
+
+  async getPropertyRatings(propertyId: string, actor: AuthContext) {
+    const property = await this.getPropertyOrThrow(propertyId);
+
+    const ratings = await this.prisma.propertyRating.findMany({
+      where: { propertyId },
+      include: {
+        reviewer: {
+          select: {
+            id: true,
+            name: true,
+            isVerified: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Calculate aggregated weighted score
+    const totalWeight = ratings.reduce((sum: number, r: { weight: number }) => sum + r.weight, 0);
+    const weightedSum = ratings.reduce((sum: number, r: { rating: number; weight: number }) => sum + (r.rating * r.weight), 0);
+    const averageRating = totalWeight > 0 ? weightedSum / totalWeight : 0;
+    const roundedAverage = Math.round(averageRating * 10) / 10; // Round to 1 decimal
+
+    // Count by rating value
+    const ratingCounts = ratings.reduce((acc: Record<number, number>, r: { rating: number }) => {
+      acc[r.rating] = (acc[r.rating] || 0) + 1;
+      return acc;
+    }, {} as Record<number, number>);
+
+    return {
+      ratings,
+      aggregate: {
+        average: roundedAverage,
+        totalCount: ratings.length,
+        weightedAverage: roundedAverage,
+        totalWeight,
+        ratingCounts: {
+          5: ratingCounts[5] || 0,
+          4: ratingCounts[4] || 0,
+          3: ratingCounts[3] || 0,
+          2: ratingCounts[2] || 0,
+          1: ratingCounts[1] || 0
+        }
+      },
+      userRating: ratings.find((r: { reviewerId: string | null; isAnonymous: boolean }) => r.reviewerId === actor.userId && !r.isAnonymous) || null
+    };
   }
 
   async listViewings(propertyId: string, actor: AuthContext) {
