@@ -6,6 +6,7 @@ import {
   NotFoundException
 } from '@nestjs/common';
 import {
+  ListingCreatorRole,
   Prisma,
   PropertyAvailability,
   PropertyFurnishing,
@@ -839,6 +840,14 @@ export class PropertiesService {
     try {
       const landlordId = dto.landlordId ?? (actor.role === Role.LANDLORD ? actor.userId : undefined);
       const agentOwnerId = dto.agentOwnerId ?? (actor.role === Role.AGENT ? actor.userId : undefined);
+      
+      // Map actor role to ListingCreatorRole for audit tracking
+      let createdByRole: ListingCreatorRole = ListingCreatorRole.LANDLORD;
+      if (actor.role === Role.AGENT) {
+        createdByRole = ListingCreatorRole.AGENT;
+      } else if (actor.role === Role.ADMIN) {
+        createdByRole = ListingCreatorRole.ADMIN;
+      }
 
       let location: Awaited<ReturnType<typeof this.geo.resolveLocation>>;
       try {
@@ -909,7 +918,8 @@ export class PropertiesService {
           availableFrom,
           commercialFields,
           description: dto.description,
-          status: PropertyStatus.DRAFT
+          status: PropertyStatus.DRAFT,
+          createdByRole
         },
         include: {
           country: true,
