@@ -422,14 +422,55 @@ function InterestTab({ propertyId }: { propertyId: string }) {
         queryFn: () => getInterestsForProperty(propertyId)
     });
 
-    const handleStatus = async (id: string, status: 'ACCEPTED' | 'REJECTED') => {
+    const handleAccept = async (id: string) => {
         try {
-            await updateInterestStatus(id, status);
-            notify.success(`Interest ${status.toLowerCase()}`);
-            refetch();
+            const result = await acceptInterest(id);
+            if (result.error) {
+                notify.error(result.error);
+            } else {
+                notify.success('Offer accepted');
+                refetch();
+            }
         } catch (e) {
-            notify.error('Failed to update status');
+            notify.error('Failed to accept offer');
         }
+    };
+
+    const handleReject = async (id: string) => {
+        try {
+            const result = await rejectInterest(id);
+            if (result.error) {
+                notify.error(result.error);
+            } else {
+                notify.success('Offer rejected');
+                refetch();
+            }
+        } catch (e) {
+            notify.error('Failed to reject offer');
+        }
+    };
+
+    const getStatusBadge = (status: string) => {
+        const statusConfig: Record<string, { bg: string; border: string; text: string; label: string }> = {
+            PENDING: { bg: 'bg-neutral-100', border: 'border-neutral-200', text: 'text-neutral-600', label: 'Pending' },
+            ACCEPTED: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', label: 'Accepted' },
+            ON_HOLD: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', label: 'On Hold' },
+            REJECTED: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', label: 'Rejected' },
+            CONFIRMED: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', label: 'Confirmed' }
+        };
+        const config = statusConfig[status] || statusConfig.PENDING;
+        return (
+            <span className={`px-2 py-0.5 text-xs rounded-full border ${config.bg} ${config.border} ${config.text}`}>
+                {config.label}
+            </span>
+        );
+    };
+
+    const getDaysUntilAutoConfirm = (updatedAt: Date | string) => {
+        const updated = new Date(updatedAt);
+        const daysSince = Math.floor((Date.now() - updated.getTime()) / (1000 * 60 * 60 * 24));
+        const daysRemaining = 30 - daysSince;
+        return daysRemaining > 0 ? daysRemaining : 0;
     };
 
     if (isLoading) return <Skeleton className="h-64" />;
@@ -437,46 +478,63 @@ function InterestTab({ propertyId }: { propertyId: string }) {
 
     return (
         <div className="space-y-4">
-            {interests.map((interest: any) => (
-                <Card key={interest.id} className="overflow-hidden">
-                    <CardContent className="p-6">
-                        <div className="flex justify-between items-start gap-4">
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-semibold text-lg">{interest.user.name || 'Anonymous'}</span>
-                                    {interest.user.isVerified && <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">Verified</span>}
-                                    <span className={`px-2 py-0.5 text-xs rounded-full border ${interest.status === 'ACCEPTED' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
-                                        interest.status === 'REJECTED' ? 'bg-red-50 border-red-200 text-red-700' :
-                                            'bg-neutral-100 border-neutral-200 text-neutral-600'
-                                        }`}>{interest.status}</span>
-                                </div>
-                                <p className="text-sm text-neutral-500 mb-2">Expressed on {new Date(interest.createdAt).toLocaleDateString()}</p>
+            {interests.map((interest: any) => {
+                const isActionable = interest.status === 'PENDING';
+                const daysRemaining = interest.status === 'ACCEPTED' ? getDaysUntilAutoConfirm(interest.updatedAt) : null;
 
-                                {interest.offerAmount && (
-                                    <p className="font-medium text-emerald-600 mb-2">
-                                        Offer: {formatCurrency(Number(interest.offerAmount), 'USD')}
-                                    </p>
-                                )}
-                                {interest.message && (
-                                    <div className="bg-neutral-50 p-3 rounded text-sm text-neutral-700 italic">"{interest.message}"</div>
-                                )}
+                return (
+                    <Card key={interest.id} className="overflow-hidden">
+                        <CardContent className="p-6">
+                            <div className="flex justify-between items-start gap-4">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="font-semibold text-lg">{interest.user.name || 'Anonymous'}</span>
+                                        {interest.user.isVerified && <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">Verified</span>}
+                                        {getStatusBadge(interest.status)}
+                                    </div>
+                                    <p className="text-sm text-neutral-500 mb-2">Expressed on {new Date(interest.createdAt).toLocaleDateString()}</p>
+
+                                    {interest.offerAmount && (
+                                        <p className="font-medium text-emerald-600 mb-2">
+                                            Offer: {formatCurrency(Number(interest.offerAmount), 'USD')}
+                                        </p>
+                                    )}
+                                    {interest.message && (
+                                        <div className="bg-neutral-50 p-3 rounded text-sm text-neutral-700 italic mb-2">"{interest.message}"</div>
+                                    )}
+                                    {interest.status === 'ACCEPTED' && daysRemaining !== null && (
+                                        <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700">
+                                            {daysRemaining > 0 
+                                                ? `Auto-confirmation in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}` 
+                                                : 'Auto-confirmation pending'}
+                                        </div>
+                                    )}
+                                    {interest.status === 'ON_HOLD' && (
+                                        <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700">
+                                            This offer is on hold because another offer was accepted.
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    {isActionable && (
+                                        <>
+                                            <Button size="sm" variant="outline" className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={() => handleAccept(interest.id)}>
+                                                <Check className="h-4 w-4 mr-1" /> Accept
+                                            </Button>
+                                            <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleReject(interest.id)}>
+                                                <X className="h-4 w-4 mr-1" /> Reject
+                                            </Button>
+                                        </>
+                                    )}
+                                    {!isActionable && (
+                                        <span className="text-xs text-neutral-400 italic">No actions available</span>
+                                    )}
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                {interest.status === 'PENDING' && (
-                                    <>
-                                        <Button size="sm" variant="outline" className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={() => handleStatus(interest.id, 'ACCEPTED')}>
-                                            <Check className="h-4 w-4 mr-1" /> Accept
-                                        </Button>
-                                        <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleStatus(interest.id, 'REJECTED')}>
-                                            <X className="h-4 w-4 mr-1" /> Reject
-                                        </Button>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            ))}
+                        </CardContent>
+                    </Card>
+                );
+            })}
         </div>
     );
 }
