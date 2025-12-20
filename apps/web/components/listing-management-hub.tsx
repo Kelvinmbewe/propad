@@ -25,7 +25,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<Tab>('overview');
     const [serviceFee, setServiceFee] = useState('');
-    const [selectedAgent, setSelectedAgent] = useState('');
+    const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
     const [agentSearchQuery, setAgentSearchQuery] = useState('');
     const [agentSearchResults, setAgentSearchResults] = useState<any[]>([]);
     const [isSearchingAgents, setIsSearchingAgents] = useState(false);
@@ -46,7 +46,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     // Initialize selectedAgent and search query when property loads with existing agent
     useEffect(() => {
         if (property?.agentOwnerId && !selectedAgent) {
-            setSelectedAgent(property.agentOwnerId);
+            setSelectedAgent(typeof property.agentOwnerId === 'string' ? property.agentOwnerId : null);
             // Set search query to agent name if available
             const existingAgent = agents?.find((a: any) => a.id === property.agentOwnerId);
             if (existingAgent?.name) {
