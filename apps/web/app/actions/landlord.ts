@@ -67,3 +67,46 @@ export async function acceptInterest(interestId: string) {
     return { error: errorMessage };
   }
 }
+
+export async function rejectInterest(interestId: string) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { error: 'Unauthorized' };
+    }
+
+    const interest = await prisma.interest.findUnique({
+      where: { id: interestId },
+      include: {
+        property: {
+          select: {
+            id: true,
+            landlordId: true,
+            agentOwnerId: true
+          }
+        }
+      }
+    });
+
+    if (!interest) {
+      return { error: 'Interest not found' };
+    }
+
+    if (interest.property.landlordId !== session.user.id && interest.property.agentOwnerId !== session.user.id) {
+      return { error: 'Unauthorized' };
+    }
+
+    await prisma.interest.update({
+      where: { id: interestId },
+      data: { status: InterestStatus.REJECTED }
+    });
+
+    revalidatePath('/dashboard/interests');
+    revalidatePath(`/dashboard/listings/${interest.propertyId}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error rejecting interest:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to reject interest';
+    return { error: errorMessage };
+  }
+}

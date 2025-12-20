@@ -8,7 +8,8 @@ import { formatCurrency } from '@/lib/formatters';
 import { ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
-import { getInterestsForProperty, updateInterestStatus, getChatThreads, getThreadMessages, sendMessage, getViewings } from '@/app/actions/listings';
+import { getInterestsForProperty, getChatThreads, getThreadMessages, sendMessage, getViewings } from '@/app/actions/listings';
+import { acceptInterest, rejectInterest } from '@/app/actions/landlord';
 import { getPropertyVerification, requestPropertyVerification } from '@/app/actions/verification';
 import { getFeaturedStatus, createFeaturedListing, completeFeaturedPayment } from '@/app/actions/featured';
 import { getPropertyPayments } from '@/app/actions/payments';

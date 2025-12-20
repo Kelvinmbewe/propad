@@ -4,11 +4,12 @@ import { AuditModule } from '../audit/audit.module';
 import { GeoModule } from '../geo/geo.module';
 import { PropertiesController } from './properties.controller';
 import { PropertiesService } from './properties.service';
+import { OfferAutoConfirmationService } from './offer-auto-confirmation.service';
 
 @Module({
   imports: [PrismaModule, AuditModule, GeoModule],
   controllers: [PropertiesController],
-  providers: [PropertiesService],
+  providers: [PropertiesService, OfferAutoConfirmationService],
   exports: [PropertiesService]
 })
 export class PropertiesModule {}
