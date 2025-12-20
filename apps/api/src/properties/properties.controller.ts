@@ -36,6 +36,8 @@ import {
 } from './dto/update-deal-confirmation.dto';
 import { CreateMessageDto, createMessageSchema } from './dto/create-message.dto';
 import { UpdateServiceFeeDto, updateServiceFeeSchema } from './dto/update-service-fee.dto';
+import { ScheduleViewingDto, scheduleViewingSchema } from './dto/schedule-viewing.dto';
+import { RespondViewingDto, respondViewingSchema } from './dto/respond-viewing.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -286,5 +288,36 @@ export class PropertiesController {
       mimetype: file.mimetype,
       buffer: file.buffer
     }, req.user);
+  }
+
+  @Post(':id/viewings/schedule')
+  @UseGuards(JwtAuthGuard)
+  scheduleViewing(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(scheduleViewingSchema)) dto: ScheduleViewingDto
+  ) {
+    return this.propertiesService.scheduleViewing(id, dto, req.user);
+  }
+
+  @Post('viewings/:viewingId/respond')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  respondToViewing(
+    @Param('viewingId') viewingId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(respondViewingSchema)) dto: RespondViewingDto
+  ) {
+    return this.propertiesService.respondToViewing(viewingId, dto, req.user);
+  }
+
+  @Get(':id/viewings')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  listViewings(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.propertiesService.listViewings(id, req.user);
   }
 }

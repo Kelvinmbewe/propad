@@ -14,7 +14,8 @@ import {
   PropertyStatus,
   PropertyType,
   Role,
-  RewardEventType
+  RewardEventType,
+  ViewingStatus
 } from '@prisma/client';
 import { PowerPhase } from '../common/enums';
 import { createHmac, randomUUID } from 'crypto';
@@ -1447,6 +1448,24 @@ export class PropertiesService {
     const isOwner = property.landlordId === actor.userId;
     const isAgent = property.agentOwnerId === actor.userId;
 
+    // Chat visibility guard: Only ACCEPTED or CONFIRMED offers allow chat
+    // Owners and agents can always chat
+    if (!isOwner && !isAgent) {
+      const userInterest = await this.prisma.interest.findFirst({
+        where: {
+          propertyId: id,
+          userId: actor.userId,
+          status: { in: [InterestStatus.ACCEPTED, InterestStatus.CONFIRMED] }
+        }
+      });
+
+      if (!userInterest) {
+        throw new ForbiddenException(
+          'Chat is only available for accepted or confirmed offers. Please wait for your offer to be accepted.'
+        );
+      }
+    }
+
     if (isOwner || isAgent) {
       // Owner/Agent replying - try to find the last person who messaged
       const lastIncoming = await this.prisma.propertyMessage.findFirst({
@@ -1905,6 +1924,126 @@ export class PropertiesService {
     });
 
     return { success: true };
+  }
+
+  async scheduleViewing(propertyId: string, dto: { scheduledAt: string; notes?: string; locationLat?: number; locationLng?: number }, actor: AuthContext) {
+    const property = await this.getPropertyOrThrow(propertyId);
+
+    // Verify user has an accepted or confirmed offer
+    const interest = await this.prisma.interest.findFirst({
+      where: {
+        propertyId,
+        userId: actor.userId,
+        status: { in: [InterestStatus.ACCEPTED, InterestStatus.CONFIRMED] }
+      }
+    });
+
+    if (!interest) {
+      throw new ForbiddenException('You must have an accepted or confirmed offer to schedule a viewing');
+    }
+
+    const viewing = await this.prisma.viewing.create({
+      data: {
+        propertyId,
+        viewerId: actor.userId,
+        scheduledAt: new Date(dto.scheduledAt),
+        notes: dto.notes ?? null,
+        locationLat: dto.locationLat ?? null,
+        locationLng: dto.locationLng ?? null,
+        status: 'PENDING',
+        landlordId: property.landlordId,
+        agentId: property.agentOwnerId
+      },
+      include: {
+        viewer: { select: { id: true, name: true, phone: true } },
+        agent: { select: { id: true, name: true } },
+        landlord: { select: { id: true, name: true } }
+      }
+    });
+
+    // TODO: Trigger email notification
+    // TODO: Trigger WhatsApp/SMS notification
+
+    await this.audit.log({
+      action: 'viewing.schedule',
+      actorId: actor.userId,
+      targetType: 'viewing',
+      targetId: viewing.id,
+      metadata: { propertyId, scheduledAt: dto.scheduledAt }
+    });
+
+    return viewing;
+  }
+
+  async respondToViewing(viewingId: string, dto: { status: string; notes?: string }, actor: AuthContext) {
+    const viewing = await this.prisma.viewing.findUnique({
+      where: { id: viewingId },
+      include: {
+        property: {
+          select: {
+            id: true,
+            landlordId: true,
+            agentOwnerId: true
+          }
+        }
+      }
+    });
+
+    if (!viewing) {
+      throw new NotFoundException('Viewing not found');
+    }
+
+    // Verify actor is landlord or agent
+    const isAuthorized = viewing.property.landlordId === actor.userId || viewing.property.agentOwnerId === actor.userId;
+    if (!isAuthorized) {
+      throw new ForbiddenException('Only the property owner or assigned agent can respond to viewings');
+    }
+
+    const updated = await this.prisma.viewing.update({
+      where: { id: viewingId },
+      data: {
+        status: dto.status as any,
+        notes: dto.notes ?? viewing.notes
+      },
+      include: {
+        viewer: { select: { id: true, name: true, phone: true } },
+        agent: { select: { id: true, name: true } },
+        landlord: { select: { id: true, name: true } }
+      }
+    });
+
+    // TODO: Trigger email notification
+    // TODO: Trigger WhatsApp/SMS notification
+
+    await this.audit.log({
+      action: 'viewing.respond',
+      actorId: actor.userId,
+      targetType: 'viewing',
+      targetId: viewingId,
+      metadata: { status: dto.status }
+    });
+
+    return updated;
+  }
+
+  async listViewings(propertyId: string, actor: AuthContext) {
+    const property = await this.getPropertyOrThrow(propertyId);
+
+    // Verify actor is landlord or agent
+    const isAuthorized = property.landlordId === actor.userId || property.agentOwnerId === actor.userId;
+    if (!isAuthorized && actor.role !== Role.ADMIN) {
+      throw new ForbiddenException('Only the property owner or assigned agent can view viewing requests');
+    }
+
+    return this.prisma.viewing.findMany({
+      where: { propertyId },
+      include: {
+        viewer: { select: { id: true, name: true, phone: true } },
+        agent: { select: { id: true, name: true } },
+        landlord: { select: { id: true, name: true } }
+      },
+      orderBy: { scheduledAt: 'asc' }
+    });
   }
 }
 

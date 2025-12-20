@@ -241,9 +241,11 @@ enum ListingCreatorRole {
 }
 
 enum ViewingStatus {
-  SCHEDULED
-  COMPLETED
+  PENDING
+  ACCEPTED
+  POSTPONED
   CANCELLED
+  COMPLETED
   NO_SHOW
 }
 
