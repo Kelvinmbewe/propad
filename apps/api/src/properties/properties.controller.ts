@@ -38,6 +38,8 @@ import { CreateMessageDto, createMessageSchema } from './dto/create-message.dto'
 import { UpdateServiceFeeDto, updateServiceFeeSchema } from './dto/update-service-fee.dto';
 import { ScheduleViewingDto, scheduleViewingSchema } from './dto/schedule-viewing.dto';
 import { RespondViewingDto, respondViewingSchema } from './dto/respond-viewing.dto';
+import { UpdateVerificationItemDto, updateVerificationItemSchema } from './dto/update-verification-item.dto';
+import { ReviewVerificationItemDto, reviewVerificationItemSchema } from './dto/review-verification-item.dto';
 
 interface AuthenticatedRequest {
   user: {
@@ -329,5 +331,39 @@ export class PropertiesController {
     @Req() req: AuthenticatedRequest
   ) {
     return this.propertiesService.listPayments(id, req.user);
+  }
+
+  @Get(':id/verification-request')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  getVerificationRequest(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.propertiesService.getVerificationRequest(id, req.user);
+  }
+
+  @Patch('properties/:propertyId/verification-items/:itemId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  updateVerificationItem(
+    @Param('propertyId') propertyId: string,
+    @Param('itemId') itemId: string,
+    @Body(new ZodValidationPipe(updateVerificationItemSchema)) dto: UpdateVerificationItemDto,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.propertiesService.updateVerificationItem(propertyId, itemId, dto, req.user);
+  }
+
+  @Post('properties/:propertyId/verification-items/:itemId/review')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  reviewVerificationItem(
+    @Param('propertyId') propertyId: string,
+    @Param('itemId') itemId: string,
+    @Body(new ZodValidationPipe(reviewVerificationItemSchema)) dto: ReviewVerificationItemDto,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.propertiesService.reviewVerificationItem(propertyId, itemId, dto, req.user);
   }
 }

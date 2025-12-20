@@ -484,6 +484,8 @@ model User {
   leads           Lead[]
   verifications   Verification[]  @relation("VerificationVerifier")
   verificationsRequested Verification[] @relation("VerificationRequester")
+  verificationRequestsCreated VerificationRequest[] @relation("VerificationRequestRequester")
+  verificationItemsReviewed VerificationRequestItem[] @relation("VerificationItemVerifier")
   rewardEvents    RewardEvent[]
   payouts         Payout[]
   adImpressions   AdImpression[]
@@ -674,6 +676,7 @@ model Property {
   viewings        Viewing[]
   featuredListing FeaturedListing?
   listingPayments ListingPayment[]
+  verificationRequests VerificationRequest[]
 
   @@index([status])
   @@index([countryId])
@@ -856,6 +859,19 @@ enum VerificationStatus {
   REJECTED
 }
 
+enum VerificationItemType {
+  PROOF_OF_OWNERSHIP
+  LOCATION_CONFIRMATION
+  PROPERTY_PHOTOS
+}
+
+enum VerificationItemStatus {
+  PENDING
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
 model Verification {
   id          String               @id @default(cuid())
   propertyId  String?              // Optional now as we have polymorphic targetId
@@ -875,6 +891,45 @@ model Verification {
   // Polymorphic fields
   targetType  String   @default("property") // property, user, agent, landlord
   targetId    String   @default("") 
+}
+
+model VerificationRequest {
+  id          String   @id @default(cuid())
+  propertyId  String
+  requesterId String
+  status      VerificationStatus @default(PENDING)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  property Property              @relation(fields: [propertyId], references: [id])
+  requester User                 @relation("VerificationRequestRequester", fields: [requesterId], references: [id])
+  items     VerificationRequestItem[]
+
+  @@index([propertyId])
+  @@index([requesterId])
+  @@index([status])
+}
+
+model VerificationRequestItem {
+  id                    String                @id @default(cuid())
+  verificationRequestId String
+  type                  VerificationItemType
+  status                VerificationItemStatus @default(PENDING)
+  evidenceUrls          String[]              @default([]) // Array of uploaded file URLs
+  gpsLat                Float?                // For location confirmation
+  gpsLng                Float?                // For location confirmation
+  notes                 String?               // User notes or verifier feedback
+  verifierId            String?               // Admin/verifier who reviewed
+  reviewedAt            DateTime?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  verificationRequest VerificationRequest @relation(fields: [verificationRequestId], references: [id], onDelete: Cascade)
+  verifier             User?               @relation("VerificationItemVerifier", fields: [verifierId], references: [id])
+
+  @@index([verificationRequestId])
+  @@index([type, status])
 }
 
 model UserReview {

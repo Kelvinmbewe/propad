@@ -18,6 +18,8 @@ import {
   PropertyType,
   Role,
   RewardEventType,
+  VerificationItemStatus,
+  VerificationStatus,
   ViewingStatus
 } from '@prisma/client';
 import { PowerPhase } from '../common/enums';
@@ -1698,6 +1700,85 @@ export class PropertiesService {
     const property = await this.getPropertyOrThrow(id);
     this.ensureCanMutate(property, actor);
 
+    // Check if there's already a pending verification request
+    const existingRequest = await this.prisma.verificationRequest.findFirst({
+      where: {
+        propertyId: id,
+        status: 'PENDING'
+      }
+    });
+
+    if (existingRequest) {
+      throw new BadRequestException('A verification request is already pending for this property');
+    }
+
+    const verificationFeeUsdCents = 2000; // $20.00
+
+    const [verificationRequest, payment] = await this.prisma.$transaction([
+      // Create verification request with items
+      this.prisma.verificationRequest.create({
+        data: {
+          propertyId: id,
+          requesterId: actor.userId,
+          status: 'PENDING',
+          notes: dto.notes ?? null,
+        items: {
+          create: [
+            // Proof of ownership item
+            ...(dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0
+              ? [{
+                  type: 'PROOF_OF_OWNERSHIP' as const,
+                  status: 'SUBMITTED' as const,
+                  evidenceUrls: dto.proofOfOwnershipUrls
+                }]
+              : [{
+                  type: 'PROOF_OF_OWNERSHIP' as const,
+                  status: 'PENDING' as const
+                }]),
+              // Location confirmation item
+              {
+                type: 'LOCATION_CONFIRMATION' as const,
+                status: (dto.locationGpsLat && dto.locationGpsLng ? 'SUBMITTED' : 
+                        dto.requestOnSiteVisit ? 'PENDING' : 'PENDING') as const,
+                gpsLat: dto.locationGpsLat ?? null,
+                gpsLng: dto.locationGpsLng ?? null,
+                notes: dto.requestOnSiteVisit ? 'On-site visit requested' : null
+              },
+              // Property photos item
+              ...(dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0
+                ? [{
+                    type: 'PROPERTY_PHOTOS' as const,
+                    status: 'SUBMITTED' as const,
+                    evidenceUrls: dto.propertyPhotoUrls
+                  }]
+                : [{
+                    type: 'PROPERTY_PHOTOS' as const,
+                    status: 'PENDING' as const
+                  }])
+            ]
+          }
+        },
+        include: {
+          items: true
+        }
+      }),
+      // Create payment ledger entry
+      this.prisma.listingPayment.create({
+        data: {
+          propertyId: id,
+          type: ListingPaymentType.VERIFICATION,
+          amountCents: verificationFeeUsdCents,
+          currency: Currency.USD,
+          status: ListingPaymentStatus.PENDING,
+          reference: `VERIFICATION_${id}_${Date.now()}`,
+          metadata: {
+            verificationFee: true
+          }
+        }
+      })
+    ]);
+
+    // Update property status
     const updated = await this.prisma.property.update({
       where: { id },
       data: {
@@ -1717,10 +1798,185 @@ export class PropertiesService {
       actorId: actor.userId,
       targetType: 'property',
       targetId: id,
-      metadata: dto
+      metadata: {
+        verificationRequestId: verificationRequest.id,
+        paymentId: payment.id,
+        itemsSubmitted: verificationRequest.items.filter(i => i.status === 'SUBMITTED').length
+      }
     });
 
-    return this.attachLocation(updated);
+    return {
+      property: this.attachLocation(updated),
+      verificationRequest,
+      payment
+    };
+  }
+
+  async getVerificationRequest(propertyId: string, actor: AuthContext) {
+    const property = await this.getPropertyOrThrow(propertyId);
+    
+    // Verify access
+    const isAuthorized = property.landlordId === actor.userId || 
+                         property.agentOwnerId === actor.userId || 
+                         actor.role === Role.ADMIN;
+    if (!isAuthorized) {
+      throw new ForbiddenException('You do not have permission to view verification requests for this property');
+    }
+
+    const request = await this.prisma.verificationRequest.findFirst({
+      where: { propertyId },
+      include: {
+        items: {
+          include: {
+            verifier: {
+              select: { id: true, name: true }
+            }
+          },
+          orderBy: { type: 'asc' }
+        },
+        requester: {
+          select: { id: true, name: true, email: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return request;
+  }
+
+  async updateVerificationItem(
+    propertyId: string,
+    itemId: string,
+    dto: { evidenceUrls?: string[]; gpsLat?: number; gpsLng?: number; notes?: string },
+    actor: AuthContext
+  ) {
+    const property = await this.getPropertyOrThrow(propertyId);
+    this.ensureCanMutate(property, actor);
+
+    const item = await this.prisma.verificationRequestItem.findUnique({
+      where: { id: itemId },
+      include: {
+        verificationRequest: {
+          select: { propertyId: true, requesterId: true }
+        }
+      }
+    });
+
+    if (!item) {
+      throw new NotFoundException('Verification item not found');
+    }
+
+    if (item.verificationRequest.propertyId !== propertyId) {
+      throw new BadRequestException('Verification item does not belong to this property');
+    }
+
+    if (item.verificationRequest.requesterId !== actor.userId) {
+      throw new ForbiddenException('Only the requester can update verification items');
+    }
+
+    if (item.status === 'APPROVED' || item.status === 'REJECTED') {
+      throw new BadRequestException('Cannot update an item that has been reviewed');
+    }
+
+    const updated = await this.prisma.verificationRequestItem.update({
+      where: { id: itemId },
+      data: {
+        evidenceUrls: dto.evidenceUrls ?? item.evidenceUrls,
+        gpsLat: dto.gpsLat ?? item.gpsLat,
+        gpsLng: dto.gpsLng ?? item.gpsLng,
+        notes: dto.notes ?? item.notes,
+        status: 'SUBMITTED'
+      }
+    });
+
+    await this.audit.log({
+      action: 'verification.item.update',
+      actorId: actor.userId,
+      targetType: 'verificationRequestItem',
+      targetId: itemId,
+      metadata: { propertyId, itemType: item.type }
+    });
+
+    return updated;
+  }
+
+  async reviewVerificationItem(
+    propertyId: string,
+    itemId: string,
+    dto: { status: string; notes?: string },
+    actor: AuthContext
+  ) {
+    // Only admins can review verification items
+    if (actor.role !== Role.ADMIN) {
+      throw new ForbiddenException('Only administrators can review verification items');
+    }
+
+    const property = await this.getPropertyOrThrow(propertyId);
+    const item = await this.prisma.verificationRequestItem.findUnique({
+      where: { id: itemId },
+      include: {
+        verificationRequest: {
+          select: { propertyId: true, id: true }
+        }
+      }
+    });
+
+    if (!item) {
+      throw new NotFoundException('Verification item not found');
+    }
+
+    if (item.verificationRequest.propertyId !== propertyId) {
+      throw new BadRequestException('Verification item does not belong to this property');
+    }
+
+    const updated = await this.prisma.verificationRequestItem.update({
+      where: { id: itemId },
+      data: {
+        status: dto.status as VerificationItemStatus,
+        notes: dto.notes ?? item.notes,
+        verifierId: actor.userId,
+        reviewedAt: new Date()
+      }
+    });
+
+    // Check if all items are reviewed and update request status
+    const allItems = await this.prisma.verificationRequestItem.findMany({
+      where: { verificationRequestId: item.verificationRequest.id }
+    });
+
+    const allApproved = allItems.every((i: { status: string }) => i.status === 'APPROVED');
+    const anyRejected = allItems.some((i: { status: string }) => i.status === 'REJECTED');
+
+    if (allApproved) {
+      await this.prisma.verificationRequest.update({
+        where: { id: item.verificationRequest.id },
+        data: { status: VerificationStatus.APPROVED }
+      });
+
+      // Update property status to VERIFIED
+      await this.prisma.property.update({
+        where: { id: propertyId },
+        data: {
+          status: PropertyStatus.VERIFIED,
+          verifiedAt: new Date()
+        }
+      });
+    } else if (anyRejected) {
+      await this.prisma.verificationRequest.update({
+        where: { id: item.verificationRequest.id },
+        data: { status: VerificationStatus.REJECTED }
+      });
+    }
+
+    await this.audit.log({
+      action: 'verification.item.review',
+      actorId: actor.userId,
+      targetType: 'verificationRequestItem',
+      targetId: itemId,
+      metadata: { propertyId, status: dto.status }
+    });
+
+    return updated;
   }
 
   async mapBounds(dto: MapBoundsDto) {
