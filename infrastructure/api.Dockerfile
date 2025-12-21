@@ -1,5 +1,8 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
+ENV PRISMA_SKIP_AUTOINSTALL=true
+
+RUN apk add --no-cache openssl
 
 COPY package*.json ./
 COPY pnpm-workspace.yaml ./
