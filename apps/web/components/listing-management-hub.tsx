@@ -789,7 +789,7 @@ function VerificationTab({ propertyId, isAdmin }: { propertyId: string; isAdmin:
     return (
         <div className="space-y-6">
             {/* Payment Notice */}
-            {verificationPayment && Number(verificationPayment.amount) > 0 && (
+            {verificationPayment && verificationPayment.amountCents > 0 && (
                 <Card className="border-amber-200 bg-amber-50">
                     <CardContent className="p-4">
                         <div className="flex items-center gap-3">
