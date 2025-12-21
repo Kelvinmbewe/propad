@@ -818,12 +818,12 @@ export class PropertiesService {
         id: true,
         name: true,
         phone: true,
-        agentProfile: { 
-          select: { 
-            verifiedListingsCount: true, 
+        agentProfile: {
+          select: {
+            verifiedListingsCount: true,
             leadsCount: true,
             rating: true
-          } 
+          }
         }
       },
       orderBy: {
@@ -898,7 +898,7 @@ export class PropertiesService {
     try {
       const landlordId = dto.landlordId ?? (actor.role === Role.LANDLORD ? actor.userId : undefined);
       const agentOwnerId = dto.agentOwnerId ?? (actor.role === Role.AGENT ? actor.userId : undefined);
-      
+
       // Map actor role to ListingCreatorRole for audit tracking
       let createdByRole: ListingCreatorRole = ListingCreatorRole.LANDLORD;
       if (actor.role === Role.AGENT) {
@@ -1002,7 +1002,7 @@ export class PropertiesService {
         // If attachLocation fails, return property without location data
         const errorMessage = attachError instanceof Error ? attachError.message : String(attachError);
         this.logger.error(`Failed to attach location to created property ${property.id}: ${errorMessage}`, attachError instanceof Error ? attachError.stack : undefined);
-        
+
         // Return a minimal serializable version
         const { country, province, city, suburb, pendingGeo, ...cleanProperty } = property as any;
         return this.convertDecimalsToNumbers({
@@ -1770,39 +1770,38 @@ export class PropertiesService {
             // Proof of ownership item
             ...(dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0
               ? [{
-                  type: 'PROOF_OF_OWNERSHIP' as const,
-                  status: 'SUBMITTED' as const,
-                  evidenceUrls: dto.proofOfOwnershipUrls
-                }]
+                type: 'PROOF_OF_OWNERSHIP' as const,
+                status: 'SUBMITTED' as const,
+                evidenceUrls: dto.proofOfOwnershipUrls
+              }]
               : [{
-                  type: 'PROOF_OF_OWNERSHIP' as const,
-                  status: 'PENDING' as const
-                }]),
-              // Location confirmation item
-              {
-                type: 'LOCATION_CONFIRMATION' as const,
-                status: (dto.locationGpsLat && dto.locationGpsLng ? ('SUBMITTED' as const) : ('PENDING' as const)),
-                gpsLat: dto.locationGpsLat ?? null,
-                gpsLng: dto.locationGpsLng ?? null,
-                notes: dto.requestOnSiteVisit ? 'On-site visit requested' : null
-              },
-              // Property photos item
-              ...(dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0
-                ? [{
-                    type: 'PROPERTY_PHOTOS' as const,
-                    status: 'SUBMITTED' as const,
-                    evidenceUrls: dto.propertyPhotoUrls
-                  }]
-                : [{
-                    type: 'PROPERTY_PHOTOS' as const,
-                    status: 'PENDING' as const
-                  }])
-            ]
-          }
-        },
-        include: {
-          items: true
+                type: 'PROOF_OF_OWNERSHIP' as const,
+                status: 'PENDING' as const
+              }]),
+            // Location confirmation item
+            {
+              type: 'LOCATION_CONFIRMATION' as const,
+              status: (dto.locationGpsLat && dto.locationGpsLng ? ('SUBMITTED' as const) : ('PENDING' as const)),
+              gpsLat: dto.locationGpsLat ?? null,
+              gpsLng: dto.locationGpsLng ?? null,
+              notes: dto.requestOnSiteVisit ? 'On-site visit requested' : null
+            },
+            // Property photos item
+            ...(dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0
+              ? [{
+                type: 'PROPERTY_PHOTOS' as const,
+                status: 'SUBMITTED' as const,
+                evidenceUrls: dto.propertyPhotoUrls
+              }]
+              : [{
+                type: 'PROPERTY_PHOTOS' as const,
+                status: 'PENDING' as const
+              }])
+          ]
         }
+      },
+      include: {
+        items: true
       }
     });
 
@@ -1865,11 +1864,11 @@ export class PropertiesService {
 
   async getVerificationRequest(propertyId: string, actor: AuthContext) {
     const property = await this.getPropertyOrThrow(propertyId);
-    
+
     // Verify access
-    const isAuthorized = property.landlordId === actor.userId || 
-                         property.agentOwnerId === actor.userId || 
-                         actor.role === Role.ADMIN;
+    const isAuthorized = property.landlordId === actor.userId ||
+      property.agentOwnerId === actor.userId ||
+      actor.role === Role.ADMIN;
     if (!isAuthorized) {
       throw new ForbiddenException('You do not have permission to view verification requests for this property');
     }
@@ -2038,8 +2037,8 @@ export class PropertiesService {
     });
 
     // Log activity
-    const activityType = dto.status === 'APPROVED' 
-      ? ListingActivityType.VERIFICATION_APPROVED 
+    const activityType = dto.status === 'APPROVED'
+      ? ListingActivityType.VERIFICATION_APPROVED
       : ListingActivityType.VERIFICATION_REJECTED;
     await this.logActivity(propertyId, activityType, actor.userId, {
       verificationRequestId: item.verificationRequest.id,
@@ -2523,7 +2522,7 @@ export class PropertiesService {
     const isVerifiedTenant = rentPayments.length > 0;
     const firstPayment = rentPayments[0];
     const lastPayment = rentPayments[rentPayments.length - 1];
-    
+
     // Calculate tenant months if not provided
     let tenantMonths = dto.tenantMonths;
     if (!tenantMonths && firstPayment && lastPayment) {
