@@ -48,7 +48,15 @@ export class VerificationsService {
       // 1. Paid first
       if (a.isPaid && !b.isPaid) return -1;
       if (!a.isPaid && b.isPaid) return 1;
-      // 2. Older first (createdAt asc)
+
+      // 2. Highest Score first
+      const scoreA = a.verificationScore || 0;
+      const scoreB = b.verificationScore || 0;
+      if (scoreA !== scoreB) {
+        return scoreB - scoreA;
+      }
+
+      // 3. Older first (createdAt asc)
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
   }
@@ -138,6 +146,9 @@ export class VerificationsService {
       console.error('Failed to update verification item:', error);
       throw new BadRequestException('Failed to update verification item. Please check the status and try again.');
     }
+
+    // 3.5 Recalculate Score & Level
+    await this.updatePropertyVerificationStatus(request.propertyId);
 
     // 4. Check if all items are resolved
     const updatedRequest = await this.prisma.verificationRequest.findUnique({
@@ -259,6 +270,56 @@ export class VerificationsService {
     });
 
     return { property: updated, verification };
+  }
+
+  private async updatePropertyVerificationStatus(propertyId: string) {
+    const request = await this.prisma.verificationRequest.findFirst({
+      where: { propertyId },
+      include: { items: true },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!request) return;
+
+    let score = 0;
+    for (const item of request.items) {
+      if (item.status === VerificationItemStatus.APPROVED) {
+        switch (item.type) {
+          case 'PROOF_OF_OWNERSHIP':
+            score += 40;
+            break;
+          case 'PROPERTY_PHOTOS':
+            score += 20;
+            break;
+          case 'LOCATION_CONFIRMATION':
+            if (item.notes?.includes('On-site visit requested')) {
+              // If it was requested AND Approved, it means site visit done.
+              // NOTE: This relies on the convention that "On-site visit requested" note persists
+              // and admin approves it after visiting.
+              score += 50;
+            } else {
+              score += 30; // GPS only
+            }
+            break;
+        }
+      }
+    }
+
+    // Determine Level
+    let level: 'NONE' | 'BASIC' | 'TRUSTED' | 'VERIFIED' = 'NONE';
+    if (score >= 100) level = 'VERIFIED';
+    else if (score >= 70) level = 'TRUSTED';
+    else if (score >= 30) level = 'BASIC';
+
+    await this.prisma.property.update({
+      where: { id: propertyId },
+      data: {
+        verificationScore: score,
+        verificationLevel: level
+      }
+    });
+
+    return { score, level };
   }
 
   private async ensurePendingProperty(id: string) {

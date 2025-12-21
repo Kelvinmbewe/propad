@@ -702,6 +702,10 @@ model Property {
   // Role-Aware
   createdByRole ListingCreatorRole @default(LANDLORD)
 
+  // Verification Signals
+  verificationScore Int @default(0)
+  verificationLevel VerificationLevel @default(NONE)
+
   // New relations
   interests       Interest[]
   rentPayments    RentPayment[]
@@ -897,6 +901,13 @@ enum VerificationItemType {
   PROOF_OF_OWNERSHIP
   LOCATION_CONFIRMATION
   PROPERTY_PHOTOS
+}
+
+enum VerificationLevel {
+  NONE
+  BASIC
+  TRUSTED
+  VERIFIED
 }
 
 enum VerificationItemStatus {

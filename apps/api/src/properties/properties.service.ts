@@ -244,6 +244,7 @@ export class PropertiesService {
       const suburbName = suburb?.name ?? (pendingGeo?.proposedName ? `${pendingGeo.proposedName} (pending)` : null);
 
       // Build display location using resolved hierarchy: Suburb → City → Province → Country
+      // Build display location using resolved hierarchy: Suburb → City → Province → Country
       const locationParts: string[] = [];
       if (suburbName) locationParts.push(suburbName);
       if (city?.name) locationParts.push(city.name);
@@ -251,36 +252,24 @@ export class PropertiesService {
       if (country?.name) locationParts.push(country.name);
       const displayLocation = locationParts.length > 0 ? locationParts.join(', ') : null;
 
-      // Compute verification status
-      let verificationWeight = 0;
+      // Verification Signals
+      // Prioritize DB fields if present (from search/find queries)
+      // Fallback to 0 if not selected (partial objects)
+      const verificationScore = typeof (property as any).verificationScore === 'number' ? (property as any).verificationScore : 0;
+      const verificationLevel = (property as any).verificationLevel || 'NONE';
+
+      // Map Level to Badge Text (Frontend Compat)
       let verificationBadge = 'Not Verified';
-
-      // We expect verificationRequests to be included if available (via finding or listOwned)
-      // Since we process 'property' which is generic, we access safety
-      const requests = (property as any).verificationRequests;
-      if (Array.isArray(requests) && requests.length > 0) {
-        const latestRequest = requests[0]; // Ordered by desc in query
-        if (latestRequest && latestRequest.items) {
-          const approvedItems = latestRequest.items.filter((i: any) => i.status === 'APPROVED');
-          const approvedTypes = new Set(approvedItems.map((i: any) => i.type));
-          const count = approvedTypes.size;
-
-          if (count >= 3) {
-            verificationWeight = 100;
-            verificationBadge = 'Fully Verified';
-          } else if (count === 2) {
-            verificationWeight = 65;
-            verificationBadge = 'Verified';
-          } else if (count === 1) {
-            verificationWeight = 30;
-            verificationBadge = 'Basic Verification';
-          }
-        }
-      }
+      if (verificationLevel === 'VERIFIED') verificationBadge = 'Fully Verified'; // Gold
+      else if (verificationLevel === 'TRUSTED') verificationBadge = 'Verified'; // Silver
+      else if (verificationLevel === 'BASIC') verificationBadge = 'Basic Verification'; // Bronze
 
       const result: any = {
         ...cleanProperty,
-        verificationWeight,
+        verificationScore,
+        verificationLevel,
+        verificationBoost: verificationScore / 110, // Normalized 0-1
+        verificationWeight: verificationScore, // Legacy field compat (0-110 now)
         verificationBadge,
         countryName: country?.name ?? null,
         provinceName: province?.name ?? null,
@@ -2031,6 +2020,12 @@ export class PropertiesService {
     const request = await this.prisma.verificationRequest.findFirst({
       where: { propertyId },
       include: {
+        property: {
+          select: {
+            verificationScore: true,
+            verificationLevel: true
+          }
+        },
         items: {
           include: {
             verifier: {

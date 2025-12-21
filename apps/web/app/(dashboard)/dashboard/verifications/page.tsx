@@ -145,11 +145,29 @@ export default function VerificationsPage() {
                                                         PAID
                                                     </span>
                                                 )}
-                                                {property.completedCount > 0 && (
-                                                    <span className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
-                                                        <ShieldCheck className="h-3 w-3" />
-                                                        {property.completedCount}/3 verified
-                                                    </span>
+                                                {(property.verificationScore > 0 || (property.verificationLevel && property.verificationLevel !== 'NONE')) && (
+                                                    <div className="flex items-center gap-2">
+                                                        {/* Level Badge */}
+                                                        {property.verificationLevel && property.verificationLevel !== 'NONE' && (() => {
+                                                            const badges = {
+                                                                'BASIC': { label: 'Bronze', color: 'bg-orange-100 text-orange-800 border-orange-200' },
+                                                                'TRUSTED': { label: 'Silver', color: 'bg-slate-100 text-slate-800 border-slate-200' },
+                                                                'VERIFIED': { label: 'Gold', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' }
+                                                            };
+                                                            const badge = badges[property.verificationLevel as keyof typeof badges];
+                                                            if (!badge) return null;
+                                                            return (
+                                                                <span className={`text-xs px-2 py-0.5 rounded-full font-bold border ${badge.color} flex items-center gap-1`}>
+                                                                    <ShieldCheck className="h-3 w-3" />
+                                                                    {badge.label}
+                                                                </span>
+                                                            );
+                                                        })()}
+                                                        {/* Score Badge */}
+                                                        <span className="bg-neutral-100 text-neutral-600 text-xs px-2 py-0.5 rounded-full font-medium border border-neutral-200">
+                                                            Score: {property.verificationScore || 0}/110
+                                                        </span>
+                                                    </div>
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-4 text-sm text-neutral-600 mb-3">

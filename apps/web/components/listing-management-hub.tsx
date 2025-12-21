@@ -817,12 +817,6 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
 
             {/* Overall Status */}
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <ShieldCheck className="h-5 w-5" />
-                        Verification Status
-                    </CardTitle>
-                </CardHeader>
                 <CardContent>
                     <div className="flex items-center gap-4 mb-6">
                         <div className={`h-12 w-12 rounded-full flex items-center justify-center ${overallStatus === 'APPROVED' ? 'bg-emerald-100 text-emerald-600' :
@@ -836,39 +830,60 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                                         <ShieldCheck className="h-6 w-6" />
                             }
                         </div>
-                        <div>
-                            <h3 className="text-lg font-semibold">
-                                {overallStatus === 'APPROVED' ? 'Property Verified' :
-                                    overallStatus === 'PENDING' ? 'Verification Pending' :
-                                        overallStatus === 'REJECTED' ? 'Verification Rejected' :
-                                            'Not Started'}
-                            </h3>
-                            <div className="flex flex-col gap-1">
-                                <p className="text-sm text-neutral-500">
-                                    {overallStatus === 'APPROVED' ? 'This property has been verified by our team.' :
-                                        overallStatus === 'PENDING' ? 'Our team is reviewing your documentation.' :
-                                            overallStatus === 'REJECTED' ? 'Verification was rejected. Please submit new documentation.' :
-                                                'Complete all steps below to request verification.'}
-                                </p>
-                                {items.filter(i => i.status === 'APPROVED').length > 0 && (
-                                    <div className="flex items-center gap-2 mt-2">
+                        <div className="flex-1">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="text-lg font-semibold">
+                                        {overallStatus === 'APPROVED' ? 'Property Verified' :
+                                            overallStatus === 'PENDING' ? 'Verification Pending' :
+                                                overallStatus === 'REJECTED' ? 'Verification Rejected' :
+                                                    'Not Started'}
+                                    </h3>
+                                    <p className="text-sm text-neutral-500 mb-2">
+                                        {overallStatus === 'APPROVED' ? 'This property has been verified by our team.' :
+                                            overallStatus === 'PENDING' ? 'Our team is reviewing your documentation.' :
+                                                overallStatus === 'REJECTED' ? 'Verification was rejected. Please submit new documentation.' :
+                                                    'Complete all steps below to request verification.'}
+                                    </p>
+                                </div>
+                                {/* Level Badge */}
+                                {verificationRequest?.property?.verificationLevel && verificationRequest.property.verificationLevel !== 'NONE' && (
+                                    <div className="flex items-center gap-2">
                                         {(() => {
-                                            const count = items.filter(i => i.status === 'APPROVED').length;
-                                            const badges = [
-                                                { label: 'Bronze', color: 'bg-orange-100 text-orange-800 border-orange-200', icon: ShieldCheck },
-                                                { label: 'Silver', color: 'bg-slate-100 text-slate-800 border-slate-200', icon: ShieldCheck },
-                                                { label: 'Gold', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: ShieldCheck }
-                                            ];
-                                            const currentBadge = badges[Math.min(count, 3) - 1];
+                                            const level = verificationRequest.property.verificationLevel;
+                                            const badges = {
+                                                'BASIC': { label: 'Bronze Badge', color: 'bg-orange-100 text-orange-800 border-orange-200' },
+                                                'TRUSTED': { label: 'Silver Badge', color: 'bg-slate-100 text-slate-800 border-slate-200' },
+                                                'VERIFIED': { label: 'Gold Badge', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' }
+                                            };
+                                            const badge = badges[level as keyof typeof badges];
+                                            if (!badge) return null;
                                             return (
-                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${currentBadge.color}`}>
-                                                    <currentBadge.icon className="h-3.5 w-3.5" />
-                                                    {currentBadge.label} Verification Level ({count}/3)
+                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${badge.color}`}>
+                                                    <ShieldCheck className="h-4 w-4" />
+                                                    {badge.label}
                                                 </span>
                                             );
                                         })()}
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Score Progress Bar */}
+                            <div className="mt-4">
+                                <div className="flex justify-between text-xs mb-1">
+                                    <span className="font-medium text-neutral-700">Verification Strength</span>
+                                    <span className="text-neutral-500">{verificationRequest?.property?.verificationScore || 0} / 110 Points</span>
+                                </div>
+                                <div className="h-2 w-full bg-neutral-100 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-emerald-500 transition-all duration-500"
+                                        style={{ width: `${Math.min(((verificationRequest?.property?.verificationScore || 0) / 110) * 100, 100)}%` }}
+                                    />
+                                </div>
+                                <p className="text-xs text-neutral-500 mt-1">
+                                    Complete more verifications to increase listing trust and visibility.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -951,7 +966,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                     propertyId={propertyId}
                 />
             </div>
-        </div>
+        </div >
     );
 }
 
@@ -1097,15 +1112,19 @@ function VerificationStep({
 
                 </div>
 
-                {item?.notes && (
-                    <div className={`mb-4 p-3 rounded-lg ${item.status === 'APPROVED' ? 'bg-emerald-50 border border-emerald-200' :
-                        item.status === 'REJECTED' ? 'bg-red-50 border border-red-200' :
+                {(item?.notes || item?.status === 'APPROVED' || item?.status === 'REJECTED') && (
+                    <div className={`mb-4 p-3 rounded-lg ${item?.status === 'APPROVED' ? 'bg-emerald-50 border border-emerald-200' :
+                        item?.status === 'REJECTED' ? 'bg-red-50 border border-red-200' :
                             'bg-neutral-50 border border-neutral-200'
                         }`}>
                         <p className="text-sm font-medium mb-1">
-                            {item.status === 'APPROVED' ? 'Approved' : 'Rejected'} {item.verifier ? `by ${item.verifier.name}` : ''}
+                            {item?.status === 'APPROVED'
+                                ? (item?.notes?.includes('On-site visit') ? 'Site Visit Verified' : 'Verified')
+                                : (item?.status === 'REJECTED' ? 'Rejected' : 'Note')}
+                            {item?.verifier ? ` by ${item.verifier.name}` : ''}
+                            {item?.reviewedAt && ` on ${new Date(item.reviewedAt).toLocaleDateString()}`}
                         </p>
-                        <p className="text-xs text-neutral-600">{item.notes}</p>
+                        <p className="text-xs text-neutral-600">{item?.notes}</p>
                     </div>
                 )}
 
