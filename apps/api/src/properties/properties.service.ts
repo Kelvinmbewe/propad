@@ -2022,6 +2022,8 @@ export class PropertiesService {
       include: {
         property: {
           select: {
+            id: true,
+            title: true,
             verificationScore: true,
             verificationLevel: true
           }

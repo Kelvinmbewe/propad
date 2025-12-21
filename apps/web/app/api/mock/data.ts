@@ -46,6 +46,8 @@ function buildLocation(suburb: SuburbEntry, lat: number, lng: number) {
 export const mockProperties: Property[] = [
   {
     id: 'prop-harare-001',
+    verificationScore: 85,
+    verificationLevel: 'TRUSTED',
     title: '3-Bedroom Apartment in Borrowdale',
     type: 'APARTMENT',
     currency: 'USD',
@@ -85,6 +87,8 @@ export const mockProperties: Property[] = [
   },
   {
     id: 'prop-harare-002',
+    verificationScore: 110,
+    verificationLevel: 'VERIFIED',
     title: '4-Bedroom Townhouse in Helensvale',
     type: 'TOWNHOUSE',
     currency: 'USD',
@@ -124,6 +128,8 @@ export const mockProperties: Property[] = [
   },
   {
     id: 'prop-harare-003',
+    verificationScore: 20,
+    verificationLevel: 'NONE',
     title: '2-Bedroom Cottage in Mt Pleasant',
     type: 'COTTAGE',
     currency: 'USD',
@@ -205,6 +211,8 @@ export const mockProperties: Property[] = [
       zoning: 'Commercial core',
       complianceDocsUrl: 'https://cdn.propad.co.zw/mock/compliance-office.pdf'
     },
+    verificationScore: 45,
+    verificationLevel: 'BASIC',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   }

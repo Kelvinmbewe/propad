@@ -294,6 +294,12 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
               verifier?: { id: string; name: string } | null;
             }>;
             requester: { id: string; name: string; email: string };
+            property: {
+              id: string;
+              title: string;
+              verificationScore: number;
+              verificationLevel: 'NONE' | 'BASIC' | 'TRUSTED' | 'VERIFIED';
+            };
           } | null>(),
       submitForVerification: async (
         id: string,

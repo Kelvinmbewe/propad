@@ -156,6 +156,8 @@ export const PropertySchema = z
     media: z.array(PropertyMediaSchema).default([]),
     isManaged: z.boolean().default(false),
     commercialFields: PropertyCommercialFieldsSchema.nullish(),
+    verificationScore: z.number().default(0),
+    verificationLevel: z.enum(['NONE', 'BASIC', 'TRUSTED', 'VERIFIED']).default('NONE'),
     createdAt: z.string().optional(),
     updatedAt: z.string().optional()
   })
