@@ -124,19 +124,6 @@ export class VerificationsService {
         where: { id: itemId },
         data: {
           status: dto.status,
-          // If rejected, store notes as rejectionReason. Currently schema might have rejectionReason or just use notes?
-          // Looking at schema snippet earlier: `rejectionReason: dto.status === VerificationItemStatus.REJECTED ? dto.notes : null` logic was used.
-          // Schema text said: notes String? // User notes or verifier feedback.
-          // Wait, I recall schema snippet "rejectionReason" was NOT in the snippet at step 311.
-          // The snippet at 314 shows:
-          // notes                 String?               // User notes or verifier feedback
-          // verifierId            String?               // Admin/verifier who reviewed
-          // reviewedAt            DateTime?
-          // NO rejectionReason column in the snippet!
-          // So I MUST use `notes` field for rejection reason if schema has no rejectionReason column.
-          // Wait, task 3 says: "On REJECT: status = REJECTED, reviewerNote REQUIRED".
-          // If schema has no rejectionReason, I must overwrite notes or append?
-          // Ideally overwrite if it's a rejection from admin.
           notes: dto.status === VerificationItemStatus.REJECTED ? dto.notes : item.notes,
           verifierId: actor.userId,
           reviewedAt: new Date()
@@ -147,59 +134,81 @@ export class VerificationsService {
       throw new BadRequestException('Failed to update verification item. Please check the status and try again.');
     }
 
-    // 3.5 Recalculate Score & Level
-    await this.updatePropertyVerificationStatus(request.propertyId);
+    // 3.5 Incremental Score Calculation (Optimization)
+    // Calculate points for this specific item
+    let points = 0;
+    switch (item.type) {
+      case 'PROOF_OF_OWNERSHIP':
+        points = 40;
+        break;
+      case 'PROPERTY_PHOTOS':
+        points = 20;
+        break;
+      case 'LOCATION_CONFIRMATION':
+        if (item.notes?.includes('On-site visit requested') || dto.notes?.includes('On-site visit confirmed')) {
+          points = 50;
+        } else {
+          points = 30;
+        }
+        break;
+    }
 
-    // 4. Check if all items are resolved
-    const updatedRequest = await this.prisma.verificationRequest.findUnique({
-      where: { id: requestId },
-      include: { items: true }
+    let scoreDelta = 0;
+    // If transitioning TO Approved
+    if (dto.status === VerificationItemStatus.APPROVED && item.status !== VerificationItemStatus.APPROVED) {
+      scoreDelta = points;
+    }
+    // If transitioning FROM Approved (e.g. correction)
+    else if (item.status === VerificationItemStatus.APPROVED && dto.status !== VerificationItemStatus.APPROVED) {
+      scoreDelta = -points;
+    }
+
+    // Calculate New Level locally
+    const currentScore = request.property.verificationScore;
+    const newScore = Math.max(0, currentScore + scoreDelta);
+    let newLevel = 'NONE';
+    if (newScore >= 100) newLevel = 'VERIFIED';
+    else if (newScore >= 70) newLevel = 'TRUSTED';
+    else if (newScore >= 30) newLevel = 'BASIC';
+
+    // 4. Update Property (Immediate Verification Rule)
+    const propertyUpdateData: any = {
+      verificationScore: newScore,
+      verificationLevel: newLevel as any
+    };
+
+    // Rule: A property becomes VERIFIED once ANY verification item is approved.
+    if (dto.status === VerificationItemStatus.APPROVED) {
+      propertyUpdateData.status = PropertyStatus.VERIFIED;
+      // Only set verifiedAt if not already set, or just update it? Usually keep original date.
+      if (request.property.status !== PropertyStatus.VERIFIED) {
+        propertyUpdateData.verifiedAt = new Date();
+      }
+    }
+
+    await this.prisma.property.update({
+      where: { id: request.propertyId },
+      data: propertyUpdateData
     });
 
-    const allItems = updatedRequest.items;
-    const allReviewed = allItems.every((i: VerificationRequestItem) =>
-      i.status === VerificationItemStatus.APPROVED ||
-      i.status === VerificationItemStatus.REJECTED
-    );
+    // 5. Update Request Status (Optional: Keep roughly in sync)
+    // If we just Approved an item, the Request is effectively "In Progress" or "Partially Approved".
+    // We strictly avoid "Waiting for all" to block Verified status, but we can update the Request status for record keeping.
+    // If ALL items are now approved, mark Request as APPROVED.
+    const remainingValues = request.items
+      .filter((i: VerificationRequestItem) => i.id !== itemId)
+      .map((i: VerificationRequestItem) => i.status);
+    remainingValues.push(dto.status);
 
-    if (allReviewed) {
-      // Determine final request status
-      const anyRejected = allItems.some((i: VerificationRequestItem) => i.status === VerificationItemStatus.REJECTED);
-
-      if (!anyRejected) {
-        // ALL APPROVED
-        await this.prisma.$transaction([
-          this.prisma.verificationRequest.update({
-            where: { id: requestId },
-            data: {
-              status: VerificationStatus.APPROVED
-            }
-          }),
-          this.prisma.property.update({
-            where: { id: request.propertyId },
-            data: {
-              status: PropertyStatus.VERIFIED,
-              verifiedAt: new Date()
-            }
-          }),
-          this.prisma.verification.create({
-            data: {
-              propertyId: request.propertyId,
-              verifierId: actor.userId,
-              method: 'DOCS',
-              result: VerificationResult.PASS
-            }
-          })
-        ]);
-      } else {
-        // AT LEAST ONE REJECTED
-        await this.prisma.verificationRequest.update({
-          where: { id: requestId },
-          data: {
-            status: VerificationStatus.REJECTED
-          }
-        });
-      }
+    if (remainingValues.every((s: VerificationItemStatus) => s === VerificationItemStatus.APPROVED)) {
+      await this.prisma.verificationRequest.update({
+        where: { id: requestId },
+        data: { status: VerificationStatus.APPROVED }
+      });
+    } else if (remainingValues.some((s: VerificationItemStatus) => s === VerificationItemStatus.REJECTED)) {
+      // If any rejected, we might mark request as REJECTED or just leave PENDING.
+      // For now, let's leave generic PENDING unless all are resolved.
+      // Optimization: Don't block Property.VERIFIED status on this.
     }
 
     return this.prisma.verificationRequestItem.findUnique({ where: { id: itemId } });
@@ -272,55 +281,7 @@ export class VerificationsService {
     return { property: updated, verification };
   }
 
-  private async updatePropertyVerificationStatus(propertyId: string) {
-    const request = await this.prisma.verificationRequest.findFirst({
-      where: { propertyId },
-      include: { items: true },
-      orderBy: { createdAt: 'desc' }
-    });
 
-    if (!request) return;
-
-    let score = 0;
-    for (const item of request.items) {
-      if (item.status === VerificationItemStatus.APPROVED) {
-        switch (item.type) {
-          case 'PROOF_OF_OWNERSHIP':
-            score += 40;
-            break;
-          case 'PROPERTY_PHOTOS':
-            score += 20;
-            break;
-          case 'LOCATION_CONFIRMATION':
-            if (item.notes?.includes('On-site visit requested')) {
-              // If it was requested AND Approved, it means site visit done.
-              // NOTE: This relies on the convention that "On-site visit requested" note persists
-              // and admin approves it after visiting.
-              score += 50;
-            } else {
-              score += 30; // GPS only
-            }
-            break;
-        }
-      }
-    }
-
-    // Determine Level
-    let level: 'NONE' | 'BASIC' | 'TRUSTED' | 'VERIFIED' = 'NONE';
-    if (score >= 100) level = 'VERIFIED';
-    else if (score >= 70) level = 'TRUSTED';
-    else if (score >= 30) level = 'BASIC';
-
-    await this.prisma.property.update({
-      where: { id: propertyId },
-      data: {
-        verificationScore: score,
-        verificationLevel: level
-      }
-    });
-
-    return { score, level };
-  }
 
   private async ensurePendingProperty(id: string) {
     const property = await this.prisma.property.findUnique({ where: { id } });
