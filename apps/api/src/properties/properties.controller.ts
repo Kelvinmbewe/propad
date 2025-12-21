@@ -349,7 +349,7 @@ export class PropertiesController {
     return this.propertiesService.getVerificationRequest(id, req.user);
   }
 
-  @Patch('properties/:propertyId/verification-items/:itemId')
+  @Patch(':propertyId/verification-items/:itemId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
   updateVerificationItem(

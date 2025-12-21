@@ -996,9 +996,14 @@ function VerificationStep({
 
                 // Validate file type
                 if (type === 'proof') {
-                    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+                    const allowedTypes = [
+                        'image/jpeg', 'image/png', 'image/webp',
+                        'application/pdf',
+                        'application/msword',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    ];
                     if (!allowedTypes.includes(file.type)) {
-                        notify.error(`Skipped ${file.name}: Invalid file type. Use PDF, DOC, DOCX, JPG, PNG.`);
+                        notify.error(`Skipped ${file.name}: Invalid file type. Use PDF, DOC, DOCX, JPG, PNG, WebP.`);
                         continue;
                     }
                 } else if (type === 'photos') {
@@ -1092,13 +1097,13 @@ function VerificationStep({
                                     <input
                                         type="file"
                                         multiple
-                                        accept={type === 'proof' ? 'image/jpeg,image/png,.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'image/jpeg,image/png,image/webp'}
+                                        accept={type === 'proof' ? '.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp' : '.jpg,.jpeg,.png,.webp'}
                                         onChange={(e) => handleFileUpload(e.target.files)}
                                         disabled={uploading || evidenceUrls.length >= 5}
                                         className="mt-1 block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 disabled:opacity-50"
                                     />
                                     <p className="text-xs text-neutral-500 mt-1">
-                                        {type === 'proof' ? 'Accept: PDF, DOC, DOCX, JPG, PNG (Max 5)' : 'Accept: JPG, PNG, WebP (Max 5)'}
+                                        {type === 'proof' ? 'Accept: PDF, DOC, DOCX, JPG, PNG, WebP (Max 5)' : 'Accept: JPG, PNG, WebP (Max 5)'}
                                     </p>
                                     {uploading && <p className="text-xs text-neutral-500 mt-1">Uploading...</p>}
                                 </div>
