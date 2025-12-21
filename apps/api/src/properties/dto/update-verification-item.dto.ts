@@ -1,7 +1,12 @@
 import { z } from 'zod';
 
 export const updateVerificationItemSchema = z.object({
-  evidenceUrls: z.array(z.string().url()).optional(),
+  evidenceUrls: z.array(
+    z.string().refine(
+      (v) => v.startsWith('/') || v.startsWith('http://') || v.startsWith('https://'),
+      { message: 'Invalid file path. Must be a relative path (starting with /) or absolute URL' }
+    )
+  ).max(5).optional(),
   gpsLat: z.number().min(-90).max(90).optional(),
   gpsLng: z.number().min(-180).max(180).optional(),
   notes: z.string().max(500).optional()

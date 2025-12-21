@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PropertyStatus, VerificationResult, VerificationItemStatus, VerificationStatus, VerificationRequestItem } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -83,15 +83,21 @@ export class VerificationsService {
     }
 
     // 2. Update the item
-    await this.prisma.verificationRequestItem.update({
-      where: { id: itemId },
-      data: {
-        status: dto.status,
-        rejectionReason: dto.status === VerificationItemStatus.REJECTED ? dto.notes : null,
-        verifierId: actor.userId,
-        verifiedAt: new Date()
-      }
-    });
+    // 2. Update the item
+    try {
+      await this.prisma.verificationRequestItem.update({
+        where: { id: itemId },
+        data: {
+          status: dto.status,
+          rejectionReason: dto.status === VerificationItemStatus.REJECTED ? dto.notes : null,
+          verifierId: actor.userId,
+          verifiedAt: new Date()
+        }
+      });
+    } catch (error) {
+      console.error('Failed to update verification item:', error);
+      throw new BadRequestException('Failed to update verification item. Please check the status and try again.');
+    }
 
     // 3. Check if all items are resolved (approved or rejected)
     // We fetch fresh items to be sure
