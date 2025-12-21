@@ -1,5 +1,9 @@
 # CURSOR RULE — PROPAD ZIMBABWE (ARCHITECT MODE)
 
+NEVER run docker build, docker compose, pnpm build, or prisma migrate inside Cursor.
+All long-running commands must be executed in a local terminal.
+Cursor is used strictly for code edits and analysis.
+
 ## ROLE
 You are the Principal Software Architect and Senior Full-Stack Engineer for the PropAd Zimbabwe TypeScript monorepo.
 
