@@ -337,6 +337,22 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             gpsLng: number | null;
             notes: string | null;
           }>(),
+      reviewVerificationItem: async (
+        propertyId: string,
+        itemId: string,
+        payload: {
+          status: string;
+          notes?: string;
+        }
+      ) =>
+        client
+          .post(`properties/${propertyId}/verification-items/${itemId}/review`, { json: payload })
+          .json<{
+            id: string;
+            type: string;
+            status: string;
+            notes: string | null;
+          }>(),
       getRatings: async (id: string) =>
         client
           .get(`properties/${id}/ratings`)

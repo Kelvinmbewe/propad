@@ -739,7 +739,7 @@ function VerificationTab({ propertyId, isAdmin }: { propertyId: string; isAdmin:
 
     const reviewItemMut = useMutation({
         mutationFn: ({ itemId, status, notes }: { itemId: string, status: string, notes?: string }) =>
-            (sdk as any).properties.reviewVerificationItem(propertyId, itemId, { status, notes }),
+            sdk!.properties.reviewVerificationItem(propertyId, itemId, { status, notes }),
         onSuccess: () => {
             notify.success('Verification item reviewed');
             queryClient.invalidateQueries({ queryKey: ['verification', propertyId] });
