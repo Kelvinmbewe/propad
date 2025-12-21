@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button, Card, CardContent, CardHeader, CardTitle, notify, Skeleton, Input, Label } from '@propad/ui';
+import { useSession } from 'next-auth/react';
+import { Button, Card, CardContent, CardHeader, CardTitle, notify, Skeleton, Input, Label, Textarea } from '@propad/ui';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { formatCurrency } from '@/lib/formatters';
 import Link from 'next/link';
@@ -22,6 +23,8 @@ type Tab = 'overview' | 'management' | 'interest' | 'chats' | 'viewings' | 'paym
 
 export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     const sdk = useAuthenticatedSDK();
+    const { data: session } = useSession();
+    const isAdmin = session?.user?.role === 'ADMIN';
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<Tab>('overview');
     const [serviceFee, setServiceFee] = useState('');
@@ -181,7 +184,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
                 )}
                 {activeTab === 'viewings' && <ViewingsTab propertyId={propertyId} />}
                 {activeTab === 'payments' && <PaymentsTab propertyId={propertyId} />}
-                {activeTab === 'verification' && <VerificationTab propertyId={propertyId} />}
+                {activeTab === 'verification' && <VerificationTab propertyId={propertyId} isAdmin={isAdmin} />}
                 {activeTab === 'ratings' && <RatingsTab propertyId={propertyId} />}
                 {activeTab === 'logs' && <LogsTab propertyId={propertyId} />}
             </div>
@@ -229,8 +232,8 @@ function ManagementTab({
     updateFee, isUpdatingFee
 }: any) {
     const assignment = property.assignments?.[0];
-    const selectedAgentData = agentSearchResults.find((a: any) => a.id === selectedAgent) || 
-                              agents?.find((a: any) => a.id === selectedAgent);
+    const selectedAgentData = agentSearchResults.find((a: any) => a.id === selectedAgent) ||
+        agents?.find((a: any) => a.id === selectedAgent);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const handleAgentSelect = (agent: any) => {
@@ -501,8 +504,8 @@ function InterestTab({ propertyId }: { propertyId: string }) {
                                     )}
                                     {interest.status === 'ACCEPTED' && daysRemaining !== null && (
                                         <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700">
-                                            {daysRemaining > 0 
-                                                ? `Auto-confirmation in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}` 
+                                            {daysRemaining > 0
+                                                ? `Auto-confirmation in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}`
                                                 : 'Auto-confirmation pending'}
                                         </div>
                                     )}
@@ -696,7 +699,7 @@ function ViewingsTab({ propertyId }: { propertyId: string }) {
     );
 }
 
-function VerificationTab({ propertyId }: { propertyId: string }) {
+function VerificationTab({ propertyId, isAdmin }: { propertyId: string; isAdmin: boolean }) {
     const sdk = useAuthenticatedSDK();
     const queryClient = useQueryClient();
 
@@ -729,10 +732,25 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
             sdk!.properties.updateVerificationItem(propertyId, itemId, payload),
         onSuccess: () => {
             notify.success('Verification item updated');
-            queryClient.invalidateQueries({ queryKey: ['verification-request', propertyId] });
+            queryClient.invalidateQueries({ queryKey: ['verification', propertyId] });
         },
         onError: (err: any) => notify.error(err.message || 'Failed to update item')
     });
+
+    const reviewItemMut = useMutation({
+        mutationFn: ({ itemId, status, notes }: { itemId: string, status: string, notes?: string }) =>
+            (sdk as any).properties.reviewVerificationItem(propertyId, itemId, { status, notes }),
+        onSuccess: () => {
+            notify.success('Verification item reviewed');
+            queryClient.invalidateQueries({ queryKey: ['verification', propertyId] });
+        },
+        onError: (err: any) => notify.error(err.message || 'Failed to review item')
+    });
+
+    const handleReview = (itemId: string, status: string, notes?: string) => {
+        if (!itemId) return;
+        reviewItemMut.mutate({ itemId, status, notes });
+    };
 
     if (isLoading) return <Skeleton className="h-64" />;
 
@@ -771,7 +789,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
     return (
         <div className="space-y-6">
             {/* Payment Notice */}
-            {verificationPayment && (
+            {verificationPayment && Number(verificationPayment.amount) > 0 && (
                 <Card className="border-amber-200 bg-amber-50">
                     <CardContent className="p-4">
                         <div className="flex items-center gap-3">
@@ -805,30 +823,29 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center gap-4 mb-6">
-                        <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
-                            overallStatus === 'APPROVED' ? 'bg-emerald-100 text-emerald-600' :
+                        <div className={`h-12 w-12 rounded-full flex items-center justify-center ${overallStatus === 'APPROVED' ? 'bg-emerald-100 text-emerald-600' :
                             overallStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-600' :
-                            overallStatus === 'REJECTED' ? 'bg-red-100 text-red-600' :
-                            'bg-neutral-100 text-neutral-600'
-                        }`}>
+                                overallStatus === 'REJECTED' ? 'bg-red-100 text-red-600' :
+                                    'bg-neutral-100 text-neutral-600'
+                            }`}>
                             {overallStatus === 'APPROVED' ? <ShieldCheck className="h-6 w-6" /> :
                                 overallStatus === 'PENDING' ? <Loader2 className="h-6 w-6 animate-spin" /> :
-                                overallStatus === 'REJECTED' ? <AlertTriangle className="h-6 w-6" /> :
-                                <ShieldCheck className="h-6 w-6" />
+                                    overallStatus === 'REJECTED' ? <AlertTriangle className="h-6 w-6" /> :
+                                        <ShieldCheck className="h-6 w-6" />
                             }
                         </div>
                         <div>
                             <h3 className="text-lg font-semibold">
                                 {overallStatus === 'APPROVED' ? 'Property Verified' :
                                     overallStatus === 'PENDING' ? 'Verification Pending' :
-                                    overallStatus === 'REJECTED' ? 'Verification Rejected' :
-                                    'Not Started'}
+                                        overallStatus === 'REJECTED' ? 'Verification Rejected' :
+                                            'Not Started'}
                             </h3>
                             <p className="text-sm text-neutral-500">
                                 {overallStatus === 'APPROVED' ? 'This property has been verified by our team.' :
                                     overallStatus === 'PENDING' ? 'Our team is reviewing your documentation.' :
-                                    overallStatus === 'REJECTED' ? 'Verification was rejected. Please submit new documentation.' :
-                                    'Complete all steps below to request verification.'}
+                                        overallStatus === 'REJECTED' ? 'Verification was rejected. Please submit new documentation.' :
+                                            'Complete all steps below to request verification.'}
                             </p>
                         </div>
                     </div>
@@ -840,11 +857,13 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                 {/* Step 1: Proof of Ownership */}
                 <VerificationStep
                     title="Proof of Ownership"
-                    description="Upload title deed or utility bill"
+                    description="Upload title deed or utility bill (Max 5 files)"
                     icon={<FileText className="h-5 w-5" />}
                     item={proofItem}
                     statusBadge={getStatusBadge(proofItem?.status || 'PENDING')}
-                    isDisabled={proofItem?.status === 'APPROVED' || !!verificationPayment}
+                    isDisabled={(!isAdmin && (proofItem?.status === 'APPROVED' || proofItem?.status === 'PENDING')) || (!isAdmin && !!verificationPayment)}
+                    isAdmin={isAdmin}
+                    onReview={(status, notes) => handleReview(proofItem?.id || '', status, notes)}
                     onSubmit={(evidenceUrls) => {
                         if (verificationRequest && proofItem) {
                             updateItemMut.mutate({
@@ -868,7 +887,9 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                     icon={<MapPinIcon className="h-5 w-5" />}
                     item={locationItem}
                     statusBadge={getStatusBadge(locationItem?.status || 'PENDING')}
-                    isDisabled={locationItem?.status === 'APPROVED' || !!verificationPayment}
+                    isDisabled={(!isAdmin && (locationItem?.status === 'APPROVED' || locationItem?.status === 'PENDING')) || (!isAdmin && !!verificationPayment)}
+                    isAdmin={isAdmin}
+                    onReview={(status, notes) => handleReview(locationItem?.id || '', status, notes)}
                     onSubmit={(data) => {
                         if (verificationRequest && locationItem) {
                             updateItemMut.mutate({
@@ -890,11 +911,13 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                 {/* Step 3: Property Photos */}
                 <VerificationStep
                     title="Property Photos"
-                    description="Upload current photos of the property"
+                    description="Upload current photos of the property (Max 5 files)"
                     icon={<Camera className="h-5 w-5" />}
                     item={photosItem}
                     statusBadge={getStatusBadge(photosItem?.status || 'PENDING')}
-                    isDisabled={photosItem?.status === 'APPROVED' || !!verificationPayment}
+                    isDisabled={(!isAdmin && (photosItem?.status === 'APPROVED' || photosItem?.status === 'PENDING')) || (!isAdmin && !!verificationPayment)}
+                    isAdmin={isAdmin}
+                    onReview={(status, notes) => handleReview(photosItem?.id || '', status, notes)}
                     onSubmit={(evidenceUrls) => {
                         if (verificationRequest && photosItem) {
                             updateItemMut.mutate({
@@ -922,6 +945,8 @@ function VerificationStep({
     item,
     statusBadge,
     isDisabled,
+    isAdmin,
+    onReview,
     onSubmit,
     type,
     propertyId
@@ -932,6 +957,8 @@ function VerificationStep({
     item: any;
     statusBadge: React.ReactNode;
     isDisabled: boolean;
+    isAdmin?: boolean;
+    onReview?: (status: string, notes?: string) => void;
     onSubmit: (data: any) => void;
     type: 'proof' | 'location' | 'photos';
     propertyId: string;
@@ -942,6 +969,10 @@ function VerificationStep({
     const [gpsLng, setGpsLng] = useState<number | undefined>(item?.gpsLng || undefined);
     const [requestOnSiteVisit, setRequestOnSiteVisit] = useState<boolean>(!!item?.notes?.includes('On-site visit'));
     const [uploading, setUploading] = useState(false);
+
+    // Admin Review State
+    const [reviewNote, setReviewNote] = useState('');
+    const [showRejectInput, setShowRejectInput] = useState(false);
 
     // Sync with item when it changes
     useEffect(() => {
@@ -955,33 +986,49 @@ function VerificationStep({
 
     const handleFileUpload = async (files: FileList | null) => {
         if (!files || files.length === 0 || !sdk) return;
-        
-        // Limit to single file - take first file only
-        const file = files[0];
-        
-        // Validate file type based on verification item type
-        if (type === 'proof') {
-            const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-            if (!allowedTypes.includes(file.type)) {
-                notify.error('Proof of Ownership accepts: JPEG, PNG, PDF, DOC, or DOCX files only');
-                return;
-            }
-        } else if (type === 'photos') {
-            const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-            if (!allowedTypes.includes(file.type)) {
-                notify.error('Property Photos accepts: JPEG, PNG, or WebP images only');
-                return;
-            }
+
+        // Multi-file upload logic
+        // Check limits
+        const currentCount = evidenceUrls.length;
+        const newCount = files.length;
+        if (currentCount + newCount > 5) {
+            notify.error('Maximum 5 files allowed per item');
+            return;
         }
-        
+
         setUploading(true);
         try {
-            const result = await sdk.properties.uploadMedia(propertyId, file);
-            // Replace existing file with new one (single file only)
-            setEvidenceUrls([result.url]);
-            notify.success('File uploaded successfully');
+            const uploadedUrls: string[] = [];
+
+            // Upload sequentially to avoid overwhelming
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+
+                // Validate file type
+                if (type === 'proof') {
+                    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+                    if (!allowedTypes.includes(file.type)) {
+                        notify.error(`Skipped ${file.name}: Invalid file type. Use PDF, DOC, DOCX, JPG, PNG.`);
+                        continue;
+                    }
+                } else if (type === 'photos') {
+                    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+                    if (!allowedTypes.includes(file.type)) {
+                        notify.error(`Skipped ${file.name}: Invalid file type. Use JPG, PNG, WebP.`);
+                        continue;
+                    }
+                }
+
+                const result = await sdk.properties.uploadMedia(propertyId, file);
+                uploadedUrls.push(result.url);
+            }
+
+            if (uploadedUrls.length > 0) {
+                setEvidenceUrls(prev => [...prev, ...uploadedUrls]);
+                notify.success(`Uploaded ${uploadedUrls.length} files`);
+            }
         } catch (error) {
-            notify.error('Failed to upload file');
+            notify.error('Failed to upload file(s)');
             console.error('Upload error:', error);
         } finally {
             setUploading(false);
@@ -1011,6 +1058,10 @@ function VerificationStep({
         }
     };
 
+    const handleRemoveFile = (index: number) => {
+        setEvidenceUrls(prev => prev.filter((_, i) => i !== index));
+    };
+
     return (
         <Card>
             <CardContent className="p-6">
@@ -1024,17 +1075,58 @@ function VerificationStep({
                             <p className="text-sm text-neutral-500">{description}</p>
                         </div>
                     </div>
-                    {statusBadge}
+                    <div className="flex items-center gap-2">
+                        {statusBadge}
+                        {isAdmin && item && item.status !== 'APPROVED' && (
+                            <div className="flex gap-1 ml-2 relative">
+                                {!showRejectInput ? (
+                                    <>
+                                        <Button size="sm" variant="outline" className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 h-7" onClick={() => onReview?.('APPROVED')}>
+                                            <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
+                                        </Button>
+                                        <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 h-7" onClick={() => setShowRejectInput(true)}>
+                                            <XCircle className="h-4 w-4 mr-1" /> Reject
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <div className="flex flex-col gap-2 min-w-[250px] bg-white p-3 border rounded-lg shadow-sm absolute right-0 z-10 top-8">
+                                        <Label>Reason for rejection</Label>
+                                        <Textarea
+                                            value={reviewNote}
+                                            onChange={e => setReviewNote(e.target.value)}
+                                            placeholder="E.g. Document blurry, wrong usage..."
+                                            className="h-20 text-xs"
+                                        />
+                                        <div className="flex justify-end gap-2">
+                                            <Button size="sm" variant="ghost" className="h-7" onClick={() => setShowRejectInput(false)}>Cancel</Button>
+                                            <Button
+                                                size="sm"
+                                                variant="destructive"
+                                                className="h-7"
+                                                disabled={!reviewNote}
+                                                onClick={() => {
+                                                    onReview?.('REJECTED', reviewNote);
+                                                    setShowRejectInput(false);
+                                                    setReviewNote('');
+                                                }}
+                                            >
+                                                Confirm Reject
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {item?.notes && item.verifier && (
-                    <div className={`mb-4 p-3 rounded-lg ${
-                        item.status === 'APPROVED' ? 'bg-emerald-50 border border-emerald-200' :
+                {item?.notes && (
+                    <div className={`mb-4 p-3 rounded-lg ${item.status === 'APPROVED' ? 'bg-emerald-50 border border-emerald-200' :
                         item.status === 'REJECTED' ? 'bg-red-50 border border-red-200' :
-                        'bg-neutral-50 border border-neutral-200'
-                    }`}>
+                            'bg-neutral-50 border border-neutral-200'
+                        }`}>
                         <p className="text-sm font-medium mb-1">
-                            {item.status === 'APPROVED' ? 'Approved' : 'Rejected'} by {item.verifier.name}
+                            {item.status === 'APPROVED' ? 'Approved' : 'Rejected'} {item.verifier ? `by ${item.verifier.name}` : ''}
                         </p>
                         <p className="text-xs text-neutral-600">{item.notes}</p>
                     </div>
@@ -1045,37 +1137,49 @@ function VerificationStep({
                         {type === 'proof' || type === 'photos' ? (
                             <>
                                 <div>
-                                    <Label>Upload File</Label>
+                                    <Label>Upload Files</Label>
                                     <input
                                         type="file"
+                                        multiple
                                         accept={type === 'proof' ? 'image/jpeg,image/png,.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'image/jpeg,image/png,image/webp'}
                                         onChange={(e) => handleFileUpload(e.target.files)}
-                                        disabled={uploading}
+                                        disabled={uploading || evidenceUrls.length >= 5}
                                         className="mt-1 block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 disabled:opacity-50"
                                     />
                                     <p className="text-xs text-neutral-500 mt-1">
-                                        {type === 'proof' ? 'Accept: JPEG, PNG, PDF, DOC, DOCX (1 file only)' : 'Accept: JPEG, PNG, WebP (1 image only)'}
+                                        {type === 'proof' ? 'Accept: PDF, DOC, DOCX, JPG, PNG (Max 5)' : 'Accept: JPG, PNG, WebP (Max 5)'}
                                     </p>
                                     {uploading && <p className="text-xs text-neutral-500 mt-1">Uploading...</p>}
                                 </div>
                                 {evidenceUrls.length > 0 && (
-                                    <div className="relative aspect-video bg-neutral-100 rounded overflow-hidden group max-w-md">
-                                        {evidenceUrls[0].endsWith('.pdf') || evidenceUrls[0].includes('.pdf') || evidenceUrls[0].includes('.doc') ? (
-                                            <div className="w-full h-full flex items-center justify-center">
-                                                <FileText className="h-8 w-8 text-neutral-400" />
-                                                <span className="ml-2 text-sm text-neutral-500">{evidenceUrls[0].split('/').pop()}</span>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                        {evidenceUrls.map((url, idx) => (
+                                            <div key={idx} className="relative aspect-video bg-neutral-100 rounded overflow-hidden group border">
+                                                {url.endsWith('.pdf') || url.includes('.pdf') || url.includes('.doc') ? (
+                                                    <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center">
+                                                        <FileText className="h-8 w-8 text-neutral-400 mb-1" />
+                                                        <span className="text-[10px] text-neutral-500 truncate w-full px-1">{url.split('/').pop()}</span>
+                                                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-500 hover:underline mt-1">View</a>
+                                                    </div>
+                                                ) : (
+                                                    <a href={url} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                                                        <img src={url} alt={`Evidence ${idx + 1}`} className="w-full h-full object-cover" />
+                                                    </a>
+                                                )}
+                                                {!isDisabled && (
+                                                    <button
+                                                        onClick={(e: any) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            handleRemoveFile(idx);
+                                                        }}
+                                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <X className="h-3 w-3" />
+                                                    </button>
+                                                )}
                                             </div>
-                                        ) : (
-                                            <img src={evidenceUrls[0]} alt="Evidence" className="w-full h-full object-cover" />
-                                        )}
-                                        {!isDisabled && (
-                                            <button
-                                                onClick={() => setEvidenceUrls([])}
-                                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <X className="h-3 w-3" />
-                                            </button>
-                                        )}
+                                        ))}
                                     </div>
                                 )}
                             </>
@@ -1159,7 +1263,7 @@ function VerificationStep({
                             disabled={
                                 uploading ||
                                 ((type === 'proof' || type === 'photos') ? evidenceUrls.length === 0 :
-                                type === 'location' ? !((gpsLat && gpsLng) || requestOnSiteVisit) : false)
+                                    type === 'location' ? !((gpsLat && gpsLng) || requestOnSiteVisit) : false)
                             }
                         >
                             {uploading ? 'Uploading...' : item ? 'Update' : 'Submit'}
@@ -1487,11 +1591,10 @@ function RatingsTab({ propertyId }: { propertyId: string }) {
                                             onClick={() => setRating(star)}
                                         >
                                             <Star
-                                                className={`h-8 w-8 transition-colors ${
-                                                    star <= (hoverRating || rating)
-                                                        ? 'fill-yellow-400 text-yellow-400'
-                                                        : 'text-neutral-300'
-                                                }`}
+                                                className={`h-8 w-8 transition-colors ${star <= (hoverRating || rating)
+                                                    ? 'fill-yellow-400 text-yellow-400'
+                                                    : 'text-neutral-300'
+                                                    }`}
                                             />
                                         </button>
                                     ))}

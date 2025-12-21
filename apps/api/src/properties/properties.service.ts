@@ -43,8 +43,11 @@ import { UpdateDealConfirmationDto } from './dto/update-deal-confirmation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateServiceFeeDto } from './dto/update-service-fee.dto';
 
-const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'video/mp4']);
-const ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.mp4']);
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'video/mp4',
+  'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+]);
+const ALLOWED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.mp4', '.pdf', '.doc', '.docx']);
 
 type AuthContext = {
   userId: string;
@@ -248,8 +251,37 @@ export class PropertiesService {
       if (country?.name) locationParts.push(country.name);
       const displayLocation = locationParts.length > 0 ? locationParts.join(', ') : null;
 
+      // Compute verification status
+      let verificationWeight = 0;
+      let verificationBadge = 'Not Verified';
+
+      // We expect verificationRequests to be included if available (via finding or listOwned)
+      // Since we process 'property' which is generic, we access safety
+      const requests = (property as any).verificationRequests;
+      if (Array.isArray(requests) && requests.length > 0) {
+        const latestRequest = requests[0]; // Ordered by desc in query
+        if (latestRequest && latestRequest.items) {
+          const approvedItems = latestRequest.items.filter((i: any) => i.status === 'APPROVED');
+          const approvedTypes = new Set(approvedItems.map((i: any) => i.type));
+          const count = approvedTypes.size;
+
+          if (count >= 3) {
+            verificationWeight = 100;
+            verificationBadge = 'Fully Verified';
+          } else if (count === 2) {
+            verificationWeight = 65;
+            verificationBadge = 'Verified';
+          } else if (count === 1) {
+            verificationWeight = 30;
+            verificationBadge = 'Basic Verification';
+          }
+        }
+      }
+
       const result: any = {
         ...cleanProperty,
+        verificationWeight,
+        verificationBadge,
         countryName: country?.name ?? null,
         provinceName: province?.name ?? null,
         cityName: city?.name ?? null,
@@ -318,6 +350,8 @@ export class PropertiesService {
         cityName: null,
         suburbName: null,
         displayLocation: null,
+        verificationWeight: 0,
+        verificationBadge: 'Not Verified',
         location: {
           countryId: null,
           country: null,
@@ -656,7 +690,12 @@ export class PropertiesService {
       province: true,
       city: true,
       suburb: true,
-      pendingGeo: true
+      pendingGeo: true,
+      verificationRequests: {
+        include: { items: true },
+        orderBy: { createdAt: 'desc' },
+        take: 1
+      }
     } satisfies Prisma.PropertyInclude;
 
     if (actor.role === Role.ADMIN) {
@@ -849,7 +888,12 @@ export class PropertiesService {
         pendingGeo: true,
         media: true,
         landlord: { select: { id: true, name: true, email: true } },
-        agentOwner: { select: { id: true, name: true, email: true } }
+        agentOwner: { select: { id: true, name: true, email: true } },
+        verificationRequests: {
+          include: { items: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        }
       }
     });
 
@@ -1736,74 +1780,185 @@ export class PropertiesService {
     const property = await this.getPropertyOrThrow(id);
     this.ensureCanMutate(property, actor);
 
-    // Check if there's already a pending verification request
+    // Check if there's already a verification request
     const existingRequest = await this.prisma.verificationRequest.findFirst({
       where: {
-        propertyId: id,
-        status: 'PENDING'
-      }
-    });
-
-    if (existingRequest) {
-      throw new BadRequestException('A verification request is already pending for this property');
-    }
-
-    // Validate single file upload per item
-    if (dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 1) {
-      throw new BadRequestException('Proof of Ownership allows only 1 file');
-    }
-    if (dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 1) {
-      throw new BadRequestException('Property Photos allows only 1 file');
-    }
-
-    const verificationFeeUsdCents = 2000; // $20.00 - Admin configurable (can be 0 for free verification)
-
-    // Create verification request with items
-    const verificationRequest = await this.prisma.verificationRequest.create({
-      data: {
-        propertyId: id,
-        requesterId: actor.userId,
-        status: 'PENDING',
-        notes: dto.notes ?? null,
-        items: {
-          create: [
-            // Proof of ownership item
-            ...(dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0
-              ? [{
-                type: 'PROOF_OF_OWNERSHIP' as const,
-                status: 'SUBMITTED' as const,
-                evidenceUrls: dto.proofOfOwnershipUrls
-              }]
-              : [{
-                type: 'PROOF_OF_OWNERSHIP' as const,
-                status: 'PENDING' as const
-              }]),
-            // Location confirmation item
-            {
-              type: 'LOCATION_CONFIRMATION' as const,
-              status: (dto.locationGpsLat && dto.locationGpsLng ? ('SUBMITTED' as const) : ('PENDING' as const)),
-              gpsLat: dto.locationGpsLat ?? null,
-              gpsLng: dto.locationGpsLng ?? null,
-              notes: dto.requestOnSiteVisit ? 'On-site visit requested' : null
-            },
-            // Property photos item
-            ...(dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0
-              ? [{
-                type: 'PROPERTY_PHOTOS' as const,
-                status: 'SUBMITTED' as const,
-                evidenceUrls: dto.propertyPhotoUrls
-              }]
-              : [{
-                type: 'PROPERTY_PHOTOS' as const,
-                status: 'PENDING' as const
-              }])
-          ]
-        }
+        propertyId: id
       },
       include: {
         items: true
       }
     });
+
+    // If exists and PENDING/APPROVED, block.
+    // If REJECTED, we will "revive" it.
+    if (existingRequest && existingRequest.status !== 'REJECTED') {
+      throw new BadRequestException('A verification request is already pending or approved for this property');
+    }
+
+    // Validate file limits per item
+    if (dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 5) {
+      throw new BadRequestException('Proof of Ownership allows max 5 files');
+    }
+    if (dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 5) {
+      throw new BadRequestException('Property Photos allows max 5 files');
+    }
+
+    const verificationFeeUsdCents = 2000; // $20.00 - Admin configurable (can be 0 for free verification)
+
+    let verificationRequest;
+
+    if (existingRequest && existingRequest.status === 'REJECTED') {
+      // Logic for RESUBMISSION (reviving rejected request)
+      // 1. Update request status to PENDING
+      // 2. Update/Create items
+      // For simplicity in this fix, we'll update the main request and create NEW items if needed or update existing ones?
+      // Actually, standard prisma create with nested logic might be complex for upset.
+      // Let's just update the status and then handle items.
+
+      await this.prisma.verificationRequest.update({
+        where: { id: existingRequest.id },
+        data: {
+          status: 'PENDING',
+          notes: dto.notes ?? existingRequest.notes
+        }
+      });
+
+      // Handle Proof of Ownership Item
+      const proofItem = existingRequest.items.find((i: { type: string }) => i.type === 'PROOF_OF_OWNERSHIP');
+      if (dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0) {
+        if (proofItem) {
+          await this.prisma.verificationRequestItem.update({
+            where: { id: proofItem.id },
+            data: {
+              status: 'SUBMITTED',
+              evidenceUrls: dto.proofOfOwnershipUrls,
+              verifierId: null, // Reset verifier
+              reviewedAt: null
+            }
+          });
+        } else {
+          await this.prisma.verificationRequestItem.create({
+            data: {
+              verificationRequestId: existingRequest.id,
+              type: 'PROOF_OF_OWNERSHIP',
+              status: 'SUBMITTED',
+              evidenceUrls: dto.proofOfOwnershipUrls
+            }
+          });
+        }
+      }
+
+      // Handle Location Item
+      const locItem = existingRequest.items.find((i: { type: string }) => i.type === 'LOCATION_CONFIRMATION');
+      if (dto.locationGpsLat || dto.locationGpsLng || dto.requestOnSiteVisit) {
+        // Determine status
+        const locStatus = (dto.locationGpsLat && dto.locationGpsLng) ? 'SUBMITTED' : 'PENDING';
+        if (locItem) {
+          await this.prisma.verificationRequestItem.update({
+            where: { id: locItem.id },
+            data: {
+              status: locStatus,
+              gpsLat: dto.locationGpsLat ?? locItem.gpsLat,
+              gpsLng: dto.locationGpsLng ?? locItem.gpsLng,
+              notes: dto.requestOnSiteVisit ? 'On-site visit requested' : locItem.notes,
+              verifierId: null,
+              reviewedAt: null
+            }
+          });
+        } else {
+          await this.prisma.verificationRequestItem.create({
+            data: {
+              verificationRequestId: existingRequest.id,
+              type: 'LOCATION_CONFIRMATION',
+              status: locStatus,
+              gpsLat: dto.locationGpsLat,
+              gpsLng: dto.locationGpsLng,
+              notes: dto.requestOnSiteVisit ? 'On-site visit requested' : null
+            }
+          });
+        }
+      }
+
+      // Handle Photos Item
+      const photoItem = existingRequest.items.find((i: { type: string }) => i.type === 'PROPERTY_PHOTOS');
+      if (dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0) {
+        if (photoItem) {
+          await this.prisma.verificationRequestItem.update({
+            where: { id: photoItem.id },
+            data: {
+              status: 'SUBMITTED',
+              evidenceUrls: dto.propertyPhotoUrls,
+              verifierId: null,
+              reviewedAt: null
+            }
+          });
+        } else {
+          await this.prisma.verificationRequestItem.create({
+            data: {
+              verificationRequestId: existingRequest.id,
+              type: 'PROPERTY_PHOTOS',
+              status: 'SUBMITTED',
+              evidenceUrls: dto.propertyPhotoUrls
+            }
+          });
+        }
+      }
+
+      // Reload request with items
+      verificationRequest = await this.prisma.verificationRequest.findUnique({
+        where: { id: existingRequest.id },
+        include: { items: true }
+      });
+
+    } else {
+      // NEW Request Logic
+      verificationRequest = await this.prisma.verificationRequest.create({
+        data: {
+          propertyId: id,
+          requesterId: actor.userId,
+          status: 'PENDING', // Always starts as PENDING until fee paid? Or unrelated?
+          notes: dto.notes ?? null,
+          items: {
+            create: [
+              // Proof of ownership item
+              ...(dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0
+                ? [{
+                  type: 'PROOF_OF_OWNERSHIP' as const,
+                  status: 'SUBMITTED' as const,
+                  evidenceUrls: dto.proofOfOwnershipUrls
+                }]
+                : [{
+                  type: 'PROOF_OF_OWNERSHIP' as const,
+                  status: 'PENDING' as const
+                }]),
+              // Location confirmation item
+              {
+                type: 'LOCATION_CONFIRMATION' as const,
+                status: (dto.locationGpsLat && dto.locationGpsLng ? ('SUBMITTED' as const) : ('PENDING' as const)),
+                gpsLat: dto.locationGpsLat ?? null,
+                gpsLng: dto.locationGpsLng ?? null,
+                notes: dto.requestOnSiteVisit ? 'On-site visit requested' : null
+              },
+              // Property photos item
+              ...(dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0
+                ? [{
+                  type: 'PROPERTY_PHOTOS' as const,
+                  status: 'SUBMITTED' as const,
+                  evidenceUrls: dto.propertyPhotoUrls
+                }]
+                : [{
+                  type: 'PROPERTY_PHOTOS' as const,
+                  status: 'PENDING' as const
+                }])
+            ]
+          }
+        },
+        include: {
+          items: true
+        }
+      });
+    }
 
     // Only create payment if fee > 0
     let payment = null;
@@ -1907,7 +2062,7 @@ export class PropertiesService {
       where: { id: itemId },
       include: {
         verificationRequest: {
-          select: { propertyId: true, requesterId: true }
+          select: { propertyId: true, requesterId: true, id: true }
         }
       }
     });
@@ -1924,28 +2079,45 @@ export class PropertiesService {
       throw new ForbiddenException('Only the requester can update verification items');
     }
 
-    if (item.status === 'APPROVED' || item.status === 'REJECTED') {
-      throw new BadRequestException('Cannot update an item that has been reviewed');
+    if (item.status === 'APPROVED') {
+      throw new BadRequestException('Cannot update an item that has been approved');
     }
 
-    // Validate single file upload for proof/photo items
-    if (dto.evidenceUrls && dto.evidenceUrls.length > 1) {
+    // Validate single file upload    // For proof/photos, validate single file (changed to 5 files)
+    if (dto.evidenceUrls && dto.evidenceUrls.length > 5) {
       if (item.type === 'PROOF_OF_OWNERSHIP') {
-        throw new BadRequestException('Proof of Ownership allows only 1 file');
+        throw new BadRequestException('Proof of Ownership allows max 5 files');
       }
       if (item.type === 'PROPERTY_PHOTOS') {
-        throw new BadRequestException('Property Photos allows only 1 file');
+        throw new BadRequestException('Property Photos allows max 5 files');
       }
     }
 
-    const updated = await this.prisma.verificationRequestItem.update({
+    // If item was REJECTED, we allow update and reset to SUBMITTED
+    const newStatus = item.status === 'REJECTED' ? 'SUBMITTED' : item.status;
+
+    // If updating usage of REJECTED item, we should also ensure parent request is PENDING if it was REJECTED?
+    // But items are updated individually often.
+    // Let's check parent request.
+    const parentRequest = await this.prisma.verificationRequest.findUnique({ where: { id: item.verificationRequest.id } });
+    if (parentRequest && parentRequest.status === 'REJECTED') {
+      // Also revive parent request
+      await this.prisma.verificationRequest.update({
+        where: { id: parentRequest.id },
+        data: { status: 'PENDING' }
+      });
+    }
+
+    const updatedItem = await this.prisma.verificationRequestItem.update({
       where: { id: itemId },
       data: {
         evidenceUrls: dto.evidenceUrls ?? item.evidenceUrls,
         gpsLat: dto.gpsLat ?? item.gpsLat,
         gpsLng: dto.gpsLng ?? item.gpsLng,
         notes: dto.notes ?? item.notes,
-        status: 'SUBMITTED'
+        status: newStatus,
+        verifierId: newStatus === 'SUBMITTED' ? null : item.verifierId, // Reset verifier if resubmitted
+        reviewedAt: newStatus === 'SUBMITTED' ? null : item.reviewedAt
       }
     });
 
@@ -1957,7 +2129,7 @@ export class PropertiesService {
       metadata: { propertyId, itemType: item.type }
     });
 
-    return updated;
+    return updatedItem;
   }
 
   async reviewVerificationItem(

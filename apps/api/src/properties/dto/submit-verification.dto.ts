@@ -9,13 +9,13 @@ const filePathSchema = z.string().min(1).refine(
 export const submitForVerificationSchema = z.object({
   notes: z.string().max(500).optional(),
   // Proof of ownership
-  proofOfOwnershipUrls: z.array(filePathSchema).max(1).optional(),
+  proofOfOwnershipUrls: z.array(filePathSchema).max(5).optional(),
   // Location confirmation - either GPS or request on-site visit
   locationGpsLat: z.number().min(-90).max(90).optional(),
   locationGpsLng: z.number().min(-180).max(180).optional(),
   requestOnSiteVisit: z.boolean().optional(),
   // Property photos
-  propertyPhotoUrls: z.array(filePathSchema).max(1).optional()
+  propertyPhotoUrls: z.array(filePathSchema).max(5).optional()
 }).refine(
   (data) => {
     // Must provide either GPS or request on-site visit for location
