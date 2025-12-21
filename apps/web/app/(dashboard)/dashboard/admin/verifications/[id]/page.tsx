@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, Button, Label, notify } from '@propad/ui';
 import { ChevronLeft, Check, X, FileText, Download, ExternalLink, MapPin, Camera, AlertTriangle } from 'lucide-react';
-import { format } from 'date-fns';
+
 
 export default function VerificationReviewPage() {
     const params = useParams();
@@ -109,7 +109,7 @@ export default function VerificationReviewPage() {
 
                     {request.items.map((item: any) => (
                         <Card key={item.id} className={`border-l-4 ${item.status === 'APPROVED' ? 'border-l-emerald-500' :
-                                item.status === 'REJECTED' ? 'border-l-red-500' : 'border-l-amber-500'
+                            item.status === 'REJECTED' ? 'border-l-red-500' : 'border-l-amber-500'
                             }`}>
                             <CardContent className="p-6">
                                 <div className="flex justify-between items-start mb-4">
@@ -120,8 +120,8 @@ export default function VerificationReviewPage() {
                                         <h4 className="font-semibold">{item.type.replace(/_/g, ' ')}</h4>
                                     </div>
                                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${item.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
-                                            item.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                                                'bg-amber-100 text-amber-700'
+                                        item.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                                            'bg-amber-100 text-amber-700'
                                         }`}>
                                         {item.status}
                                     </span>
