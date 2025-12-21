@@ -18,7 +18,20 @@ export class VerificationsService {
       include: {
         landlord: true,
         agentOwner: true,
-        media: true
+        media: true,
+        verificationRequests: {
+          where: { status: 'PENDING' },
+          include: {
+            items: {
+              orderBy: { type: 'asc' }
+            },
+            requester: {
+              select: { id: true, name: true, email: true }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        }
       },
       orderBy: { createdAt: 'asc' }
     });

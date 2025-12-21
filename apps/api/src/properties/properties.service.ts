@@ -1748,16 +1748,23 @@ export class PropertiesService {
       throw new BadRequestException('A verification request is already pending for this property');
     }
 
-    const verificationFeeUsdCents = 2000; // $20.00
+    // Validate single file upload per item
+    if (dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 1) {
+      throw new BadRequestException('Proof of Ownership allows only 1 file');
+    }
+    if (dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 1) {
+      throw new BadRequestException('Property Photos allows only 1 file');
+    }
 
-    const [verificationRequest, payment] = await this.prisma.$transaction([
-      // Create verification request with items
-      this.prisma.verificationRequest.create({
-        data: {
-          propertyId: id,
-          requesterId: actor.userId,
-          status: 'PENDING',
-          notes: dto.notes ?? null,
+    const verificationFeeUsdCents = 2000; // $20.00 - Admin configurable (can be 0 for free verification)
+
+    // Create verification request with items
+    const verificationRequest = await this.prisma.verificationRequest.create({
+      data: {
+        propertyId: id,
+        requesterId: actor.userId,
+        status: 'PENDING',
+        notes: dto.notes ?? null,
         items: {
           create: [
             // Proof of ownership item
@@ -1796,9 +1803,13 @@ export class PropertiesService {
         include: {
           items: true
         }
-      }),
-      // Create payment ledger entry
-      this.prisma.listingPayment.create({
+      }
+    });
+
+    // Only create payment if fee > 0
+    let payment = null;
+    if (verificationFeeUsdCents > 0) {
+      payment = await this.prisma.listingPayment.create({
         data: {
           propertyId: id,
           type: ListingPaymentType.VERIFICATION,
@@ -1810,8 +1821,8 @@ export class PropertiesService {
             verificationFee: true
           }
         }
-      })
-    ]);
+      });
+    }
 
     // Update property status
     const updated = await this.prisma.property.update({
@@ -1835,7 +1846,7 @@ export class PropertiesService {
       targetId: id,
       metadata: {
         verificationRequestId: verificationRequest.id,
-        paymentId: payment.id,
+        paymentId: payment?.id ?? null,
         itemsSubmitted: verificationRequest.items.filter((i: { status: string }) => i.status === 'SUBMITTED').length
       }
     });
@@ -1916,6 +1927,16 @@ export class PropertiesService {
 
     if (item.status === 'APPROVED' || item.status === 'REJECTED') {
       throw new BadRequestException('Cannot update an item that has been reviewed');
+    }
+
+    // Validate single file upload for proof/photo items
+    if (dto.evidenceUrls && dto.evidenceUrls.length > 1) {
+      if (item.type === 'PROOF_OF_OWNERSHIP') {
+        throw new BadRequestException('Proof of Ownership allows only 1 file');
+      }
+      if (item.type === 'PROPERTY_PHOTOS') {
+        throw new BadRequestException('Property Photos allows only 1 file');
+      }
     }
 
     const updated = await this.prisma.verificationRequestItem.update({

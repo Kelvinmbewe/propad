@@ -956,18 +956,32 @@ function VerificationStep({
     const handleFileUpload = async (files: FileList | null) => {
         if (!files || files.length === 0 || !sdk) return;
         
+        // Limit to single file - take first file only
+        const file = files[0];
+        
+        // Validate file type based on verification item type
+        if (type === 'proof') {
+            const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            if (!allowedTypes.includes(file.type)) {
+                notify.error('Proof of Ownership accepts: JPEG, PNG, PDF, DOC, or DOCX files only');
+                return;
+            }
+        } else if (type === 'photos') {
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                notify.error('Property Photos accepts: JPEG, PNG, or WebP images only');
+                return;
+            }
+        }
+        
         setUploading(true);
         try {
-            const uploadPromises = Array.from(files).map(async (file) => {
-                const result = await sdk.properties.uploadMedia(propertyId, file);
-                return result.url;
-            });
-            
-            const urls = await Promise.all(uploadPromises);
-            setEvidenceUrls(prev => [...prev, ...urls]);
-            notify.success(`${urls.length} file(s) uploaded successfully`);
+            const result = await sdk.properties.uploadMedia(propertyId, file);
+            // Replace existing file with new one (single file only)
+            setEvidenceUrls([result.url]);
+            notify.success('File uploaded successfully');
         } catch (error) {
-            notify.error('Failed to upload files');
+            notify.error('Failed to upload file');
             console.error('Upload error:', error);
         } finally {
             setUploading(false);
@@ -1031,38 +1045,37 @@ function VerificationStep({
                         {type === 'proof' || type === 'photos' ? (
                             <>
                                 <div>
-                                    <Label>Upload Files</Label>
+                                    <Label>Upload File</Label>
                                     <input
                                         type="file"
-                                        multiple
-                                        accept="image/*,.pdf"
+                                        accept={type === 'proof' ? 'image/jpeg,image/png,.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'image/jpeg,image/png,image/webp'}
                                         onChange={(e) => handleFileUpload(e.target.files)}
                                         disabled={uploading}
                                         className="mt-1 block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 disabled:opacity-50"
                                     />
+                                    <p className="text-xs text-neutral-500 mt-1">
+                                        {type === 'proof' ? 'Accept: JPEG, PNG, PDF, DOC, DOCX (1 file only)' : 'Accept: JPEG, PNG, WebP (1 image only)'}
+                                    </p>
                                     {uploading && <p className="text-xs text-neutral-500 mt-1">Uploading...</p>}
                                 </div>
                                 {evidenceUrls.length > 0 && (
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {evidenceUrls.map((url, idx) => (
-                                            <div key={idx} className="relative aspect-video bg-neutral-100 rounded overflow-hidden group">
-                                                {url.endsWith('.pdf') ? (
-                                                    <div className="w-full h-full flex items-center justify-center">
-                                                        <FileText className="h-8 w-8 text-neutral-400" />
-                                                    </div>
-                                                ) : (
-                                                    <img src={url} alt={`Evidence ${idx + 1}`} className="w-full h-full object-cover" />
-                                                )}
-                                                {!isDisabled && (
-                                                    <button
-                                                        onClick={() => setEvidenceUrls(prev => prev.filter((_, i) => i !== idx))}
-                                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                        <X className="h-3 w-3" />
-                                                    </button>
-                                                )}
+                                    <div className="relative aspect-video bg-neutral-100 rounded overflow-hidden group max-w-md">
+                                        {evidenceUrls[0].endsWith('.pdf') || evidenceUrls[0].includes('.pdf') || evidenceUrls[0].includes('.doc') ? (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <FileText className="h-8 w-8 text-neutral-400" />
+                                                <span className="ml-2 text-sm text-neutral-500">{evidenceUrls[0].split('/').pop()}</span>
                                             </div>
-                                        ))}
+                                        ) : (
+                                            <img src={evidenceUrls[0]} alt="Evidence" className="w-full h-full object-cover" />
+                                        )}
+                                        {!isDisabled && (
+                                            <button
+                                                onClick={() => setEvidenceUrls([])}
+                                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </>
@@ -1151,6 +1164,9 @@ function VerificationStep({
                         >
                             {uploading ? 'Uploading...' : item ? 'Update' : 'Submit'}
                         </Button>
+                        {(type === 'proof' || type === 'photos') && evidenceUrls.length === 0 && (
+                            <p className="text-xs text-neutral-500">Please upload a file to submit</p>
+                        )}
                     </div>
                 )}
             </CardContent>
