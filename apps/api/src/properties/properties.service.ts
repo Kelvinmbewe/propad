@@ -2084,7 +2084,7 @@ export class PropertiesService {
     }
 
     const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
-    if ((item.status === 'PENDING' || item.status === 'SUBMITTED') && item.updatedAt < thirtyMinsAgo) {
+    if (item.status === 'SUBMITTED' && item.updatedAt < thirtyMinsAgo) {
       throw new BadRequestException('Verification item is locked for review (30-minute edit window expired)');
     }
 

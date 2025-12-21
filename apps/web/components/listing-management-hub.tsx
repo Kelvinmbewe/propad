@@ -763,11 +763,14 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
         if (!item) return false;
         if (item.status === 'APPROVED') return true;
         if (item.status === 'REJECTED') return false; // Always allow retry if rejected
-        // If PENDING (Submitted), check time window
-        const updatedAt = new Date(item.updatedAt).getTime();
-        const now = Date.now();
-        const thirtyMinutes = 30 * 60 * 1000;
-        return (now - updatedAt) > thirtyMinutes;
+        // If SUBMITTED, check time window. PENDING stays editable.
+        if (item.status === 'SUBMITTED') {
+            const updatedAt = new Date(item.updatedAt).getTime();
+            const now = Date.now();
+            const thirtyMinutes = 30 * 60 * 1000;
+            return (now - updatedAt) > thirtyMinutes;
+        }
+        return false;
     };
 
     const getStatusBadge = (status: string) => {
@@ -860,7 +863,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                     icon={<FileText className="h-5 w-5" />}
                     item={proofItem}
                     statusBadge={getStatusBadge(proofItem?.status || 'PENDING')}
-                    isDisabled={checkIsLocked(proofItem) || !!verificationPayment}
+                    isDisabled={checkIsLocked(proofItem)}
                     onSubmit={(evidenceUrls) => {
                         if (verificationRequest && proofItem) {
                             updateItemMut.mutate({
@@ -884,7 +887,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                     icon={<MapPinIcon className="h-5 w-5" />}
                     item={locationItem}
                     statusBadge={getStatusBadge(locationItem?.status || 'PENDING')}
-                    isDisabled={checkIsLocked(locationItem) || !!verificationPayment}
+                    isDisabled={checkIsLocked(locationItem)}
                     onSubmit={(data) => {
                         if (verificationRequest && locationItem) {
                             updateItemMut.mutate({
@@ -910,7 +913,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                     icon={<Camera className="h-5 w-5" />}
                     item={photosItem}
                     statusBadge={getStatusBadge(photosItem?.status || 'PENDING')}
-                    isDisabled={checkIsLocked(photosItem) || !!verificationPayment}
+                    isDisabled={checkIsLocked(photosItem)}
                     onSubmit={(evidenceUrls) => {
                         if (verificationRequest && photosItem) {
                             updateItemMut.mutate({
