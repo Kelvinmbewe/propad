@@ -140,6 +140,17 @@ export default function VerificationsPage() {
                                                 <span className="text-sm text-neutral-500">
                                                     {formatCurrency(Number(property.price), property.currency)}
                                                 </span>
+                                                {property.isPaid && (
+                                                    <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-full font-bold shadow-sm">
+                                                        PAID
+                                                    </span>
+                                                )}
+                                                {property.completedCount > 0 && (
+                                                    <span className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                        <ShieldCheck className="h-3 w-3" />
+                                                        {property.completedCount}/3 verified
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="flex items-center gap-4 text-sm text-neutral-600 mb-3">
                                                 <span>Owner: {owner?.name || 'Unknown'}</span>
@@ -166,6 +177,11 @@ export default function VerificationsPage() {
                                                                         {getVerificationItemLabel(item.type)}
                                                                     </span>
                                                                     {getStatusBadge(item.status)}
+                                                                    {item.notes?.includes('On-site visit requested') && (
+                                                                        <span className="ml-1 text-[10px] bg-purple-100 text-purple-700 px-1 rounded border border-purple-200" title="On-site visit requested">
+                                                                            VISIT
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                             ))
                                                         ) : (

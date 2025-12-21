@@ -256,62 +256,7 @@ export default function VerificationReviewPage() {
                                     </div>
                                 )}
 
-                                {/* Allow action on SUBMITTED items too */}
-                                {(item.status === 'SUBMITTED') && (
-                                    <div className="flex gap-3 justify-end items-end">
-                                        {activeRejection === item.id ? (
-                                            <div className="w-full space-y-2 animate-in fade-in slide-in-from-top-1">
-                                                <Label>Reason for Rejection</Label>
-                                                <textarea
-                                                    className="w-full p-2 border rounded-md text-sm"
-                                                    rows={2}
-                                                    placeholder="Required..."
-                                                    value={rejectionNotes[item.id] || ''}
-                                                    onChange={e => setRejectionNotes(prev => ({ ...prev, [item.id]: e.target.value }))}
-                                                />
-                                                <div className="flex gap-2 justify-end">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => setActiveRejection(null)}
-                                                    >
-                                                        Cancel
-                                                    </Button>
-                                                    <Button
-                                                        variant="destructive"
-                                                        size="sm"
-                                                        disabled={!rejectionNotes[item.id]}
-                                                        onClick={() => reviewMutation.mutate({
-                                                            itemId: item.id,
-                                                            status: 'REJECTED',
-                                                            notes: rejectionNotes[item.id]
-                                                        })}
-                                                    >
-                                                        Confirm Rejection
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <Button
-                                                    variant="outline"
-                                                    className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
-                                                    onClick={() => setActiveRejection(item.id)}
-                                                >
-                                                    <X className="h-4 w-4 mr-2" />
-                                                    Reject
-                                                </Button>
-                                                <Button
-                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                    onClick={() => reviewMutation.mutate({ itemId: item.id, status: 'APPROVED' })}
-                                                >
-                                                    <Check className="h-4 w-4 mr-2" />
-                                                    Approve
-                                                </Button>
-                                            </>
-                                        )}
-                                    </div>
-                                )}
+
                             </CardContent>
                         </Card>
                     ))}

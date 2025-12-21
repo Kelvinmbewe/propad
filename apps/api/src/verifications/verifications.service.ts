@@ -13,13 +13,14 @@ interface AuthContext {
 export class VerificationsService {
   constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) { }
 
-  listQueue() {
-    return this.prisma.property.findMany({
+  async listQueue() {
+    const properties = await this.prisma.property.findMany({
       where: { status: PropertyStatus.PENDING_VERIFY },
       include: {
         landlord: true,
         agentOwner: true,
         media: true,
+        listingPayments: true,
         verificationRequests: {
           where: { status: 'PENDING' },
           include: {
@@ -33,8 +34,22 @@ export class VerificationsService {
           orderBy: { createdAt: 'desc' },
           take: 1
         }
-      },
-      orderBy: { createdAt: 'asc' }
+      }
+    });
+
+    const enriched = properties.map((p: any) => {
+      const isPaid = p.listingPayments.some((lp: any) => lp.type === 'VERIFICATION' && lp.status === 'PAID');
+      const req = p.verificationRequests[0];
+      const completedCount = req?.items.filter((i: any) => i.status === 'APPROVED').length || 0;
+      return { ...p, isPaid, completedCount };
+    });
+
+    return enriched.sort((a: any, b: any) => {
+      // 1. Paid first
+      if (a.isPaid && !b.isPaid) return -1;
+      if (!a.isPaid && b.isPaid) return 1;
+      // 2. Older first (createdAt asc)
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
   }
 

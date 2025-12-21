@@ -843,12 +843,33 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                                         overallStatus === 'REJECTED' ? 'Verification Rejected' :
                                             'Not Started'}
                             </h3>
-                            <p className="text-sm text-neutral-500">
-                                {overallStatus === 'APPROVED' ? 'This property has been verified by our team.' :
-                                    overallStatus === 'PENDING' ? 'Our team is reviewing your documentation.' :
-                                        overallStatus === 'REJECTED' ? 'Verification was rejected. Please submit new documentation.' :
-                                            'Complete all steps below to request verification.'}
-                            </p>
+                            <div className="flex flex-col gap-1">
+                                <p className="text-sm text-neutral-500">
+                                    {overallStatus === 'APPROVED' ? 'This property has been verified by our team.' :
+                                        overallStatus === 'PENDING' ? 'Our team is reviewing your documentation.' :
+                                            overallStatus === 'REJECTED' ? 'Verification was rejected. Please submit new documentation.' :
+                                                'Complete all steps below to request verification.'}
+                                </p>
+                                {items.filter(i => i.status === 'APPROVED').length > 0 && (
+                                    <div className="flex items-center gap-2 mt-2">
+                                        {(() => {
+                                            const count = items.filter(i => i.status === 'APPROVED').length;
+                                            const badges = [
+                                                { label: 'Bronze', color: 'bg-orange-100 text-orange-800 border-orange-200', icon: ShieldCheck },
+                                                { label: 'Silver', color: 'bg-slate-100 text-slate-800 border-slate-200', icon: ShieldCheck },
+                                                { label: 'Gold', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: ShieldCheck }
+                                            ];
+                                            const currentBadge = badges[Math.min(count, 3) - 1];
+                                            return (
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${currentBadge.color}`}>
+                                                    <currentBadge.icon className="h-3.5 w-3.5" />
+                                                    {currentBadge.label} Verification Level ({count}/3)
+                                                </span>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </CardContent>
