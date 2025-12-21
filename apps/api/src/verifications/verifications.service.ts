@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PropertyStatus, VerificationResult } from '@prisma/client';
+import { PropertyStatus, VerificationResult, VerificationItemStatus, VerificationStatus, VerificationRequestItem } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { ReviewVerificationDto } from './dto/review-verification.dto';
+import { ReviewVerificationItemDto } from '../properties/dto/review-verification-item.dto';
 
 interface AuthContext {
   userId: string;
@@ -10,7 +11,7 @@ interface AuthContext {
 
 @Injectable()
 export class VerificationsService {
-  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
+  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) { }
 
   listQueue() {
     return this.prisma.property.findMany({
@@ -35,6 +36,125 @@ export class VerificationsService {
       },
       orderBy: { createdAt: 'asc' }
     });
+  }
+
+  async getRequest(id: string) {
+    const request = await this.prisma.verificationRequest.findUnique({
+      where: { id },
+      include: {
+        property: {
+          include: {
+            landlord: true,
+            agentOwner: true,
+            media: true
+          }
+        },
+        items: {
+          orderBy: { type: 'asc' }
+        },
+        requester: true
+      }
+    });
+
+    if (!request) {
+      throw new NotFoundException('Verification request not found');
+    }
+
+    return request;
+  }
+
+  async reviewItem(requestId: string, itemId: string, dto: ReviewVerificationItemDto, actor: AuthContext) {
+    // 1. Get the request and item
+    const request = await this.prisma.verificationRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        items: true,
+        property: true
+      }
+    });
+
+    if (!request) {
+      throw new NotFoundException('Verification request not found');
+    }
+
+    const item = request.items.find((i: VerificationRequestItem) => i.id === itemId);
+    if (!item) {
+      throw new NotFoundException('Verification item not found');
+    }
+
+    // 2. Update the item
+    await this.prisma.verificationRequestItem.update({
+      where: { id: itemId },
+      data: {
+        status: dto.status,
+        rejectionReason: dto.status === VerificationItemStatus.REJECTED ? dto.notes : null,
+        verifierId: actor.userId,
+        verifiedAt: new Date()
+      }
+    });
+
+    // 3. Check if all items are resolved (approved or rejected)
+    // We fetch fresh items to be sure
+    const updatedRequest = await this.prisma.verificationRequest.findUnique({
+      where: { id: requestId },
+      include: { items: true }
+    });
+
+    const allItems = updatedRequest.items;
+    const allReviewed = allItems.every((i: VerificationRequestItem) =>
+      i.status === VerificationItemStatus.APPROVED ||
+      i.status === VerificationItemStatus.REJECTED
+    );
+
+    if (allReviewed) {
+      // Determine final request status
+      const anyRejected = allItems.some((i: VerificationRequestItem) => i.status === VerificationItemStatus.REJECTED);
+
+      if (!anyRejected) {
+        // ALL APPROVED
+        await this.prisma.$transaction([
+          this.prisma.verificationRequest.update({
+            where: { id: requestId },
+            data: {
+              status: VerificationStatus.APPROVED,
+              reviewedAt: new Date(),
+              reviewerId: actor.userId
+            }
+          }),
+          this.prisma.property.update({
+            where: { id: request.propertyId },
+            data: {
+              status: PropertyStatus.VERIFIED,
+              verifiedAt: new Date()
+            }
+          }),
+          // Create the lightweight Verification record for legacy/schema compatibility if needed
+          this.prisma.verification.create({
+            data: {
+              propertyId: request.propertyId,
+              verifierId: actor.userId,
+              method: 'DOCS', // Defaulting as this handles multiple
+              result: VerificationResult.PASS
+            }
+          })
+        ]);
+      } else {
+        // AT LEAST ONE REJECTED
+        await this.prisma.verificationRequest.update({
+          where: { id: requestId },
+          data: {
+            status: VerificationStatus.REJECTED,
+            reviewedAt: new Date(),
+            reviewerId: actor.userId
+          }
+        });
+        // We do NOT archive the property, we leave it as PENDING_VERIFY or revert to DRAFT?
+        // Leaving as PENDING_VERIFY allows user to see the rejection and resubmit.
+      }
+    }
+
+    // Return the updated item
+    return this.prisma.verificationRequestItem.findUnique({ where: { id: itemId } });
   }
 
   async approve(id: string, dto: ReviewVerificationDto, actor: AuthContext) {

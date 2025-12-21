@@ -184,7 +184,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
                 )}
                 {activeTab === 'viewings' && <ViewingsTab propertyId={propertyId} />}
                 {activeTab === 'payments' && <PaymentsTab propertyId={propertyId} />}
-                {activeTab === 'verification' && <VerificationTab propertyId={propertyId} isAdmin={isAdmin} />}
+                {activeTab === 'verification' && <VerificationTab propertyId={propertyId} />}
                 {activeTab === 'ratings' && <RatingsTab propertyId={propertyId} />}
                 {activeTab === 'logs' && <LogsTab propertyId={propertyId} />}
             </div>
@@ -699,7 +699,7 @@ function ViewingsTab({ propertyId }: { propertyId: string }) {
     );
 }
 
-function VerificationTab({ propertyId, isAdmin }: { propertyId: string; isAdmin: boolean }) {
+function VerificationTab({ propertyId }: { propertyId: string }) {
     const sdk = useAuthenticatedSDK();
     const queryClient = useQueryClient();
 
@@ -737,20 +737,8 @@ function VerificationTab({ propertyId, isAdmin }: { propertyId: string; isAdmin:
         onError: (err: any) => notify.error(err.message || 'Failed to update item')
     });
 
-    const reviewItemMut = useMutation({
-        mutationFn: ({ itemId, status, notes }: { itemId: string, status: string, notes?: string }) =>
-            sdk!.properties.reviewVerificationItem(propertyId, itemId, { status, notes }),
-        onSuccess: () => {
-            notify.success('Verification item reviewed');
-            queryClient.invalidateQueries({ queryKey: ['verification', propertyId] });
-        },
-        onError: (err: any) => notify.error(err.message || 'Failed to review item')
-    });
 
-    const handleReview = (itemId: string, status: string, notes?: string) => {
-        if (!itemId) return;
-        reviewItemMut.mutate({ itemId, status, notes });
-    };
+
 
     if (isLoading) return <Skeleton className="h-64" />;
 
@@ -770,6 +758,17 @@ function VerificationTab({ propertyId, isAdmin }: { propertyId: string; isAdmin:
     const proofItem = items.find((i: any) => i.type === 'PROOF_OF_OWNERSHIP');
     const locationItem = items.find((i: any) => i.type === 'LOCATION_CONFIRMATION');
     const photosItem = items.find((i: any) => i.type === 'PROPERTY_PHOTOS');
+
+    const checkIsLocked = (item: any) => {
+        if (!item) return false;
+        if (item.status === 'APPROVED') return true;
+        if (item.status === 'REJECTED') return false; // Always allow retry if rejected
+        // If PENDING (Submitted), check time window
+        const updatedAt = new Date(item.updatedAt).getTime();
+        const now = Date.now();
+        const thirtyMinutes = 30 * 60 * 1000;
+        return (now - updatedAt) > thirtyMinutes;
+    };
 
     const getStatusBadge = (status: string) => {
         const config: Record<string, { bg: string; text: string; label: string }> = {
@@ -861,9 +860,7 @@ function VerificationTab({ propertyId, isAdmin }: { propertyId: string; isAdmin:
                     icon={<FileText className="h-5 w-5" />}
                     item={proofItem}
                     statusBadge={getStatusBadge(proofItem?.status || 'PENDING')}
-                    isDisabled={(!isAdmin && (proofItem?.status === 'APPROVED' || proofItem?.status === 'PENDING')) || (!isAdmin && !!verificationPayment)}
-                    isAdmin={isAdmin}
-                    onReview={(status, notes) => handleReview(proofItem?.id || '', status, notes)}
+                    isDisabled={checkIsLocked(proofItem) || !!verificationPayment}
                     onSubmit={(evidenceUrls) => {
                         if (verificationRequest && proofItem) {
                             updateItemMut.mutate({
@@ -887,9 +884,7 @@ function VerificationTab({ propertyId, isAdmin }: { propertyId: string; isAdmin:
                     icon={<MapPinIcon className="h-5 w-5" />}
                     item={locationItem}
                     statusBadge={getStatusBadge(locationItem?.status || 'PENDING')}
-                    isDisabled={(!isAdmin && (locationItem?.status === 'APPROVED' || locationItem?.status === 'PENDING')) || (!isAdmin && !!verificationPayment)}
-                    isAdmin={isAdmin}
-                    onReview={(status, notes) => handleReview(locationItem?.id || '', status, notes)}
+                    isDisabled={checkIsLocked(locationItem) || !!verificationPayment}
                     onSubmit={(data) => {
                         if (verificationRequest && locationItem) {
                             updateItemMut.mutate({
@@ -915,9 +910,7 @@ function VerificationTab({ propertyId, isAdmin }: { propertyId: string; isAdmin:
                     icon={<Camera className="h-5 w-5" />}
                     item={photosItem}
                     statusBadge={getStatusBadge(photosItem?.status || 'PENDING')}
-                    isDisabled={(!isAdmin && (photosItem?.status === 'APPROVED' || photosItem?.status === 'PENDING')) || (!isAdmin && !!verificationPayment)}
-                    isAdmin={isAdmin}
-                    onReview={(status, notes) => handleReview(photosItem?.id || '', status, notes)}
+                    isDisabled={checkIsLocked(photosItem) || !!verificationPayment}
                     onSubmit={(evidenceUrls) => {
                         if (verificationRequest && photosItem) {
                             updateItemMut.mutate({
@@ -945,8 +938,6 @@ function VerificationStep({
     item,
     statusBadge,
     isDisabled,
-    isAdmin,
-    onReview,
     onSubmit,
     type,
     propertyId
@@ -957,8 +948,6 @@ function VerificationStep({
     item: any;
     statusBadge: React.ReactNode;
     isDisabled: boolean;
-    isAdmin?: boolean;
-    onReview?: (status: string, notes?: string) => void;
     onSubmit: (data: any) => void;
     type: 'proof' | 'location' | 'photos';
     propertyId: string;
@@ -970,9 +959,7 @@ function VerificationStep({
     const [requestOnSiteVisit, setRequestOnSiteVisit] = useState<boolean>(!!item?.notes?.includes('On-site visit'));
     const [uploading, setUploading] = useState(false);
 
-    // Admin Review State
-    const [reviewNote, setReviewNote] = useState('');
-    const [showRejectInput, setShowRejectInput] = useState(false);
+
 
     // Sync with item when it changes
     useEffect(() => {
@@ -1077,47 +1064,8 @@ function VerificationStep({
                     </div>
                     <div className="flex items-center gap-2">
                         {statusBadge}
-                        {isAdmin && item && item.status !== 'APPROVED' && (
-                            <div className="flex gap-1 ml-2 relative">
-                                {!showRejectInput ? (
-                                    <>
-                                        <Button size="sm" variant="outline" className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 h-7" onClick={() => onReview?.('APPROVED')}>
-                                            <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
-                                        </Button>
-                                        <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 h-7" onClick={() => setShowRejectInput(true)}>
-                                            <XCircle className="h-4 w-4 mr-1" /> Reject
-                                        </Button>
-                                    </>
-                                ) : (
-                                    <div className="flex flex-col gap-2 min-w-[250px] bg-white p-3 border rounded-lg shadow-sm absolute right-0 z-10 top-8">
-                                        <Label>Reason for rejection</Label>
-                                        <Textarea
-                                            value={reviewNote}
-                                            onChange={e => setReviewNote(e.target.value)}
-                                            placeholder="E.g. Document blurry, wrong usage..."
-                                            className="h-20 text-xs"
-                                        />
-                                        <div className="flex justify-end gap-2">
-                                            <Button size="sm" variant="ghost" className="h-7" onClick={() => setShowRejectInput(false)}>Cancel</Button>
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                className="h-7"
-                                                disabled={!reviewNote}
-                                                onClick={() => {
-                                                    onReview?.('REJECTED', reviewNote);
-                                                    setShowRejectInput(false);
-                                                    setReviewNote('');
-                                                }}
-                                            >
-                                                Confirm Reject
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
                     </div>
+
                 </div>
 
                 {item?.notes && (

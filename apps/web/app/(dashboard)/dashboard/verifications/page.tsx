@@ -18,11 +18,11 @@ export default function VerificationsPage() {
             if (!sdk || !session?.accessToken) throw new Error('SDK or session not available');
             // Call backend API directly - SDK doesn't have verifications.queue method yet
             const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-            
+
             if (!apiBaseUrl) {
                 throw new Error('API configuration missing');
             }
-            
+
             const response = await fetch(`${apiBaseUrl}/verifications/queue`, {
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`
@@ -177,7 +177,7 @@ export default function VerificationsPage() {
                                         </div>
                                         <div className="ml-4">
                                             <Link
-                                                href={`/dashboard/listings/${property.id}?tab=verification`}
+                                                href={`/dashboard/admin/verifications/${verificationRequest.id}`}
                                                 className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 transition-colors"
                                             >
                                                 Review

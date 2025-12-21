@@ -139,7 +139,7 @@ export class PropertiesController {
       const errorStack = error instanceof Error ? error.stack : '';
       console.error('[PropertiesController] create error:', errorMessage);
       console.error('[PropertiesController] create error stack:', errorStack);
-      
+
       // DIAGNOSTIC: Re-throw BadRequestException with full details
       // This preserves validation error details from ZodValidationPipe
       if (error instanceof BadRequestException) {
@@ -270,11 +270,16 @@ export class PropertiesController {
   @UseInterceptors(FileInterceptor('file', {
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
     fileFilter: (req, file, cb) => {
-      const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4'];
+      const allowedMimes = [
+        'image/jpeg', 'image/png', 'image/webp', 'video/mp4',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ];
       if (allowedMimes.includes(file.mimetype)) {
         cb(null, true);
       } else {
-        cb(new Error('Only JPEG, PNG, WebP images and MP4 videos are allowed'), false);
+        cb(new Error('Only JPEG, PNG, WebP, MP4, PDF, and Word documents are allowed'), false);
       }
     }
   }))
@@ -356,17 +361,8 @@ export class PropertiesController {
     return this.propertiesService.updateVerificationItem(propertyId, itemId, dto, req.user);
   }
 
-  @Post('properties/:propertyId/verification-items/:itemId/review')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
-  reviewVerificationItem(
-    @Param('propertyId') propertyId: string,
-    @Param('itemId') itemId: string,
-    @Body(new ZodValidationPipe(reviewVerificationItemSchema)) dto: ReviewVerificationItemDto,
-    @Req() req: AuthenticatedRequest
-  ) {
-    return this.propertiesService.reviewVerificationItem(propertyId, itemId, dto, req.user);
-  }
+
+
 
   @Post(':id/ratings')
   @UseGuards(JwtAuthGuard)

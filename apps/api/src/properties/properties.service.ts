@@ -2083,6 +2083,11 @@ export class PropertiesService {
       throw new BadRequestException('Cannot update an item that has been approved');
     }
 
+    const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
+    if ((item.status === 'PENDING' || item.status === 'SUBMITTED') && item.updatedAt < thirtyMinsAgo) {
+      throw new BadRequestException('Verification item is locked for review (30-minute edit window expired)');
+    }
+
     // Validate single file upload    // For proof/photos, validate single file (changed to 5 files)
     if (dto.evidenceUrls && dto.evidenceUrls.length > 5) {
       if (item.type === 'PROOF_OF_OWNERSHIP') {
