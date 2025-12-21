@@ -193,14 +193,14 @@ export default function VerificationReviewPage() {
                                 </div>
 
                                 {/* Rejection Details if Rejected */}
-                                {item.status === 'REJECTED' && item.rejectionReason && (
+                                {item.status === 'REJECTED' && item.notes && (
                                     <div className="mb-4 p-3 bg-red-50 text-red-800 text-sm rounded border border-red-100">
-                                        <strong>Rejection Reason:</strong> {item.rejectionReason}
+                                        <strong>Rejection Reason:</strong> {item.notes}
                                     </div>
                                 )}
 
                                 {/* Action Buttons */}
-                                {item.status === 'PENDING' && (
+                                {item.status === 'SUBMITTED' && (
                                     <div className="flex gap-3 justify-end items-end">
                                         {activeRejection === item.id ? (
                                             <div className="w-full space-y-2 animate-in fade-in slide-in-from-top-1">

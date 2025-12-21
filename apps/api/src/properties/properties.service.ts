@@ -2052,7 +2052,7 @@ export class PropertiesService {
   async updateVerificationItem(
     propertyId: string,
     itemId: string,
-    dto: { evidenceUrls?: string[]; gpsLat?: number; gpsLng?: number; notes?: string },
+    dto: { evidenceUrls?: string[]; gpsLat?: number; gpsLng?: number; notes?: string; requestOnSiteVisit?: boolean },
     actor: AuthContext
   ) {
     const property = await this.getPropertyOrThrow(propertyId);
@@ -2088,7 +2088,7 @@ export class PropertiesService {
       throw new BadRequestException('Verification item is locked for review (30-minute edit window expired)');
     }
 
-    // Validate single file upload    // For proof/photos, validate single file (changed to 5 files)
+    // Validate single file upload (now max 5)
     if (dto.evidenceUrls && dto.evidenceUrls.length > 5) {
       if (item.type === 'PROOF_OF_OWNERSHIP') {
         throw new BadRequestException('Proof of Ownership allows max 5 files');
@@ -2098,19 +2098,39 @@ export class PropertiesService {
       }
     }
 
-    // If item was REJECTED, we allow update and reset to SUBMITTED
-    const newStatus = item.status === 'REJECTED' ? 'SUBMITTED' : item.status;
+    let notes = dto.notes ?? item.notes;
+    if (dto.requestOnSiteVisit) {
+      const visitNote = 'On-site visit requested';
+      if (!notes) {
+        notes = visitNote;
+      } else if (!notes.includes(visitNote)) {
+        notes = `${notes}\n${visitNote}`;
+      }
+    }
 
-    // If updating usage of REJECTED item, we should also ensure parent request is PENDING if it was REJECTED?
-    // But items are updated individually often.
-    // Let's check parent request.
-    const parentRequest = await this.prisma.verificationRequest.findUnique({ where: { id: item.verificationRequest.id } });
-    if (parentRequest && parentRequest.status === 'REJECTED') {
-      // Also revive parent request
-      await this.prisma.verificationRequest.update({
-        where: { id: parentRequest.id },
-        data: { status: 'PENDING' }
-      });
+    // Auto-transition to SUBMITTED logic
+    let newStatus = item.status;
+    const hasEvidence = (dto.evidenceUrls && dto.evidenceUrls.length > 0);
+    const hasLocation = (dto.gpsLat !== undefined && dto.gpsLng !== undefined) || dto.requestOnSiteVisit;
+
+    if (item.status === 'PENDING' || item.status === 'REJECTED') {
+      if (hasEvidence || hasLocation) {
+        newStatus = 'SUBMITTED';
+      }
+    } else if (item.status === 'SUBMITTED') {
+      // Keep as SUBMITTED (editing window)
+      newStatus = 'SUBMITTED';
+    }
+
+    // If updating usage of REJECTED item was successful, ensure parent request is also revived if it was rejected
+    if (item.status === 'REJECTED' && newStatus === 'SUBMITTED') {
+      const parentRequest = await this.prisma.verificationRequest.findUnique({ where: { id: item.verificationRequest.id } });
+      if (parentRequest && parentRequest.status === 'REJECTED') {
+        await this.prisma.verificationRequest.update({
+          where: { id: parentRequest.id },
+          data: { status: 'PENDING' }
+        });
+      }
     }
 
     const updatedItem = await this.prisma.verificationRequestItem.update({
@@ -2119,9 +2139,9 @@ export class PropertiesService {
         evidenceUrls: dto.evidenceUrls ?? item.evidenceUrls,
         gpsLat: dto.gpsLat ?? item.gpsLat,
         gpsLng: dto.gpsLng ?? item.gpsLng,
-        notes: dto.notes ?? item.notes,
+        notes: notes,
         status: newStatus,
-        verifierId: newStatus === 'SUBMITTED' ? null : item.verifierId, // Reset verifier if resubmitted
+        verifierId: newStatus === 'SUBMITTED' ? null : item.verifierId, // Reset verifier on resubmit
         reviewedAt: newStatus === 'SUBMITTED' ? null : item.reviewedAt
       }
     });
@@ -2131,7 +2151,7 @@ export class PropertiesService {
       actorId: actor.userId,
       targetType: 'verificationRequestItem',
       targetId: itemId,
-      metadata: { propertyId, itemType: item.type }
+      metadata: { propertyId, itemType: item.type, newStatus }
     });
 
     return updatedItem;

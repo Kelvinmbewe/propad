@@ -9,6 +9,7 @@ export const updateVerificationItemSchema = z.object({
   ).max(5).optional(),
   gpsLat: z.number().min(-90).max(90).optional(),
   gpsLng: z.number().min(-180).max(180).optional(),
+  requestOnSiteVisit: z.boolean().optional(),
   notes: z.string().max(500).optional()
 }).refine(
   (data) => {

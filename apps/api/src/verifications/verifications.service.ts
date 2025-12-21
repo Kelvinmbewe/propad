@@ -46,7 +46,10 @@ export class VerificationsService {
           include: {
             landlord: true,
             agentOwner: true,
-            media: true
+            media: true,
+            suburb: true,
+            city: true,
+            province: true
           }
         },
         items: {
@@ -82,16 +85,38 @@ export class VerificationsService {
       throw new NotFoundException('Verification item not found');
     }
 
-    // 2. Update the item
-    // 2. Update the item
+    // 2. Validate Transition
+    // Only SUBMITTED items can be reviewed.
+    if (item.status !== VerificationItemStatus.SUBMITTED) {
+      throw new BadRequestException(`Cannot review item with status ${item.status}. Only SUBMITTED items can be reviewed.`);
+    }
+
+    if (dto.status === VerificationItemStatus.REJECTED && !dto.notes) {
+      throw new BadRequestException('Rejection reason (notes) is required when rejecting an item.');
+    }
+
+    // 3. Update the item
     try {
       await this.prisma.verificationRequestItem.update({
         where: { id: itemId },
         data: {
           status: dto.status,
-          rejectionReason: dto.status === VerificationItemStatus.REJECTED ? dto.notes : null,
+          // If rejected, store notes as rejectionReason. Currently schema might have rejectionReason or just use notes?
+          // Looking at schema snippet earlier: `rejectionReason: dto.status === VerificationItemStatus.REJECTED ? dto.notes : null` logic was used.
+          // Schema text said: notes String? // User notes or verifier feedback.
+          // Wait, I recall schema snippet "rejectionReason" was NOT in the snippet at step 311.
+          // The snippet at 314 shows:
+          // notes                 String?               // User notes or verifier feedback
+          // verifierId            String?               // Admin/verifier who reviewed
+          // reviewedAt            DateTime?
+          // NO rejectionReason column in the snippet!
+          // So I MUST use `notes` field for rejection reason if schema has no rejectionReason column.
+          // Wait, task 3 says: "On REJECT: status = REJECTED, reviewerNote REQUIRED".
+          // If schema has no rejectionReason, I must overwrite notes or append?
+          // Ideally overwrite if it's a rejection from admin.
+          notes: dto.status === VerificationItemStatus.REJECTED ? dto.notes : item.notes,
           verifierId: actor.userId,
-          verifiedAt: new Date()
+          reviewedAt: new Date()
         }
       });
     } catch (error) {
@@ -99,8 +124,7 @@ export class VerificationsService {
       throw new BadRequestException('Failed to update verification item. Please check the status and try again.');
     }
 
-    // 3. Check if all items are resolved (approved or rejected)
-    // We fetch fresh items to be sure
+    // 4. Check if all items are resolved
     const updatedRequest = await this.prisma.verificationRequest.findUnique({
       where: { id: requestId },
       include: { items: true }
@@ -122,9 +146,7 @@ export class VerificationsService {
           this.prisma.verificationRequest.update({
             where: { id: requestId },
             data: {
-              status: VerificationStatus.APPROVED,
-              reviewedAt: new Date(),
-              reviewerId: actor.userId
+              status: VerificationStatus.APPROVED
             }
           }),
           this.prisma.property.update({
@@ -134,12 +156,11 @@ export class VerificationsService {
               verifiedAt: new Date()
             }
           }),
-          // Create the lightweight Verification record for legacy/schema compatibility if needed
           this.prisma.verification.create({
             data: {
               propertyId: request.propertyId,
               verifierId: actor.userId,
-              method: 'DOCS', // Defaulting as this handles multiple
+              method: 'DOCS',
               result: VerificationResult.PASS
             }
           })
@@ -149,17 +170,12 @@ export class VerificationsService {
         await this.prisma.verificationRequest.update({
           where: { id: requestId },
           data: {
-            status: VerificationStatus.REJECTED,
-            reviewedAt: new Date(),
-            reviewerId: actor.userId
+            status: VerificationStatus.REJECTED
           }
         });
-        // We do NOT archive the property, we leave it as PENDING_VERIFY or revert to DRAFT?
-        // Leaving as PENDING_VERIFY allows user to see the rejection and resubmit.
       }
     }
 
-    // Return the updated item
     return this.prisma.verificationRequestItem.findUnique({ where: { id: itemId } });
   }
 

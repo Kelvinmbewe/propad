@@ -732,7 +732,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
             sdk!.properties.updateVerificationItem(propertyId, itemId, payload),
         onSuccess: () => {
             notify.success('Verification item updated');
-            queryClient.invalidateQueries({ queryKey: ['verification', propertyId] });
+            queryClient.invalidateQueries({ queryKey: ['verification-request', propertyId] });
         },
         onError: (err: any) => notify.error(err.message || 'Failed to update item')
     });
