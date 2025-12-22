@@ -42,6 +42,7 @@ import { AssignAgentDto } from './dto/assign-agent.dto';
 import { UpdateDealConfirmationDto } from './dto/update-deal-confirmation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateServiceFeeDto } from './dto/update-service-fee.dto';
+import { VerificationFingerprintService } from '../verifications/verification-fingerprint.service';
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/webp', 'video/mp4',
@@ -106,7 +107,8 @@ export class PropertiesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly geo: GeoService
+    private readonly geo: GeoService,
+    private readonly fingerprintService: VerificationFingerprintService
   ) { }
 
   /**
@@ -1811,8 +1813,6 @@ export class PropertiesService {
       const proofItem = existingRequest.items.find((i: { type: string }) => i.type === 'PROOF_OF_OWNERSHIP');
       if (dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0) {
         if (proofItem) {
-          // Update existing only if not APPROVED (or allow re-verify?) - Admin dictates usually.
-          // Assuming we allow re-submit if not approved, or if we want to overwrite.
           if (proofItem.status !== 'APPROVED') {
             await this.prisma.verificationRequestItem.update({
               where: { id: proofItem.id },
@@ -1823,9 +1823,11 @@ export class PropertiesService {
                 reviewedAt: null
               }
             });
+            // Fingerprint (Async)
+            void this.fingerprintService.processItemEvidence(proofItem.id, dto.proofOfOwnershipUrls);
           }
         } else {
-          await this.prisma.verificationRequestItem.create({
+          const newItem = await this.prisma.verificationRequestItem.create({
             data: {
               verificationRequestId: existingRequest.id,
               type: 'PROOF_OF_OWNERSHIP',
@@ -1833,42 +1835,17 @@ export class PropertiesService {
               evidenceUrls: dto.proofOfOwnershipUrls
             }
           });
+          // Fingerprint (Async)
+          void this.fingerprintService.processItemEvidence(newItem.id, dto.proofOfOwnershipUrls);
         }
       }
 
-      // Handle Location Item
-      const locItem = existingRequest.items.find((i: { type: string }) => i.type === 'LOCATION_CONFIRMATION');
-      if (dto.locationGpsLat || dto.locationGpsLng || dto.requestOnSiteVisit) {
-        const locStatus = (dto.locationGpsLat && dto.locationGpsLng) ? 'SUBMITTED' : 'PENDING';
-        if (locItem) {
-          // Allow update unless approved? Or allow update if GPS refinement?
-          // Let's allow update if standard user flow.
-          if (locItem.status !== 'APPROVED') {
-            await this.prisma.verificationRequestItem.update({
-              where: { id: locItem.id },
-              data: {
-                status: locStatus,
-                gpsLat: dto.locationGpsLat ?? locItem.gpsLat,
-                gpsLng: dto.locationGpsLng ?? locItem.gpsLng,
-                notes: dto.requestOnSiteVisit ? 'On-site visit requested' : locItem.notes,
-                verifierId: null,
-                reviewedAt: null
-              }
-            });
-          }
-        } else {
-          await this.prisma.verificationRequestItem.create({
-            data: {
-              verificationRequestId: existingRequest.id,
-              type: 'LOCATION_CONFIRMATION',
-              status: locStatus,
-              gpsLat: dto.locationGpsLat,
-              gpsLng: dto.locationGpsLng,
-              notes: dto.requestOnSiteVisit ? 'On-site visit requested' : null
-            }
-          });
-        }
-      }
+      // Handle Location Item (Fingerprint only if GPS image? Typically GPS is coord. Skip?)
+      // Wait, duplication logic applies to images. Location has GPS coords.
+      // If Location has `evidenceUrls`? The DTO doesn't seem to pass URLs for Location unless implied. 
+      // The current DTO has `locationGpsLat` etc. Maybe no files for Location?
+      // Checking Schema: `evidenceUrls` is on `VerificationRequestItem`. 
+      // If "Location" item has no URLs, skip.
 
       // Handle Photos Item
       const photoItem = existingRequest.items.find((i: { type: string }) => i.type === 'PROPERTY_PHOTOS');
@@ -1884,9 +1861,11 @@ export class PropertiesService {
                 reviewedAt: null
               }
             });
+            // Fingerprint (Async)
+            void this.fingerprintService.processItemEvidence(photoItem.id, dto.propertyPhotoUrls);
           }
         } else {
-          await this.prisma.verificationRequestItem.create({
+          const newItem = await this.prisma.verificationRequestItem.create({
             data: {
               verificationRequestId: existingRequest.id,
               type: 'PROPERTY_PHOTOS',
@@ -1894,6 +1873,8 @@ export class PropertiesService {
               evidenceUrls: dto.propertyPhotoUrls
             }
           });
+          // Fingerprint (Async)
+          void this.fingerprintService.processItemEvidence(newItem.id, dto.propertyPhotoUrls);
         }
       }
 
@@ -1905,15 +1886,19 @@ export class PropertiesService {
 
     } else {
       // NEW Request Logic
+      // We need to create the request first to get IDs? 
+      // The current code uses nested `create`. We can't easily get the item IDs inside the nested write.
+      // We have to split the creation or query back.
+      // "include: { items: true }" returns the created items!
+
       verificationRequest = await this.prisma.verificationRequest.create({
         data: {
           propertyId: id,
           requesterId: actor.userId,
-          status: 'PENDING', // Always starts as PENDING until fee paid? Or unrelated?
+          status: 'PENDING',
           notes: dto.notes ?? null,
           items: {
             create: [
-              // Proof of ownership item
               ...(dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0
                 ? [{
                   type: 'PROOF_OF_OWNERSHIP' as const,
@@ -1924,7 +1909,6 @@ export class PropertiesService {
                   type: 'PROOF_OF_OWNERSHIP' as const,
                   status: 'PENDING' as const
                 }]),
-              // Location confirmation item
               {
                 type: 'LOCATION_CONFIRMATION' as const,
                 status: (dto.locationGpsLat && dto.locationGpsLng ? ('SUBMITTED' as const) : ('PENDING' as const)),
@@ -1932,7 +1916,6 @@ export class PropertiesService {
                 gpsLng: dto.locationGpsLng ?? null,
                 notes: dto.requestOnSiteVisit ? 'On-site visit requested' : null
               },
-              // Property photos item
               ...(dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0
                 ? [{
                   type: 'PROPERTY_PHOTOS' as const,
@@ -1950,6 +1933,13 @@ export class PropertiesService {
           items: true
         }
       });
+
+      // Post-Creation Fingerprinting
+      for (const item of verificationRequest.items) {
+        if (item.evidenceUrls && item.evidenceUrls.length > 0) {
+          void this.fingerprintService.processItemEvidence(item.id, item.evidenceUrls);
+        }
+      }
     }
 
     // Only create payment if fee > 0

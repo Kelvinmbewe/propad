@@ -15,11 +15,16 @@ interface AuthenticatedRequest {
   };
 }
 
+import { TrustService } from '../trust/trust.service';
+
 @Controller('verifications')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.VERIFIER, Role.ADMIN)
 export class VerificationsController {
-  constructor(private readonly verificationsService: VerificationsService) { }
+  constructor(
+    private readonly verificationsService: VerificationsService,
+    private readonly trustService: TrustService
+  ) { }
 
   @Get('queue')
   listQueue() {
@@ -27,8 +32,10 @@ export class VerificationsController {
   }
 
   @Get(':id')
-  getRequest(@Param('id') id: string) {
-    return this.verificationsService.getRequest(id);
+  async getRequest(@Param('id') id: string) {
+    const request = await this.verificationsService.getRequest(id);
+    const trustFlags = await this.trustService.getTrustFlags(request.propertyId);
+    return { ...request, trustFlags };
   }
 
   @Post(':id/items/:itemId/review')

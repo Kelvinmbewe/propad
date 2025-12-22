@@ -70,38 +70,104 @@ export default function VerificationReviewPage() {
                 </div>
             </div>
 
+            import {ChevronLeft, Check, X, FileText, Download, ExternalLink, MapPin, Camera, AlertTriangle, ShieldAlert} from 'lucide-react';
+
+            // ... (skip lines 11-73)
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Property Context */}
-                <Card className="md:col-span-1 h-fit">
-                    <CardContent className="p-6 space-y-4">
-                        <h3 className="font-semibold text-lg">Property Details</h3>
-                        <div>
-                            <p className="text-sm font-medium text-neutral-500">Title</p>
-                            <p className="truncate">{property.title}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-neutral-500">Address</p>
-                            <p className="text-sm">
-                                {property.suburb?.name || 'Pending Location'}
-                                <br />
-                                {property.city?.name || ''}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-neutral-500">Owner</p>
-                            <p>{property.landlord?.name || property.agentOwner?.name || 'Unknown'}</p>
-                        </div>
-                        <div className="pt-4">
-                            <Link
-                                href={`/dashboard/listings/${property.id}`}
-                                target="_blank"
-                                className="text-emerald-600 hover:underline text-sm flex items-center gap-1"
-                            >
-                                View Listing <ExternalLink className="h-3 w-3" />
-                            </Link>
-                        </div>
-                    </CardContent>
-                </Card>
+                {/* Left Column: Context & Trust */}
+                <div className="md:col-span-1 space-y-6">
+                    {/* Property Context */}
+                    <Card>
+                        <CardContent className="p-6 space-y-4">
+                            <h3 className="font-semibold text-lg">Property Details</h3>
+                            <div>
+                                <p className="text-sm font-medium text-neutral-500">Title</p>
+                                <p className="truncate">{property.title}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-neutral-500">Address</p>
+                                <p className="text-sm">
+                                    {property.suburb?.name || 'Pending Location'}
+                                    <br />
+                                    {property.city?.name || ''}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-neutral-500">Owner</p>
+                                <p>{property.landlord?.name || property.agentOwner?.name || 'Unknown'}</p>
+                            </div>
+                            <div className="pt-4">
+                                <Link
+                                    href={`/dashboard/listings/${property.id}`}
+                                    target="_blank"
+                                    className="text-emerald-600 hover:underline text-sm flex items-center gap-1"
+                                >
+                                    View Listing <ExternalLink className="h-3 w-3" />
+                                </Link>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Trust Intelligence */}
+                    <Card className="border-indigo-100 shadow-sm">
+                        <CardContent className="p-6 space-y-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <ShieldAlert className="h-5 w-5 text-indigo-600" />
+                                <h3 className="font-semibold text-lg text-indigo-900">Trust Intelligence</h3>
+                            </div>
+
+                            {/* User Tier */}
+                            <div>
+                                <p className="text-sm font-medium text-neutral-500 mb-1">Requester Trust Level</p>
+                                {(() => {
+                                    const tier = request.requester?.trustTier || 'NORMAL';
+                                    const colors = {
+                                        'NORMAL': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                                        'WATCH': 'bg-amber-50 text-amber-700 border-amber-200',
+                                        'REVIEW': 'bg-orange-50 text-orange-700 border-orange-200',
+                                        'HIGH_RISK': 'bg-red-50 text-red-700 border-red-200'
+                                    };
+                                    return (
+                                        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${colors[tier as keyof typeof colors]}`}>
+                                            {tier.replace('_', ' ')}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+
+                            {/* Flags */}
+                            <div>
+                                <p className="text-sm font-medium text-neutral-500 mb-2">Active Signals</p>
+                                {request.trustFlags && request.trustFlags.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {request.trustFlags.map((flag: string) => (
+                                            <div key={flag} className="flex items-start gap-2 p-2 bg-red-50 border border-red-100 rounded text-xs text-red-800">
+                                                <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                                                <span>{flag.replace(/_/g, ' ')}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-3 bg-neutral-50 border border-neutral-100 rounded text-xs text-neutral-500 flex items-center gap-2 italic">
+                                        <Check className="h-3 w-3 text-emerald-500" />
+                                        No anomalies detected
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Trust Score Modifier */}
+                            {property.trustScoreModifier !== 0 && (
+                                <div className="pt-2 border-t border-indigo-50">
+                                    <p className="text-xs font-medium text-neutral-500">Trust Score Modifier</p>
+                                    <p className={`font-mono font-bold ${property.trustScoreModifier > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        {property.trustScoreModifier > 0 ? '+' : ''}{property.trustScoreModifier} points
+                                    </p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
 
                 {/* Verification Items */}
                 <div className="md:col-span-2 space-y-4">

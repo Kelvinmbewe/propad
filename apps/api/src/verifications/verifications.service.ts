@@ -174,54 +174,10 @@ export class VerificationsService {
       scoreDelta = -points;
     }
 
-    // Calculate New Level locally
-    const currentScore = request.property.verificationScore || 0;
-    const newScore = Math.max(0, currentScore + scoreDelta);
+    // 4. Recalculate Score Idempotently
+    await this.recalculatePropertyScore(request.propertyId);
 
-    let newLevel = 'NONE';
-    if (newScore >= 80) newLevel = 'VERIFIED'; // Gold
-    else if (newScore >= 50) newLevel = 'TRUSTED'; // Silver
-    else if (newScore >= 1) newLevel = 'BASIC'; // Bronze
-
-    // 4. Update Property (Immediate Verification Rule)
-    const propertyUpdateData: any = {
-      verificationScore: newScore,
-      verificationLevel: newLevel as any
-    };
-
-    // Rule: A property becomes VERIFIED (as in "Verified Status") based on Level?
-    // Requirement A.3: "Derive verificationLevel dynamically... Gold => 80+"
-    // Requirement B.5: "Display badge based on verificationLevel"
-    // Existing Rule: "A property becomes VERIFIED once ANY verification item is approved." -> This was for status.
-    // We should keep the STATUS as VERIFIED if score > 0 (Basic+), or strictly Gold?
-    // "Do not change existing verification statuses" -> Breaking change if we revert.
-    // If Level >= BASIC, Status = VERIFIED.
-
-    // Update: If newLevel is NOT NONE, set property status to VERIFIED to maintain visibility.
-    if (newLevel !== 'NONE') {
-      propertyUpdateData.status = PropertyStatus.VERIFIED;
-      if (request.property.status !== PropertyStatus.VERIFIED) {
-        propertyUpdateData.verifiedAt = new Date();
-      }
-    } else {
-      // If score drops to 0, should we revert to PENDING? 
-      // Requirement "Lock-in Safety: Verification intelligence MUST NOT block actions".
-      // Let's leave it as is, or revert if 0. 
-      // Ideally if score 0, status is PENDING_VERIFY.
-      if (newScore === 0) {
-        // propertyUpdateData.status = PropertyStatus.PENDING_VERIFY; // Optional robustness
-      }
-    }
-
-    await this.prisma.property.update({
-      where: { id: request.propertyId },
-      data: propertyUpdateData
-    });
-
-    // 5. Update Request Status (Optional: Keep roughly in sync)
-    // If we just Approved an item, the Request is effectively "In Progress" or "Partially Approved".
-    // We strictly avoid "Waiting for all" to block Verified status, but we can update the Request status for record keeping.
-    // If ALL items are now approved, mark Request as APPROVED.
+    // 5. Update Request Status
     const remainingValues = request.items
       .filter((i: VerificationRequestItem) => i.id !== itemId)
       .map((i: VerificationRequestItem) => i.status);
@@ -239,6 +195,81 @@ export class VerificationsService {
     }
 
     return this.prisma.verificationRequestItem.findUnique({ where: { id: itemId } });
+  }
+
+  /**
+   * Recalculate and persist Verification Score & Level
+   * Score = Sum(Approved Items) + TrustModifier
+   */
+  async recalculatePropertyScore(propertyId: string) {
+    // Fetch Property and Requests
+    const property = await this.prisma.property.findUnique({
+      where: { id: propertyId },
+      include: {
+        verificationRequests: {
+          include: { items: true }
+        }
+      }
+    });
+
+    if (!property) return;
+
+    let totalScore = 0;
+
+    // Sum Approved Items from all requests (usually one active, but handle history logic if needed)
+    // Assuming cumulative score from ALL approved items ever? Or just the latest valid ones?
+    // Simply summing all APPROVED items linked to this property.
+    // Duplicate item types? Start with latest request?
+    // Current model allows multiple requests.
+    // Logic: Verification is Property-centric. Uniqueness of Type should be enforced or latest wins.
+    // Simpler: iterate all approved items.
+
+    const approvedItems = property.verificationRequests
+      .flatMap((r: any) => r.items)
+      .filter((i: VerificationRequestItem) => i.status === 'APPROVED');
+
+    // Deduplicate by Type?? If I have 2 Proof of Ownerships approved?
+    // Ideally shouldn't happen. If it does, maybe sum both? Or Max?
+    // Let's Sum for now (trusting one per type active).
+
+    for (const item of approvedItems) {
+      if (item.type === 'PROOF_OF_OWNERSHIP') totalScore += 50;
+      else if (item.type === 'PROPERTY_PHOTOS') totalScore += 30;
+      else if (item.type === 'LOCATION_CONFIRMATION') {
+        if (item.notes?.includes('On-site visit requested') || item.notes?.includes('On-site visit confirmed')) {
+          totalScore += 50;
+        } else {
+          totalScore += 30;
+        }
+      }
+    }
+
+    // Add Trust Modifier
+    totalScore += (property.trustScoreModifier || 0);
+    totalScore = Math.max(0, totalScore);
+
+    let newLevel = 'NONE';
+    if (totalScore >= 80) newLevel = 'VERIFIED';
+    else if (totalScore >= 50) newLevel = 'TRUSTED';
+    else if (totalScore >= 1) newLevel = 'BASIC';
+
+    const updateData: any = {
+      verificationScore: totalScore,
+      verificationLevel: newLevel as any
+    };
+
+    if (newLevel !== 'NONE') {
+      updateData.status = PropertyStatus.VERIFIED;
+      if (property.status !== PropertyStatus.VERIFIED) {
+        updateData.verifiedAt = new Date();
+      }
+    }
+
+    // Apply Update
+    await this.prisma.property.update({
+      where: { id: propertyId },
+      data: updateData
+    });
   }
 
   async approve(id: string, dto: ReviewVerificationDto, actor: AuthContext) {

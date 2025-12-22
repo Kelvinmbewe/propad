@@ -504,6 +504,7 @@ model User {
   passwordHash String?
   kycStatus String?
   status    String?
+  trustTier TrustTier @default(NORMAL)
   isVerified Boolean @default(false)
   createdAt DateTime @default(now())
 
@@ -972,9 +973,32 @@ model VerificationRequestItem {
 
   verificationRequest VerificationRequest @relation(fields: [verificationRequestId], references: [id], onDelete: Cascade)
   verifier             User?               @relation("VerificationItemVerifier", fields: [verifierId], references: [id])
+  evidence             VerificationEvidence[]
 
   @@index([verificationRequestId])
   @@index([type, status])
+}
+
+model VerificationEvidence {
+  id        String   @id @default(cuid())
+  itemId    String
+  url       String
+  fileHash  String?
+  mimeType  String?
+  sizeBytes Int?
+  createdAt DateTime @default(now())
+
+  item VerificationRequestItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([fileHash])
+  @@index([itemId])
+}
+
+enum TrustTier {
+  NORMAL
+  WATCH
+  REVIEW
+  HIGH_RISK
 }
 
 model UserReview {
