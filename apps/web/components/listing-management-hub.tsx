@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { getInterestsForProperty, getChatThreads, getThreadMessages, sendMessage, getViewings } from '@/app/actions/listings';
 import { acceptInterest, rejectInterest } from '@/app/actions/landlord';
 import { getFeaturedStatus, createFeaturedListing, completeFeaturedPayment } from '@/app/actions/featured';
-import { ArrowLeft, Check, X, MessageSquare, Send, Calendar, Clock, MapPin, ShieldCheck, AlertTriangle, Loader2, CreditCard, TrendingUp, Star, Upload, MapPin as MapPinIcon, Camera, FileText, Navigation, UserCheck, UserX, Eye, Handshake, DollarSign, CheckCircle2, XCircle, Ban, History, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Check, X, MessageSquare, Send, Calendar, Clock, MapPin, ShieldCheck, AlertTriangle, Loader2, CreditCard, TrendingUp, Star, Upload, MapPin as MapPinIcon, Camera, FileText, Navigation, UserCheck, UserX, Eye, Handshake, DollarSign, CheckCircle2, XCircle, Ban, History, AlertCircle, Info } from 'lucide-react';
 
 const formatDate = (date: Date | string) => {
     return new Intl.DateTimeFormat('en-ZW', {
@@ -872,8 +872,13 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                             {/* Score Progress Bar */}
                             <div className="mt-4">
                                 <div className="flex justify-between text-xs mb-1">
-                                    <span className="font-medium text-neutral-700">Verification Strength</span>
-                                    <span className="text-neutral-500">{verificationRequest?.property?.verificationScore || 0} / 110 Points</span>
+                                    <span className="font-medium text-neutral-700 flex items-center gap-1">
+                                        Verification Strength
+                                        <div title="Score is based on approved verification items. Higher score improves listing visibility and trust." className="cursor-help">
+                                            <Info className="h-3 w-3 text-neutral-400" />
+                                        </div>
+                                    </span>
+                                    <span className="text-neutral-500">{verificationRequest?.property?.verificationScore || 0} / 110+ Points</span>
                                 </div>
                                 <div className="h-2 w-full bg-neutral-100 rounded-full overflow-hidden">
                                     <div

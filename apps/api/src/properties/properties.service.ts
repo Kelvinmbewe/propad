@@ -1739,7 +1739,7 @@ export class PropertiesService {
     const [items, total] = await Promise.all([
       this.prisma.property.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ verificationScore: 'desc' }, { createdAt: 'desc' }],
         skip,
         take: limit,
         include: {

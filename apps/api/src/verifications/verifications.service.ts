@@ -41,7 +41,8 @@ export class VerificationsService {
       const isPaid = p.listingPayments.some((lp: any) => lp.type === 'VERIFICATION' && lp.status === 'PAID');
       const req = p.verificationRequests[0];
       const completedCount = req?.items.filter((i: any) => i.status === 'APPROVED').length || 0;
-      return { ...p, isPaid, completedCount };
+      const hasOnSiteRequest = req?.items.some((i: any) => i.notes?.includes('On-site visit requested')) || false;
+      return { ...p, isPaid, completedCount, hasOnSiteRequest };
     });
 
     return enriched.sort((a: any, b: any) => {
@@ -49,7 +50,11 @@ export class VerificationsService {
       if (a.isPaid && !b.isPaid) return -1;
       if (!a.isPaid && b.isPaid) return 1;
 
-      // 2. Older first (createdAt asc)
+      // 2. On-site Request first
+      if (a.hasOnSiteRequest && !b.hasOnSiteRequest) return -1;
+      if (!a.hasOnSiteRequest && b.hasOnSiteRequest) return 1;
+
+      // 3. Older first (createdAt asc)
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
   }
@@ -152,9 +157,9 @@ export class VerificationsService {
         }
 
         if (item.notes?.includes('On-site visit requested') || dto.notes?.includes('On-site visit confirmed')) {
-          points = 50;
+          points = 50; // Validated On-site
         } else {
-          points = 30;
+          points = 30; // GPS only
         }
         break;
     }
@@ -170,24 +175,13 @@ export class VerificationsService {
     }
 
     // Calculate New Level locally
-    const currentScore = request.property.verificationScore;
+    const currentScore = request.property.verificationScore || 0;
     const newScore = Math.max(0, currentScore + scoreDelta);
 
-    // Calculate Approved Count
-    // Current approved count based on DB items (excluding current one being processed)
-    const otherApprovedCount = request.items
-      .filter((i: VerificationRequestItem) => i.id !== itemId && i.status === VerificationItemStatus.APPROVED)
-      .length;
-
-    // Add current one if approved, subtract if revoked (though revoke logic is handled by status check)
-    // Actually simpler: We know the new status of THIS item (dto.status).
-    const isCurrentApproved = dto.status === VerificationItemStatus.APPROVED;
-    const totalApprovedCount = otherApprovedCount + (isCurrentApproved ? 1 : 0);
-
     let newLevel = 'NONE';
-    if (totalApprovedCount >= 3) newLevel = 'VERIFIED';
-    else if (totalApprovedCount === 2) newLevel = 'TRUSTED';
-    else if (totalApprovedCount === 1) newLevel = 'BASIC';
+    if (newScore >= 80) newLevel = 'VERIFIED'; // Gold
+    else if (newScore >= 50) newLevel = 'TRUSTED'; // Silver
+    else if (newScore >= 1) newLevel = 'BASIC'; // Bronze
 
     // 4. Update Property (Immediate Verification Rule)
     const propertyUpdateData: any = {
@@ -195,12 +189,27 @@ export class VerificationsService {
       verificationLevel: newLevel as any
     };
 
-    // Rule: A property becomes VERIFIED once ANY verification item is approved.
-    if (dto.status === VerificationItemStatus.APPROVED) {
+    // Rule: A property becomes VERIFIED (as in "Verified Status") based on Level?
+    // Requirement A.3: "Derive verificationLevel dynamically... Gold => 80+"
+    // Requirement B.5: "Display badge based on verificationLevel"
+    // Existing Rule: "A property becomes VERIFIED once ANY verification item is approved." -> This was for status.
+    // We should keep the STATUS as VERIFIED if score > 0 (Basic+), or strictly Gold?
+    // "Do not change existing verification statuses" -> Breaking change if we revert.
+    // If Level >= BASIC, Status = VERIFIED.
+
+    // Update: If newLevel is NOT NONE, set property status to VERIFIED to maintain visibility.
+    if (newLevel !== 'NONE') {
       propertyUpdateData.status = PropertyStatus.VERIFIED;
-      // Only set verifiedAt if not already set, or just update it? Usually keep original date.
       if (request.property.status !== PropertyStatus.VERIFIED) {
         propertyUpdateData.verifiedAt = new Date();
+      }
+    } else {
+      // If score drops to 0, should we revert to PENDING? 
+      // Requirement "Lock-in Safety: Verification intelligence MUST NOT block actions".
+      // Let's leave it as is, or revert if 0. 
+      // Ideally if score 0, status is PENDING_VERIFY.
+      if (newScore === 0) {
+        // propertyUpdateData.status = PropertyStatus.PENDING_VERIFY; // Optional robustness
       }
     }
 

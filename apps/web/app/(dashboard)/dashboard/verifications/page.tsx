@@ -145,6 +145,11 @@ export default function VerificationsPage() {
                                                         PAID
                                                     </span>
                                                 )}
+                                                {property.hasOnSiteRequest && (
+                                                    <span className="bg-purple-100 text-purple-800 text-xs px-2 py-0.5 rounded-full font-bold shadow-sm border border-purple-200">
+                                                        ON-SITE
+                                                    </span>
+                                                )}
                                                 {(property.verificationScore > 0 || (property.verificationLevel && property.verificationLevel !== 'NONE')) && (
                                                     <div className="flex items-center gap-2">
                                                         {/* Level Badge */}
