@@ -1796,7 +1796,7 @@ export class PropertiesService {
     let resultProperties: any[] = properties;
 
     if (useRanking && properties.length > 0) {
-      const ranked = this.ranking.rankListings(properties as any[], {
+      const ranked = await this.ranking.rankListingsAsync(properties as any[], {
         query: dto.filters,
         priceMin: filters.priceMin,
         priceMax: filters.priceMax,

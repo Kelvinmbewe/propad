@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { AuthModule } from './auth/auth.module';
@@ -29,11 +30,13 @@ import { ProfilesModule } from './profiles/profiles.module';
 import { TrustModule } from './trust/trust.module';
 import { RankingModule } from './ranking/ranking.module';
 import { SiteVisitsModule } from './site-visits/site-visits.module';
+import { MonetizationModule } from './monetization/monetization.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60, limit: 120 }]),
+    ScheduleModule.forRoot(),
     PrismaModule,
     QueueModule,
     AdsModule,
@@ -60,7 +63,8 @@ import { SiteVisitsModule } from './site-visits/site-visits.module';
     AgenciesModule,
     ProfilesModule,
     TrustModule,
-    RankingModule
+    RankingModule,
+    MonetizationModule
   ],
   providers: [
     {

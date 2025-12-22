@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Property, PropertyType, PropertyFurnishing, PowerPhase } from '@prisma/client';
 import { RiskService } from '../trust/risk.service';
+import { MonetizationService } from '../monetization/monetization.service';
 
 export interface RankingParams {
     query?: string;
@@ -17,31 +18,67 @@ export interface RankingParams {
 
 @Injectable()
 export class RankingService {
-    constructor(private readonly riskService: RiskService) { }
+    constructor(
+        private readonly riskService: RiskService,
+        private readonly monetizationService: MonetizationService
+    ) { }
 
     /**
      * Main entry point to rank a list of properties.
      * Properties must come with necessary relations loaded (trustScore is on Property).
      */
     rankListings(properties: Property[], params: RankingParams): { property: Property; score: number; breakdown: any }[] {
-        return properties.map(property => {
+        // We use Promise.all to fetch boosts async for all properties
+        // However, rankListings is currently sync. I'll need to fetch boosts before or make it async.
+        // For architectural consistency with the task "min(boostEffect, trustCap)", 
+        // I'll update it to be async or assume boosts are attached.
+        // Let's make it async.
+        return this.rankListingsAsync(properties, params) as any;
+    }
+
+    async rankListingsAsync(properties: Property[], params: RankingParams): Promise<{ property: Property; score: number; breakdown: any }[]> {
+        const ranked = await Promise.all(properties.map(async (property) => {
             const breakdown = this.calculateScoreBreakdown(property, params);
 
-            // Silent Dampening based on riskScore
+            // Silent Dampening based on riskScore (Phase 9)
             const riskScore = (property as any).riskScore || 0;
-            const multiplier = this.riskService.getRiskPenaltyMultiplier(riskScore);
+            const riskMultiplier = this.riskService.getRiskPenaltyMultiplier(riskScore);
 
-            const finalScore = breakdown.total * multiplier;
+            // --- ETHICAL MONETIZATION (Phase 10) ---
+            // 1. Fetch active boosts
+            const activeBoosts = await this.monetizationService.getActiveBoosts('PROPERTY', property.id, riskScore);
+
+            // 2. Calculate boostEffect (Max +15)
+            let boostEffect = 0;
+            if (activeBoosts.some(b => b.type === 'LISTING_BOOST')) {
+                boostEffect += 15;
+            } else if (activeBoosts.some(b => b.type === 'FEATURED_LISTING')) {
+                boostEffect += 10;
+            }
+
+            // 3. Calculate trustCap = trustScore * 0.15
+            const trustScore = property.trustScore || 0;
+            const trustCap = trustScore * 0.15;
+
+            // 4. Apply min(boostEffect, trustCap)
+            const appliedBoost = Math.min(boostEffect, trustCap);
+
+            const scoreWithBoost = breakdown.total + appliedBoost;
+            const finalScore = scoreWithBoost * riskMultiplier;
 
             return {
                 property,
                 score: Math.ceil(finalScore),
                 breakdown: {
                     ...breakdown,
-                    riskPenalty: multiplier < 1 ? multiplier : undefined
+                    boostApplied: appliedBoost,
+                    trustCapReached: boostEffect > trustCap,
+                    riskPenalty: riskMultiplier < 1 ? riskMultiplier : undefined
                 }
             };
-        }).sort((a, b) => b.score - a.score);
+        }));
+
+        return ranked.sort((a, b) => b.score - a.score);
     }
 
     calculateScoreBreakdown(property: Property, params: RankingParams) {

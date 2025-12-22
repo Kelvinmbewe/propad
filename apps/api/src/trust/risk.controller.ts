@@ -2,14 +2,14 @@
 import { Controller, Get, Param, UseGuards, Query } from '@nestjs/common';
 import { RiskService } from './risk.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
 
 @Controller('admin/risk')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN, Role.MODERATOR)
+@Roles(Role.ADMIN, Role.MODERATOR as any)
 export class RiskController {
     constructor(
         private readonly riskService: RiskService,

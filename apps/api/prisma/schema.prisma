@@ -65,6 +65,7 @@ enum InvoicePurpose {
   PROMO_BOOST
   VERIFICATION
   RENT_PAYMENT
+  BOOST
   OTHER
 }
 
@@ -1520,6 +1521,7 @@ model Invoice {
   transactions Transaction[]
   campaign    AdCampaign? @relation("AdCampaignInvoice")
   promoBoost  PromoBoost? @relation("PromoBoostInvoice")
+  boost       Boost?      @relation("BoostInvoice")
   fxRate      FxRate?   @relation(fields: [fxRateId], references: [id])
   listingPayments ListingPayment[] @relation("ListingPaymentInvoice")
 
@@ -1808,5 +1810,48 @@ model RiskEvent {
   
   @@index([entityType, entityId])
   @@index([signalType])
+  @@index([timestamp])
+}
+
+enum BoostType {
+  LISTING_BOOST
+  FEATURED_LISTING
+  VERIFICATION_FAST_TRACK
+  PROFILE_BOOST
+}
+
+model Boost {
+  id          String    @id @default(cuid())
+  type        BoostType
+  entityType  String    // PROPERTY, USER, AGENCY
+  entityId    String
+  startTime   DateTime  @default(now())
+  endTime     DateTime
+  invoiceId   String?   @unique
+  isActive    Boolean   @default(true)
+  
+  invoice     Invoice?  @relation("BoostInvoice", fields: [invoiceId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([endTime])
+}
+
+enum LedgerEntryType {
+  DEBIT
+  CREDIT
+  WRITE_OFF
+}
+
+model LedgerEntry {
+  id             String          @id @default(cuid())
+  entityType     String          // USER, AGENCY, PROPERTY
+  entityId       String
+  type           LedgerEntryType
+  amountUsdCents Int
+  description    String
+  metadata       Json?
+  timestamp      DateTime        @default(now())
+
+  @@index([entityType, entityId])
   @@index([timestamp])
 }
