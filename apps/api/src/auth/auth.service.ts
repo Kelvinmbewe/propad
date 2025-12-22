@@ -13,6 +13,8 @@ export interface SanitizedUser {
   kycStatus: string | null;
   status: string | null;
   createdAt: Date;
+  profileId?: string;
+  agencyId?: string;
 }
 
 @Injectable()
@@ -20,7 +22,18 @@ export class AuthService {
   constructor(private readonly prisma: PrismaService, private readonly jwtService: JwtService) { }
 
   async validateUser(email: string, pass: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      include: {
+        agentProfile: true,
+        landlordProfile: true,
+        agencyMemberships: {
+          where: { isActive: true },
+          take: 1
+        }
+      }
+    });
+
     if (!user || !user.passwordHash) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -35,7 +48,7 @@ export class AuthService {
 
   async login(email: string, password: string) {
     const user = await this.validateUser(email, password);
-    return this.issueTokens(user.id, user.role);
+    return this.issueTokens(user);
   }
 
   async register(email: string, password: string, name?: string) {
@@ -52,23 +65,50 @@ export class AuthService {
         name,
         role: Role.USER,
         status: 'ACTIVE'
+      },
+      include: {
+        agentProfile: true,
+        landlordProfile: true,
+        agencyMemberships: true
       }
     });
 
-    return this.issueTokens(user.id, user.role);
+    return this.issueTokens(this.sanitizeUser(user));
   }
 
   async refresh(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        agentProfile: true,
+        landlordProfile: true,
+        agencyMemberships: {
+          where: { isActive: true },
+          take: 1
+        }
+      }
+    });
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    return this.issueTokens(user.id, user.role);
+    return this.issueTokens(this.sanitizeUser(user));
   }
 
   async getSession(userId: string): Promise<SanitizedUser> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        agentProfile: true,
+        landlordProfile: true,
+        agencyMemberships: {
+          where: { isActive: true },
+          take: 1
+        }
+      }
+    });
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -76,23 +116,46 @@ export class AuthService {
     return this.sanitizeUser(user);
   }
 
-  private async issueTokens(userId: string, role: Role) {
-    const payload = { sub: userId, role };
-    const [accessToken, refreshToken, user] = await Promise.all([
+  private async issueTokens(user: SanitizedUser) {
+    const payload = {
+      sub: user.id,
+      role: user.role,
+      profileId: user.profileId,
+      agencyId: user.agencyId
+    };
+
+    const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, { expiresIn: '15m' }),
-      this.jwtService.signAsync(payload, { expiresIn: '7d' }),
-      this.prisma.user.findUnique({ where: { id: userId } })
+      this.jwtService.signAsync(payload, { expiresIn: '7d' })
     ]);
 
     return {
       accessToken,
       refreshToken,
-      user: user ? this.sanitizeUser(user) : undefined
+      user
     };
   }
 
-  private sanitizeUser<T extends { passwordHash?: string | null }>(user: T): SanitizedUser {
-    const { passwordHash, ...rest } = user;
-    return rest as unknown as SanitizedUser;
+  private sanitizeUser<T extends {
+    id: string;
+    passwordHash?: string | null;
+    agentProfile?: { userId: string } | null;
+    landlordProfile?: { userId: string } | null;
+    agencyMemberships?: { agencyId: string }[] | null;
+  }>(user: T): SanitizedUser {
+    const { passwordHash, agentProfile, landlordProfile, agencyMemberships, ...rest } = user;
+
+    // Determine profileId (usually same as userId for these profiles, but could be different if architecture changes)
+    let profileId = user.id;
+    // For now, these profiles share the PK with User, so it is redundant but explicit.
+
+    // Determine Agency ID
+    const agencyId = agencyMemberships?.[0]?.agencyId;
+
+    return {
+      ...rest,
+      profileId,
+      agencyId
+    } as unknown as SanitizedUser;
   }
 }

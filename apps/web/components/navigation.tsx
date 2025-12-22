@@ -6,18 +6,21 @@ import { useSession } from 'next-auth/react';
 import { cn } from '@propad/ui';
 import type { Role } from '@propad/sdk';
 import type { ReactNode } from 'react';
-import { BarChart3, Compass, Globe2, LayoutDashboard, ShieldCheck, Wallet2 } from 'lucide-react';
+import { BarChart3, Compass, Globe2, LayoutDashboard, ShieldCheck, Wallet2, MapPin, Users, Building2 } from 'lucide-react';
 
 const links: Array<{ href: string; label: string; roles: Role[]; icon: ReactNode }> = [
-  { href: '/dashboard', label: 'Overview', roles: ['ADMIN', 'VERIFIER', 'AGENT', 'LANDLORD', 'USER'], icon: <LayoutDashboard className="h-4 w-4" /> },
+  { href: '/dashboard', label: 'Overview', roles: ['ADMIN', 'VERIFIER', 'AGENT', 'LANDLORD', 'USER', 'MODERATOR'], icon: <LayoutDashboard className="h-4 w-4" /> },
   { href: '/dashboard/listings', label: 'Listings', roles: ['ADMIN', 'AGENT', 'LANDLORD'], icon: <Compass className="h-4 w-4" /> },
+  { href: '/dashboard/verifications', label: 'Verifications', roles: ['ADMIN', 'VERIFIER', 'MODERATOR', 'AGENT', 'LANDLORD'], icon: <ShieldCheck className="h-4 w-4" /> },
+  { href: '/dashboard/site-visits', label: 'Site Visits', roles: ['ADMIN', 'MODERATOR'], icon: <MapPin className="h-4 w-4" /> },
+  { href: '/dashboard/admin/users', label: 'Users', roles: ['ADMIN'], icon: <Users className="h-4 w-4" /> },
+  { href: '/dashboard/admin/agencies', label: 'Companies', roles: ['ADMIN'], icon: <Building2 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/trust', label: 'Trust & Risk', roles: ['ADMIN'], icon: <ShieldCheck className="h-4 w-4" /> },
   { href: '/dashboard/interests', label: 'Offer & Interest', roles: ['ADMIN', 'AGENT', 'LANDLORD'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/verifications', label: 'Verifications', roles: ['ADMIN', 'VERIFIER'], icon: <ShieldCheck className="h-4 w-4" /> },
   { href: '/dashboard/reward-pool', label: 'Reward pool', roles: ['ADMIN'], icon: <BarChart3 className="h-4 w-4" /> },
   { href: '/dashboard/admin/geo', label: 'Geo admin', roles: ['ADMIN'], icon: <Globe2 className="h-4 w-4" /> },
   { href: '/dashboard/admin/billing', label: 'Billing admin', roles: ['ADMIN'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/wallet', label: 'Wallet admin', roles: ['ADMIN'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/rates', label: 'Rate admin', roles: ['ADMIN'], icon: <BarChart3 className="h-4 w-4" /> }
+  { href: '/dashboard/profile', label: 'Profile', roles: ['AGENT', 'LANDLORD', 'USER', 'MODERATOR'], icon: <Users className="h-4 w-4" /> },
 ];
 
 export function DashboardNav() {
