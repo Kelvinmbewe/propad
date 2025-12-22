@@ -113,4 +113,17 @@ export class SearchPropertiesDto {
   @IsOptional()
   @IsEnum(PowerPhase)
   powerPhase?: PowerPhase;
+
+  // --- Smart Ranking Fields ---
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === 'true' || value === '1' || value === true) return true;
+    return false;
+  })
+  @IsBoolean()
+  verifiedOnly?: boolean;
+
+  @IsOptional()
+  @IsString()
+  sort?: string; // RELEVANCE, NEWEST, PRICE_ASC, PRICE_DESC, TRUST_DESC
 }

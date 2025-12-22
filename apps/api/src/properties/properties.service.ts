@@ -43,6 +43,7 @@ import { UpdateDealConfirmationDto } from './dto/update-deal-confirmation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateServiceFeeDto } from './dto/update-service-fee.dto';
 import { VerificationFingerprintService } from '../verifications/verification-fingerprint.service';
+import { RankingService } from '../ranking/ranking.service';
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/webp', 'video/mp4',
@@ -108,7 +109,8 @@ export class PropertiesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly geo: GeoService,
-    private readonly fingerprintService: VerificationFingerprintService
+    private readonly fingerprintService: VerificationFingerprintService,
+    private readonly ranking: RankingService
   ) { }
 
   /**
@@ -1676,96 +1678,275 @@ export class PropertiesService {
 
   async search(dto: SearchPropertiesDto) {
     const filters = this.normalizeSearchFilters(dto);
+    const useRanking = !dto.sort || dto.sort === 'RELEVANCE';
+
+    // Build Where Clause
     const where: Prisma.PropertyWhereInput = {
-      status: PropertyStatus.VERIFIED
+      status: PropertyStatus.PUBLISHED,
+      // Exact Filters
+      ...(filters.type ? { type: filters.type } : {}),
+      ...(filters.countryId ? { countryId: filters.countryId } : {}),
+      ...(filters.provinceId ? { provinceId: filters.provinceId } : {}),
+      ...(filters.cityId ? { cityId: filters.cityId } : {}),
+      ...(filters.suburbId ? { suburbId: filters.suburbId } : {}),
+
+      // Range Filters
+      ...(filters.priceMin || filters.priceMax ? {
+        price: {
+          ...(filters.priceMin ? { gte: filters.priceMin } : {}),
+          ...(filters.priceMax ? { lte: filters.priceMax } : {})
+        }
+      } : {}),
+      ...(filters.bedrooms ? { bedrooms: { gte: filters.bedrooms } } : {}),
+      ...(filters.bathrooms ? { bathrooms: { gte: filters.bathrooms } } : {}),
+      ...(filters.minFloorArea ? {
+        OR: [
+          { areaSqm: { gte: filters.minFloorArea } },
+          { commercialFields: { path: ['floorAreaSqm'], gte: filters.minFloorArea } }
+        ]
+      } : {}),
+
+      // Boolean / Enum Filters
+      ...(filters.furnished ? { furnished: filters.furnished } : {}),
+      ...(filters.parking !== undefined ? {
+        OR: [
+          { commercialFields: { path: ['parkingBays'], gt: 0 } },
+          { parking: true }
+        ]
+      } : {}),
+
+      // JSON Array Filter (Amenities)
+      ...(filters.amenities && filters.amenities.length > 0 ? {
+        amenities: { hasSome: filters.amenities }
+      } : {}),
+
+      // Geo Bounds
+      ...(filters.bounds ? {
+        lat: { gte: filters.bounds.southWest.lat, lte: filters.bounds.northEast.lat },
+        lng: { gte: filters.bounds.southWest.lng, lte: filters.bounds.northEast.lng }
+      } : {}),
+
+      // --- SMART RANKING FILTERS ---
+      // Verified Only Support
+      ...(dto.verifiedOnly ? {
+        OR: [
+          { verificationLevel: 'VERIFIED' },
+          { verificationLevel: 'TRUSTED' }
+        ]
+      } : {})
     };
 
-    if (filters.type) {
-      where.type = filters.type;
-    }
-    if (filters.countryId) {
-      where.countryId = filters.countryId;
-    }
-    if (filters.provinceId) {
-      where.provinceId = filters.provinceId;
-    }
-    if (filters.cityId) {
-      where.cityId = filters.cityId;
-    }
-    if (filters.suburbId) {
-      where.suburbId = filters.suburbId;
-    }
+    // Pagination
+    const limit = dto.limit || 20;
+    const offset = ((dto.page || 1) - 1) * limit;
 
-    if (filters.priceMin !== undefined || filters.priceMax !== undefined) {
-      where.price = {};
-      if (filters.priceMin !== undefined) {
-        where.price.gte = filters.priceMin;
-      }
-      if (filters.priceMax !== undefined) {
-        where.price.lte = filters.priceMax;
-      }
-    }
+    // Fetch Strategy
+    // If Ranking enabled, we fetch more candidates (5x) to re-rank.
+    const fetchLimit = useRanking ? limit * 5 : limit;
 
-    if (filters.bounds) {
-      const { southWest, northEast } = filters.bounds;
-      const southLat = Math.min(southWest.lat, northEast.lat);
-      const northLat = Math.max(southWest.lat, northEast.lat);
-      const westLng = Math.min(southWest.lng, northEast.lng);
-      const eastLng = Math.max(southWest.lng, northEast.lng);
+    // Sort Strategy
+    let orderBy: Prisma.PropertyOrderByWithRelationInput | Prisma.PropertyOrderByWithRelationInput[] = { createdAt: 'desc' };
+    if (dto.sort === 'PRICE_ASC') orderBy = { price: 'asc' };
+    if (dto.sort === 'PRICE_DESC') orderBy = { price: 'desc' };
+    if (dto.sort === 'NEWEST') orderBy = { createdAt: 'desc' };
+    if (dto.sort === 'TRUST_DESC') orderBy = { trustScore: 'desc' };
+    if (!Array.isArray(orderBy)) orderBy = [orderBy, { id: 'desc' }];
 
-      where.lat = { gte: southLat, lte: northLat };
-      where.lng = { gte: westLng, lte: eastLng };
-    }
-
-    if (filters.bedrooms !== undefined) {
-      where.bedrooms = { gte: filters.bedrooms };
-    }
-    if (filters.bathrooms !== undefined) {
-      where.bathrooms = { gte: filters.bathrooms };
-    }
-    if (filters.furnished) {
-      where.furnishing = filters.furnished;
-    }
-    if (filters.amenities && filters.amenities.length > 0) {
-      where.amenities = { hasEvery: filters.amenities };
-    }
-
-    // Commercial fields filtering (simplified for now as JsonFilter is complex)
-    // Prisma Json filtering is limited. We might need raw query or careful construction.
-    // For now, skipping complex JSON filtering to avoid build errors if types mismatch.
-
-    const page = dto.page ?? 1;
-    const limit = dto.limit ?? 20;
-    const skip = (page - 1) * limit;
-
-    const [items, total] = await Promise.all([
+    const [total, properties] = await Promise.all([
+      this.prisma.property.count({ where }),
       this.prisma.property.findMany({
         where,
-        orderBy: [{ verificationScore: 'desc' }, { createdAt: 'desc' }],
-        skip,
-        take: limit,
         include: {
-          country: true,
-          province: true,
-          city: true,
-          suburb: true,
-          pendingGeo: true,
-          media: { take: 1, orderBy: { order: 'asc' } }
-        }
-      }),
-      this.prisma.property.count({ where })
+          media: true,
+          country: true, province: true, city: true, suburb: true, pendingGeo: true,
+          propertyRatings: { select: { rating: true } },
+          listingPayments: { where: { status: 'PAID' } } // For Boosting checks later
+        },
+        orderBy,
+        take: fetchLimit,
+        skip: offset
+      })
     ]);
 
+    let resultProperties: any[] = properties;
+
+    if (useRanking && properties.length > 0) {
+      // Apply Smart Ranking
+      const ranked = this.ranking.rankListings(properties as any[], {
+        query: dto.filters,
+        priceMin: filters.priceMin,
+        priceMax: filters.priceMax,
+        type: filters.type,
+        bedrooms: filters.bedrooms,
+        bathrooms: filters.bathrooms
+      });
+
+      // Since we fetched 5x, we need to apply local pagination to the ranked results
+      const pagedRanked = ranked.slice(0, limit);
+
+      resultProperties = pagedRanked.map(r => {
+        const p = r.property as any;
+        p.rankingScore = r.score;
+        p.rankingBreakdown = r.breakdown;
+        return p;
+      });
+    }
+
+    const attached = await this.attachLocationToMany(resultProperties);
     return {
-      items: this.attachLocationToMany(items),
+      data: attached,
       meta: {
         total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit)
+        page: dto.page || 1,
+        lastPage: Math.ceil(total / limit),
+        rankingApplied: useRanking
       }
     };
   }
+
+  async search(dto: SearchPropertiesDto) {
+    const filters = this.normalizeSearchFilters(dto);
+    const useRanking = !dto.sort || dto.sort === 'RELEVANCE';
+
+    // Build Where Clause
+    const where: Prisma.PropertyWhereInput = {
+      status: PropertyStatus.VERIFIED,
+      // Exact Filters
+      ...(filters.type ? { type: filters.type } : {}),
+      ...(filters.countryId ? { countryId: filters.countryId } : {}),
+      ...(filters.provinceId ? { provinceId: filters.provinceId } : {}),
+      ...(filters.cityId ? { cityId: filters.cityId } : {}),
+      ...(filters.suburbId ? { suburbId: filters.suburbId } : {}),
+
+      // Range Filters
+      ...(filters.priceMin || filters.priceMax ? {
+        price: {
+          ...(filters.priceMin ? { gte: filters.priceMin } : {}),
+          ...(filters.priceMax ? { lte: filters.priceMax } : {})
+        }
+      } : {}),
+      ...(filters.bedrooms ? { bedrooms: { gte: filters.bedrooms } } : {}),
+      ...(filters.bathrooms ? { bathrooms: { gte: filters.bathrooms } } : {}),
+      ...(filters.minFloorArea ? {
+        OR: [
+          { areaSqm: { gte: filters.minFloorArea } },
+          { commercialFields: { path: ['floorAreaSqm'], gte: filters.minFloorArea } }
+        ]
+      } : {}),
+
+      // Boolean / Enum Filters
+      ...(filters.furnished ? { furnished: filters.furnished } : {}),
+      // Parking Filter (Commented out until schema verified)
+      // ...(filters.parking !== undefined ? {
+      //     OR: [
+      //         { commercialFields: { path: ['parkingBays'], gt: 0 } },
+      //         { parking: true }
+      //     ]
+      // } : {}),
+
+      // JSON Array Filter (Amenities)
+      ...(filters.amenities && filters.amenities.length > 0 ? {
+        amenities: { hasSome: filters.amenities }
+      } : {}),
+
+      // Geo Bounds
+      ...(filters.bounds ? {
+        lat: { gte: filters.bounds.southWest.lat, lte: filters.bounds.northEast.lat },
+        lng: { gte: filters.bounds.southWest.lng, lte: filters.bounds.northEast.lng }
+      } : {}),
+
+      // --- SMART RANKING FILTERS ---
+      // Verified Only Support
+      ...(dto.verifiedOnly ? {
+        OR: [
+          { verificationLevel: 'VERIFIED' },
+          { verificationLevel: 'TRUSTED' }
+        ]
+      } : {})
+    };
+
+    // Pagination
+    const limit = dto.limit || 20;
+    const offset = ((dto.page || 1) - 1) * limit;
+
+    // Fetch Strategy
+    const fetchLimit = useRanking ? limit * 5 : limit;
+
+    // Sort Strategy
+    let orderBy: Prisma.PropertyOrderByWithRelationInput | Prisma.PropertyOrderByWithRelationInput[] = { createdAt: 'desc' };
+    if (dto.sort === 'PRICE_ASC') orderBy = { price: 'asc' };
+    if (dto.sort === 'PRICE_DESC') orderBy = { price: 'desc' };
+    if (dto.sort === 'NEWEST') orderBy = { createdAt: 'desc' };
+    if (dto.sort === 'TRUST_DESC') orderBy = { trustScore: 'desc' };
+    if (!Array.isArray(orderBy)) orderBy = [orderBy, { id: 'desc' }];
+
+    const [total, properties] = await Promise.all([
+      this.prisma.property.count({ where }),
+      this.prisma.property.findMany({
+        where,
+        include: {
+          media: true,
+          country: true, province: true, city: true, suburb: true, pendingGeo: true,
+          propertyRatings: { select: { rating: true } },
+          listingPayments: { where: { status: 'PAID' } }
+        },
+        orderBy,
+        take: fetchLimit,
+        skip: offset
+      })
+    ]);
+
+    let resultProperties: any[] = properties;
+
+    if (useRanking && properties.length > 0) {
+      const ranked = this.ranking.rankListings(properties as any[], {
+        query: dto.filters,
+        priceMin: filters.priceMin,
+        priceMax: filters.priceMax,
+        type: filters.type,
+        bedrooms: filters.bedrooms,
+        bathrooms: filters.bathrooms
+      });
+      const pagedRanked = ranked.slice(0, limit);
+      resultProperties = pagedRanked.map(r => {
+        const p = r.property as any;
+        p.rankingScore = r.score;
+        p.rankingBreakdown = r.breakdown;
+        return p;
+      });
+    }
+
+    const attached = await this.attachLocationToMany(resultProperties);
+    return {
+      data: attached,
+      meta: {
+        total,
+        page: dto.page || 1,
+        lastPage: Math.ceil(total / limit),
+        rankingApplied: useRanking
+      }
+    };
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   async submitForVerification(id: string, dto: SubmitForVerificationDto, actor: AuthContext) {
     const property = await this.getPropertyOrThrow(id);

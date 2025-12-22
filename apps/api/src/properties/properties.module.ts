@@ -6,10 +6,10 @@ import { PropertiesController } from './properties.controller';
 import { PropertiesService } from './properties.service';
 import { OfferAutoConfirmationService } from './offer-auto-confirmation.service';
 
-import { VerificationsModule } from '../verifications/verifications.module';
+import { RankingModule } from '../ranking/ranking.module';
 
 @Module({
-  imports: [PrismaModule, AuditModule, GeoModule, VerificationsModule],
+  imports: [PrismaModule, AuditModule, GeoModule, VerificationsModule, RankingModule],
   controllers: [PropertiesController],
   providers: [PropertiesService, OfferAutoConfirmationService],
   exports: [PropertiesService]
