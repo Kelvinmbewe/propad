@@ -26,6 +26,9 @@ import {
   WalletThresholdSchema,
   WhatsAppResponseSchema,
   GeoSuburbSchema,
+  SiteVisitSchema,
+  RiskEventSchema,
+  RiskEntitySummarySchema,
   type AdImpression,
   type AgentAssignment,
   type AgentSummary,
@@ -52,6 +55,9 @@ import {
   type Transaction,
   type WalletThreshold,
   type WhatsAppResponse,
+  type SiteVisit,
+  type RiskEvent,
+  type RiskEntitySummary
 } from './schemas';
 
 interface SDKOptions {
@@ -706,6 +712,62 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             })
             .json(),
       },
+      risk: {
+        events: async (
+          params: {
+            entityType?: string;
+            entityId?: string;
+            signalType?: string;
+            limit?: number;
+          } = {},
+        ) =>
+          client
+            .get('admin/risk/events', {
+              searchParams: createSearchParams({
+                entityType: params.entityType,
+                entityId: params.entityId,
+                signalType: params.signalType,
+                limit: params.limit,
+              }),
+            })
+            .json<RiskEvent[]>()
+            .then((data) => RiskEventSchema.array().parse(data)),
+        entitySummary: async (type: string, id: string) =>
+          client
+            .get(`admin/risk/summary/${type}/${id}`)
+            .json<RiskEntitySummary>()
+            .then((data) => RiskEntitySummarySchema.parse(data)),
+      },
+    },
+    siteVisits: {
+      request: async (propertyId: string) =>
+        client
+          .post('site-visits/request', { json: { propertyId } })
+          .json<SiteVisit>()
+          .then((data) => SiteVisitSchema.parse(data)),
+      listPending: async () =>
+        client
+          .get('site-visits/pending')
+          .json<SiteVisit[]>()
+          .then((data) => SiteVisitSchema.array().parse(data)),
+      listMyAssignments: async () =>
+        client
+          .get('site-visits/my-assignments')
+          .json<SiteVisit[]>()
+          .then((data) => SiteVisitSchema.array().parse(data)),
+      assign: async (visitId: string, moderatorId: string) =>
+        client
+          .post(`site-visits/${visitId}/assign`, { json: { moderatorId } })
+          .json<SiteVisit>()
+          .then((data) => SiteVisitSchema.parse(data)),
+      complete: async (
+        visitId: string,
+        payload: { gpsLat: number; gpsLng: number; notes?: string },
+      ) =>
+        client
+          .post(`site-visits/${visitId}/complete`, { json: payload })
+          .json<SiteVisit>()
+          .then((data) => SiteVisitSchema.parse(data)),
     },
     wallets: {
       kyc: {

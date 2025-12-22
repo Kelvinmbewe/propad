@@ -15,10 +15,10 @@ export default function AdminUsersPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Construction className="h-5 w-5 text-amber-500" />
-                        Coming Soon
+                        Pending Backend API
                     </CardTitle>
                     <CardDescription>
-                        User administration panel is currently in development.
+                        User models exist, but the 'List All Users' endpoint is not yet exposed by the API.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

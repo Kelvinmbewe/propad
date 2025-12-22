@@ -614,4 +614,44 @@ export type DailyAdsPoint = z.infer<typeof DailyAdsPointSchema>;
 export type TopAgentPerformance = z.infer<typeof TopAgentPerformanceSchema>;
 export type TopAgentsResponse = z.infer<typeof TopAgentsResponseSchema>;
 export type GeoListingsResponse = z.infer<typeof GeoListingsResponseSchema>;
-export type RewardsEstimate = z.infer<typeof RewardsEstimateSchema>;
+export const SiteVisitSchema = z
+  .object({
+    id: z.string(),
+    propertyId: z.string(),
+    requestedByUserId: z.string(),
+    status: z.string(),
+    assignedModeratorId: z.string().nullish(),
+    visitGpsLat: z.number().nullish(),
+    visitGpsLng: z.number().nullish(),
+    distanceFromSubmittedGps: z.number().nullish(),
+    notes: z.string().nullish(),
+    completedAt: z.string().nullish(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    property: PropertySchema.nullish(),
+    requestedBy: UserSummarySchema.nullish()
+  })
+  .passthrough();
+
+export const RiskEventSchema = z
+  .object({
+    id: z.string(),
+    entityType: z.string(),
+    entityId: z.string(),
+    signalType: z.string(),
+    scoreDelta: z.number(),
+    notes: z.string().nullish(),
+    resolvedBy: z.string().nullish(),
+    timestamp: z.string()
+  })
+  .passthrough();
+
+export const RiskEntitySummarySchema = z.object({
+  riskScore: z.number(),
+  penaltyMultiplier: z.number(),
+  events: z.array(RiskEventSchema)
+});
+
+export type SiteVisit = z.infer<typeof SiteVisitSchema>;
+export type RiskEvent = z.infer<typeof RiskEventSchema>;
+export type RiskEntitySummary = z.infer<typeof RiskEntitySummarySchema>;

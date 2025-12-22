@@ -15,10 +15,10 @@ export default function AdminAgenciesPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Construction className="h-5 w-5 text-amber-500" />
-                        Under Development
+                        Pending Backend API
                     </CardTitle>
                     <CardDescription>
-                        The agency directory and management system is coming soon.
+                        Agency models exist, but the 'List All Agencies' endpoint is not yet exposed by the API.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
