@@ -614,6 +614,8 @@ export type DailyAdsPoint = z.infer<typeof DailyAdsPointSchema>;
 export type TopAgentPerformance = z.infer<typeof TopAgentPerformanceSchema>;
 export type TopAgentsResponse = z.infer<typeof TopAgentsResponseSchema>;
 export type GeoListingsResponse = z.infer<typeof GeoListingsResponseSchema>;
+export type RewardsEstimate = z.infer<typeof RewardsEstimateSchema>;
+
 export const SiteVisitSchema = z
   .object({
     id: z.string(),
