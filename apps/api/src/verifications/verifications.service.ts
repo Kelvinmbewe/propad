@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { PropertyStatus, VerificationResult, VerificationItemStatus, VerificationStatus, VerificationRequestItem } from '@prisma/client';
-// Use string or explicit type for VerificationType if Prisma client is being difficult
-const VerificationType = {
-  PROPERTY: 'PROPERTY',
-  USER: 'USER',
-  COMPANY: 'COMPANY'
-} as any;
+import {
+  PropertyStatus,
+  VerificationResult,
+  VerificationItemStatus,
+  VerificationStatus,
+  VerificationRequestItem,
+  VerificationType,
+  Property,
+  VerificationRequest,
+  Prisma
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { ReviewVerificationDto } from './dto/review-verification.dto';
@@ -51,15 +55,30 @@ export class VerificationsService {
       }
     });
 
-    const enriched = properties.map((p: any) => {
-      const isPaid = p.listingPayments.some((lp: any) => lp.type === 'VERIFICATION' && lp.status === 'PAID');
+    type PropertyWithDetails = Prisma.PropertyGetPayload<{
+      include: {
+        landlord: true,
+        agentOwner: true,
+        media: true,
+        listingPayments: true,
+        verificationRequests: {
+          include: {
+            items: true,
+            requester: true
+          }
+        }
+      }
+    }>;
+
+    const enriched = (properties as PropertyWithDetails[]).map((p) => {
+      const isPaid = p.listingPayments.some((lp) => lp.type === 'VERIFICATION' && lp.status === 'PAID');
       const req = p.verificationRequests[0];
-      const completedCount = req?.items.filter((i: any) => i.status === 'APPROVED').length || 0;
-      const hasOnSiteRequest = req?.items.some((i: any) => i.notes?.includes('On-site visit requested')) || false;
+      const completedCount = req?.items.filter((i) => i.status === 'APPROVED').length || 0;
+      const hasOnSiteRequest = req?.items.some((i) => i.notes?.includes('On-site visit requested')) || false;
       return { ...p, isPaid, completedCount, hasOnSiteRequest };
     });
 
-    return enriched.sort((a: any, b: any) => {
+    return enriched.sort((a, b) => {
       // 1. Paid first
       if (a.isPaid && !b.isPaid) return -1;
       if (!a.isPaid && b.isPaid) return 1;
@@ -77,7 +96,7 @@ export class VerificationsService {
     return this.prisma.verificationRequest.findMany({
       where: {
         ...(filters.targetType ? { targetType: filters.targetType } : {}),
-        ...(filters.status ? { status: filters.status as any } : {})
+        ...(filters.status ? { status: filters.status as VerificationStatus } : {})
       },
       include: {
         requester: { select: { id: true, name: true, email: true } },
@@ -156,7 +175,7 @@ export class VerificationsService {
         entityId: actor.userId,
         signalType: RiskSignalType.MANUAL_ADMIN_FLAG,
         scoreDelta: 5,
-        notes: `Attempted self-review of verification request: ${requestId}`
+        notes: `Attempted self - review of verification request: ${requestId} `
       });
       throw new ForbiddenException('Moderators cannot review their own verification requests.');
     }
@@ -184,7 +203,7 @@ export class VerificationsService {
         entityId: actor.userId,
         signalType: RiskSignalType.MANUAL_ADMIN_FLAG,
         scoreDelta: 0,
-        notes: `Random audit sample: item ${itemId} approved by ${actor.userId}`
+        notes: `Random audit sample: item ${itemId} approved by ${actor.userId} `
       });
     }
 
@@ -263,7 +282,7 @@ export class VerificationsService {
     let totalScore = 0;
     const approvedItems = property.verificationRequests
       .flatMap((r: any) => r.items)
-      .filter((i: VerificationRequestItem) => i.status === 'APPROVED');
+      .filter((i: any) => i.status === 'APPROVED');
 
     for (const item of approvedItems) {
       if (item.type === 'PROOF_OF_OWNERSHIP') totalScore += 50;
@@ -317,8 +336,8 @@ export class VerificationsService {
     let hasSelfie = false;
     let hasAddress = false;
 
-    requests.forEach((r: any) => {
-      r.items.forEach((i: any) => {
+    (requests as (VerificationRequest & { items: any[] })[]).forEach((r) => {
+      r.items.forEach((i) => {
         if (i.status === 'APPROVED') {
           if (i.type === 'IDENTITY_DOC') { score += 40; hasId = true; }
           if (i.type === 'SELFIE_VERIFICATION') { score += 30; hasSelfie = true; }
@@ -345,8 +364,8 @@ export class VerificationsService {
     let score = 0;
     let docsCount = 0;
 
-    requests.forEach((r: any) => {
-      r.items.forEach((i: any) => {
+    (requests as (VerificationRequest & { items: any[] })[]).forEach((r) => {
+      r.items.forEach((i) => {
         if (i.status === 'APPROVED') {
           if (i.type === 'COMPANY_REGS') score += 40;
           if (i.type === 'TAX_CLEARANCE') score += 30;

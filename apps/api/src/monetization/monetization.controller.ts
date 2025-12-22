@@ -65,7 +65,7 @@ export class MonetizationController {
 
     @Get('admin/metrics')
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(Role.ADMIN, Role.MODERATOR as any)
+    @Roles(Role.ADMIN, Role.MODERATOR)
     async getMetrics() {
         // Simple ROI metrics mockup for now
         // Boost -> Engagement (Views/Offers) correlation

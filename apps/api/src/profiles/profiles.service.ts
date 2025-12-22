@@ -47,7 +47,7 @@ export class ProfilesService {
                 reviewCount: safeReviewCount, // Real app would use _count
             },
             badges,
-            recentReviews: user.reviewsReceived.map(r => ({
+            recentReviews: user.reviewsReceived.map((r: any) => ({
                 id: r.id,
                 author: r.reviewer.name,
                 rating: r.rating,
@@ -81,12 +81,12 @@ export class ProfilesService {
                 verified: agency.verificationScore > 0
             },
             badges,
-            agents: agency.members.map(m => ({
+            agents: agency.members.map((m: any) => ({
                 id: m.userId,
                 name: m.user.name,
                 photo: m.user.profilePhoto
             })),
-            recentReviews: agency.reviews.map(r => ({
+            recentReviews: agency.reviews.map((r: any) => ({
                 rating: r.rating,
                 comment: r.comment,
                 author: r.reviewer.name,

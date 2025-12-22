@@ -9,7 +9,7 @@ import { Role } from '@prisma/client';
 
 @Controller('admin/risk')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN, Role.MODERATOR as any)
+@Roles(Role.ADMIN, Role.MODERATOR)
 export class RiskController {
     constructor(
         private readonly riskService: RiskService,

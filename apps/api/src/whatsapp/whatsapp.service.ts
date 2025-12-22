@@ -45,7 +45,7 @@ export class WhatsAppService {
   constructor(
     private readonly propertiesService: PropertiesService,
     private readonly shortLinksService: ShortLinksService
-  ) {}
+  ) { }
 
   async handleInbound(dto: InboundMessageDto) {
     const parsed = this.parseQuery(dto.message);
@@ -56,20 +56,22 @@ export class WhatsAppService {
       limit: 3
     });
 
-    const properties = searchResult.items as unknown as Array<
-      {
-        id: string;
-        city?: { name?: string | null } | null;
-        cityName?: string | null;
-        suburb?: { name?: string | null } | null;
-        suburbName?: string | null;
-        type: PropertyType;
-        price?: Prisma.Decimal | number | string | null;
-        bedrooms?: number | null;
-        bathrooms?: number | null;
-        media?: Array<{ url?: string | null }> | null;
-      } & Record<string, unknown>
-    >;
+    interface SearchResultProperty {
+      id: string;
+      city?: { name?: string | null } | null;
+      cityName?: string | null;
+      suburb?: { name?: string | null } | null;
+      suburbName?: string | null;
+      type: PropertyType;
+      title: string;
+      price: number;
+      currency: string;
+      bedrooms?: number | null;
+      bathrooms?: number | null;
+      media?: Array<{ url?: string | null }> | null;
+    }
+
+    const properties = (searchResult.data as any) as SearchResultProperty[];
 
     let candidates = properties;
     if (parsed.suburb) {

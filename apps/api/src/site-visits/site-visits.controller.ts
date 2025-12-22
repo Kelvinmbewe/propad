@@ -10,7 +10,7 @@ export class SiteVisitsController {
     constructor(private readonly siteVisitsService: SiteVisitsService) { }
 
     @Post('request')
-    async requestVisit(@Body() dto: RequestSiteVisitDto, @Request() req) {
+    async requestVisit(@Body() dto: RequestSiteVisitDto, @Request() req: any) {
         // const userId = req.user.id; 
         const userId = "mock-user-id"; // Placeholder
         return this.siteVisitsService.requestVisit(userId, dto.propertyId);
@@ -23,20 +23,20 @@ export class SiteVisitsController {
     }
 
     @Post(':id/assign')
-    async assignModerator(@Param('id') id: string, @Body() dto: AssignModeratorDto, @Request() req) {
+    async assignModerator(@Param('id') id: string, @Body() dto: AssignModeratorDto, @Request() req: any) {
         // Admin only
         return this.siteVisitsService.assignModerator(id, dto.moderatorId, "mock-admin-id");
     }
 
     @Get('my-assignments')
-    async getMyAssignments(@Request() req) {
+    async getMyAssignments(@Request() req: any) {
         // Moderator only
         const userId = "mock-moderator-id";
         return this.siteVisitsService.getModeratorVisits(userId);
     }
 
     @Post(':id/complete')
-    async completeVisit(@Param('id') id: string, @Body() dto: CompleteSiteVisitDto, @Request() req) {
+    async completeVisit(@Param('id') id: string, @Body() dto: CompleteSiteVisitDto, @Request() req: any) {
         // Moderator only
         const userId = "mock-moderator-id";
         return this.siteVisitsService.completeVisit(id, userId, dto.gpsLat, dto.gpsLng, dto.notes);

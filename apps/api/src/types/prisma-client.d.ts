@@ -4,7 +4,20 @@ declare module '@prisma/client' {
   type LiteralEnum<T extends string> = { readonly [K in T]: K };
   type EnumValues<T extends LiteralEnum<string>> = T[keyof T];
 
-  export const Role: LiteralEnum<'ADMIN' | 'VERIFIER' | 'AGENT' | 'LANDLORD' | 'USER'>;
+  export const Role: LiteralEnum<
+    | 'ADMIN'
+    | 'VERIFIER'
+    | 'AGENT'
+    | 'LANDLORD'
+    | 'USER'
+    | 'MODERATOR'
+    | 'COMPANY_ADMIN'
+    | 'COMPANY_AGENT'
+    | 'INDEPENDENT_AGENT'
+    | 'SELLER'
+    | 'TENANT'
+    | 'BUYER'
+  >;
   export type Role = EnumValues<typeof Role>;
 
   export const PropertyType: LiteralEnum<
@@ -37,7 +50,7 @@ declare module '@prisma/client' {
   export const Currency: LiteralEnum<'USD' | 'ZWG'>;
   export type Currency = EnumValues<typeof Currency>;
 
-  export const InvoicePurpose: LiteralEnum<'DIRECT_AD' | 'PROMO_BOOST' | 'OTHER'>;
+  export const InvoicePurpose: LiteralEnum<'DIRECT_AD' | 'PROMO_BOOST' | 'VERIFICATION' | 'RENT_PAYMENT' | 'BOOST' | 'OTHER'>;
   export type InvoicePurpose = EnumValues<typeof InvoicePurpose>;
 
   export const InvoiceStatus: LiteralEnum<'DRAFT' | 'OPEN' | 'PAID' | 'VOID'>;
@@ -109,9 +122,23 @@ declare module '@prisma/client' {
   export type PendingGeoStatus = EnumValues<typeof PendingGeoStatus>;
 
   export const RewardEventType: LiteralEnum<
-    'LISTING_VERIFIED' | 'LEAD_VALID' | 'SALE_CONFIRMED' | 'BONUS_TIER' | 'PROMO_REBATE'
+    | 'LISTING_VERIFIED'
+    | 'LEAD_VALID'
+    | 'SALE_CONFIRMED'
+    | 'BONUS_TIER'
+    | 'PROMO_REBATE'
+    | 'BOOST_PURCHASE'
   >;
   export type RewardEventType = EnumValues<typeof RewardEventType>;
+
+  export const VerificationType: LiteralEnum<'PROPERTY' | 'USER' | 'COMPANY'>;
+  export type VerificationType = EnumValues<typeof VerificationType>;
+
+  export const BoostType: LiteralEnum<'LISTING_BOOST' | 'FEATURED_LISTING' | 'VERIFICATION_FAST_TRACK' | 'PROFILE_BOOST'>;
+  export type BoostType = EnumValues<typeof BoostType>;
+
+  export const LedgerEntryType: LiteralEnum<'DEBIT' | 'CREDIT' | 'WRITE_OFF'>;
+  export type LedgerEntryType = EnumValues<typeof LedgerEntryType>;
 
   export const ListingEventType: LiteralEnum<'RENTED' | 'SOLD' | 'REOPENED' | 'DISCOUNT' | 'UNDER_OFFER'>;
   export type ListingEventType = EnumValues<typeof ListingEventType>;
@@ -199,7 +226,7 @@ declare module '@prisma/client' {
     export type PrismaClientOptions = Record<string, any>;
     export const JsonNull: null;
     export type Decimal = RuntimeDecimal;
-    export const Decimal: { new (value: number | string | bigint): Decimal };
+    export const Decimal: { new(value: number | string | bigint): Decimal };
     export type JsonObject = Record<string, any>;
     export type PropertyInclude = Record<string, any>;
     export type PropertyWhereInput = Record<string, any>;

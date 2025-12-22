@@ -1,13 +1,13 @@
 export class RequestSiteVisitDto {
-    propertyId: string;
+    propertyId!: string;
 }
 
 export class AssignModeratorDto {
-    moderatorId: string;
+    moderatorId!: string;
 }
 
 export class CompleteSiteVisitDto {
-    gpsLat: number;
-    gpsLng: number;
+    gpsLat!: number;
+    gpsLng!: number;
     notes?: string;
 }
