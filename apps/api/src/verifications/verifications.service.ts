@@ -59,6 +59,21 @@ export class VerificationsService {
     });
   }
 
+  async findAllRequests(filters: { targetType?: VerificationType; status?: string }) {
+    return this.prisma.verificationRequest.findMany({
+      where: {
+        ...(filters.targetType ? { targetType: filters.targetType } : {}),
+        ...(filters.status ? { status: filters.status as any } : {})
+      },
+      include: {
+        requester: { select: { id: true, name: true, email: true } },
+        property: { select: { id: true, title: true } },
+        items: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
   async getRequest(id: string) {
     const request = await this.prisma.verificationRequest.findUnique({
       where: { id },
@@ -132,7 +147,8 @@ export class VerificationsService {
     });
 
     // 3.5 Location Logic (Property Only)
-    if (request.verificationType === VerificationType.PROPERTY && item.type === 'LOCATION_CONFIRMATION' && request.property) {
+    // Use targetType
+    if (request.targetType === VerificationType.PROPERTY && item.type === 'LOCATION_CONFIRMATION' && request.property) {
       if (dto.status === 'APPROVED' && item.gpsLat && item.gpsLng) {
         const propLat = (request.property as any).lat || (request.property as any).suburb?.latitude;
         const propLng = (request.property as any).lng || (request.property as any).suburb?.longitude;
@@ -140,19 +156,18 @@ export class VerificationsService {
         if (propLat && propLng) {
           const dist = this.calculateDistance(propLat, propLng, item.gpsLat, item.gpsLng);
           if (dist > 5) {
-            // Warning only? Or fail?
-            // throw new BadRequestException(`Location verification failed: Distance to property is ${dist.toFixed(1)}km (Limit: 5km).`);
+            // Warning only (log if needed)
           }
         }
       }
     }
 
     // 4. Recalculate Score
-    if (request.verificationType === VerificationType.PROPERTY) {
+    if (request.targetType === VerificationType.PROPERTY) {
       if (request.propertyId) await this.recalculatePropertyScore(request.propertyId);
-    } else if (request.verificationType === VerificationType.USER) {
+    } else if (request.targetType === VerificationType.USER) {
       if (request.targetUserId) await this.recalculateUserScore(request.targetUserId);
-    } else if (request.verificationType === VerificationType.COMPANY) {
+    } else if (request.targetType === VerificationType.COMPANY) {
       if (request.agencyId) await this.recalculateAgencyScore(request.agencyId);
     }
 
@@ -169,11 +184,11 @@ export class VerificationsService {
       });
 
       // Auto-Verify Entity?
-      if (request.verificationType === VerificationType.USER && request.targetUserId) {
-        await this.prisma.user.update({
-          where: { id: request.targetUserId },
-          data: { isVerified: true, verificationScore: { increment: 10 } } // Simple increment
-        });
+      if (request.targetType === VerificationType.USER && request.targetUserId) {
+        await this.recalculateUserScore(request.targetUserId);
+      }
+      if (request.targetType === VerificationType.COMPANY && request.agencyId) {
+        await this.recalculateAgencyScore(request.agencyId);
       }
     }
 
@@ -236,25 +251,32 @@ export class VerificationsService {
   }
 
   async recalculateUserScore(userId: string) {
-    // Basic implementation
     const requests = await this.prisma.verificationRequest.findMany({
       where: { targetUserId: userId, status: 'APPROVED' },
       include: { items: true }
     });
 
     let score = 0;
+    let hasId = false;
+    let hasSelfie = false;
+    let hasAddress = false;
+
     requests.forEach((r: any) => {
       r.items.forEach((i: any) => {
         if (i.status === 'APPROVED') {
-          if (i.type === 'IDENTITY_DOC') score += 50;
-          if (i.type === 'PROOF_OF_ADDRESS') score += 30;
+          if (i.type === 'IDENTITY_DOC') { score += 40; hasId = true; }
+          if (i.type === 'SELFIE_VERIFICATION') { score += 30; hasSelfie = true; }
+          if (i.type === 'PROOF_OF_ADDRESS') { score += 30; hasAddress = true; }
         }
       });
     });
 
+    score = Math.min(100, score);
+    const isVerified = hasId || (hasAddress && hasSelfie) || score >= 40;
+
     await this.prisma.user.update({
       where: { id: userId },
-      data: { verificationScore: score, isVerified: score >= 50 }
+      data: { verificationScore: score, isVerified: isVerified }
     });
   }
 
@@ -265,20 +287,28 @@ export class VerificationsService {
     });
 
     let score = 0;
+    let docsCount = 0;
+
     requests.forEach((r: any) => {
       r.items.forEach((i: any) => {
         if (i.status === 'APPROVED') {
-          if (i.type === 'COMPANY_REGS') score += 60;
-          if (i.type === 'PROOF_OF_ADDRESS') score += 40;
+          if (i.type === 'COMPANY_REGS') score += 40;
+          if (i.type === 'TAX_CLEARANCE') score += 30;
+          if (i.type === 'DIRECTOR_ID') score += 20;
+          if (i.type === 'BUSINESS_ADDRESS') score += 10;
+          docsCount++;
         }
       });
     });
+
+    score = Math.min(100, score);
+    const isVerified = docsCount >= 2;
 
     await this.prisma.agency.update({
       where: { id: agencyId },
       data: {
         verificationScore: score,
-        verifiedAt: score >= 60 ? new Date() : null,
+        verifiedAt: isVerified ? new Date() : null,
         trustScore: score // Base trust score on verification score for now
       }
     });

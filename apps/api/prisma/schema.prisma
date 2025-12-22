@@ -956,6 +956,10 @@ enum VerificationItemType {
   COMPANY_REGS
   IDENTITY_DOC
   PROOF_OF_ADDRESS
+  SELFIE_VERIFICATION
+  TAX_CLEARANCE
+  DIRECTOR_ID
+  BUSINESS_ADDRESS
 }
 
 enum VerificationLevel {
@@ -993,19 +997,20 @@ model Verification {
   targetId    String   @default("") 
 }
 
-model VerificationRequest {
   id          String   @id @default(cuid())
   propertyId  String?
   agencyId    String?
   targetUserId String?
   
+  // Polymorphic Target
+  targetType  VerificationType @default(PROPERTY)
+  targetId    String           @default("") // indexed for admin filtering
+
   requesterId String
   status      VerificationStatus @default(PENDING)
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  verificationType VerificationType @default(PROPERTY)
 
   property Property?              @relation(fields: [propertyId], references: [id])
   requester User                 @relation("VerificationRequestRequester", fields: [requesterId], references: [id])
@@ -1014,6 +1019,7 @@ model VerificationRequest {
   @@index([propertyId])
   @@index([requesterId])
   @@index([status])
+  @@index([targetType, targetId]) // Generic lookup
 }
 
 enum VerificationType {
