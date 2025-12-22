@@ -17,9 +17,6 @@ const links: Array<{ href: string; label: string; roles: Role[]; icon: ReactNode
   { href: '/dashboard/admin/agencies', label: 'Companies', roles: ['ADMIN'], icon: <Building2 className="h-4 w-4" /> },
   { href: '/dashboard/admin/trust', label: 'Trust & Risk', roles: ['ADMIN'], icon: <ShieldCheck className="h-4 w-4" /> },
   { href: '/dashboard/interests', label: 'Offer & Interest', roles: ['ADMIN', 'AGENT', 'LANDLORD'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/reward-pool', label: 'Reward pool', roles: ['ADMIN'], icon: <BarChart3 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/geo', label: 'Geo admin', roles: ['ADMIN'], icon: <Globe2 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/billing', label: 'Billing admin', roles: ['ADMIN'], icon: <Wallet2 className="h-4 w-4" /> },
   { href: '/dashboard/profile', label: 'Profile', roles: ['AGENT', 'LANDLORD', 'USER', 'MODERATOR'], icon: <Users className="h-4 w-4" /> },
 ];
 
