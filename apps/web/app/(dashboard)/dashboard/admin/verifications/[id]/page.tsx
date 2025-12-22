@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, Button, Label, notify } from '@propad/ui';
-import { ChevronLeft, Check, X, FileText, Download, ExternalLink, MapPin, Camera, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Check, X, FileText, Download, ExternalLink, MapPin, Camera, AlertTriangle, ShieldAlert } from 'lucide-react';
 
 
 export default function VerificationReviewPage() {
@@ -70,9 +70,7 @@ export default function VerificationReviewPage() {
                 </div>
             </div>
 
-            import {ChevronLeft, Check, X, FileText, Download, ExternalLink, MapPin, Camera, AlertTriangle, ShieldAlert} from 'lucide-react';
 
-            // ... (skip lines 11-73)
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Left Column: Context & Trust */}
