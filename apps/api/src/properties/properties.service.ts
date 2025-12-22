@@ -1779,11 +1779,9 @@ export class PropertiesService {
       }
     });
 
-    // If exists and PENDING/APPROVED, block.
     // If REJECTED, we will "revive" it.
-    if (existingRequest && existingRequest.status !== 'REJECTED') {
-      throw new BadRequestException('A verification request is already pending or approved for this property');
-    }
+    // If PENDING/SUBMITTED/APPROVED, we will allow adding new items (e.g. upgrading level).
+    // NO blocking check here.
 
     // Validate file limits per item
     if (dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 5) {
@@ -1793,39 +1791,39 @@ export class PropertiesService {
       throw new BadRequestException('Property Photos allows max 5 files');
     }
 
-    const verificationFeeUsdCents = 2000; // $20.00 - Admin configurable (can be 0 for free verification)
+    const verificationFeeUsdCents = 2000; // $20.00 - Admin configurable
 
-    let verificationRequest;
+    let verificationRequest: any;
 
-    if (existingRequest && existingRequest.status === 'REJECTED') {
-      // Logic for RESUBMISSION (reviving rejected request)
-      // 1. Update request status to PENDING
-      // 2. Update/Create items
-      // For simplicity in this fix, we'll update the main request and create NEW items if needed or update existing ones?
-      // Actually, standard prisma create with nested logic might be complex for upset.
-      // Let's just update the status and then handle items.
+    if (existingRequest) {
+      // Reuse existing request
+      verificationRequest = existingRequest;
 
-      await this.prisma.verificationRequest.update({
-        where: { id: existingRequest.id },
-        data: {
-          status: 'PENDING',
-          notes: dto.notes ?? existingRequest.notes
-        }
-      });
+      // If strictly REJECTED, reset to PENDING to indicate activity (optional, but good for admin visibility)
+      if (existingRequest.status === 'REJECTED') {
+        await this.prisma.verificationRequest.update({
+          where: { id: existingRequest.id },
+          data: { status: 'PENDING', notes: dto.notes ?? existingRequest.notes } // Reset to Pending
+        });
+      }
 
       // Handle Proof of Ownership Item
       const proofItem = existingRequest.items.find((i: { type: string }) => i.type === 'PROOF_OF_OWNERSHIP');
       if (dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0) {
         if (proofItem) {
-          await this.prisma.verificationRequestItem.update({
-            where: { id: proofItem.id },
-            data: {
-              status: 'SUBMITTED',
-              evidenceUrls: dto.proofOfOwnershipUrls,
-              verifierId: null, // Reset verifier
-              reviewedAt: null
-            }
-          });
+          // Update existing only if not APPROVED (or allow re-verify?) - Admin dictates usually.
+          // Assuming we allow re-submit if not approved, or if we want to overwrite.
+          if (proofItem.status !== 'APPROVED') {
+            await this.prisma.verificationRequestItem.update({
+              where: { id: proofItem.id },
+              data: {
+                status: 'SUBMITTED',
+                evidenceUrls: dto.proofOfOwnershipUrls,
+                verifierId: null,
+                reviewedAt: null
+              }
+            });
+          }
         } else {
           await this.prisma.verificationRequestItem.create({
             data: {
@@ -1841,20 +1839,23 @@ export class PropertiesService {
       // Handle Location Item
       const locItem = existingRequest.items.find((i: { type: string }) => i.type === 'LOCATION_CONFIRMATION');
       if (dto.locationGpsLat || dto.locationGpsLng || dto.requestOnSiteVisit) {
-        // Determine status
         const locStatus = (dto.locationGpsLat && dto.locationGpsLng) ? 'SUBMITTED' : 'PENDING';
         if (locItem) {
-          await this.prisma.verificationRequestItem.update({
-            where: { id: locItem.id },
-            data: {
-              status: locStatus,
-              gpsLat: dto.locationGpsLat ?? locItem.gpsLat,
-              gpsLng: dto.locationGpsLng ?? locItem.gpsLng,
-              notes: dto.requestOnSiteVisit ? 'On-site visit requested' : locItem.notes,
-              verifierId: null,
-              reviewedAt: null
-            }
-          });
+          // Allow update unless approved? Or allow update if GPS refinement?
+          // Let's allow update if standard user flow.
+          if (locItem.status !== 'APPROVED') {
+            await this.prisma.verificationRequestItem.update({
+              where: { id: locItem.id },
+              data: {
+                status: locStatus,
+                gpsLat: dto.locationGpsLat ?? locItem.gpsLat,
+                gpsLng: dto.locationGpsLng ?? locItem.gpsLng,
+                notes: dto.requestOnSiteVisit ? 'On-site visit requested' : locItem.notes,
+                verifierId: null,
+                reviewedAt: null
+              }
+            });
+          }
         } else {
           await this.prisma.verificationRequestItem.create({
             data: {
@@ -1873,15 +1874,17 @@ export class PropertiesService {
       const photoItem = existingRequest.items.find((i: { type: string }) => i.type === 'PROPERTY_PHOTOS');
       if (dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0) {
         if (photoItem) {
-          await this.prisma.verificationRequestItem.update({
-            where: { id: photoItem.id },
-            data: {
-              status: 'SUBMITTED',
-              evidenceUrls: dto.propertyPhotoUrls,
-              verifierId: null,
-              reviewedAt: null
-            }
-          });
+          if (photoItem.status !== 'APPROVED') {
+            await this.prisma.verificationRequestItem.update({
+              where: { id: photoItem.id },
+              data: {
+                status: 'SUBMITTED',
+                evidenceUrls: dto.propertyPhotoUrls,
+                verifierId: null,
+                reviewedAt: null
+              }
+            });
+          }
         } else {
           await this.prisma.verificationRequestItem.create({
             data: {
@@ -1894,7 +1897,7 @@ export class PropertiesService {
         }
       }
 
-      // Reload request with items
+      // Reload request
       verificationRequest = await this.prisma.verificationRequest.findUnique({
         where: { id: existingRequest.id },
         include: { items: true }

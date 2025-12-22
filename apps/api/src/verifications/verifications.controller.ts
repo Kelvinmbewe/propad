@@ -41,6 +41,16 @@ export class VerificationsController {
     return this.verificationsService.reviewItem(id, itemId, dto, req.user);
   }
 
+  @Post(':id/items/:itemId/assign')
+  assignItem(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body('verifierId') verifierId: string,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.verificationsService.assignItem(id, itemId, verifierId, req.user);
+  }
+
   @Post(':id/approve')
   approve(
     @Param('id') id: string,

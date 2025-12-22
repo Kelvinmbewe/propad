@@ -791,7 +791,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
     return (
         <div className="space-y-6">
             {/* Payment Notice */}
-            {verificationPayment && verificationPayment.amountCents > 0 && (
+            {verificationPayment && verificationPayment.amountCents > 0 && verificationRequest?.property?.verificationLevel !== 'VERIFIED' && (
                 <Card className="border-amber-200 bg-amber-50">
                     <CardContent className="p-4">
                         <div className="flex items-center gap-3">
@@ -852,9 +852,9 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                                         {(() => {
                                             const level = verificationRequest.property.verificationLevel;
                                             const badges = {
-                                                'BASIC': { label: 'Bronze Badge', color: 'bg-orange-100 text-orange-800 border-orange-200' },
-                                                'TRUSTED': { label: 'Silver Badge', color: 'bg-slate-100 text-slate-800 border-slate-200' },
-                                                'VERIFIED': { label: 'Gold Badge', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' }
+                                                'BASIC': { label: 'Bronze Verification', color: 'bg-orange-100 text-orange-800 border-orange-200' },
+                                                'TRUSTED': { label: 'Silver Verification', color: 'bg-slate-100 text-slate-800 border-slate-200' },
+                                                'VERIFIED': { label: 'Gold Verification', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' }
                                             };
                                             const badge = badges[level as keyof typeof badges];
                                             if (!badge) return null;
