@@ -570,6 +570,10 @@ model User {
   rolesAssigned     UserRole[]           @relation("RoleAssigner")
   
   agencyMembersAssigned AgencyMember[]   @relation("AgencyMemberAssigner")
+  
+  // Site Visit Relations
+  siteVisitsRequested  SiteVisit[]         @relation("SiteVisitRequester")
+  siteVisitsAssigned   SiteVisit[]         @relation("SiteVisitModerator")
 }
 
 model UserRole {
@@ -768,6 +772,7 @@ model Property {
   verificationRequests VerificationRequest[]
   propertyRatings PropertyRating[]
   activityLogs ListingActivityLog[]
+  siteVisits   SiteVisit[]
 
   @@index([status])
   @@index([countryId])
@@ -1047,6 +1052,8 @@ model VerificationRequestItem {
   verificationRequest VerificationRequest @relation(fields: [verificationRequestId], references: [id], onDelete: Cascade)
   verifier             User?               @relation("VerificationItemVerifier", fields: [verifierId], references: [id])
   evidence             VerificationEvidence[]
+  siteVisits           SiteVisit[]
+
 
   @@index([verificationRequestId])
   @@index([type, status])
@@ -1745,4 +1752,43 @@ model ListingPayment {
   @@index([propertyId, createdAt(sort: Desc)])
   @@index([status])
   @@index([type])
+}
+
+model SiteVisit {
+  id                     String             @id @default(cuid())
+  propertyId             String
+  verificationItemId     String?            // Optional link to specific item
+  requestedByUserId      String
+  assignedModeratorId    String?
+
+  status                 SiteVisitStatus    @default(PENDING_ASSIGNMENT)
+  
+  scheduledAt            DateTime?
+  visitGpsLat            Float?
+  visitGpsLng            Float?
+  distanceFromSubmittedGps Float?           // Computed in km
+  
+  notes                  String?
+  completedAt            DateTime?
+
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  property               Property           @relation(fields: [propertyId], references: [id])
+  requestedBy            User               @relation("SiteVisitRequester", fields: [requestedByUserId], references: [id])
+  assignedModerator      User?              @relation("SiteVisitModerator", fields: [assignedModeratorId], references: [id])
+  verificationItem       VerificationRequestItem? @relation(fields: [verificationItemId], references: [id])
+
+  @@index([propertyId])
+  @@index([assignedModeratorId])
+  @@index([status])
+}
+
+enum SiteVisitStatus {
+  PENDING_ASSIGNMENT
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
 }
