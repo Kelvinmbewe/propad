@@ -19,7 +19,7 @@ export class RolesService {
 
         // Check if user already has role
         const existing = await this.prisma.userRole.findFirst({
-            where: { userId, role, active: true }
+            where: { userId, role, revokedAt: null }
         });
 
         if (existing) {
@@ -31,14 +31,14 @@ export class RolesService {
                 userId,
                 role,
                 assignedById,
-                active: true,
+                // active defaults to implicit based on revokedAt
             },
         });
     }
 
     async revokeRole(userId: string, role: Role, revokedById: string) {
         const userRole = await this.prisma.userRole.findFirst({
-            where: { userId, role, active: true },
+            where: { userId, role, revokedAt: null },
         });
 
         if (!userRole) {
@@ -47,13 +47,13 @@ export class RolesService {
 
         return this.prisma.userRole.update({
             where: { id: userRole.id },
-            data: { active: false }, // Soft delete/deactivate
+            data: { revokedAt: new Date() },
         });
     }
 
     async getUserRoles(userId: string) {
         const userRoles = await this.prisma.userRole.findMany({
-            where: { userId, active: true },
+            where: { userId, revokedAt: null },
             include: { assignedBy: { select: { id: true, name: true } } },
         });
 

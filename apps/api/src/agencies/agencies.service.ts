@@ -23,7 +23,23 @@ export class AgenciesService {
         return agency;
     }
 
-    async updateProfile(id: string, data: { bio?: string; registrationNumber?: string; logoUrl?: string }) {
+    async findBySlug(slug: string) {
+        const agency = await this.prisma.agency.findUnique({
+            where: { slug },
+            include: {
+                members: { include: { user: { select: { id: true, name: true, profilePhoto: true, role: true } } } },
+                reviews: { include: { reviewer: { select: { id: true, name: true } } } },
+            },
+        });
+
+        if (!agency) {
+            throw new NotFoundException('Company not found');
+        }
+
+        return agency;
+    }
+
+    async updateProfile(id: string, data: { bio?: string; registrationNumber?: string; logoUrl?: string; slug?: string }) {
         await this.findOne(id); // Ensure exists
 
         return this.prisma.agency.update({

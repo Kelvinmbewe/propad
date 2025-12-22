@@ -568,6 +568,8 @@ model User {
   // Role Management
   roles             UserRole[]
   rolesAssigned     UserRole[]           @relation("RoleAssigner")
+  
+  agencyMembersAssigned AgencyMember[]   @relation("AgencyMemberAssigner")
 }
 
 model UserRole {
@@ -576,7 +578,7 @@ model UserRole {
   role        Role
   assignedById String?
   assignedAt  DateTime @default(now())
-  active      Boolean  @default(true)
+  revokedAt   DateTime?
 
   user       User     @relation(fields: [userId], references: [id])
   assignedBy User?    @relation("RoleAssigner", fields: [assignedById], references: [id])
@@ -628,6 +630,8 @@ model Agency {
   logoUrl   String?
   kycStatus String?
   
+  slug      String?       @unique
+  
   // Company Profile Fields
   registrationNumber String?
   bio               String?
@@ -656,9 +660,13 @@ model AgencyMember {
   role      AgencyMemberRole
   joinedAt  DateTime         @default(now())
   isActive  Boolean          @default(true)
+  
+  revokedAt DateTime?
+  assignedById String?
 
   agency Agency @relation(fields: [agencyId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
+  assignedBy User? @relation("AgencyMemberAssigner", fields: [assignedById], references: [id])
 
   @@unique([agencyId, userId])
   @@index([userId, role])

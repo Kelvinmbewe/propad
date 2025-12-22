@@ -25,6 +25,7 @@ import { MailModule } from './mail/mail.module';
 import { AppConfigModule } from './app-config/app-config.module';
 import { RolesModule } from './roles/roles.module';
 import { AgenciesModule } from './agencies/agencies.module';
+import { ProfilesModule } from './profiles/profiles.module';
 
 @Module({
   imports: [
@@ -51,7 +52,8 @@ import { AgenciesModule } from './agencies/agencies.module';
     MailModule,
     AppConfigModule,
     RolesModule,
-    AgenciesModule
+    AgenciesModule,
+    ProfilesModule
   ],
   providers: [
     {
