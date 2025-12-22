@@ -13,6 +13,13 @@ enum Role {
   AGENT
   LANDLORD
   USER
+  MODERATOR
+  COMPANY_ADMIN
+  COMPANY_AGENT
+  INDEPENDENT_AGENT
+  SELLER
+  TENANT
+  BUYER
 }
 
 enum PropertyType {
@@ -544,11 +551,38 @@ model User {
   reviewsReceived      UserReview[]        @relation("Reviewee")
   reviewsGiven         UserReview[]        @relation("Reviewer")
   propertyRatingsGiven PropertyRating[]    @relation("PropertyRatingReviewer")
+  agencyReviewsGiven   AgencyReview[]
   listingActivitiesCreated ListingActivityLog[] @relation("ListingActivityActor")
   rentPayments         RentPayment[]       @relation("TenantRentPayments")
   viewingsAsViewer     Viewing[]           @relation("ViewingViewer")
   viewingsAsAgent      Viewing[]           @relation("ViewingAgent")
   viewingsAsLandlord   Viewing[]           @relation("ViewingLandlord")
+  
+  // New Profile Fields
+  profilePhoto      String?
+  bio               String?
+  location          String?
+  trustScore        Int      @default(0)
+  verificationScore Int      @default(0)
+  
+  // Role Management
+  roles             UserRole[]
+  rolesAssigned     UserRole[]           @relation("RoleAssigner")
+}
+
+model UserRole {
+  id          String   @id @default(cuid())
+  userId      String
+  role        Role
+  assignedById String?
+  assignedAt  DateTime @default(now())
+  active      Boolean  @default(true)
+
+  user       User     @relation(fields: [userId], references: [id])
+  assignedBy User?    @relation("RoleAssigner", fields: [assignedById], references: [id])
+  
+  @@index([userId])
+  @@index([role])
 }
 
 model Payout {
@@ -593,6 +627,14 @@ model Agency {
   address   String?
   logoUrl   String?
   kycStatus String?
+  
+  // Company Profile Fields
+  registrationNumber String?
+  bio               String?
+  trustScore        Int      @default(0)
+  verificationScore Int      @default(0)
+  verifiedAt        DateTime?
+
   status    AgencyStatus  @default(PENDING)
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
@@ -601,6 +643,7 @@ model Agency {
   contracts  ManagementContract[]
   properties Property[]
   buyerInvoices Invoice[] @relation("InvoiceBuyerAgency")
+  reviews    AgencyReview[]
 
   @@index([status])
   @@index([name])
@@ -902,6 +945,9 @@ enum VerificationItemType {
   PROOF_OF_OWNERSHIP
   LOCATION_CONFIRMATION
   PROPERTY_PHOTOS
+  COMPANY_REGS
+  IDENTITY_DOC
+  PROOF_OF_ADDRESS
 }
 
 enum VerificationLevel {
@@ -941,20 +987,31 @@ model Verification {
 
 model VerificationRequest {
   id          String   @id @default(cuid())
-  propertyId  String
+  propertyId  String?
+  agencyId    String?
+  targetUserId String?
+  
   requesterId String
   status      VerificationStatus @default(PENDING)
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  verificationType VerificationType @default(PROPERTY)
 
-  property Property              @relation(fields: [propertyId], references: [id])
+  property Property?              @relation(fields: [propertyId], references: [id])
   requester User                 @relation("VerificationRequestRequester", fields: [requesterId], references: [id])
   items     VerificationRequestItem[]
 
   @@index([propertyId])
   @@index([requesterId])
   @@index([status])
+}
+
+enum VerificationType {
+  PROPERTY
+  USER
+  COMPANY
 }
 
 model VerificationRequestItem {
@@ -1596,8 +1653,27 @@ model FeatureFlag {
 
 // New Models
 
+model AgencyReview {
+  id          String   @id @default(cuid())
+  agencyId    String
+  reviewerId  String
+  rating      Int
+  weight      Int      @default(1)
+  comment     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agency   Agency @relation(fields: [agencyId], references: [id])
+  reviewer User   @relation(fields: [reviewerId], references: [id])
+
+  @@index([agencyId])
+  @@index([reviewerId])
+}
+
 model Interest {
   id          String         @id @default(cuid())
+
+
   propertyId  String
   userId      String
   status      InterestStatus @default(PENDING)

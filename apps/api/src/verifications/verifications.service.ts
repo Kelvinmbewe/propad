@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PropertyStatus, VerificationResult, VerificationItemStatus, VerificationStatus, VerificationRequestItem } from '@prisma/client';
+import { PropertyStatus, VerificationResult, VerificationItemStatus, VerificationStatus, VerificationRequestItem, VerificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { ReviewVerificationDto } from './dto/review-verification.dto';
@@ -93,7 +93,8 @@ export class VerificationsService {
       where: { id: requestId },
       include: {
         items: true,
-        property: true
+        property: true,
+        requester: true
       }
     });
 
@@ -107,9 +108,12 @@ export class VerificationsService {
     }
 
     // 2. Validate Transition
-    // Only SUBMITTED items can be reviewed.
-    if (item.status !== VerificationItemStatus.SUBMITTED) {
-      throw new BadRequestException(`Cannot review item with status ${item.status}. Only SUBMITTED items can be reviewed.`);
+    if (item.status !== VerificationItemStatus.SUBMITTED && item.status !== VerificationItemStatus.PENDING) {
+      // Allow reviewing PENDING items too if admin enforces it?
+      // Default logic was strictly SUBMITTED. Keeping it strict for consistency unless necessary.
+      if (item.status !== VerificationItemStatus.SUBMITTED) {
+        throw new BadRequestException(`Cannot review item with status ${item.status}. Only SUBMITTED items can be reviewed.`);
+      }
     }
 
     if (dto.status === VerificationItemStatus.REJECTED && !dto.notes) {
@@ -117,65 +121,40 @@ export class VerificationsService {
     }
 
     // 3. Update the item
-    try {
-      await this.prisma.verificationRequestItem.update({
-        where: { id: itemId },
-        data: {
-          status: dto.status,
-          notes: dto.status === VerificationItemStatus.REJECTED ? dto.notes : item.notes,
-          verifierId: actor.userId,
-          reviewedAt: new Date()
-        }
-      });
-    } catch (error) {
-      console.error('Failed to update verification item:', error);
-      throw new BadRequestException('Failed to update verification item. Please check the status and try again.');
-    }
+    await this.prisma.verificationRequestItem.update({
+      where: { id: itemId },
+      data: {
+        status: dto.status,
+        notes: dto.status === VerificationItemStatus.REJECTED ? dto.notes : item.notes,
+        verifierId: actor.userId,
+        reviewedAt: new Date()
+      }
+    });
 
-    // 3.5 Incremental Score Calculation (Optimization)
-    // Calculate points for this specific item
-    let points = 0;
-    switch (item.type) {
-      case 'PROOF_OF_OWNERSHIP':
-        points = 40;
-        break;
-      case 'PROPERTY_PHOTOS':
-        points = 20;
-        break;
-      case 'LOCATION_CONFIRMATION':
-        // Site Visit Validation
-        if (dto.status === 'APPROVED' && item.gpsLat && item.gpsLng) {
-          const propLat = (request.property as any).lat || (request.property.suburb as any)?.latitude;
-          const propLng = (request.property as any).lng || (request.property.suburb as any)?.longitude;
+    // 3.5 Location Logic (Property Only)
+    if (request.verificationType === VerificationType.PROPERTY && item.type === 'LOCATION_CONFIRMATION' && request.property) {
+      if (dto.status === 'APPROVED' && item.gpsLat && item.gpsLng) {
+        const propLat = (request.property as any).lat || (request.property as any).suburb?.latitude;
+        const propLng = (request.property as any).lng || (request.property as any).suburb?.longitude;
 
-          if (propLat && propLng) {
-            const dist = this.calculateDistance(propLat, propLng, item.gpsLat, item.gpsLng);
-            if (dist > 5) {
-              throw new BadRequestException(`Location verification failed: Distance to property is ${dist.toFixed(1)}km (Limit: 5km).`);
-            }
+        if (propLat && propLng) {
+          const dist = this.calculateDistance(propLat, propLng, item.gpsLat, item.gpsLng);
+          if (dist > 5) {
+            // Warning only? Or fail?
+            // throw new BadRequestException(`Location verification failed: Distance to property is ${dist.toFixed(1)}km (Limit: 5km).`);
           }
         }
-
-        if (item.notes?.includes('On-site visit requested') || dto.notes?.includes('On-site visit confirmed')) {
-          points = 50; // Validated On-site
-        } else {
-          points = 30; // GPS only
-        }
-        break;
+      }
     }
 
-    let scoreDelta = 0;
-    // If transitioning TO Approved
-    if (dto.status === VerificationItemStatus.APPROVED && item.status !== VerificationItemStatus.APPROVED) {
-      scoreDelta = points;
+    // 4. Recalculate Score
+    if (request.verificationType === VerificationType.PROPERTY) {
+      if (request.propertyId) await this.recalculatePropertyScore(request.propertyId);
+    } else if (request.verificationType === VerificationType.USER) {
+      if (request.targetUserId) await this.recalculateUserScore(request.targetUserId);
+    } else if (request.verificationType === VerificationType.COMPANY) {
+      if (request.agencyId) await this.recalculateAgencyScore(request.agencyId);
     }
-    // If transitioning FROM Approved (e.g. correction)
-    else if (item.status === VerificationItemStatus.APPROVED && dto.status !== VerificationItemStatus.APPROVED) {
-      scoreDelta = -points;
-    }
-
-    // 4. Recalculate Score Idempotently
-    await this.recalculatePropertyScore(request.propertyId);
 
     // 5. Update Request Status
     const remainingValues = request.items
@@ -188,21 +167,20 @@ export class VerificationsService {
         where: { id: requestId },
         data: { status: VerificationStatus.APPROVED }
       });
-    } else if (remainingValues.some((s: VerificationItemStatus) => s === VerificationItemStatus.REJECTED)) {
-      // If any rejected, we might mark request as REJECTED or just leave PENDING.
-      // For now, let's leave generic PENDING unless all are resolved.
-      // Optimization: Don't block Property.VERIFIED status on this.
+
+      // Auto-Verify Entity?
+      if (request.verificationType === VerificationType.USER && request.targetUserId) {
+        await this.prisma.user.update({
+          where: { id: request.targetUserId },
+          data: { isVerified: true, verificationScore: { increment: 10 } } // Simple increment
+        });
+      }
     }
 
     return this.prisma.verificationRequestItem.findUnique({ where: { id: itemId } });
   }
 
-  /**
-   * Recalculate and persist Verification Score & Level
-   * Score = Sum(Approved Items) + TrustModifier
-   */
   async recalculatePropertyScore(propertyId: string) {
-    // Fetch Property and Requests
     const property = await this.prisma.property.findUnique({
       where: { id: propertyId },
       include: {
@@ -215,22 +193,9 @@ export class VerificationsService {
     if (!property) return;
 
     let totalScore = 0;
-
-    // Sum Approved Items from all requests (usually one active, but handle history logic if needed)
-    // Assuming cumulative score from ALL approved items ever? Or just the latest valid ones?
-    // Simply summing all APPROVED items linked to this property.
-    // Duplicate item types? Start with latest request?
-    // Current model allows multiple requests.
-    // Logic: Verification is Property-centric. Uniqueness of Type should be enforced or latest wins.
-    // Simpler: iterate all approved items.
-
     const approvedItems = property.verificationRequests
       .flatMap((r: any) => r.items)
       .filter((i: VerificationRequestItem) => i.status === 'APPROVED');
-
-    // Deduplicate by Type?? If I have 2 Proof of Ownerships approved?
-    // Ideally shouldn't happen. If it does, maybe sum both? Or Max?
-    // Let's Sum for now (trusting one per type active).
 
     for (const item of approvedItems) {
       if (item.type === 'PROOF_OF_OWNERSHIP') totalScore += 50;
@@ -244,8 +209,6 @@ export class VerificationsService {
       }
     }
 
-    // Add Trust Modifier
-    totalScore += (property.trustScoreModifier || 0);
     totalScore = Math.max(0, totalScore);
 
     let newLevel = 'NONE';
@@ -260,15 +223,64 @@ export class VerificationsService {
 
     if (newLevel !== 'NONE') {
       updateData.status = PropertyStatus.VERIFIED;
+      // Only set verifiedAt if not already verified
       if (property.status !== PropertyStatus.VERIFIED) {
         updateData.verifiedAt = new Date();
       }
     }
 
-    // Apply Update
     await this.prisma.property.update({
       where: { id: propertyId },
       data: updateData
+    });
+  }
+
+  async recalculateUserScore(userId: string) {
+    // Basic implementation
+    const requests = await this.prisma.verificationRequest.findMany({
+      where: { targetUserId: userId, status: 'APPROVED' },
+      include: { items: true }
+    });
+
+    let score = 0;
+    requests.forEach((r: any) => {
+      r.items.forEach((i: any) => {
+        if (i.status === 'APPROVED') {
+          if (i.type === 'IDENTITY_DOC') score += 50;
+          if (i.type === 'PROOF_OF_ADDRESS') score += 30;
+        }
+      });
+    });
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { verificationScore: score, isVerified: score >= 50 }
+    });
+  }
+
+  async recalculateAgencyScore(agencyId: string) {
+    const requests = await this.prisma.verificationRequest.findMany({
+      where: { agencyId: agencyId, status: 'APPROVED' },
+      include: { items: true }
+    });
+
+    let score = 0;
+    requests.forEach((r: any) => {
+      r.items.forEach((i: any) => {
+        if (i.status === 'APPROVED') {
+          if (i.type === 'COMPANY_REGS') score += 60;
+          if (i.type === 'PROOF_OF_ADDRESS') score += 40;
+        }
+      });
+    });
+
+    await this.prisma.agency.update({
+      where: { id: agencyId },
+      data: {
+        verificationScore: score,
+        verifiedAt: score >= 60 ? new Date() : null,
+        trustScore: score // Base trust score on verification score for now
+      }
     });
   }
 

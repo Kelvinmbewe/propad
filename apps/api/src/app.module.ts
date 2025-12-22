@@ -23,6 +23,8 @@ import { GeoModule } from './geo/geo.module';
 import { PaymentsModule } from './payments/payments.module';
 import { MailModule } from './mail/mail.module';
 import { AppConfigModule } from './app-config/app-config.module';
+import { RolesModule } from './roles/roles.module';
+import { AgenciesModule } from './agencies/agencies.module';
 
 @Module({
   imports: [
@@ -47,7 +49,9 @@ import { AppConfigModule } from './app-config/app-config.module';
     GeoModule,
     PaymentsModule,
     MailModule,
-    AppConfigModule
+    AppConfigModule,
+    RolesModule,
+    AgenciesModule
   ],
   providers: [
     {
@@ -56,4 +60,4 @@ import { AppConfigModule } from './app-config/app-config.module';
     }
   ]
 })
-export class AppModule {}
+export class AppModule { }
