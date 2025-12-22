@@ -66,7 +66,7 @@ export class AdminService {
     private readonly audit: AuditService,
     private readonly payments: PaymentsService,
     private readonly appConfig: AppConfigService
-  ) {}
+  ) { }
 
   async createStrike(dto: CreateStrikeDto, actorId: string) {
     const strike = await this.prisma.policyStrike.create({
@@ -310,6 +310,43 @@ export class AdminService {
 
   updateAppConfig(dto: UpdateAppConfigDto, actorId: string) {
     return this.appConfig.updateConfig(dto.config, actorId);
+  }
+
+  listUsers(role?: string) {
+    return this.prisma.user.findMany({
+      where: role ? { role: role as any } : undefined,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isVerified: true,
+        verificationScore: true,
+        trustScore: true,
+        kycStatus: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    });
+  }
+
+  listAgencies() {
+    return this.prisma.agency.findMany({
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        trustScore: true,
+        verificationScore: true,
+        createdAt: true,
+        _count: {
+          select: { members: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    });
   }
 
   private toCsv(records: any[]) {

@@ -657,3 +657,29 @@ export const RiskEntitySummarySchema = z.object({
 export type SiteVisit = z.infer<typeof SiteVisitSchema>;
 export type RiskEvent = z.infer<typeof RiskEventSchema>;
 export type RiskEntitySummary = z.infer<typeof RiskEntitySummarySchema>;
+export const AdminUserSchema = z.object({
+  id: z.string(),
+  name: z.string().nullable(),
+  email: z.string().nullable(),
+  role: z.string(), // Keeping as string to avoid zod enum issues, frontend can cast if needed
+  isVerified: z.boolean(),
+  verificationScore: z.number(),
+  trustScore: z.number(),
+  kycStatus: z.string().nullable(),
+  createdAt: z.string()
+});
+
+export const AdminAgencySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  status: z.string(),
+  trustScore: z.number(),
+  verificationScore: z.number(),
+  createdAt: z.string(),
+  _count: z.object({
+    members: z.number()
+  })
+});
+
+export type AdminUser = z.infer<typeof AdminUserSchema>;
+export type AdminAgency = z.infer<typeof AdminAgencySchema>;

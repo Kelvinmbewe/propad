@@ -57,7 +57,11 @@ import {
   type WhatsAppResponse,
   type SiteVisit,
   type RiskEvent,
-  type RiskEntitySummary
+  type RiskEntitySummary,
+  AdminUserSchema,
+  AdminAgencySchema,
+  type AdminUser,
+  type AdminAgency
 } from './schemas';
 
 interface SDKOptions {
@@ -737,6 +741,22 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             .get(`admin/risk/summary/${type}/${id}`)
             .json<RiskEntitySummary>()
             .then((data) => RiskEntitySummarySchema.parse(data)),
+      },
+      users: {
+        list: async (params: { role?: string } = {}) =>
+          client
+            .get('admin/users', {
+              searchParams: createSearchParams({ role: params.role }),
+            })
+            .json<AdminUser[]>()
+            .then((data) => AdminUserSchema.array().parse(data)),
+      },
+      agencies: {
+        list: async () =>
+          client
+            .get('admin/agencies')
+            .json<AdminAgency[]>()
+            .then((data) => AdminAgencySchema.array().parse(data)),
       },
     },
     siteVisits: {

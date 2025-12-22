@@ -24,7 +24,7 @@ interface AuthenticatedRequest {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(private readonly adminService: AdminService) { }
 
   @Post('strikes')
   createStrike(
@@ -134,5 +134,14 @@ export class AdminController {
     @Body(new ZodValidationPipe(updateAppConfigSchema)) dto: UpdateAppConfigDto
   ) {
     return this.adminService.updateAppConfig(dto, req.user.userId);
+  }
+  @Get('users')
+  listUsers(@Query('role') role?: string) {
+    return this.adminService.listUsers(role);
+  }
+
+  @Get('agencies')
+  listAgencies() {
+    return this.adminService.listAgencies();
   }
 }

@@ -15,6 +15,9 @@ export interface SanitizedUser {
   createdAt: Date;
   profileId?: string;
   agencyId?: string;
+  trustScore: number;
+  verificationScore: number;
+  isVerified: boolean;
 }
 
 @Injectable()
