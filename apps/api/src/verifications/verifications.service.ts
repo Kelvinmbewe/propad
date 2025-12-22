@@ -9,9 +9,15 @@ interface AuthContext {
   userId: string;
 }
 
+import { TrustService } from '../trust/trust.service';
+
 @Injectable()
 export class VerificationsService {
-  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly trust: TrustService
+  ) { }
 
   async listQueue() {
     const properties = await this.prisma.property.findMany({
@@ -162,13 +168,22 @@ export class VerificationsService {
       }
     }
 
-    // 4. Recalculate Score
+    // 4. Recalculate Score & Trust
     if (request.targetType === VerificationType.PROPERTY) {
-      if (request.propertyId) await this.recalculatePropertyScore(request.propertyId);
+      if (request.propertyId) {
+        await this.recalculatePropertyScore(request.propertyId);
+        await this.trust.calculatePropertyTrust(request.propertyId);
+      }
     } else if (request.targetType === VerificationType.USER) {
-      if (request.targetUserId) await this.recalculateUserScore(request.targetUserId);
+      if (request.targetUserId) {
+        await this.recalculateUserScore(request.targetUserId);
+        await this.trust.calculateUserTrust(request.targetUserId);
+      }
     } else if (request.targetType === VerificationType.COMPANY) {
-      if (request.agencyId) await this.recalculateAgencyScore(request.agencyId);
+      if (request.agencyId) {
+        await this.recalculateAgencyScore(request.agencyId);
+        await this.trust.calculateCompanyTrust(request.agencyId);
+      }
     }
 
     // 5. Update Request Status
@@ -186,9 +201,11 @@ export class VerificationsService {
       // Auto-Verify Entity?
       if (request.targetType === VerificationType.USER && request.targetUserId) {
         await this.recalculateUserScore(request.targetUserId);
+        await this.trust.calculateUserTrust(request.targetUserId);
       }
       if (request.targetType === VerificationType.COMPANY && request.agencyId) {
         await this.recalculateAgencyScore(request.agencyId);
+        await this.trust.calculateCompanyTrust(request.agencyId);
       }
     }
 
@@ -248,6 +265,9 @@ export class VerificationsService {
       where: { id: propertyId },
       data: updateData
     });
+
+    // Sync Trust Score
+    await this.trust.calculatePropertyTrust(propertyId);
   }
 
   async recalculateUserScore(userId: string) {

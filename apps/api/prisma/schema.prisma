@@ -757,6 +757,7 @@ model Property {
   // Verification Signals
   verificationScore Int @default(0)
   verificationLevel VerificationLevel @default(NONE)
+  trustScore        Int @default(0)
 
   // New relations
   interests       Interest[]
@@ -997,6 +998,7 @@ model Verification {
   targetId    String   @default("") 
 }
 
+model VerificationRequest {
   id          String   @id @default(cuid())
   propertyId  String?
   agencyId    String?

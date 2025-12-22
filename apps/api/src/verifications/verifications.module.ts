@@ -7,7 +7,7 @@ import { VerificationFingerprintService } from './verification-fingerprint.servi
 import { TrustModule } from '../trust/trust.module';
 
 @Module({
-  imports: [PrismaModule, AuditModule, forwardRef(() => TrustModule)],
+  imports: [PrismaModule, AuditModule, TrustModule],
   controllers: [VerificationsController],
   providers: [VerificationsService, VerificationFingerprintService],
   exports: [VerificationsService, VerificationFingerprintService]

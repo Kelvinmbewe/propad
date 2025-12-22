@@ -1,12 +1,11 @@
-import { Module, forwardRef } from '@nestjs/common';
-import { PrismaModule } from '../prisma/prisma.module';
+
+import { Module } from '@nestjs/common';
 import { TrustService } from './trust.service';
-import { VerificationFingerprintService } from '../verifications/verification-fingerprint.service';
-import { VerificationsModule } from '../verifications/verifications.module';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-    imports: [PrismaModule, forwardRef(() => VerificationsModule)],
+    imports: [PrismaModule],
     providers: [TrustService],
-    exports: [TrustService]
+    exports: [TrustService],
 })
 export class TrustModule { }

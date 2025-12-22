@@ -3,9 +3,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AgencyStatus } from '@prisma/client';
 
+import { TrustService } from '../trust/trust.service';
+
 @Injectable()
 export class AgenciesService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly trust: TrustService
+    ) { }
 
     async findOne(id: string) {
         const agency = await this.prisma.agency.findUnique({
@@ -78,6 +83,9 @@ export class AgenciesService {
         // Agency model doesn't have `rating` field yet (only `trustScore`).
         // Could verify if we added `rating` to Agency? I don't think so, based on previous steps.
         // So we just store reviews for now.
+
+        // Recalculate Trust
+        await this.trust.calculateCompanyTrust(agencyId);
 
         return review;
     }

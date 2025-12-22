@@ -26,6 +26,7 @@ import { AppConfigModule } from './app-config/app-config.module';
 import { RolesModule } from './roles/roles.module';
 import { AgenciesModule } from './agencies/agencies.module';
 import { ProfilesModule } from './profiles/profiles.module';
+import { TrustModule } from './trust/trust.module';
 
 @Module({
   imports: [
@@ -53,7 +54,8 @@ import { ProfilesModule } from './profiles/profiles.module';
     AppConfigModule,
     RolesModule,
     AgenciesModule,
-    ProfilesModule
+    ProfilesModule,
+    TrustModule
   ],
   providers: [
     {
