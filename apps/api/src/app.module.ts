@@ -28,6 +28,7 @@ import { AgenciesModule } from './agencies/agencies.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { TrustModule } from './trust/trust.module';
 import { RankingModule } from './ranking/ranking.module';
+import { SiteVisitsModule } from './site-visits/site-visits.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { RankingModule } from './ranking/ranking.module';
     QueueModule,
     AdsModule,
     PropertiesModule,
+    SiteVisitsModule,
     ShortLinksModule,
     WhatsAppModule,
     FacebookModule,

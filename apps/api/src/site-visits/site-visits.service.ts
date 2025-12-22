@@ -1,10 +1,14 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service'; // Adjust path if needed
 import { SiteVisitStatus, VerificationItemType, VerificationItemStatus, VerificationStatus } from '@prisma/client';
+import { TrustService } from '../trust/trust.service';
 
 @Injectable()
 export class SiteVisitsService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private trustService: TrustService
+    ) { }
 
     /**
      * Request a site visit for a property.
@@ -154,6 +158,25 @@ export class SiteVisitsService {
                         reviewedAt: new Date(),
                     }
                 });
+
+                // Boost Property Verification Score
+                const currentScore = visit.property.verificationScore || 0;
+                const newScore = Math.min(100, currentScore + 50); // Significant boost linked to physical verification
+
+                await this.prisma.property.update({
+                    where: { id: visit.propertyId },
+                    data: { verificationScore: newScore }
+                });
+
+                // Recalculate Trust Scores
+                await this.trustService.calculatePropertyTrust(visit.propertyId);
+
+                // Boost Owner Trust
+                const ownerId = visit.property.landlordId || visit.property.agentOwnerId;
+                if (ownerId) {
+                    await this.trustService.calculateUserTrust(ownerId);
+                }
+
             } else {
                 await this.prisma.verificationRequestItem.update({
                     where: { id: visit.verificationItemId },

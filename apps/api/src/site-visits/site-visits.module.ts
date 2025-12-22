@@ -1,0 +1,13 @@
+import { Module } from '@nestjs/common';
+import { SiteVisitsController } from './site-visits.controller';
+import { SiteVisitsService } from './site-visits.service';
+import { PrismaModule } from '../prisma/prisma.module';
+import { TrustModule } from '../trust/trust.module';
+
+@Module({
+    imports: [PrismaModule, TrustModule],
+    controllers: [SiteVisitsController],
+    providers: [SiteVisitsService],
+    exports: [SiteVisitsService],
+})
+export class SiteVisitsModule { }
