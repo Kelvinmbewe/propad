@@ -2,12 +2,14 @@ import { Injectable, BadRequestException, ForbiddenException, NotFoundException 
 import { PrismaService } from '../prisma/prisma.service'; // Adjust path if needed
 import { SiteVisitStatus, VerificationItemType, VerificationItemStatus, VerificationStatus } from '@prisma/client';
 import { TrustService } from '../trust/trust.service';
+import { RiskService, RiskSignalType } from '../trust/risk.service';
 
 @Injectable()
 export class SiteVisitsService {
     constructor(
         private prisma: PrismaService,
-        private trustService: TrustService
+        private trustService: TrustService,
+        private riskService: RiskService
     ) { }
 
     /**
@@ -184,6 +186,23 @@ export class SiteVisitsService {
                         status: 'PENDING', // Keep pending but Flag
                         notes: `SITE VISIT MISMATCH: Distance ${distanceKm.toFixed(2)}km. Moderator Notes: ${notes}`
                     }
+                });
+
+                // Signal GPS Mismatch Risk
+                await this.riskService.recordRiskEvent({
+                    entityType: 'PROPERTY',
+                    entityId: visit.propertyId,
+                    signalType: RiskSignalType.GPS_MISMATCH,
+                    scoreDelta: 15,
+                    notes: `Site visit distance mismatch: ${distanceKm.toFixed(2)}km`
+                });
+
+                await this.riskService.recordRiskEvent({
+                    entityType: 'USER',
+                    entityId: moderatorId,
+                    signalType: RiskSignalType.GPS_MISMATCH,
+                    scoreDelta: 10,
+                    notes: `Moderator reported visit at mismatch distance: ${distanceKm.toFixed(2)}km`
                 });
             }
         }

@@ -564,6 +564,7 @@ model User {
   location          String?
   trustScore        Int      @default(0)
   verificationScore Int      @default(0)
+  riskScore         Int      @default(0) // Internal only
   
   // Role Management
   roles             UserRole[]
@@ -641,6 +642,7 @@ model Agency {
   bio               String?
   trustScore        Int      @default(0)
   verificationScore Int      @default(0)
+  riskScore         Int      @default(0) // Internal only
   verifiedAt        DateTime?
 
   status    AgencyStatus  @default(PENDING)
@@ -762,6 +764,7 @@ model Property {
   verificationScore Int @default(0)
   verificationLevel VerificationLevel @default(NONE)
   trustScore        Int @default(0)
+  riskScore         Int @default(0) // Internal only
 
   // New relations
   interests       Interest[]
@@ -1791,4 +1794,19 @@ enum SiteVisitStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+model RiskEvent {
+  id          String   @id @default(cuid())
+  entityType  String   // USER, AGENCY, PROPERTY
+  entityId    String
+  signalType  String   // BURST_LISTING, GPS_MISMATCH, etc.
+  scoreDelta  Int
+  notes       String?
+  timestamp   DateTime @default(now())
+  resolvedBy  String?  // Admin User ID
+  
+  @@index([entityType, entityId])
+  @@index([signalType])
+  @@index([timestamp])
 }

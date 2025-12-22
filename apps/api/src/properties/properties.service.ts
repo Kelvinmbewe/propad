@@ -44,6 +44,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateServiceFeeDto } from './dto/update-service-fee.dto';
 import { VerificationFingerprintService } from '../verifications/verification-fingerprint.service';
 import { RankingService } from '../ranking/ranking.service';
+import { RiskService, RiskSignalType } from '../trust/risk.service';
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/webp', 'video/mp4',
@@ -110,7 +111,8 @@ export class PropertiesService {
     private readonly audit: AuditService,
     private readonly geo: GeoService,
     private readonly fingerprintService: VerificationFingerprintService,
-    private readonly ranking: RankingService
+    private readonly ranking: RankingService,
+    private readonly riskService: RiskService
   ) { }
 
   /**
@@ -944,6 +946,28 @@ export class PropertiesService {
         createdByRole = ListingCreatorRole.ADMIN;
       }
 
+      // Phase C: Burst Listing Detection (Internal Signal)
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      const recentCount = await this.prisma.property.count({
+        where: {
+          OR: [
+            { landlordId: actor.userId },
+            { agentOwnerId: actor.userId }
+          ],
+          createdAt: { gte: tenMinutesAgo }
+        }
+      });
+
+      if (recentCount >= 5) {
+        await this.riskService.recordRiskEvent({
+          entityType: 'USER',
+          entityId: actor.userId,
+          signalType: RiskSignalType.BURST_LISTING,
+          scoreDelta: 20,
+          notes: `User created ${recentCount} listings in 10 minutes. Possible automation/spam.`
+        });
+      }
+
       let location: Awaited<ReturnType<typeof this.geo.resolveLocation>>;
       try {
         location = await this.geo.resolveLocation({
@@ -1676,133 +1700,6 @@ export class PropertiesService {
     // For now, allow if they are involved.
   }
 
-  async search(dto: SearchPropertiesDto) {
-    const filters = this.normalizeSearchFilters(dto);
-    const useRanking = !dto.sort || dto.sort === 'RELEVANCE';
-
-    // Build Where Clause
-    const where: Prisma.PropertyWhereInput = {
-      status: PropertyStatus.PUBLISHED,
-      // Exact Filters
-      ...(filters.type ? { type: filters.type } : {}),
-      ...(filters.countryId ? { countryId: filters.countryId } : {}),
-      ...(filters.provinceId ? { provinceId: filters.provinceId } : {}),
-      ...(filters.cityId ? { cityId: filters.cityId } : {}),
-      ...(filters.suburbId ? { suburbId: filters.suburbId } : {}),
-
-      // Range Filters
-      ...(filters.priceMin || filters.priceMax ? {
-        price: {
-          ...(filters.priceMin ? { gte: filters.priceMin } : {}),
-          ...(filters.priceMax ? { lte: filters.priceMax } : {})
-        }
-      } : {}),
-      ...(filters.bedrooms ? { bedrooms: { gte: filters.bedrooms } } : {}),
-      ...(filters.bathrooms ? { bathrooms: { gte: filters.bathrooms } } : {}),
-      ...(filters.minFloorArea ? {
-        OR: [
-          { areaSqm: { gte: filters.minFloorArea } },
-          { commercialFields: { path: ['floorAreaSqm'], gte: filters.minFloorArea } }
-        ]
-      } : {}),
-
-      // Boolean / Enum Filters
-      ...(filters.furnished ? { furnished: filters.furnished } : {}),
-      ...(filters.parking !== undefined ? {
-        OR: [
-          { commercialFields: { path: ['parkingBays'], gt: 0 } },
-          { parking: true }
-        ]
-      } : {}),
-
-      // JSON Array Filter (Amenities)
-      ...(filters.amenities && filters.amenities.length > 0 ? {
-        amenities: { hasSome: filters.amenities }
-      } : {}),
-
-      // Geo Bounds
-      ...(filters.bounds ? {
-        lat: { gte: filters.bounds.southWest.lat, lte: filters.bounds.northEast.lat },
-        lng: { gte: filters.bounds.southWest.lng, lte: filters.bounds.northEast.lng }
-      } : {}),
-
-      // --- SMART RANKING FILTERS ---
-      // Verified Only Support
-      ...(dto.verifiedOnly ? {
-        OR: [
-          { verificationLevel: 'VERIFIED' },
-          { verificationLevel: 'TRUSTED' }
-        ]
-      } : {})
-    };
-
-    // Pagination
-    const limit = dto.limit || 20;
-    const offset = ((dto.page || 1) - 1) * limit;
-
-    // Fetch Strategy
-    // If Ranking enabled, we fetch more candidates (5x) to re-rank.
-    const fetchLimit = useRanking ? limit * 5 : limit;
-
-    // Sort Strategy
-    let orderBy: Prisma.PropertyOrderByWithRelationInput | Prisma.PropertyOrderByWithRelationInput[] = { createdAt: 'desc' };
-    if (dto.sort === 'PRICE_ASC') orderBy = { price: 'asc' };
-    if (dto.sort === 'PRICE_DESC') orderBy = { price: 'desc' };
-    if (dto.sort === 'NEWEST') orderBy = { createdAt: 'desc' };
-    if (dto.sort === 'TRUST_DESC') orderBy = { trustScore: 'desc' };
-    if (!Array.isArray(orderBy)) orderBy = [orderBy, { id: 'desc' }];
-
-    const [total, properties] = await Promise.all([
-      this.prisma.property.count({ where }),
-      this.prisma.property.findMany({
-        where,
-        include: {
-          media: true,
-          country: true, province: true, city: true, suburb: true, pendingGeo: true,
-          propertyRatings: { select: { rating: true } },
-          listingPayments: { where: { status: 'PAID' } } // For Boosting checks later
-        },
-        orderBy,
-        take: fetchLimit,
-        skip: offset
-      })
-    ]);
-
-    let resultProperties: any[] = properties;
-
-    if (useRanking && properties.length > 0) {
-      // Apply Smart Ranking
-      const ranked = this.ranking.rankListings(properties as any[], {
-        query: dto.filters,
-        priceMin: filters.priceMin,
-        priceMax: filters.priceMax,
-        type: filters.type,
-        bedrooms: filters.bedrooms,
-        bathrooms: filters.bathrooms
-      });
-
-      // Since we fetched 5x, we need to apply local pagination to the ranked results
-      const pagedRanked = ranked.slice(0, limit);
-
-      resultProperties = pagedRanked.map(r => {
-        const p = r.property as any;
-        p.rankingScore = r.score;
-        p.rankingBreakdown = r.breakdown;
-        return p;
-      });
-    }
-
-    const attached = await this.attachLocationToMany(resultProperties);
-    return {
-      data: attached,
-      meta: {
-        total,
-        page: dto.page || 1,
-        lastPage: Math.ceil(total / limit),
-        rankingApplied: useRanking
-      }
-    };
-  }
 
   async search(dto: SearchPropertiesDto) {
     const filters = this.normalizeSearchFilters(dto);

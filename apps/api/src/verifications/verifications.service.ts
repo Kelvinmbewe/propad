@@ -1,5 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PropertyStatus, VerificationResult, VerificationItemStatus, VerificationStatus, VerificationRequestItem, VerificationType } from '@prisma/client';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { PropertyStatus, VerificationResult, VerificationItemStatus, VerificationStatus, VerificationRequestItem } from '@prisma/client';
+// Use string or explicit type for VerificationType if Prisma client is being difficult
+const VerificationType = {
+  PROPERTY: 'PROPERTY',
+  USER: 'USER',
+  COMPANY: 'COMPANY'
+} as any;
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { ReviewVerificationDto } from './dto/review-verification.dto';
@@ -10,13 +16,15 @@ interface AuthContext {
 }
 
 import { TrustService } from '../trust/trust.service';
+import { RiskService, RiskSignalType } from '../trust/risk.service';
 
 @Injectable()
 export class VerificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly trust: TrustService
+    private readonly trust: TrustService,
+    private readonly riskService: RiskService
   ) { }
 
   async listQueue() {
@@ -141,6 +149,23 @@ export class VerificationsService {
       throw new BadRequestException('Rejection reason (notes) is required when rejecting an item.');
     }
 
+    // Phase G: Moderator Safety - No self-review
+    if (request.requesterId === actor.userId) {
+      await this.riskService.recordRiskEvent({
+        entityType: 'USER',
+        entityId: actor.userId,
+        signalType: RiskSignalType.MANUAL_ADMIN_FLAG,
+        scoreDelta: 5,
+        notes: `Attempted self-review of verification request: ${requestId}`
+      });
+      throw new ForbiddenException('Moderators cannot review their own verification requests.');
+    }
+
+    // No review of property owned by them
+    if (request.property && ((request.property as any).landlordId === actor.userId || (request.property as any).agentOwnerId === actor.userId)) {
+      throw new ForbiddenException('Moderators cannot review properties they own or manage.');
+    }
+
     // 3. Update the item
     await this.prisma.verificationRequestItem.update({
       where: { id: itemId },
@@ -151,6 +176,17 @@ export class VerificationsService {
         reviewedAt: new Date()
       }
     });
+
+    // Random Audit Sampling (10%)
+    if (dto.status === VerificationItemStatus.APPROVED && Math.random() < 0.1) {
+      await this.riskService.recordRiskEvent({
+        entityType: 'USER',
+        entityId: actor.userId,
+        signalType: RiskSignalType.MANUAL_ADMIN_FLAG,
+        scoreDelta: 0,
+        notes: `Random audit sample: item ${itemId} approved by ${actor.userId}`
+      });
+    }
 
     // 3.5 Location Logic (Property Only)
     // Use targetType

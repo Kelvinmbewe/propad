@@ -1,6 +1,6 @@
-
 import { Injectable } from '@nestjs/common';
 import { Property, PropertyType, PropertyFurnishing, PowerPhase } from '@prisma/client';
+import { RiskService } from '../trust/risk.service';
 
 export interface RankingParams {
     query?: string;
@@ -17,6 +17,7 @@ export interface RankingParams {
 
 @Injectable()
 export class RankingService {
+    constructor(private readonly riskService: RiskService) { }
 
     /**
      * Main entry point to rank a list of properties.
@@ -25,10 +26,20 @@ export class RankingService {
     rankListings(properties: Property[], params: RankingParams): { property: Property; score: number; breakdown: any }[] {
         return properties.map(property => {
             const breakdown = this.calculateScoreBreakdown(property, params);
+
+            // Silent Dampening based on riskScore
+            const riskScore = (property as any).riskScore || 0;
+            const multiplier = this.riskService.getRiskPenaltyMultiplier(riskScore);
+
+            const finalScore = breakdown.total * multiplier;
+
             return {
                 property,
-                score: breakdown.total,
-                breakdown
+                score: Math.ceil(finalScore),
+                breakdown: {
+                    ...breakdown,
+                    riskPenalty: multiplier < 1 ? multiplier : undefined
+                }
             };
         }).sort((a, b) => b.score - a.score);
     }
