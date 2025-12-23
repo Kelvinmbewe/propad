@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Avatar, AvatarImage, AvatarFallback, Badge, Button } from '@propad/ui';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Button } from '@propad/ui';
 import { User, Shield, Building, CreditCard, Star, MapPin, CheckCircle2, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -42,12 +42,15 @@ export default function ProfilePage() {
                         <div className="h-24 bg-gradient-to-r from-blue-600 to-indigo-600"></div>
                         <CardHeader className="relative pt-0 pb-2">
                             <div className="absolute -top-12 left-6">
-                                <Avatar className="h-24 w-24 border-4 border-white shadow-sm">
-                                    <AvatarImage src={user.image || ''} />
-                                    <AvatarFallback className="text-xl font-bold bg-neutral-100 text-neutral-600">
-                                        {user.name?.charAt(0) || 'U'}
-                                    </AvatarFallback>
-                                </Avatar>
+                                <div className="h-24 w-24 rounded-full border-4 border-white shadow-sm overflow-hidden bg-neutral-100 flex items-center justify-center">
+                                    {user.image ? (
+                                        <img src={user.image} alt={user.name || 'Profile'} className="h-full w-full object-cover" />
+                                    ) : (
+                                        <span className="text-xl font-bold text-neutral-600">
+                                            {user.name?.charAt(0) || 'U'}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                             <div className="mt-14 space-y-1">
                                 <div className="flex items-center gap-2">
