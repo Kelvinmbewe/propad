@@ -158,7 +158,7 @@ function VisitCard({ visit, onAssign, onComplete, isProcessing }: {
                     </div>
                 </div>
 
-                {visit.visitsGpsLat && (
+                {typeof visit.visitsGpsLat === 'number' && (
                     <div className="text-xs bg-neutral-50 p-2 rounded border border-neutral-100">
                         GPS Verified: {visit.distanceFromSubmittedGps?.toFixed(2)}km delta
                     </div>
