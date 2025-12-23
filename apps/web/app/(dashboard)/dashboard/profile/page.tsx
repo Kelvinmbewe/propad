@@ -43,13 +43,12 @@ export default function ProfilePage() {
                         <CardHeader className="relative pt-0 pb-2">
                             <div className="absolute -top-12 left-6">
                                 <div className="h-24 w-24 rounded-full border-4 border-white shadow-sm overflow-hidden bg-neutral-100 flex items-center justify-center">
-                                    {user.image ? (
-                                        <img src={user.image} alt={user.name || 'Profile'} className="h-full w-full object-cover" />
-                                    ) : (
+                                    <div className="h-24 w-24 rounded-full border-4 border-white shadow-sm overflow-hidden bg-neutral-100 flex items-center justify-center">
+                                        {/* Profile Image TODO: Enable when backend adds image to session */}
                                         <span className="text-xl font-bold text-neutral-600">
                                             {user.name?.charAt(0) || 'U'}
                                         </span>
-                                    )}
+                                    </div>
                                 </div>
                             </div>
                             <div className="mt-14 space-y-1">
