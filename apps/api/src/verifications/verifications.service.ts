@@ -119,7 +119,7 @@ export class VerificationsService {
     });
 
     // Sort: Paid > PV > Oldest
-    return requests.sort((a, b) => {
+    return requests.sort((a: typeof requests[number], b: typeof requests[number]) => {
       // 1. Paid Priority
       const aPaid = a.property?.listingPayments?.length ? 1 : 0;
       const bPaid = b.property?.listingPayments?.length ? 1 : 0;
