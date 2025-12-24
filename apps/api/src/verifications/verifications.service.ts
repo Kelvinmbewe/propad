@@ -22,6 +22,38 @@ interface AuthContext {
 import { TrustService } from '../trust/trust.service';
 import { RiskService, RiskSignalType } from '../trust/risk.service';
 
+type VerificationRow = {
+  id: string;
+  targetType: 'PROPERTY' | 'USER' | 'COMPANY';
+  targetUserId?: string | null;
+  agencyId?: string | null;
+  propertyId?: string | null;
+  status: string;
+  createdAt: Date;
+  items: { id: string }[];
+  property?: {
+    id: string;
+    title: string;
+    listingPayments: { status: string }[];
+  } | null;
+  requester?: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+  } | null;
+};
+
+type UserLite = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+};
+
+type AgencyLite = {
+  id: string;
+  name?: string | null;
+};
+
 @Injectable()
 export class VerificationsService {
   private readonly logger = new Logger(VerificationsService.name);
@@ -35,7 +67,7 @@ export class VerificationsService {
   async getVerificationQueue() {
     try {
       // 1. Fetch Requests (Raw)
-      const requests = await this.prisma.verificationRequest.findMany({
+      const rawRequests = await this.prisma.verificationRequest.findMany({
         where: {
           status: { in: ['PENDING', 'SUBMITTED'] },
         },
@@ -51,14 +83,17 @@ export class VerificationsService {
         orderBy: { createdAt: 'asc' }
       });
 
+      // Cast to strict local type to ensure safety in callbacks
+      const requests = rawRequests as unknown as VerificationRow[];
+
       // 2. Collect Missing IDs (User & Company)
       const userIds = requests
-        .filter(r => r.targetType === 'USER' && r.targetUserId)
-        .map(r => r.targetUserId!);
+        .filter((r: VerificationRow) => r.targetType === 'USER' && r.targetUserId)
+        .map((r: VerificationRow) => r.targetUserId!);
 
       const agencyIds = requests
-        .filter(r => r.targetType === 'COMPANY' && r.agencyId)
-        .map(r => r.agencyId!);
+        .filter((r: VerificationRow) => r.targetType === 'COMPANY' && r.agencyId)
+        .map((r: VerificationRow) => r.agencyId!);
 
       // 3. Fetch Related Entities
       const [users, agencies] = await Promise.all([
@@ -72,30 +107,33 @@ export class VerificationsService {
         }) : []
       ]);
 
-      const userMap = new Map(users.map((u: any) => [u.id, u]));
-      const agencyMap = new Map(agencies.map((a: any) => [a.id, a]));
+      const userMap: Record<string, UserLite> = {};
+      users.forEach((u) => { userMap[u.id] = u; });
+
+      const agencyMap: Record<string, AgencyLite> = {};
+      agencies.forEach((a) => { agencyMap[a.id] = a; });
 
       // 4. Normalize & Map
-      const queue = requests.map((req: any) => {
+      const queue = requests.map((req: VerificationRow) => {
         let targetLabel = 'Unknown Target';
         let targetId = req.targetId || '';
 
         // Resolve Label based on Type
         if (req.targetType === 'PROPERTY') {
           targetLabel = req.property ? req.property.title : 'Deleted Property';
-          targetId = req.propertyId || req.targetId;
+          targetId = req.propertyId || req.targetId || '';
         } else if (req.targetType === 'USER' && req.targetUserId) {
-          const u = userMap.get(req.targetUserId);
+          const u = userMap[req.targetUserId];
           targetLabel = u ? (u.name || u.email || 'Unnamed User') : 'Unknown User';
           targetId = req.targetUserId;
         } else if (req.targetType === 'COMPANY' && req.agencyId) {
-          const a = agencyMap.get(req.agencyId);
-          targetLabel = a ? a.name : 'Unknown Agency';
+          const a = agencyMap[req.agencyId];
+          targetLabel = a ? (a.name || 'Unnamed Agency') : 'Unknown Agency';
           targetId = req.agencyId;
         }
 
         // Paid Logic (Property Only)
-        const isPaid = !!req.property?.listingPayments?.some((p: any) => p.status === 'PAID');
+        const isPaid = !!req.property?.listingPayments?.some((p) => p.status === 'PAID');
 
         return {
           id: req.id,
@@ -111,7 +149,11 @@ export class VerificationsService {
       });
 
       // 5. Sort: Paid > Oldest
-      return queue.sort((a: any, b: any) => {
+      // Note: Sort happens on the Normalized items, so we type `a` and `b` as the inferred return type of Map.
+      // Or we can define VerificationQueueItem.
+      type VerificationQueueItem = typeof queue[0];
+
+      return queue.sort((a: VerificationQueueItem, b: VerificationQueueItem) => {
         if (a.isPaid !== b.isPaid) return a.isPaid ? -1 : 1;
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
