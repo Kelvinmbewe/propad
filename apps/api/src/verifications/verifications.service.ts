@@ -113,7 +113,15 @@ export class VerificationsService {
           select: { id: true, name: true, email: true, profilePhoto: true }
         },
         items: {
-          select: { id: true, type: true, status: true, notes: true }
+          select: {
+            id: true,
+            type: true,
+            status: true,
+            notes: true,
+            verifier: {
+              select: { id: true, name: true }
+            }
+          }
         }
       }
     });
