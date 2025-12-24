@@ -92,6 +92,44 @@ export class VerificationsService {
     });
   }
 
+  async getVerificationQueue() {
+    const requests = await this.prisma.verificationRequest.findMany({
+      where: {
+        status: VerificationStatus.PENDING
+      },
+      include: {
+        property: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            location: true,
+            listingPayments: {
+              where: { status: 'PAID', type: 'VERIFICATION' }
+            }
+          }
+        },
+        requester: {
+          select: { id: true, name: true, email: true, profilePhoto: true }
+        },
+        items: {
+          select: { id: true, type: true, status: true, notes: true }
+        }
+      }
+    });
+
+    // Sort: Paid > PV > Oldest
+    return requests.sort((a, b) => {
+      // 1. Paid Priority
+      const aPaid = a.property?.listingPayments?.length ? 1 : 0;
+      const bPaid = b.property?.listingPayments?.length ? 1 : 0;
+      if (aPaid !== bPaid) return bPaid - aPaid;
+
+      // 2. Oldest First
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+  }
+
   async findAllRequests(filters: { targetType?: VerificationType; status?: string }) {
     return this.prisma.verificationRequest.findMany({
       where: {

@@ -8,6 +8,11 @@ import { ReviewVerificationItemDto } from '../properties/dto/review-verification
 export class VerificationsController {
   constructor(private readonly verificationsService: VerificationsService) { }
 
+  @Get('queue')
+  async getQueue() {
+    return this.verificationsService.getVerificationQueue();
+  }
+
   @Get()
   async listRequests(
     @Query('targetType') targetType?: VerificationType,
