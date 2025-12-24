@@ -40,7 +40,11 @@ export class VerificationsService {
     try {
       const requests = await this.prisma.verificationRequest.findMany({
         where: {
-          status: VerificationStatus.PENDING
+          status: VerificationStatus.PENDING,
+          targetType: { in: [VerificationType.PROPERTY, VerificationType.USER, VerificationType.COMPANY] },
+          items: {
+            some: {} // Must have at least one item
+          }
         },
         include: {
           property: {
@@ -50,6 +54,8 @@ export class VerificationsService {
               listingPayments: true
             }
           },
+          targetUser: true, // For USER verification
+          agency: true,     // For COMPANY verification
           requester: true,
           items: {
             include: {
@@ -61,7 +67,7 @@ export class VerificationsService {
 
       // Sort: Paid > PV > Oldest
       return requests.sort((a: typeof requests[number], b: typeof requests[number]) => {
-        // 1. Paid Priority
+        // 1. Paid Priority (Property only)
         const aPaid = a.property?.listingPayments?.length ? 1 : 0;
         const bPaid = b.property?.listingPayments?.length ? 1 : 0;
         if (aPaid !== bPaid) return bPaid - aPaid;

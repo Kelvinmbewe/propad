@@ -12,7 +12,7 @@ export class VerificationsController {
 
   @Get('queue')
   async getQueue() {
-    return [];
+    return this.verificationsService.getVerificationQueue();
   }
 
   @Get()
