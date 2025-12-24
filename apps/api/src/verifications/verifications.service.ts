@@ -108,28 +108,34 @@ export class VerificationsService {
       ]);
 
       const userMap: Record<string, UserLite> = {};
-      users.forEach((u) => { userMap[u.id] = u; });
+      users.forEach((u: UserLite) => { userMap[u.id] = u; });
 
       const agencyMap: Record<string, AgencyLite> = {};
-      agencies.forEach((a) => { agencyMap[a.id] = a; });
+      agencies.forEach((a: AgencyLite) => { agencyMap[a.id] = a; });
 
       // 4. Normalize & Map
       const queue = requests.map((req: VerificationRow) => {
         let targetLabel = 'Unknown Target';
-        let targetId = req.targetId || '';
+        let targetId = '';
 
-        // Resolve Label based on Type
+        // Resolve IDs
+        if (req.targetType === 'PROPERTY') {
+          targetId = req.propertyId || '';
+        } else if (req.targetType === 'USER') {
+          targetId = req.targetUserId || '';
+        } else if (req.targetType === 'COMPANY') {
+          targetId = req.agencyId || '';
+        }
+
+        // Resolve Labels
         if (req.targetType === 'PROPERTY') {
           targetLabel = req.property ? req.property.title : 'Deleted Property';
-          targetId = req.propertyId || req.targetId || '';
         } else if (req.targetType === 'USER' && req.targetUserId) {
           const u = userMap[req.targetUserId];
-          targetLabel = u ? (u.name || u.email || 'Unnamed User') : 'Unknown User';
-          targetId = req.targetUserId;
+          targetLabel = u?.name || u?.email || 'Unnamed User';
         } else if (req.targetType === 'COMPANY' && req.agencyId) {
           const a = agencyMap[req.agencyId];
           targetLabel = a ? (a.name || 'Unnamed Agency') : 'Unknown Agency';
-          targetId = req.agencyId;
         }
 
         // Paid Logic (Property Only)
