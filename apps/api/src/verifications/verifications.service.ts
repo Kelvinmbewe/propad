@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import {
   PropertyStatus,
   VerificationResult,
@@ -24,6 +24,7 @@ import { RiskService, RiskSignalType } from '../trust/risk.service';
 
 @Injectable()
 export class VerificationsService {
+  private readonly logger = new Logger(VerificationsService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
@@ -31,53 +32,94 @@ export class VerificationsService {
     private readonly riskService: RiskService
   ) { }
 
-  async listQueue() {
-    // Minimal test - just return empty array
-    return [];
-  }
-
   async getVerificationQueue() {
     try {
+      // 1. Fetch Requests (Raw)
       const requests = await this.prisma.verificationRequest.findMany({
         where: {
-          status: VerificationStatus.PENDING,
-          targetType: { in: [VerificationType.PROPERTY, VerificationType.USER, VerificationType.COMPANY] },
-          items: {
-            some: {} // Must have at least one item
-          }
+          status: { in: ['PENDING', 'SUBMITTED'] },
         },
         include: {
+          items: true,
           property: {
-            include: {
-              suburb: true,
-              city: true,
-              listingPayments: true
-            }
+            select: { id: true, title: true, listingPayments: true }
           },
-          targetUser: true, // For USER verification
-          agency: true,     // For COMPANY verification
-          requester: true,
-          items: {
-            include: {
-              verifier: true
-            }
+          requester: {
+            select: { id: true, name: true, email: true }
           }
-        }
+        },
+        orderBy: { createdAt: 'asc' }
       });
 
-      // Sort: Paid > PV > Oldest
-      return requests.sort((a: typeof requests[number], b: typeof requests[number]) => {
-        // 1. Paid Priority (Property only)
-        const aPaid = a.property?.listingPayments?.length ? 1 : 0;
-        const bPaid = b.property?.listingPayments?.length ? 1 : 0;
-        if (aPaid !== bPaid) return bPaid - aPaid;
+      // 2. Collect Missing IDs (User & Company)
+      const userIds = requests
+        .filter(r => r.targetType === 'USER' && r.targetUserId)
+        .map(r => r.targetUserId!);
 
-        // 2. Oldest First
+      const agencyIds = requests
+        .filter(r => r.targetType === 'COMPANY' && r.agencyId)
+        .map(r => r.agencyId!);
+
+      // 3. Fetch Related Entities
+      const [users, agencies] = await Promise.all([
+        userIds.length ? this.prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true, email: true }
+        }) : [],
+        agencyIds.length ? this.prisma.agency.findMany({
+          where: { id: { in: agencyIds } },
+          select: { id: true, name: true }
+        }) : []
+      ]);
+
+      const userMap = new Map(users.map((u: any) => [u.id, u]));
+      const agencyMap = new Map(agencies.map((a: any) => [a.id, a]));
+
+      // 4. Normalize & Map
+      const queue = requests.map((req: any) => {
+        let targetLabel = 'Unknown Target';
+        let targetId = req.targetId || '';
+
+        // Resolve Label based on Type
+        if (req.targetType === 'PROPERTY') {
+          targetLabel = req.property ? req.property.title : 'Deleted Property';
+          targetId = req.propertyId || req.targetId;
+        } else if (req.targetType === 'USER' && req.targetUserId) {
+          const u = userMap.get(req.targetUserId);
+          targetLabel = u ? (u.name || u.email || 'Unnamed User') : 'Unknown User';
+          targetId = req.targetUserId;
+        } else if (req.targetType === 'COMPANY' && req.agencyId) {
+          const a = agencyMap.get(req.agencyId);
+          targetLabel = a ? a.name : 'Unknown Agency';
+          targetId = req.agencyId;
+        }
+
+        // Paid Logic (Property Only)
+        const isPaid = !!req.property?.listingPayments?.some((p: any) => p.status === 'PAID');
+
+        return {
+          id: req.id,
+          targetType: req.targetType,
+          targetId: targetId,
+          targetLabel: targetLabel,
+          status: req.status,
+          createdAt: req.createdAt,
+          isPaid: isPaid,
+          itemsCount: req.items.length,
+          requesterName: req.requester?.name || req.requester?.email || 'System'
+        };
+      });
+
+      // 5. Sort: Paid > Oldest
+      return queue.sort((a: any, b: any) => {
+        if (a.isPaid !== b.isPaid) return a.isPaid ? -1 : 1;
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
+
     } catch (error) {
-      console.error('getVerificationQueue error:', error);
-      throw error;
+      this.logger.error('Failed to get verification queue', error);
+      // NEVER throw 500
+      return [];
     }
   }
 

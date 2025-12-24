@@ -12,7 +12,12 @@ export class VerificationsController {
 
   @Get('queue')
   async getQueue() {
-    return this.verificationsService.getVerificationQueue();
+    try {
+      return await this.verificationsService.getVerificationQueue();
+    } catch (error) {
+      this.logger.error('Failed to get verification queue', error);
+      return [];
+    }
   }
 
   @Get()

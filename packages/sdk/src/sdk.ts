@@ -758,6 +758,22 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             .json<AdminAgency[]>()
             .then((data) => AdminAgencySchema.array().parse(data)),
       },
+      verifications: {
+        listQueue: async () =>
+          client
+            .get('verifications/queue')
+            .json<Array<{
+              id: string;
+              targetType: 'PROPERTY' | 'USER' | 'COMPANY';
+              targetId: string;
+              targetLabel: string;
+              status: string;
+              createdAt: string;
+              isPaid: boolean;
+              itemsCount: number;
+              requesterName: string;
+            }>>(),
+      },
     },
     siteVisits: {
       request: async (propertyId: string) =>
