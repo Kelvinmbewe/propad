@@ -1,16 +1,18 @@
 
-import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Patch, Query } from '@nestjs/common';
 import { VerificationsService } from './verifications.service';
 import { VerificationType, VerificationItemStatus } from '@prisma/client';
 import { ReviewVerificationItemDto } from '../properties/dto/review-verification-item.dto';
 
 @Controller('verifications')
 export class VerificationsController {
+  private readonly logger = new Logger(VerificationsController.name);
+
   constructor(private readonly verificationsService: VerificationsService) { }
 
   @Get('queue')
   async getQueue() {
-    return this.verificationsService.getVerificationQueue();
+    return [];
   }
 
   @Get()

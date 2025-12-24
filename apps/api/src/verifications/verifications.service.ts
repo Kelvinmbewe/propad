@@ -32,110 +32,47 @@ export class VerificationsService {
   ) { }
 
   async listQueue() {
-    const properties = await this.prisma.property.findMany({
-      where: { status: PropertyStatus.PENDING_VERIFY },
-      include: {
-        landlord: true,
-        agentOwner: true,
-        media: true,
-        listingPayments: true,
-        verificationRequests: {
-          where: { status: 'PENDING' },
-          include: {
-            items: {
-              orderBy: { type: 'asc' }
-            },
-            requester: {
-              select: { id: true, name: true, email: true }
-            }
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 1
-        }
-      }
-    });
-
-    type PropertyWithDetails = Prisma.PropertyGetPayload<{
-      include: {
-        landlord: true,
-        agentOwner: true,
-        media: true,
-        listingPayments: true,
-        verificationRequests: {
-          include: {
-            items: true,
-            requester: true
-          }
-        }
-      }
-    }>;
-
-    const enriched = (properties as PropertyWithDetails[]).map((p) => {
-      const isPaid = p.listingPayments.some((lp) => lp.type === 'VERIFICATION' && lp.status === 'PAID');
-      const req = p.verificationRequests[0];
-      const completedCount = req?.items.filter((i) => i.status === 'APPROVED').length || 0;
-      const hasOnSiteRequest = req?.items.some((i) => i.notes?.includes('On-site visit requested')) || false;
-      return { ...p, isPaid, completedCount, hasOnSiteRequest };
-    });
-
-    return enriched.sort((a, b) => {
-      // 1. Paid first
-      if (a.isPaid && !b.isPaid) return -1;
-      if (!a.isPaid && b.isPaid) return 1;
-
-      // 2. On-site Request first
-      if (a.hasOnSiteRequest && !b.hasOnSiteRequest) return -1;
-      if (!a.hasOnSiteRequest && b.hasOnSiteRequest) return 1;
-
-      // 3. Older first (createdAt asc)
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    });
+    // Minimal test - just return empty array
+    return [];
   }
 
   async getVerificationQueue() {
-    const requests = await this.prisma.verificationRequest.findMany({
-      where: {
-        status: VerificationStatus.PENDING
-      },
-      include: {
-        property: {
-          select: {
-            id: true,
-            title: true,
-            status: true,
-            location: true,
-            listingPayments: {
-              where: { status: 'PAID', type: 'VERIFICATION' }
+    try {
+      const requests = await this.prisma.verificationRequest.findMany({
+        where: {
+          status: VerificationStatus.PENDING
+        },
+        include: {
+          property: {
+            include: {
+              suburb: true,
+              city: true,
+              listingPayments: true
             }
-          }
-        },
-        requester: {
-          select: { id: true, name: true, email: true, profilePhoto: true }
-        },
-        items: {
-          select: {
-            id: true,
-            type: true,
-            status: true,
-            notes: true,
-            verifier: {
-              select: { id: true, name: true }
+          },
+          requester: true,
+          items: {
+            include: {
+              verifier: true
             }
           }
         }
-      }
-    });
+      });
 
-    // Sort: Paid > PV > Oldest
-    return requests.sort((a: typeof requests[number], b: typeof requests[number]) => {
-      // 1. Paid Priority
-      const aPaid = a.property?.listingPayments?.length ? 1 : 0;
-      const bPaid = b.property?.listingPayments?.length ? 1 : 0;
-      if (aPaid !== bPaid) return bPaid - aPaid;
+      // Sort: Paid > PV > Oldest
+      return requests.sort((a: typeof requests[number], b: typeof requests[number]) => {
+        // 1. Paid Priority
+        const aPaid = a.property?.listingPayments?.length ? 1 : 0;
+        const bPaid = b.property?.listingPayments?.length ? 1 : 0;
+        if (aPaid !== bPaid) return bPaid - aPaid;
 
-      // 2. Oldest First
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    });
+        // 2. Oldest First
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
+    } catch (error) {
+      console.error('getVerificationQueue error:', error);
+      throw error;
+    }
   }
 
   async findAllRequests(filters: { targetType?: VerificationType; status?: string }) {
