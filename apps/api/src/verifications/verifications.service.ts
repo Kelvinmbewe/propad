@@ -69,10 +69,14 @@ export class VerificationsService {
       // 1. Fetch Requests (Raw)
       const rawRequests = await this.prisma.verificationRequest.findMany({
         where: {
-          status: { in: ['PENDING', 'SUBMITTED'] },
+          status: { in: ['REQUESTED', 'SUBMITTED', 'PENDING', 'PENDING_REVIEW', 'PAID'] },
         },
         include: {
-          items: true,
+          items: {
+            where: {
+              status: { in: ['SUBMITTED', 'PENDING', 'PENDING_REVIEW'] }
+            }
+          },
           property: {
             select: { id: true, title: true, listingPayments: true }
           },
@@ -82,6 +86,16 @@ export class VerificationsService {
         },
         orderBy: { createdAt: 'asc' }
       });
+
+      console.log(
+        '[VERIFICATION QUEUE]',
+        rawRequests.length,
+        rawRequests.map((r: any) => ({
+          id: r.id,
+          status: r.status,
+          items: r.items.length
+        }))
+      );
 
       // Cast to strict local type to ensure safety in callbacks
       const requests = rawRequests as unknown as VerificationRow[];
