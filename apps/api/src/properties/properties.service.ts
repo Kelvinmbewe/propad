@@ -1921,9 +1921,10 @@ export class PropertiesService {
       // Handle Location Item
       const locationItem = existingRequest.items.find((i: { type: string }) => i.type === 'LOCATION_CONFIRMATION');
       if (dto.locationGpsLat && dto.locationGpsLng) {
+        let updatedLocationItem;
         if (locationItem) {
           if (locationItem.status !== 'APPROVED') {
-            await this.prisma.verificationRequestItem.update({
+            updatedLocationItem = await this.prisma.verificationRequestItem.update({
               where: { id: locationItem.id },
               data: {
                 status: 'SUBMITTED',
@@ -1936,7 +1937,7 @@ export class PropertiesService {
             });
           }
         } else {
-          await this.prisma.verificationRequestItem.create({
+          updatedLocationItem = await this.prisma.verificationRequestItem.create({
             data: {
               verificationRequestId: existingRequest.id,
               type: 'LOCATION_CONFIRMATION',
@@ -1946,6 +1947,25 @@ export class PropertiesService {
               notes: dto.requestOnSiteVisit ? 'On-site visit requested' : null
             }
           });
+        }
+
+        // PRODUCTION HARDENING: Auto-create SiteVisit when location item requests on-site visit
+        if (updatedLocationItem && dto.requestOnSiteVisit) {
+          // Check if site visit already exists for this item
+          const existingSiteVisit = await this.prisma.siteVisit.findFirst({
+            where: { verificationItemId: updatedLocationItem.id }
+          });
+          if (!existingSiteVisit) {
+            await this.prisma.siteVisit.create({
+              data: {
+                propertyId: id,
+                verificationItemId: updatedLocationItem.id,
+                requestedByUserId: actor.userId,
+                status: 'PENDING_ASSIGNMENT',
+                notes: 'Auto-created from verification request'
+              }
+            });
+          }
         }
       }
 
@@ -2063,6 +2083,22 @@ export class PropertiesService {
         if (item.evidenceUrls && item.evidenceUrls.length > 0) {
           void this.fingerprintService.processItemEvidence(item.id, item.evidenceUrls);
         }
+      }
+
+      // PRODUCTION HARDENING: Auto-create SiteVisit when location item requests on-site visit
+      const locationItem = verificationRequest.items.find((i: any) => 
+        i.type === 'LOCATION_CONFIRMATION' && i.notes?.includes('On-site visit requested')
+      );
+      if (locationItem && dto.requestOnSiteVisit) {
+        await this.prisma.siteVisit.create({
+          data: {
+            propertyId: id,
+            verificationItemId: locationItem.id,
+            requestedByUserId: actor.userId,
+            status: 'PENDING_ASSIGNMENT',
+            notes: 'Auto-created from verification request'
+          }
+        });
       }
     }
 

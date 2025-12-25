@@ -67,14 +67,20 @@ export default function VerificationReviewPage() {
     const requester = request.requester;
     const items = request.items || [];
 
-    // Derive Trust Intelligence status from verification items
-    // 0 approved → PENDING, some approved → PARTIALLY VERIFIED, all approved → VERIFIED
+    // PRODUCTION HARDENING: Compute Trust Intelligence status dynamically from verification items
+    // Remove any static trust status storage - compute dynamically:
+    // APPROVED: all required items approved
+    // PARTIAL: some approved, some pending/submitted
+    // REJECTED: any rejected
+    // PENDING: none approved yet
     const approvedCount = items.filter((item: any) => item.status === 'APPROVED').length;
+    const rejectedCount = items.filter((item: any) => item.status === 'REJECTED').length;
     const totalCount = items.length;
     const trustStatus = totalCount === 0 ? 'PENDING' :
+                       rejectedCount > 0 ? 'REJECTED' :
                        approvedCount === 0 ? 'PENDING' :
-                       approvedCount === totalCount ? 'VERIFIED' :
-                       'PARTIALLY VERIFIED';
+                       approvedCount === totalCount ? 'APPROVED' :
+                       'PARTIAL';
 
     return (
         <div className="max-w-5xl mx-auto p-6 space-y-6">
@@ -139,8 +145,9 @@ export default function VerificationReviewPage() {
                                 {(() => {
                                     const colors = {
                                         'PENDING': 'bg-amber-50 text-amber-700 border-amber-200',
-                                        'PARTIALLY VERIFIED': 'bg-blue-50 text-blue-700 border-blue-200',
-                                        'VERIFIED': 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        'PARTIAL': 'bg-blue-50 text-blue-700 border-blue-200',
+                                        'APPROVED': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                                        'REJECTED': 'bg-red-50 text-red-700 border-red-200'
                                     };
                                     return (
                                         <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${colors[trustStatus as keyof typeof colors] || colors.PENDING}`}>
@@ -175,10 +182,10 @@ export default function VerificationReviewPage() {
                     <h3 className="font-semibold text-lg">Verification Items</h3>
 
                     {items.map((item: any) => {
-                        // Visual states: Approved (green, no actions), Rejected (red, show reason), Pending (actions enabled)
+                        // Visual states: Approved (green, no actions), Rejected (red, show reason), Submitted (actions enabled)
                         const isApproved = item.status === 'APPROVED';
                         const isRejected = item.status === 'REJECTED';
-                        const isPending = item.status === 'SUBMITTED' || item.status === 'PENDING';
+                        const isSubmitted = item.status === 'SUBMITTED';
                         
                         return (
                         <Card key={item.id} className={`border-l-4 ${
@@ -289,7 +296,7 @@ export default function VerificationReviewPage() {
                                     </div>
                                 )}
 
-                                {/* Approved state - Green, no actions */}
+                                {/* Approved state - Green, no actions, disabled clearly */}
                                 {isApproved && (
                                     <div className="mb-4 p-3 bg-emerald-50 text-emerald-800 text-sm rounded border border-emerald-200">
                                         <div className="flex items-center gap-2">
@@ -298,14 +305,69 @@ export default function VerificationReviewPage() {
                                         </div>
                                         {item.reviewedAt && (
                                             <p className="mt-1 text-xs text-emerald-600">
-                                                Reviewed on {new Date(item.reviewedAt).toLocaleDateString()}
+                                                {item.verifier ? `Reviewed by ${item.verifier.name || 'moderator'} on ` : 'Reviewed on '}
+                                                {new Date(item.reviewedAt).toLocaleDateString()}
                                             </p>
                                         )}
                                     </div>
                                 )}
 
-                                {/* Action Buttons - Only show for SUBMITTED or PENDING items */}
+                                {/* Pending state - Disabled, no actions */}
                                 {isPending && (
+                                    <div className="mb-4 p-3 bg-neutral-50 text-neutral-600 text-sm rounded border border-neutral-200">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs">⏳</span>
+                                            <span className="font-medium text-neutral-700">This item is pending submission</span>
+                                        </div>
+                                        <p className="mt-1 text-xs text-neutral-500">
+                                            No actions available until evidence is submitted
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Pending state - Disabled, no actions */}
+                                {isPending && (
+                                    <div className="mb-4 p-3 bg-neutral-50 text-neutral-600 text-sm rounded border border-neutral-200">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs">⏳</span>
+                                            <span className="font-medium text-neutral-700">This item is pending submission</span>
+                                        </div>
+                                        <p className="mt-1 text-xs text-neutral-500">
+                                            No actions available until evidence is submitted
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Site Visit Integration - Show when location item requests on-site visit */}
+                                {item.type === 'LOCATION_CONFIRMATION' && item.notes?.includes('On-site visit requested') && (
+                                  <div className="mb-4 p-3 bg-blue-50 text-blue-800 text-sm rounded border border-blue-200">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <MapPin className="h-4 w-4 text-blue-600" />
+                                        <span className="font-medium text-blue-900">On-site visit requested</span>
+                                      </div>
+                                      <Link
+                                        href="/dashboard/site-visits"
+                                        className="text-xs text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                                      >
+                                        View Site Visits
+                                        <ExternalLink className="h-3 w-3" />
+                                      </Link>
+                                    </div>
+                                    {item.siteVisits && item.siteVisits.length > 0 && (
+                                      <div className="mt-2 text-xs text-blue-700">
+                                        {item.siteVisits[0].assignedModerator ? (
+                                          <span>Assigned to: {item.siteVisits[0].assignedModerator.name || item.siteVisits[0].assignedModerator.email}</span>
+                                        ) : (
+                                          <span className="font-medium">Pending moderator assignment</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Action Buttons - ONLY show for SUBMITTED items (not PENDING) */}
+                                {item.status === 'SUBMITTED' && (
                                     <div className="flex gap-3 justify-end items-end">
                                         {activeRejection === item.id ? (
                                             <div className="w-full space-y-2 animate-in fade-in slide-in-from-top-1">

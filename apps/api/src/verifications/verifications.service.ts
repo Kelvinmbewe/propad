@@ -66,17 +66,22 @@ export class VerificationsService {
 
   async getVerificationQueue() {
     try {
-      // SINGLE SOURCE OF TRUTH: Query ONLY VerificationRequest table
-      // Status filter: PENDING (submitted but not yet reviewed)
-      // VerificationStatus enum: PENDING, APPROVED, REJECTED
+      // PRODUCTION HARDENING: Only show requests with at least ONE SUBMITTED item
+      // A VerificationRequest ONLY appears in the admin queue IF it has at least ONE VerificationItem with status === 'SUBMITTED'
+      // Requests with only PENDING / APPROVED / REJECTED items MUST NOT appear
       const rawRequests = await this.prisma.verificationRequest.findMany({
         where: {
           status: 'PENDING', // Only PENDING requests are in the queue
+          items: {
+            some: {
+              status: 'SUBMITTED' // MUST have at least one SUBMITTED item
+            }
+          }
         },
         include: {
           items: {
             where: {
-              status: { in: ['SUBMITTED', 'PENDING'] } // Items that need review
+              status: 'SUBMITTED' // Only count SUBMITTED items for queue display
             }
           },
           property: {
@@ -94,11 +99,11 @@ export class VerificationsService {
       console.log(`VERIFICATION REQUESTS FOUND: ${requestCount}`);
       
       this.logger.log(
-        `[VERIFICATION QUEUE] Found ${requestCount} requests`,
+        `[VERIFICATION QUEUE] Found ${requestCount} requests with SUBMITTED items`,
         rawRequests.map((r: any) => ({
           id: r.id,
           status: r.status,
-          itemsCount: r.items.length
+          submittedItemsCount: r.items.length
         }))
       );
 
@@ -168,7 +173,7 @@ export class VerificationsService {
           status: req.status,
           createdAt: req.createdAt,
           isPaid: isPaid,
-          itemsCount: req.items.length,
+          itemsCount: req.items.length, // Count of SUBMITTED items only
           requesterName: req.requester?.name || req.requester?.email || 'System'
         };
       });
@@ -220,6 +225,15 @@ export class VerificationsService {
           }
         },
         items: {
+          include: {
+            verifier: { select: { id: true, name: true, email: true } },
+            siteVisits: {
+              where: { status: { in: ['PENDING_ASSIGNMENT', 'ASSIGNED', 'IN_PROGRESS'] } },
+              include: {
+                assignedModerator: { select: { id: true, name: true, email: true } }
+              }
+            }
+          },
           orderBy: { type: 'asc' }
         },
         requester: true
@@ -253,13 +267,16 @@ export class VerificationsService {
       throw new NotFoundException('Verification item not found');
     }
 
-    // 2. Validate Transition
-    if (item.status !== VerificationItemStatus.SUBMITTED && item.status !== VerificationItemStatus.PENDING) {
-      // Allow reviewing PENDING items too if admin enforces it?
-      // Default logic was strictly SUBMITTED. Keeping it strict for consistency unless necessary.
-      if (item.status !== VerificationItemStatus.SUBMITTED) {
-        throw new BadRequestException(`Cannot review item with status ${item.status}. Only SUBMITTED items can be reviewed.`);
-      }
+    // 2. PRODUCTION HARDENING: Validate Transition - ONLY SUBMITTED items can be reviewed
+    // Backend must reject approve/reject calls for non-SUBMITTED items with 400 error
+    if (item.status !== VerificationItemStatus.SUBMITTED) {
+      throw new BadRequestException(`Cannot review item with status ${item.status}. Only SUBMITTED items can be reviewed.`);
+    }
+
+    // Idempotent check: If already in target state, return success without update
+    if (item.status === dto.status) {
+      this.logger.log(`Item ${itemId} already has status ${dto.status}, skipping update`);
+      return this.prisma.verificationRequestItem.findUnique({ where: { id: itemId } });
     }
 
     if (dto.status === VerificationItemStatus.REJECTED && !dto.notes) {
@@ -339,19 +356,37 @@ export class VerificationsService {
       }
     }
 
-    // 5. Update Request Status
-    const remainingValues = request.items
-      .filter((i: VerificationRequestItem) => i.id !== itemId)
-      .map((i: VerificationRequestItem) => i.status);
-    remainingValues.push(dto.status);
+    // 5. PRODUCTION HARDENING: Update Request Status with valid state transitions
+    // Recalculate all item statuses after update
+    const updatedItems = await this.prisma.verificationRequestItem.findMany({
+      where: { verificationRequestId: requestId }
+    });
 
-    if (remainingValues.every((s: VerificationItemStatus) => s === VerificationItemStatus.APPROVED)) {
+    const allStatuses = updatedItems.map((i: VerificationRequestItem) => i.status);
+    const hasRejected = allStatuses.some((s: VerificationItemStatus) => s === VerificationItemStatus.REJECTED);
+    const allApproved = allStatuses.every((s: VerificationItemStatus) => s === VerificationItemStatus.APPROVED);
+    const hasSubmitted = allStatuses.some((s: VerificationItemStatus) => s === VerificationItemStatus.SUBMITTED);
+
+    // Valid state transitions only
+    let newRequestStatus: VerificationStatus = VerificationStatus.PENDING;
+    if (hasRejected) {
+      newRequestStatus = VerificationStatus.REJECTED;
+    } else if (allApproved) {
+      newRequestStatus = VerificationStatus.APPROVED;
+    } else if (hasSubmitted) {
+      newRequestStatus = VerificationStatus.PENDING; // Still has items to review
+    }
+
+    // Only update if status changed (idempotent)
+    if (request.status !== newRequestStatus) {
       await this.prisma.verificationRequest.update({
         where: { id: requestId },
-        data: { status: VerificationStatus.APPROVED }
+        data: { status: newRequestStatus }
       });
+    }
 
-      // Auto-Verify Entity?
+    // Auto-Verify Entity only when all items approved
+    if (allApproved) {
       if (request.targetType === VerificationType.USER && request.targetUserId) {
         await this.recalculateUserScore(request.targetUserId);
         await this.trust.calculateUserTrust(request.targetUserId);
