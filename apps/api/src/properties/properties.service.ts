@@ -2039,19 +2039,8 @@ export class PropertiesService {
     }
 
     // Update property status
-    const updated = await this.prisma.property.update({
-      where: { id },
-      data: {
-        status: PropertyStatus.PENDING_VERIFY
-      },
-      include: {
-        country: true,
-        province: true,
-        city: true,
-        suburb: true,
-        pendingGeo: true
-      }
-    });
+    // Do not update property status. Verification state is derived from VerificationRequest.
+    // const updated = await this.prisma.property.update({ ... });
 
     await this.audit.log({
       action: 'property.submitForVerification',
@@ -2071,7 +2060,7 @@ export class PropertiesService {
     });
 
     return {
-      property: this.attachLocation(updated),
+      property: this.attachLocation(property),
       verificationRequest,
       payment
     };

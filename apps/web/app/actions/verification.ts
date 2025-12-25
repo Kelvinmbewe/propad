@@ -29,46 +29,6 @@ export async function getPropertyVerification(propertyId: string) {
             return request;
         }
 
-        // 2. Fallback: Lazy Migration of Legacy "Verification"
-        // If we find a legacy record, we UPGRADE it to a Request instantly.
-        const legacy = await prisma.verification.findFirst({
-            where: {
-                targetId: propertyId,
-                targetType: 'property'
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-
-        if (legacy && legacy.requesterId) {
-            console.log(`[LAZY MIGRATION] Migrating Verification ${legacy.id} to VerificationRequest`);
-
-            // Create Canonical Request
-            const newRequest = await prisma.verificationRequest.create({
-                data: {
-                    targetType: 'PROPERTY',
-                    targetId: propertyId,
-                    propertyId: propertyId,
-                    requesterId: legacy.requesterId, // Guaranteed string
-                    // Map legacy status to new status strictly (Request Status: PENDING | APPROVED | REJECTED)
-                    status: legacy.status === 'APPROVED' ? VerificationStatus.APPROVED : VerificationStatus.PENDING,
-                    items: {
-                        create: {
-                            type: VerificationItemType.PROOF_OF_OWNERSHIP, // Default type for legacy migration
-                            // Item Status: SUBMITTED exist in VerificationItemStatus
-                            status: legacy.status === 'APPROVED' ? VerificationItemStatus.APPROVED : VerificationItemStatus.SUBMITTED,
-                            notes: 'Migrated from legacy system',
-                            evidenceUrls: legacy.evidenceUrl ? [legacy.evidenceUrl] : [],
-                        }
-                    }
-                },
-                include: {
-                    items: true
-                }
-            });
-
-            return newRequest;
-        }
-
         return null; // No verification found
     } catch (error) {
         console.error('getPropertyVerification error:', error);
