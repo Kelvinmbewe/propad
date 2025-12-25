@@ -249,22 +249,23 @@ export class VerificationsService {
 
   async reviewItem(requestId: string, itemId: string, dto: ReviewVerificationItemDto, actor: AuthContext) {
     try {
-      // 1. BEFORE any database update: Fetch the VerificationRequestItem by ID
+      const action = dto.status === VerificationItemStatus.APPROVED ? 'APPROVE' : 'REJECT';
+      console.log('[VERIFY ACTION]', itemId, action);
+
+      // 1. Add strict guards BEFORE any database update: Fetch the VerificationRequestItem by id
       const item = await this.prisma.verificationRequestItem.findUnique({
         where: { id: itemId },
         include: {
           verificationRequest: {
             select: {
               id: true,
-              requesterId: true,
-              propertyId: true,
-              targetType: true
+              status: true
             }
           }
         }
       });
 
-      // If not found → throw NotFoundException
+      // If item does not exist → throw NotFoundException
       if (!item) {
         throw new NotFoundException('Verification item not found');
       }
@@ -274,9 +275,24 @@ export class VerificationsService {
         throw new BadRequestException('Item does not belong to the specified verification request');
       }
 
-      // If item.status !== 'SUBMITTED' → throw BadRequestException
+      // If item.status !== SUBMITTED → throw BadRequestException("Item not submitted")
       if (item.status !== VerificationItemStatus.SUBMITTED) {
-        throw new BadRequestException(`Cannot review item with status ${item.status}. Only SUBMITTED items can be reviewed.`);
+        throw new BadRequestException('Item not submitted');
+      }
+
+      // If item.evidence is null or empty → throw BadRequestException("No evidence submitted")
+      // Check evidenceUrls array - for location items, check GPS or notes instead
+      const hasEvidence = item.type === 'LOCATION_CONFIRMATION' 
+        ? (item.gpsLat && item.gpsLng) || item.notes?.includes('On-site visit requested')
+        : (item.evidenceUrls && Array.isArray(item.evidenceUrls) && item.evidenceUrls.length > 0);
+      
+      if (!hasEvidence) {
+        throw new BadRequestException('No evidence submitted');
+      }
+
+      // Validate rejection requires notes
+      if (dto.status === VerificationItemStatus.REJECTED && !dto.notes) {
+        throw new BadRequestException('Rejection reason (notes) is required when rejecting an item.');
       }
 
       // Idempotent check: If already in target state, return success without update
@@ -285,62 +301,70 @@ export class VerificationsService {
         return this.prisma.verificationRequestItem.findUnique({ where: { id: itemId } });
       }
 
-      // Validate rejection requires notes
-      if (dto.status === VerificationItemStatus.REJECTED && !dto.notes) {
-        throw new BadRequestException('Rejection reason (notes) is required when rejecting an item.');
-      }
+      // 2. Wrap ALL updates in a Prisma transaction
+      return await this.prisma.$transaction(async (tx) => {
+        // Update VerificationRequestItem.status
+        await tx.verificationRequestItem.update({
+          where: { id: itemId },
+          data: {
+            status: dto.status,
+            notes: dto.status === VerificationItemStatus.REJECTED ? dto.notes : item.notes,
+            verifierId: actor.userId,
+            reviewedAt: new Date()
+          }
+        });
 
-      // 2. Update ONLY the item
-      await this.prisma.verificationRequestItem.update({
-        where: { id: itemId },
-        data: {
-          status: dto.status,
-          notes: dto.status === VerificationItemStatus.REJECTED ? dto.notes : item.notes,
-          verifierId: actor.userId,
-          reviewedAt: new Date()
+        // Recalculate parent VerificationRequest.status based on item counts
+        const allItems: VerificationRequestItem[] = await tx.verificationRequestItem.findMany({
+          where: { verificationRequestId: requestId }
+        });
+
+        // Count APPROVED, REJECTED, SUBMITTED, PENDING
+        const statusCounts = {
+          APPROVED: allItems.filter((i: VerificationRequestItem) => i.status === VerificationItemStatus.APPROVED).length,
+          REJECTED: allItems.filter((i: VerificationRequestItem) => i.status === VerificationItemStatus.REJECTED).length,
+          SUBMITTED: allItems.filter((i: VerificationRequestItem) => i.status === VerificationItemStatus.SUBMITTED).length,
+          PENDING: allItems.filter((i: VerificationRequestItem) => i.status === VerificationItemStatus.PENDING).length
+        };
+
+        // Request status rules:
+        // - If ANY item is REJECTED → request stays PENDING
+        // - If ALL items are APPROVED → request becomes APPROVED
+        // - Otherwise → request remains PENDING
+        let newRequestStatus: VerificationStatus;
+        if (statusCounts.REJECTED > 0) {
+          // If ANY item is REJECTED → request stays PENDING (not REJECTED)
+          newRequestStatus = VerificationStatus.PENDING;
+        } else if (statusCounts.APPROVED === allItems.length && allItems.length > 0) {
+          // If ALL items are APPROVED → request becomes APPROVED
+          newRequestStatus = VerificationStatus.APPROVED;
+        } else {
+          // Otherwise → request remains PENDING
+          newRequestStatus = VerificationStatus.PENDING;
         }
+
+        // Update VerificationRequest.updatedAt (happens automatically via @updatedAt)
+        await tx.verificationRequest.update({
+          where: { id: requestId },
+          data: { status: newRequestStatus }
+        });
+
+        // Return the updated item
+        return tx.verificationRequestItem.findUnique({ where: { id: itemId } });
       });
-
-      // 3. AFTER updating the item: Fetch all items for the same VerificationRequest
-      const allItems: VerificationRequestItem[] = await this.prisma.verificationRequestItem.findMany({
-        where: { verificationRequestId: requestId }
-      });
-
-      // Count APPROVED, REJECTED, SUBMITTED, PENDING
-      const statusCounts = {
-        APPROVED: allItems.filter((i: VerificationRequestItem) => i.status === VerificationItemStatus.APPROVED).length,
-        REJECTED: allItems.filter((i: VerificationRequestItem) => i.status === VerificationItemStatus.REJECTED).length,
-        SUBMITTED: allItems.filter((i: VerificationRequestItem) => i.status === VerificationItemStatus.SUBMITTED).length,
-        PENDING: allItems.filter((i: VerificationRequestItem) => i.status === VerificationItemStatus.PENDING).length
-      };
-
-      // 4. Update VerificationRequest.status as follows:
-      // - If ANY item is REJECTED → status = REJECTED
-      // - Else if ALL items APPROVED → status = APPROVED
-      // - Else → status = PENDING
-      let newRequestStatus: VerificationStatus;
-      if (statusCounts.REJECTED > 0) {
-        newRequestStatus = VerificationStatus.REJECTED;
-      } else if (statusCounts.APPROVED === allItems.length && allItems.length > 0) {
-        newRequestStatus = VerificationStatus.APPROVED;
-      } else {
-        newRequestStatus = VerificationStatus.PENDING;
-      }
-
-      // Update request status
-      await this.prisma.verificationRequest.update({
-        where: { id: requestId },
-        data: { status: newRequestStatus }
-      });
-
-      // Return the updated item
-      return this.prisma.verificationRequestItem.findUnique({ where: { id: itemId } });
     } catch (error) {
+      // Ensure ALL thrown errors are proper HTTP exceptions
+      // If it's already a NestJS HTTP exception, re-throw it
+      if (error instanceof NotFoundException || error instanceof BadRequestException || error instanceof ForbiddenException) {
+        throw error;
+      }
+      
       // Wrap the method in try/catch and log the error message before rethrowing
       console.error('[VERIFY ITEM ERROR]', error);
       this.logger.error('[VERIFY ITEM ERROR]', error);
-      // Re-throw to let NestJS handle the HTTP response
-      throw error;
+      
+      // Convert unknown errors to BadRequestException
+      throw new BadRequestException(error instanceof Error ? error.message : 'Failed to review verification item');
     }
   }
 
