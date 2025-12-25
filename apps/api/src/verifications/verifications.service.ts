@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, UnauthorizedException, Logger } from '@nestjs/common';
 import {
   PropertyStatus,
   VerificationResult,
@@ -252,6 +252,15 @@ export class VerificationsService {
       const action = dto.status === VerificationItemStatus.APPROVED ? 'APPROVE' : 'REJECT';
       console.log('[VERIFY ACTION]', itemId, action);
 
+      // BEFORE updating VerificationRequestItem: Extract verifierId strictly from actor.userId
+      // DO NOT use fallbacks (email, role, etc)
+      // If verifierId is missing → throw UnauthorizedException
+      if (!actor.userId || typeof actor.userId !== 'string' || actor.userId.trim() === '') {
+        throw new UnauthorizedException('Verifier ID is required');
+      }
+
+      const verifierId = actor.userId.trim();
+
       // 1. Add strict guards BEFORE any database update: Fetch the VerificationRequestItem by id
       const item = await this.prisma.verificationRequestItem.findUnique({
         where: { id: itemId },
@@ -303,13 +312,27 @@ export class VerificationsService {
 
       // 2. Wrap ALL updates in a Prisma transaction
       return await this.prisma.$transaction(async (tx) => {
-        // Update VerificationRequestItem.status
+        // Validate verifier exists: const verifier = await tx.user.findUnique({ where: { id: verifierId } });
+        // If not found → throw BadRequestException("Invalid verifier")
+        const verifier = await tx.user.findUnique({ 
+          where: { id: verifierId },
+          select: { id: true }
+        });
+
+        if (!verifier) {
+          throw new BadRequestException('Invalid verifier');
+        }
+
+        // Only after validation, update VerificationRequestItem:
+        // - status = APPROVED or REJECTED
+        // - verifierId = verifier.id (use validated verifier.id, not actor.userId)
+        // - reviewedAt = new Date()
         await tx.verificationRequestItem.update({
           where: { id: itemId },
           data: {
             status: dto.status,
             notes: dto.status === VerificationItemStatus.REJECTED ? dto.notes : item.notes,
-            verifierId: actor.userId,
+            verifierId: verifier.id, // Use validated verifier.id - ensure verifierId is NEVER null and NEVER fabricated
             reviewedAt: new Date()
           }
         });
