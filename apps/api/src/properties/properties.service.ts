@@ -1918,12 +1918,36 @@ export class PropertiesService {
         }
       }
 
-      // Handle Location Item (Fingerprint only if GPS image? Typically GPS is coord. Skip?)
-      // Wait, duplication logic applies to images. Location has GPS coords.
-      // If Location has `evidenceUrls`? The DTO doesn't seem to pass URLs for Location unless implied. 
-      // The current DTO has `locationGpsLat` etc. Maybe no files for Location?
-      // Checking Schema: `evidenceUrls` is on `VerificationRequestItem`. 
-      // If "Location" item has no URLs, skip.
+      // Handle Location Item
+      const locationItem = existingRequest.items.find((i: { type: string }) => i.type === 'LOCATION_CONFIRMATION');
+      if (dto.locationGpsLat && dto.locationGpsLng) {
+        if (locationItem) {
+          if (locationItem.status !== 'APPROVED') {
+            await this.prisma.verificationRequestItem.update({
+              where: { id: locationItem.id },
+              data: {
+                status: 'SUBMITTED',
+                gpsLat: dto.locationGpsLat,
+                gpsLng: dto.locationGpsLng,
+                notes: dto.requestOnSiteVisit ? 'On-site visit requested' : locationItem.notes,
+                verifierId: null,
+                reviewedAt: null
+              }
+            });
+          }
+        } else {
+          await this.prisma.verificationRequestItem.create({
+            data: {
+              verificationRequestId: existingRequest.id,
+              type: 'LOCATION_CONFIRMATION',
+              status: 'SUBMITTED',
+              gpsLat: dto.locationGpsLat,
+              gpsLng: dto.locationGpsLng,
+              notes: dto.requestOnSiteVisit ? 'On-site visit requested' : null
+            }
+          });
+        }
+      }
 
       // Handle Photos Item
       const photoItem = existingRequest.items.find((i: { type: string }) => i.type === 'PROPERTY_PHOTOS');
@@ -1956,32 +1980,46 @@ export class PropertiesService {
         }
       }
 
-      // Reload request
+      // Reload request and validate at least one item is SUBMITTED
       verificationRequest = await this.prisma.verificationRequest.findUnique({
         where: { id: existingRequest.id },
         include: { items: true }
       });
 
+      // Validate that at least one item has SUBMITTED status
+      const submittedItemsCount = verificationRequest.items.filter((i: any) => i.status === 'SUBMITTED').length;
+      if (submittedItemsCount === 0) {
+        throw new BadRequestException('At least one verification item must be SUBMITTED. Please provide evidence for at least one item (proof of ownership, location GPS, or property photos).');
+      }
+
     } else {
       // NEW Request Logic
-      // We need to create the request first to get IDs? 
-      // The current code uses nested `create`. We can't easily get the item IDs inside the nested write.
-      // We have to split the creation or query back.
-      // "include: { items: true }" returns the created items!
+      // MANDATORY: Create VerificationRequest with targetType='PROPERTY' and at least one SUBMITTED item
+      
+      // Validate that at least one item will be SUBMITTED
+      const hasProofOfOwnership = dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0;
+      const hasLocation = dto.locationGpsLat && dto.locationGpsLng;
+      const hasPropertyPhotos = dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0;
+      
+      if (!hasProofOfOwnership && !hasLocation && !hasPropertyPhotos) {
+        throw new BadRequestException('At least one verification item with evidence must be provided (proof of ownership, location GPS, or property photos)');
+      }
 
       verificationRequest = await this.prisma.verificationRequest.create({
         data: {
+          targetType: 'PROPERTY',
+          targetId: id,
           propertyId: id,
           requesterId: actor.userId,
           status: 'PENDING',
           notes: dto.notes ?? null,
           items: {
             create: [
-              ...(dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0
+              ...(hasProofOfOwnership
                 ? [{
                   type: 'PROOF_OF_OWNERSHIP' as const,
                   status: 'SUBMITTED' as const,
-                  evidenceUrls: dto.proofOfOwnershipUrls
+                  evidenceUrls: dto.proofOfOwnershipUrls!
                 }]
                 : [{
                   type: 'PROOF_OF_OWNERSHIP' as const,
@@ -1989,16 +2027,16 @@ export class PropertiesService {
                 }]),
               {
                 type: 'LOCATION_CONFIRMATION' as const,
-                status: (dto.locationGpsLat && dto.locationGpsLng ? ('SUBMITTED' as const) : ('PENDING' as const)),
+                status: (hasLocation ? ('SUBMITTED' as const) : ('PENDING' as const)),
                 gpsLat: dto.locationGpsLat ?? null,
                 gpsLng: dto.locationGpsLng ?? null,
                 notes: dto.requestOnSiteVisit ? 'On-site visit requested' : null
               },
-              ...(dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0
+              ...(hasPropertyPhotos
                 ? [{
                   type: 'PROPERTY_PHOTOS' as const,
                   status: 'SUBMITTED' as const,
-                  evidenceUrls: dto.propertyPhotoUrls
+                  evidenceUrls: dto.propertyPhotoUrls!
                 }]
                 : [{
                   type: 'PROPERTY_PHOTOS' as const,
@@ -2011,6 +2049,14 @@ export class PropertiesService {
           items: true
         }
       });
+
+      // Validate that at least one item was created with SUBMITTED status
+      const submittedItemsCount = verificationRequest.items.filter((i: any) => i.status === 'SUBMITTED').length;
+      if (submittedItemsCount === 0) {
+        // This should not happen due to validation above, but double-check
+        await this.prisma.verificationRequest.delete({ where: { id: verificationRequest.id } });
+        throw new BadRequestException('Failed to create verification request: at least one item must be SUBMITTED');
+      }
 
       // Post-Creation Fingerprinting
       for (const item of verificationRequest.items) {

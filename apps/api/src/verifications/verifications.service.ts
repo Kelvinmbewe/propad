@@ -66,15 +66,17 @@ export class VerificationsService {
 
   async getVerificationQueue() {
     try {
-      // 1. Fetch Requests (Raw)
+      // SINGLE SOURCE OF TRUTH: Query ONLY VerificationRequest table
+      // Status filter: PENDING (submitted but not yet reviewed)
+      // VerificationStatus enum: PENDING, APPROVED, REJECTED
       const rawRequests = await this.prisma.verificationRequest.findMany({
         where: {
-          status: { in: ['REQUESTED', 'SUBMITTED', 'PENDING', 'PENDING_REVIEW', 'PAID'] },
+          status: 'PENDING', // Only PENDING requests are in the queue
         },
         include: {
           items: {
             where: {
-              status: { in: ['SUBMITTED', 'PENDING', 'PENDING_REVIEW'] }
+              status: { in: ['SUBMITTED', 'PENDING'] } // Items that need review
             }
           },
           property: {
@@ -87,13 +89,16 @@ export class VerificationsService {
         orderBy: { createdAt: 'asc' }
       });
 
-      console.log(
-        '[VERIFICATION QUEUE]',
-        rawRequests.length,
+      // PROOF: Log request count before returning
+      const requestCount = rawRequests.length;
+      console.log(`VERIFICATION REQUESTS FOUND: ${requestCount}`);
+      
+      this.logger.log(
+        `[VERIFICATION QUEUE] Found ${requestCount} requests`,
         rawRequests.map((r: any) => ({
           id: r.id,
           status: r.status,
-          items: r.items.length
+          itemsCount: r.items.length
         }))
       );
 
