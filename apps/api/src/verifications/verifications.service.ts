@@ -248,156 +248,100 @@ export class VerificationsService {
   }
 
   async reviewItem(requestId: string, itemId: string, dto: ReviewVerificationItemDto, actor: AuthContext) {
-    // 1. Get the request and item
-    const request = await this.prisma.verificationRequest.findUnique({
-      where: { id: requestId },
-      include: {
-        items: true,
-        property: true,
-        requester: true
-      }
-    });
-
-    if (!request) {
-      throw new NotFoundException('Verification request not found');
-    }
-
-    const item = request.items.find((i: VerificationRequestItem) => i.id === itemId);
-    if (!item) {
-      throw new NotFoundException('Verification item not found');
-    }
-
-    // 2. PRODUCTION HARDENING: Validate Transition - ONLY SUBMITTED items can be reviewed
-    // Backend must reject approve/reject calls for non-SUBMITTED items with 400 error
-    if (item.status !== VerificationItemStatus.SUBMITTED) {
-      throw new BadRequestException(`Cannot review item with status ${item.status}. Only SUBMITTED items can be reviewed.`);
-    }
-
-    // Idempotent check: If already in target state, return success without update
-    if (item.status === dto.status) {
-      this.logger.log(`Item ${itemId} already has status ${dto.status}, skipping update`);
-      return this.prisma.verificationRequestItem.findUnique({ where: { id: itemId } });
-    }
-
-    if (dto.status === VerificationItemStatus.REJECTED && !dto.notes) {
-      throw new BadRequestException('Rejection reason (notes) is required when rejecting an item.');
-    }
-
-    // Phase G: Moderator Safety - No self-review
-    if (request.requesterId === actor.userId) {
-      await this.riskService.recordRiskEvent({
-        entityType: 'USER',
-        entityId: actor.userId,
-        signalType: RiskSignalType.MANUAL_ADMIN_FLAG,
-        scoreDelta: 5,
-        notes: `Attempted self - review of verification request: ${requestId} `
-      });
-      throw new ForbiddenException('Moderators cannot review their own verification requests.');
-    }
-
-    // No review of property owned by them
-    if (request.property && ((request.property as any).landlordId === actor.userId || (request.property as any).agentOwnerId === actor.userId)) {
-      throw new ForbiddenException('Moderators cannot review properties they own or manage.');
-    }
-
-    // 3. Update the item
-    await this.prisma.verificationRequestItem.update({
-      where: { id: itemId },
-      data: {
-        status: dto.status,
-        notes: dto.status === VerificationItemStatus.REJECTED ? dto.notes : item.notes,
-        verifierId: actor.userId,
-        reviewedAt: new Date()
-      }
-    });
-
-    // Random Audit Sampling (10%)
-    if (dto.status === VerificationItemStatus.APPROVED && Math.random() < 0.1) {
-      await this.riskService.recordRiskEvent({
-        entityType: 'USER',
-        entityId: actor.userId,
-        signalType: RiskSignalType.MANUAL_ADMIN_FLAG,
-        scoreDelta: 0,
-        notes: `Random audit sample: item ${itemId} approved by ${actor.userId} `
-      });
-    }
-
-    // 3.5 Location Logic (Property Only)
-    // Use targetType
-    if (request.targetType === VerificationType.PROPERTY && item.type === 'LOCATION_CONFIRMATION' && request.property) {
-      if (dto.status === 'APPROVED' && item.gpsLat && item.gpsLng) {
-        const propLat = (request.property as any).lat || (request.property as any).suburb?.latitude;
-        const propLng = (request.property as any).lng || (request.property as any).suburb?.longitude;
-
-        if (propLat && propLng) {
-          const dist = this.calculateDistance(propLat, propLng, item.gpsLat, item.gpsLng);
-          if (dist > 5) {
-            // Warning only (log if needed)
+    try {
+      // 1. BEFORE any database update: Fetch the VerificationRequestItem by ID
+      const item = await this.prisma.verificationRequestItem.findUnique({
+        where: { id: itemId },
+        include: {
+          verificationRequest: {
+            select: {
+              id: true,
+              requesterId: true,
+              propertyId: true,
+              targetType: true
+            }
           }
         }
+      });
+
+      // If not found → throw NotFoundException
+      if (!item) {
+        throw new NotFoundException('Verification item not found');
       }
-    }
 
-    // 4. Recalculate Score & Trust
-    if (request.targetType === VerificationType.PROPERTY) {
-      if (request.propertyId) {
-        await this.recalculatePropertyScore(request.propertyId);
-        await this.trust.calculatePropertyTrust(request.propertyId);
+      // Verify the item belongs to the request
+      if (item.verificationRequestId !== requestId) {
+        throw new BadRequestException('Item does not belong to the specified verification request');
       }
-    } else if (request.targetType === VerificationType.USER) {
-      if (request.targetUserId) {
-        await this.recalculateUserScore(request.targetUserId);
-        await this.trust.calculateUserTrust(request.targetUserId);
+
+      // If item.status !== 'SUBMITTED' → throw BadRequestException
+      if (item.status !== VerificationItemStatus.SUBMITTED) {
+        throw new BadRequestException(`Cannot review item with status ${item.status}. Only SUBMITTED items can be reviewed.`);
       }
-    } else if (request.targetType === VerificationType.COMPANY) {
-      if (request.agencyId) {
-        await this.recalculateAgencyScore(request.agencyId);
-        await this.trust.calculateCompanyTrust(request.agencyId);
+
+      // Idempotent check: If already in target state, return success without update
+      if (item.status === dto.status) {
+        this.logger.log(`Item ${itemId} already has status ${dto.status}, skipping update`);
+        return this.prisma.verificationRequestItem.findUnique({ where: { id: itemId } });
       }
-    }
 
-    // 5. PRODUCTION HARDENING: Update Request Status with valid state transitions
-    // Recalculate all item statuses after update
-    const updatedItems = await this.prisma.verificationRequestItem.findMany({
-      where: { verificationRequestId: requestId }
-    });
+      // Validate rejection requires notes
+      if (dto.status === VerificationItemStatus.REJECTED && !dto.notes) {
+        throw new BadRequestException('Rejection reason (notes) is required when rejecting an item.');
+      }
 
-    const allStatuses = updatedItems.map((i: VerificationRequestItem) => i.status);
-    const hasRejected = allStatuses.some((s: VerificationItemStatus) => s === VerificationItemStatus.REJECTED);
-    const allApproved = allStatuses.every((s: VerificationItemStatus) => s === VerificationItemStatus.APPROVED);
-    const hasSubmitted = allStatuses.some((s: VerificationItemStatus) => s === VerificationItemStatus.SUBMITTED);
+      // 2. Update ONLY the item
+      await this.prisma.verificationRequestItem.update({
+        where: { id: itemId },
+        data: {
+          status: dto.status,
+          notes: dto.status === VerificationItemStatus.REJECTED ? dto.notes : item.notes,
+          verifierId: actor.userId,
+          reviewedAt: new Date()
+        }
+      });
 
-    // Valid state transitions only
-    let newRequestStatus: VerificationStatus = VerificationStatus.PENDING;
-    if (hasRejected) {
-      newRequestStatus = VerificationStatus.REJECTED;
-    } else if (allApproved) {
-      newRequestStatus = VerificationStatus.APPROVED;
-    } else if (hasSubmitted) {
-      newRequestStatus = VerificationStatus.PENDING; // Still has items to review
-    }
+      // 3. AFTER updating the item: Fetch all items for the same VerificationRequest
+      const allItems = await this.prisma.verificationRequestItem.findMany({
+        where: { verificationRequestId: requestId }
+      });
 
-    // Only update if status changed (idempotent)
-    if (request.status !== newRequestStatus) {
+      // Count APPROVED, REJECTED, SUBMITTED, PENDING
+      const statusCounts = {
+        APPROVED: allItems.filter((i) => i.status === VerificationItemStatus.APPROVED).length,
+        REJECTED: allItems.filter((i) => i.status === VerificationItemStatus.REJECTED).length,
+        SUBMITTED: allItems.filter((i) => i.status === VerificationItemStatus.SUBMITTED).length,
+        PENDING: allItems.filter((i) => i.status === VerificationItemStatus.PENDING).length
+      };
+
+      // 4. Update VerificationRequest.status as follows:
+      // - If ANY item is REJECTED → status = REJECTED
+      // - Else if ALL items APPROVED → status = APPROVED
+      // - Else → status = PENDING
+      let newRequestStatus: VerificationStatus;
+      if (statusCounts.REJECTED > 0) {
+        newRequestStatus = VerificationStatus.REJECTED;
+      } else if (statusCounts.APPROVED === allItems.length && allItems.length > 0) {
+        newRequestStatus = VerificationStatus.APPROVED;
+      } else {
+        newRequestStatus = VerificationStatus.PENDING;
+      }
+
+      // Update request status
       await this.prisma.verificationRequest.update({
         where: { id: requestId },
         data: { status: newRequestStatus }
       });
-    }
 
-    // Auto-Verify Entity only when all items approved
-    if (allApproved) {
-      if (request.targetType === VerificationType.USER && request.targetUserId) {
-        await this.recalculateUserScore(request.targetUserId);
-        await this.trust.calculateUserTrust(request.targetUserId);
-      }
-      if (request.targetType === VerificationType.COMPANY && request.agencyId) {
-        await this.recalculateAgencyScore(request.agencyId);
-        await this.trust.calculateCompanyTrust(request.agencyId);
-      }
+      // Return the updated item
+      return this.prisma.verificationRequestItem.findUnique({ where: { id: itemId } });
+    } catch (error) {
+      // Wrap the method in try/catch and log the error message before rethrowing
+      console.error('[VERIFY ITEM ERROR]', error);
+      this.logger.error('[VERIFY ITEM ERROR]', error);
+      // Re-throw to let NestJS handle the HTTP response
+      throw error;
     }
-
-    return this.prisma.verificationRequestItem.findUnique({ where: { id: itemId } });
   }
 
   async recalculatePropertyScore(propertyId: string) {
