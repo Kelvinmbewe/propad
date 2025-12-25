@@ -182,15 +182,18 @@ export default function VerificationReviewPage() {
                     <h3 className="font-semibold text-lg">Verification Items</h3>
 
                     {items.map((item: any) => {
-                        // Visual states: Approved (green, no actions), Rejected (red, show reason), Submitted (actions enabled)
+                        // PRODUCTION HARDENING: Define status flags BEFORE any JSX that references them
+                        const isPending = item.status === 'PENDING';
+                        const isSubmitted = item.status === 'SUBMITTED';
                         const isApproved = item.status === 'APPROVED';
                         const isRejected = item.status === 'REJECTED';
-                        const isSubmitted = item.status === 'SUBMITTED';
                         
                         return (
                         <Card key={item.id} className={`border-l-4 ${
                             isApproved ? 'border-l-emerald-500 bg-emerald-50/30' :
                             isRejected ? 'border-l-red-500 bg-red-50/30' :
+                            isSubmitted ? 'border-l-blue-500 bg-blue-50/20' :
+                            isPending ? 'border-l-neutral-300 bg-neutral-50/30 opacity-75' :
                             'border-l-amber-500'
                         }`}>
                             <CardContent className="p-6">
@@ -211,8 +214,9 @@ export default function VerificationReviewPage() {
                                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                                         isApproved ? 'bg-emerald-100 text-emerald-700' :
                                         isRejected ? 'bg-red-100 text-red-700' :
-                                        item.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-700' :
-                                        'bg-amber-100 text-amber-700'
+                                        isSubmitted ? 'bg-blue-100 text-blue-700' :
+                                        isPending ? 'bg-amber-100 text-amber-700' :
+                                        'bg-neutral-100 text-neutral-700'
                                     }`}>
                                         {item.status}
                                     </span>
@@ -325,19 +329,6 @@ export default function VerificationReviewPage() {
                                     </div>
                                 )}
 
-                                {/* Pending state - Disabled, no actions */}
-                                {isPending && (
-                                    <div className="mb-4 p-3 bg-neutral-50 text-neutral-600 text-sm rounded border border-neutral-200">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs">⏳</span>
-                                            <span className="font-medium text-neutral-700">This item is pending submission</span>
-                                        </div>
-                                        <p className="mt-1 text-xs text-neutral-500">
-                                            No actions available until evidence is submitted
-                                        </p>
-                                    </div>
-                                )}
-
                                 {/* Site Visit Integration - Show when location item requests on-site visit */}
                                 {item.type === 'LOCATION_CONFIRMATION' && item.notes?.includes('On-site visit requested') && (
                                   <div className="mb-4 p-3 bg-blue-50 text-blue-800 text-sm rounded border border-blue-200">
@@ -366,8 +357,8 @@ export default function VerificationReviewPage() {
                                   </div>
                                 )}
 
-                                {/* Action Buttons - ONLY show for SUBMITTED items (not PENDING) */}
-                                {item.status === 'SUBMITTED' && (
+                                {/* Action Buttons - ONLY show for SUBMITTED items */}
+                                {isSubmitted && (
                                     <div className="flex gap-3 justify-end items-end">
                                         {activeRejection === item.id ? (
                                             <div className="w-full space-y-2 animate-in fade-in slide-in-from-top-1">
