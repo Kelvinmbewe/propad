@@ -45,9 +45,19 @@ export async function getPropertyRatings(propertyId: string) {
 export async function computeTrustScore(userId: string) {
     try {
         // 1. Verification status (Approved = +30)
-        const verification = await prisma.verification.findFirst({
+        // 1. Verification status (Approved = +30)
+        // Check Canonical Source first
+        const canonicalVerification = await prisma.verificationRequest.findFirst({
             where: { requesterId: userId, status: 'APPROVED' }
         });
+
+        // Check Legacy Source (Fallback)
+        const legacyVerification = !canonicalVerification ? await prisma.verification.findFirst({
+            where: { requesterId: userId, status: 'APPROVED' }
+        }) : null;
+
+        const isVerified = !!canonicalVerification || !!legacyVerification;
+        const verificationBonus = isVerified ? 30 : 0;
 
         // 2. Ratings average (0-5 stars -> 0-50 points)
         const reviews = await prisma.userReview.findMany({
@@ -64,7 +74,7 @@ export async function computeTrustScore(userId: string) {
         const completedDealsCount = 0;
         const dealScore = Math.min(completedDealsCount * 2, 20);
 
-        const totalScore = (verification ? 30 : 0) + ratingScore + dealScore;
+        const totalScore = verificationBonus + ratingScore + dealScore;
         return Math.min(totalScore, 100);
     } catch (error) {
         console.error('computeTrustScore error:', error);
