@@ -5,8 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardContent, Button, Label, notify } from '@propad/ui';
-import { ChevronLeft, Check, X, FileText, Download, ExternalLink, MapPin, Camera, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Card, CardContent, Button, Label, notify, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@propad/ui';
+import { ChevronLeft, Check, X, FileText, Download, ExternalLink, MapPin, Camera, AlertTriangle, ShieldAlert, UserCheck, Clock } from 'lucide-react';
 
 
 export default function VerificationReviewPage() {
@@ -16,6 +16,7 @@ export default function VerificationReviewPage() {
     const queryClient = useQueryClient();
     const [rejectionNotes, setRejectionNotes] = useState<Record<string, string>>({});
     const [activeRejection, setActiveRejection] = useState<string | null>(null);
+    const [assigningVisitId, setAssigningVisitId] = useState<string | null>(null);
 
     const { data: request, isLoading } = useQuery({
         queryKey: ['verification-request', params.id],
@@ -57,6 +58,48 @@ export default function VerificationReviewPage() {
             setActiveRejection(null);
         },
         onError: (error: any) => notify.error(error.message || 'Failed to update item')
+    });
+
+    // Fetch eligible officers for assignment (ADMIN only)
+    const { data: eligibleOfficers } = useQuery({
+        queryKey: ['eligible-officers'],
+        queryFn: async () => {
+            if (!session?.accessToken || session?.user?.role !== 'ADMIN') return [];
+            const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+            const res = await fetch(`${apiBaseUrl}/site-visits/eligible-officers`, {
+                headers: { Authorization: `Bearer ${session.accessToken}` }
+            });
+            if (!res.ok) return [];
+            return res.json();
+        },
+        enabled: !!session?.accessToken && session?.user?.role === 'ADMIN'
+    });
+
+    // Assign officer mutation
+    const assignOfficerMutation = useMutation({
+        mutationFn: async ({ visitId, officerId }: { visitId: string; officerId: string }) => {
+            const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+            const res = await fetch(`${apiBaseUrl}/site-visits/${visitId}/assign`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${session?.accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ moderatorId: officerId })
+            });
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({ message: 'Failed to assign officer' }));
+                throw new Error(error.message || 'Failed to assign officer');
+            }
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['verification-request', params.id] });
+            queryClient.invalidateQueries({ queryKey: ['site-visits'] });
+            notify.success('Officer assigned');
+            setAssigningVisitId(null);
+        },
+        onError: (error: any) => notify.error(error.message || 'Failed to assign officer')
     });
 
     if (isLoading) return <div className="p-8">Loading verification request...</div>;
@@ -329,33 +372,112 @@ export default function VerificationReviewPage() {
                                     </div>
                                 )}
 
-                                {/* Site Visit Integration - Show when location item requests on-site visit */}
-                                {item.type === 'LOCATION_CONFIRMATION' && item.notes?.includes('On-site visit requested') && (
-                                  <div className="mb-4 p-3 bg-blue-50 text-blue-800 text-sm rounded border border-blue-200">
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center gap-2">
-                                        <MapPin className="h-4 w-4 text-blue-600" />
-                                        <span className="font-medium text-blue-900">On-site visit requested</span>
-                                      </div>
-                                      <Link
-                                        href="/dashboard/site-visits"
-                                        className="text-xs text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
-                                      >
-                                        View Site Visits
-                                        <ExternalLink className="h-3 w-3" />
-                                      </Link>
-                                    </div>
-                                    {item.siteVisits && item.siteVisits.length > 0 && (
-                                      <div className="mt-2 text-xs text-blue-700">
-                                        {item.siteVisits[0].assignedModerator ? (
-                                          <span>Assigned to: {item.siteVisits[0].assignedModerator.name || item.siteVisits[0].assignedModerator.email}</span>
-                                        ) : (
-                                          <span className="font-medium">Pending moderator assignment</span>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
+                                {/* Site Visit Integration - For Location Confirmation item */}
+                                {item.type === 'LOCATION_CONFIRMATION' && item.siteVisits && item.siteVisits.length > 0 && (() => {
+                                    const siteVisit = item.siteVisits[0]; // Most recent visit
+                                    const isAdmin = session?.user?.role === 'ADMIN';
+                                    const isRequested = siteVisit.status === 'PENDING_ASSIGNMENT';
+                                    const isAssigned = siteVisit.status === 'ASSIGNED' || siteVisit.status === 'IN_PROGRESS';
+                                    const isCompleted = siteVisit.status === 'COMPLETED';
+                                    const isFailed = siteVisit.status === 'FAILED';
+
+                                    return (
+                                        <div className={`mb-4 p-3 rounded border text-sm ${
+                                            isCompleted ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                                            isFailed ? 'bg-red-50 text-red-800 border-red-200' :
+                                            isAssigned ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                                            'bg-amber-50 text-amber-800 border-amber-200'
+                                        }`}>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <MapPin className="h-4 w-4" />
+                                                    <span className="font-medium">
+                                                        {isRequested && 'Waiting for assignment'}
+                                                        {isAssigned && 'Assigned'}
+                                                        {isCompleted && 'Visit completed'}
+                                                        {isFailed && 'Visit failed'}
+                                                    </span>
+                                                </div>
+                                                <Link
+                                                    href={`/dashboard/site-visits?visitId=${siteVisit.id}`}
+                                                    className="text-xs underline flex items-center gap-1 hover:opacity-80"
+                                                >
+                                                    View Details
+                                                    <ExternalLink className="h-3 w-3" />
+                                                </Link>
+                                            </div>
+
+                                            {/* Show officer name + role if ASSIGNED */}
+                                            {isAssigned && siteVisit.assignedModerator && (
+                                                <div className="mt-2 flex items-center gap-2 text-xs">
+                                                    <UserCheck className="h-3 w-3" />
+                                                    <span>
+                                                        Assigned to: <strong>{siteVisit.assignedModerator.name || siteVisit.assignedModerator.email}</strong>
+                                                        {siteVisit.assignedModerator.role && (
+                                                            <span className="ml-1 text-neutral-600">({siteVisit.assignedModerator.role})</span>
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            {/* If REQUESTED and user is ADMIN: Render "Assign Officer" dropdown */}
+                                            {isRequested && isAdmin && (
+                                                <div className="mt-3 space-y-2">
+                                                    <Label className="text-xs">Assign Officer</Label>
+                                                    <div className="flex gap-2">
+                                                        <Select
+                                                            value={assigningVisitId === siteVisit.id ? 'selecting' : ''}
+                                                            onValueChange={(value) => {
+                                                                if (value && value !== 'selecting') {
+                                                                    assignOfficerMutation.mutate({
+                                                                        visitId: siteVisit.id,
+                                                                        officerId: value
+                                                                    });
+                                                                    setAssigningVisitId(siteVisit.id);
+                                                                }
+                                                            }}
+                                                        >
+                                                            <SelectTrigger className="flex-1">
+                                                                <SelectValue placeholder="Select officer..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {eligibleOfficers?.map((officer: any) => (
+                                                                    <SelectItem key={officer.id} value={officer.id}>
+                                                                        {officer.name || officer.email} ({officer.role})
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* If COMPLETED: Display distance delta and trust score impact */}
+                                            {isCompleted && (
+                                                <div className="mt-2 space-y-1 text-xs">
+                                                    {siteVisit.distanceFromSubmittedGps !== null && (
+                                                        <div className="flex items-center gap-2">
+                                                            <MapPin className="h-3 w-3" />
+                                                            <span>Distance delta: <strong>{siteVisit.distanceFromSubmittedGps.toFixed(2)}km</strong></span>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex items-center gap-2 text-emerald-700">
+                                                        <ShieldAlert className="h-3 w-3" />
+                                                        <span>Trust score impact: <strong>+50</strong> (Site visit verified)</span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* If FAILED: Show Risk warning badge */}
+                                            {isFailed && (
+                                                <div className="mt-2 flex items-center gap-2 text-xs text-red-700">
+                                                    <AlertTriangle className="h-3 w-3" />
+                                                    <span>GPS mismatch detected - Risk event created</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
 
                                 {/* Action Buttons - ONLY show for SUBMITTED items */}
                                 {isSubmitted && (
@@ -394,7 +516,7 @@ export default function VerificationReviewPage() {
                                             </div>
                                         ) : (
                                             <>
-                                                {/* Safety Rules: No approval allowed until site visit completed */}
+                                                {/* Approval Guardrails: Disable Approve button when Location Confirmation has siteVisit.status !== COMPLETED */}
                                                 {item.type === 'LOCATION_CONFIRMATION' && item.siteVisits && item.siteVisits.length > 0 && 
                                                  item.siteVisits.some((sv: any) => sv.status !== 'COMPLETED' && sv.status !== 'FAILED') ? (
                                                     <div className="w-full p-3 bg-amber-50 text-amber-800 text-sm rounded border border-amber-200">
@@ -403,10 +525,10 @@ export default function VerificationReviewPage() {
                                                             <span className="font-medium">Waiting for Site Visit</span>
                                                         </div>
                                                         <p className="mt-1 text-xs text-amber-700">
-                                                            Approval is disabled until the site visit is completed.
+                                                            Site visit must be completed before approval.
                                                         </p>
                                                         <Link
-                                                            href="/dashboard/site-visits"
+                                                            href={`/dashboard/site-visits?visitId=${item.siteVisits[0].id}`}
                                                             className="mt-2 inline-flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 underline"
                                                         >
                                                             View Site Visit

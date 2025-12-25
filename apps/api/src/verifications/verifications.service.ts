@@ -227,11 +227,21 @@ export class VerificationsService {
         items: {
           include: {
             verifier: { select: { id: true, name: true, email: true } },
+            // JOIN related SiteVisit using verificationItemId (Location Confirmation)
+            // Include all site visits (not just active ones) to show COMPLETED/FAILED status
             siteVisits: {
-              where: { status: { in: ['PENDING_ASSIGNMENT', 'ASSIGNED', 'IN_PROGRESS'] } },
               include: {
-                assignedModerator: { select: { id: true, name: true, email: true } }
-              }
+                // Include assignedOfficer.name + role
+                assignedModerator: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    role: true
+                  }
+                }
+              },
+              orderBy: { createdAt: 'desc' } // Most recent first
             }
           },
           orderBy: { type: 'asc' }

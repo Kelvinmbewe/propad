@@ -151,8 +151,13 @@ function VisitCard({ visit, onAssign, onComplete, isProcessing }: {
                 </CardTitle>
                 <CardDescription className="flex items-center gap-1">
                     <MapPin className="w-3 h-3" />
-                    {visit.property?.suburbName || 'Unknown Location'}
+                    {visit.property?.title || 'Untitled Property'}
                 </CardDescription>
+                {visit.property?.suburbName && (
+                    <CardDescription className="text-xs text-neutral-500">
+                        {visit.property.suburbName}
+                    </CardDescription>
+                )}
             </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-4 text-sm">
                 <div className="flex items-center gap-3 text-neutral-600">
@@ -162,9 +167,27 @@ function VisitCard({ visit, onAssign, onComplete, isProcessing }: {
                     </div>
                 </div>
 
-                {typeof visit.visitsGpsLat === 'number' && (
-                    <div className="text-xs bg-neutral-50 p-2 rounded border border-neutral-100">
-                        GPS Verified: {visit.distanceFromSubmittedGps?.toFixed(2)}km delta
+                {/* Show Assigned Officer */}
+                {visit.assignedModeratorId && visit.assignedModerator && (
+                    <div className="text-xs bg-blue-50 p-2 rounded border border-blue-100">
+                        <div className="flex items-center gap-2">
+                            <UserCheck className="w-3 h-3 text-blue-600" />
+                            <span className="text-blue-800">
+                                Assigned to: <strong>{visit.assignedModerator.name || visit.assignedModerator.email}</strong>
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Distance delta after completion */}
+                {visit.status === 'COMPLETED' && typeof visit.visitGpsLat === 'number' && visit.distanceFromSubmittedGps !== null && (
+                    <div className="text-xs bg-emerald-50 p-2 rounded border border-emerald-100">
+                        <div className="flex items-center gap-2">
+                            <MapPin className="w-3 h-3 text-emerald-600" />
+                            <span className="text-emerald-800">
+                                Distance delta: <strong>{visit.distanceFromSubmittedGps.toFixed(2)}km</strong>
+                            </span>
+                        </div>
                     </div>
                 )}
 

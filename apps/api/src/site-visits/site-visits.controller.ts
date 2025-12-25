@@ -36,6 +36,13 @@ export class SiteVisitsController {
         return this.siteVisitsService.getModeratorVisits(req.user.userId);
     }
 
+    @Get('eligible-officers')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.ADMIN)
+    async getEligibleOfficers() {
+        return this.siteVisitsService.getEligibleOfficers();
+    }
+
     @Get(':id')
     @UseGuards(JwtAuthGuard)
     async getVisit(@Param('id') id: string) {
@@ -44,7 +51,7 @@ export class SiteVisitsController {
 
     @Post(':id/assign')
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(Role.ADMIN, Role.MODERATOR)
+    @Roles(Role.ADMIN) // ADMIN only for manual assignment
     async assignModerator(@Param('id') id: string, @Body() dto: AssignModeratorDto, @Req() req: AuthenticatedRequest) {
         return this.siteVisitsService.assignModerator(id, dto.moderatorId, req.user.userId);
     }

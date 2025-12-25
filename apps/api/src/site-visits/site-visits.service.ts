@@ -198,16 +198,45 @@ export class SiteVisitsService {
         }
     }
 
+    /**
+     * Manual assignment fallback endpoint.
+     * Roles: ADMIN only
+     * Body: { officerId }
+     * Ensure officer has role ADMIN | MODERATOR | VERIFIER
+     * Persist assignedOfficerId
+     * Reject reassignment if visit already COMPLETED
+     */
     async assignModerator(visitId: string, moderatorId: string, assignerId: string) {
         // Validate visit
         const visit = await this.prisma.siteVisit.findUnique({ where: { id: visitId } });
-        if (!visit) throw new NotFoundException('Site visit not found');
+        if (!visit) {
+            throw new NotFoundException('Site visit not found');
+        }
 
-        // Validate moderator (Check role, trusted, etc - for now just check existence)
-        const moderator = await this.prisma.user.findUnique({ where: { id: moderatorId } });
-        if (!moderator) throw new NotFoundException('Moderator not found');
+        // Reject reassignment if visit already COMPLETED
+        if (visit.status === SiteVisitStatus.COMPLETED || visit.status === SiteVisitStatus.FAILED) {
+            throw new BadRequestException('Cannot reassign a completed or failed visit');
+        }
 
-        // Update
+        // Validate moderator - Ensure officer has role ADMIN | MODERATOR | VERIFIER
+        const moderator = await this.prisma.user.findUnique({
+            where: { id: moderatorId },
+            select: { id: true, role: true, status: true }
+        });
+
+        if (!moderator) {
+            throw new NotFoundException('Officer not found');
+        }
+
+        if (![Role.ADMIN, Role.MODERATOR, Role.VERIFIER].includes(moderator.role)) {
+            throw new BadRequestException('Officer must have role ADMIN, MODERATOR, or VERIFIER');
+        }
+
+        if (moderator.status !== 'ACTIVE') {
+            throw new BadRequestException('Officer must be active');
+        }
+
+        // Update - Persist assignedOfficerId
         return this.prisma.siteVisit.update({
             where: { id: visitId },
             data: {
@@ -269,13 +298,23 @@ export class SiteVisitsService {
         return this.prisma.siteVisit.findUnique({
             where: { id: visitId },
             include: {
-                property: true,
+                property: {
+                    select: {
+                        id: true,
+                        title: true,
+                        lat: true,
+                        lng: true,
+                        suburb: true,
+                        city: true
+                    }
+                },
                 requestedBy: true,
                 assignedModerator: {
                     select: {
                         id: true,
                         name: true,
-                        email: true
+                        email: true,
+                        role: true
                     }
                 },
                 verificationItem: {
@@ -289,6 +328,28 @@ export class SiteVisitsService {
                     }
                 }
             }
+        });
+    }
+
+    /**
+     * Get eligible officers for assignment (ADMIN, MODERATOR, VERIFIER).
+     */
+    async getEligibleOfficers() {
+        return this.prisma.user.findMany({
+            where: {
+                role: { in: [Role.ADMIN, Role.MODERATOR, Role.VERIFIER] },
+                status: 'ACTIVE'
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true
+            },
+            orderBy: [
+                { role: 'asc' }, // ADMIN first, then MODERATOR, then VERIFIER
+                { name: 'asc' }
+            ]
         });
     }
     /**
