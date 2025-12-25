@@ -1,44 +1,58 @@
-import { Controller, Post, Body, Param, UseGuards, Request, Get, Patch } from '@nestjs/common';
+import { Controller, Post, Body, Param, UseGuards, Req, Get, Patch } from '@nestjs/common';
 import { SiteVisitsService } from './site-visits.service';
 import { RequestSiteVisitDto, AssignModeratorDto, CompleteSiteVisitDto } from './dto/site-visit.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { Role } from '@prisma/client';
 
-// Mock Auth Guards for now (Replace with actual AuthGuard in real implementation)
-// import { AuthGuard } from '../auth/auth.guard'; 
+interface AuthenticatedRequest {
+    user: {
+        userId: string;
+        role: Role;
+    };
+}
 
 @Controller('site-visits')
 export class SiteVisitsController {
     constructor(private readonly siteVisitsService: SiteVisitsService) { }
 
     @Post('request')
-    async requestVisit(@Body() dto: RequestSiteVisitDto, @Request() req: any) {
-        // const userId = req.user.id; 
-        const userId = "mock-user-id"; // Placeholder
-        return this.siteVisitsService.requestVisit(userId, dto.propertyId);
+    @UseGuards(JwtAuthGuard)
+    async requestVisit(@Body() dto: RequestSiteVisitDto, @Req() req: AuthenticatedRequest) {
+        return this.siteVisitsService.requestVisit(req.user.userId, dto.propertyId);
     }
 
     @Get('pending')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.ADMIN, Role.MODERATOR)
     async getPending() {
-        // Admin only
         return this.siteVisitsService.getPendingVisits();
     }
 
-    @Post(':id/assign')
-    async assignModerator(@Param('id') id: string, @Body() dto: AssignModeratorDto, @Request() req: any) {
-        // Admin only
-        return this.siteVisitsService.assignModerator(id, dto.moderatorId, "mock-admin-id");
+    @Get('my-assignments')
+    @UseGuards(JwtAuthGuard)
+    async getMyAssignments(@Req() req: AuthenticatedRequest) {
+        return this.siteVisitsService.getModeratorVisits(req.user.userId);
     }
 
-    @Get('my-assignments')
-    async getMyAssignments(@Request() req: any) {
-        // Moderator only
-        const userId = "mock-moderator-id";
-        return this.siteVisitsService.getModeratorVisits(userId);
+    @Get(':id')
+    @UseGuards(JwtAuthGuard)
+    async getVisit(@Param('id') id: string) {
+        return this.siteVisitsService.getVisitById(id);
+    }
+
+    @Post(':id/assign')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.ADMIN, Role.MODERATOR)
+    async assignModerator(@Param('id') id: string, @Body() dto: AssignModeratorDto, @Req() req: AuthenticatedRequest) {
+        return this.siteVisitsService.assignModerator(id, dto.moderatorId, req.user.userId);
     }
 
     @Post(':id/complete')
-    async completeVisit(@Param('id') id: string, @Body() dto: CompleteSiteVisitDto, @Request() req: any) {
-        // Moderator only
-        const userId = "mock-moderator-id";
-        return this.siteVisitsService.completeVisit(id, userId, dto.gpsLat, dto.gpsLng, dto.notes);
+    @UseGuards(JwtAuthGuard)
+    async completeVisit(@Param('id') id: string, @Body() dto: CompleteSiteVisitDto, @Req() req: AuthenticatedRequest) {
+        // Only assigned officer can submit visit GPS
+        return this.siteVisitsService.completeVisit(id, req.user.userId, dto.gpsLat, dto.gpsLng, dto.notes);
     }
 }

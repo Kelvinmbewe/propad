@@ -41,8 +41,18 @@ export default function SiteVisitsPage() {
     });
 
     const completeMutation = useMutation({
-        mutationFn: async ({ visitId, lat, lng, notes }: { visitId: string; lat: number; lng: number; notes: string }) => {
-            return sdk!.siteVisits.complete(visitId, { gpsLat: lat, gpsLng: lng, notes });
+        mutationFn: async ({ visitId, lat, lng, notes }: { visitId: string; lat: number; lng: number; notes?: string }) => {
+            const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+            const res = await fetch(`${apiBaseUrl}/site-visits/${visitId}/complete`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${session?.accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ gpsLat: lat, gpsLng: lng, notes })
+            });
+            if (!res.ok) throw new Error('Failed to complete visit');
+            return res.json();
         },
         onSuccess: () => {
             toast.success('Visit completed');
@@ -96,13 +106,7 @@ export default function SiteVisitsPage() {
                             key={visit.id}
                             visit={visit}
                             onAssign={(modId) => assignMutation.mutate({ visitId: visit.id, moderatorId: modId })}
-                            onComplete={(notes) => {
-                                // Mock GPS for demo purposes if browser geo fails or dev env
-                                // In real app, utilize navigator.geolocation
-                                const lat = visit.property?.lat || -17.824858;
-                                const lng = visit.property?.lng || 31.053028;
-                                completeMutation.mutate({ visitId: visit.id, lat, lng, notes });
-                            }}
+                            onComplete={(lat, lng, notes) => completeMutation.mutate({ visitId: visit.id, lat, lng, notes })}
                             isProcessing={assignMutation.isPending || completeMutation.isPending}
                         />
                     ))}
@@ -115,7 +119,7 @@ export default function SiteVisitsPage() {
 function VisitCard({ visit, onAssign, onComplete, isProcessing }: {
     visit: SiteVisit;
     onAssign: (id: string) => void;
-    onComplete: (notes: string) => void;
+    onComplete: (lat: number, lng: number, notes?: string) => void;
     isProcessing: boolean;
 }) {
     // For demo simplicity, assigning self if pending
@@ -182,12 +186,42 @@ function VisitCard({ visit, onAssign, onComplete, isProcessing }: {
                             size="sm"
                             className="w-full bg-green-600 hover:bg-green-700"
                             disabled={isProcessing}
-                            onClick={() => {
-                                const notes = prompt('Visit Notes:');
-                                if (notes) onComplete(notes);
+                            onClick={async () => {
+                                // "Start Visit" → upload GPS
+                                const getGPS = (): Promise<{ lat: number; lng: number }> => {
+                                    return new Promise((resolve) => {
+                                        if (navigator.geolocation) {
+                                            navigator.geolocation.getCurrentPosition(
+                                                (position) => {
+                                                    resolve({
+                                                        lat: position.coords.latitude,
+                                                        lng: position.coords.longitude
+                                                    });
+                                                },
+                                                () => {
+                                                    // Fallback if GPS fails
+                                                    resolve({
+                                                        lat: visit.property?.lat || -17.824858,
+                                                        lng: visit.property?.lng || 31.053028
+                                                    });
+                                                }
+                                            );
+                                        } else {
+                                            // Fallback if geolocation not available
+                                            resolve({
+                                                lat: visit.property?.lat || -17.824858,
+                                                lng: visit.property?.lng || 31.053028
+                                            });
+                                        }
+                                    });
+                                };
+
+                                const { lat, lng } = await getGPS();
+                                const notes = prompt('Visit Notes (optional):') || undefined;
+                                onComplete(lat, lng, notes);
                             }}
                         >
-                            Complete Visit
+                            Start Visit
                         </Button>
                     )}
                 </div>

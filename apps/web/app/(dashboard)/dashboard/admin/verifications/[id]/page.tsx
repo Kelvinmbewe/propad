@@ -394,21 +394,44 @@ export default function VerificationReviewPage() {
                                             </div>
                                         ) : (
                                             <>
-                                                <Button
-                                                    variant="outline"
-                                                    className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
-                                                    onClick={() => setActiveRejection(item.id)}
-                                                >
-                                                    <X className="h-4 w-4 mr-2" />
-                                                    Reject
-                                                </Button>
-                                                <Button
-                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                    onClick={() => reviewMutation.mutate({ itemId: item.id, status: 'APPROVED' })}
-                                                >
-                                                    <Check className="h-4 w-4 mr-2" />
-                                                    Approve
-                                                </Button>
+                                                {/* Safety Rules: No approval allowed until site visit completed */}
+                                                {item.type === 'LOCATION_CONFIRMATION' && item.siteVisits && item.siteVisits.length > 0 && 
+                                                 item.siteVisits.some((sv: any) => sv.status !== 'COMPLETED' && sv.status !== 'FAILED') ? (
+                                                    <div className="w-full p-3 bg-amber-50 text-amber-800 text-sm rounded border border-amber-200">
+                                                        <div className="flex items-center gap-2">
+                                                            <AlertTriangle className="h-4 w-4" />
+                                                            <span className="font-medium">Waiting for Site Visit</span>
+                                                        </div>
+                                                        <p className="mt-1 text-xs text-amber-700">
+                                                            Approval is disabled until the site visit is completed.
+                                                        </p>
+                                                        <Link
+                                                            href="/dashboard/site-visits"
+                                                            className="mt-2 inline-flex items-center gap-1 text-xs text-amber-600 hover:text-amber-800 underline"
+                                                        >
+                                                            View Site Visit
+                                                            <ExternalLink className="h-3 w-3" />
+                                                        </Link>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <Button
+                                                            variant="outline"
+                                                            className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
+                                                            onClick={() => setActiveRejection(item.id)}
+                                                        >
+                                                            <X className="h-4 w-4 mr-2" />
+                                                            Reject
+                                                        </Button>
+                                                        <Button
+                                                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                            onClick={() => reviewMutation.mutate({ itemId: item.id, status: 'APPROVED' })}
+                                                        >
+                                                            <Check className="h-4 w-4 mr-2" />
+                                                            Approve
+                                                        </Button>
+                                                    </>
+                                                )}
                                             </>
                                         )}
                                     </div>
