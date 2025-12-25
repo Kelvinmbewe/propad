@@ -39,7 +39,7 @@ export async function getPropertyVerification(propertyId: string) {
             orderBy: { createdAt: 'desc' }
         });
 
-        if (legacy) {
+        if (legacy && legacy.requesterId) {
             console.log(`[LAZY MIGRATION] Migrating Verification ${legacy.id} to VerificationRequest`);
 
             // Create Canonical Request
@@ -48,15 +48,16 @@ export async function getPropertyVerification(propertyId: string) {
                     targetType: 'PROPERTY',
                     targetId: propertyId,
                     propertyId: propertyId,
-                    requesterId: legacy.requesterId,
-                    // Map legacy status to new status strictly
-                    status: legacy.status === 'APPROVED' ? 'APPROVED' : 'SUBMITTED',
+                    requesterId: legacy.requesterId, // Guaranteed string
+                    // Map legacy status to new status strictly (Request Status: PENDING | APPROVED | REJECTED)
+                    status: legacy.status === 'APPROVED' ? VerificationStatus.APPROVED : VerificationStatus.PENDING,
                     items: {
                         create: {
-                            type: VerificationItemType.OWNERSHIP_PROOF, // Default type for legacy migration
-                            status: legacy.status === 'APPROVED' ? 'APPROVED' : 'SUBMITTED',
+                            type: VerificationItemType.PROOF_OF_OWNERSHIP, // Default type for legacy migration
+                            // Item Status: SUBMITTED exist in VerificationItemStatus
+                            status: legacy.status === 'APPROVED' ? VerificationItemStatus.APPROVED : VerificationItemStatus.SUBMITTED,
                             notes: 'Migrated from legacy system',
-                            documents: legacy.evidenceUrl ? [legacy.evidenceUrl] : [],
+                            evidenceUrls: legacy.evidenceUrl ? [legacy.evidenceUrl] : [],
                         }
                     }
                 },
@@ -81,12 +82,18 @@ export async function requestPropertyVerification(propertyId: string, type: 'OWN
 
     try {
         // Enforce Canonical Model: VerificationRequest
+        // Map legacy frontend types to Schema Enum
+        let schemaType: VerificationItemType = VerificationItemType.PROOF_OF_OWNERSHIP;
+        if (type === 'LOCATION_CHECK') schemaType = VerificationItemType.LOCATION_CONFIRMATION;
+        if (type === 'MEDIA_VALIDATION') schemaType = VerificationItemType.PROPERTY_PHOTOS;
+
         // Check for existing active request
         const existing = await prisma.verificationRequest.findFirst({
             where: {
                 propertyId: propertyId,
                 status: {
-                    in: ['PENDING', 'SUBMITTED', 'PENDING_REVIEW', 'PAID']
+                    // Filter only valid VerificationStatus Enum values that imply "Active"
+                    in: [VerificationStatus.PENDING]
                 }
             },
             include: { items: true }
@@ -98,18 +105,19 @@ export async function requestPropertyVerification(propertyId: string, type: 'OWN
         }
 
         // Create New Request (Canonical)
-        // Note: We intentionally use 'SUBMITTED' or 'PENDING' to ensure it hits the Admin Queue logic
+        // Request Status: PENDING (Active)
+        // Item Status: SUBMITTED (To appear in queue)
         const request = await prisma.verificationRequest.create({
             data: {
                 targetType: 'PROPERTY',
                 targetId: propertyId,
                 propertyId: propertyId,
                 requesterId: session.user.id,
-                status: 'SUBMITTED', // Starts as Submitted
+                status: VerificationStatus.PENDING,
                 items: {
                     create: {
-                        type: type as VerificationItemType,
-                        status: 'SUBMITTED',
+                        type: schemaType,
+                        status: VerificationItemStatus.SUBMITTED,
                         notes: 'User requested verification'
                     }
                 }
