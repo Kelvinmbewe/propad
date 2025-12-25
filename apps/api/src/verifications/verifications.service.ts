@@ -302,16 +302,16 @@ export class VerificationsService {
       });
 
       // 3. AFTER updating the item: Fetch all items for the same VerificationRequest
-      const allItems = await this.prisma.verificationRequestItem.findMany({
+      const allItems: VerificationRequestItem[] = await this.prisma.verificationRequestItem.findMany({
         where: { verificationRequestId: requestId }
       });
 
       // Count APPROVED, REJECTED, SUBMITTED, PENDING
       const statusCounts = {
-        APPROVED: allItems.filter((i) => i.status === VerificationItemStatus.APPROVED).length,
-        REJECTED: allItems.filter((i) => i.status === VerificationItemStatus.REJECTED).length,
-        SUBMITTED: allItems.filter((i) => i.status === VerificationItemStatus.SUBMITTED).length,
-        PENDING: allItems.filter((i) => i.status === VerificationItemStatus.PENDING).length
+        APPROVED: allItems.filter((i: VerificationRequestItem) => i.status === VerificationItemStatus.APPROVED).length,
+        REJECTED: allItems.filter((i: VerificationRequestItem) => i.status === VerificationItemStatus.REJECTED).length,
+        SUBMITTED: allItems.filter((i: VerificationRequestItem) => i.status === VerificationItemStatus.SUBMITTED).length,
+        PENDING: allItems.filter((i: VerificationRequestItem) => i.status === VerificationItemStatus.PENDING).length
       };
 
       // 4. Update VerificationRequest.status as follows:
