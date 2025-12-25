@@ -1,8 +1,16 @@
 
-import { Body, Controller, Get, Logger, Param, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { VerificationsService } from './verifications.service';
-import { VerificationType, VerificationItemStatus } from '@prisma/client';
+import { VerificationType, VerificationItemStatus, Role } from '@prisma/client';
 import { ReviewVerificationItemDto } from '../properties/dto/review-verification-item.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+
+interface AuthenticatedRequest {
+  user: {
+    userId: string;
+    role: Role;
+  };
+}
 
 @Controller('verifications')
 export class VerificationsController {
@@ -36,13 +44,15 @@ export class VerificationsController {
   }
 
   @Patch('requests/:requestId/items/:itemId')
+  @UseGuards(JwtAuthGuard)
   async reviewItem(
     @Param('requestId') requestId: string,
     @Param('itemId') itemId: string,
-    @Body() body: ReviewVerificationItemDto
+    @Body() body: ReviewVerificationItemDto,
+    @Req() req: AuthenticatedRequest
   ) {
-    // Mock actor for now
-    const actor = { userId: 'admin-id' };
+    // Extract verifierId strictly from req.user.id (guaranteed to exist in database via JWT strategy auto-sync)
+    const actor = { userId: req.user.userId };
     return this.verificationsService.reviewItem(requestId, itemId, body, actor);
   }
 }
