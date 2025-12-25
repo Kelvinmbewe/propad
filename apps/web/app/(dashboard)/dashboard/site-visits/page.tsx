@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
-import { Loader2, MapPin, CheckCircle, Clock, User, UserCheck } from 'lucide-react';
+import { Loader2, MapPin, CheckCircle, Clock, User, UserCheck, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Badge } from '@propad/ui';
@@ -151,13 +151,8 @@ function VisitCard({ visit, onAssign, onComplete, isProcessing }: {
                 </CardTitle>
                 <CardDescription className="flex items-center gap-1">
                     <MapPin className="w-3 h-3" />
-                    {visit.property?.title || 'Untitled Property'}
+                    {visit.property?.suburbName || 'Unknown Location'}
                 </CardDescription>
-                {visit.property?.suburbName && (
-                    <CardDescription className="text-xs text-neutral-500">
-                        {visit.property.suburbName}
-                    </CardDescription>
-                )}
             </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-4 text-sm">
                 <div className="flex items-center gap-3 text-neutral-600">
@@ -167,20 +162,18 @@ function VisitCard({ visit, onAssign, onComplete, isProcessing }: {
                     </div>
                 </div>
 
-                {/* Show Assigned Officer */}
-                {visit.assignedModeratorId && visit.assignedModerator && (
+                {visit.assignedModeratorId && (visit as any).assignedModerator ? (
                     <div className="text-xs bg-blue-50 p-2 rounded border border-blue-100">
                         <div className="flex items-center gap-2">
                             <UserCheck className="w-3 h-3 text-blue-600" />
                             <span className="text-blue-800">
-                                Assigned to: <strong>{visit.assignedModerator.name || visit.assignedModerator.email}</strong>
+                                Assigned to: <strong>{(visit as any).assignedModerator?.name || (visit as any).assignedModerator?.email || 'Unknown'}</strong>
                             </span>
                         </div>
                     </div>
-                )}
+                ) : null}
 
-                {/* Distance delta after completion */}
-                {visit.status === 'COMPLETED' && typeof visit.visitGpsLat === 'number' && visit.distanceFromSubmittedGps !== null && (
+                {visit.status === 'COMPLETED' && typeof visit.visitGpsLat === 'number' && visit.distanceFromSubmittedGps !== null && visit.distanceFromSubmittedGps !== undefined ? (
                     <div className="text-xs bg-emerald-50 p-2 rounded border border-emerald-100">
                         <div className="flex items-center gap-2">
                             <MapPin className="w-3 h-3 text-emerald-600" />
@@ -189,7 +182,7 @@ function VisitCard({ visit, onAssign, onComplete, isProcessing }: {
                             </span>
                         </div>
                     </div>
-                )}
+                ) : null}
 
                 <div className="mt-auto pt-2 border-t border-neutral-100 flex gap-2">
                     {visit.status === 'PENDING_ASSIGNMENT' && (

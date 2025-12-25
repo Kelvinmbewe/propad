@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardContent, Button, Label, notify, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@propad/ui';
+import { Card, CardContent, Button, Label, notify } from '@propad/ui';
 import { ChevronLeft, Check, X, FileText, Download, ExternalLink, MapPin, Camera, AlertTriangle, ShieldAlert, UserCheck, Clock } from 'lucide-react';
 
 
@@ -16,7 +16,7 @@ export default function VerificationReviewPage() {
     const queryClient = useQueryClient();
     const [rejectionNotes, setRejectionNotes] = useState<Record<string, string>>({});
     const [activeRejection, setActiveRejection] = useState<string | null>(null);
-    const [assigningVisitId, setAssigningVisitId] = useState<string | null>(null);
+    const [selectedOfficerId, setSelectedOfficerId] = useState<Record<string, string | null>>({});
 
     const { data: request, isLoading } = useQuery({
         queryKey: ['verification-request', params.id],
@@ -93,11 +93,12 @@ export default function VerificationReviewPage() {
             }
             return res.json();
         },
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['verification-request', params.id] });
             queryClient.invalidateQueries({ queryKey: ['site-visits'] });
             notify.success('Officer assigned');
-            setAssigningVisitId(null);
+            // Clear selected officer for this visit
+            setSelectedOfficerId(prev => ({ ...prev, [variables.visitId]: null }));
         },
         onError: (error: any) => notify.error(error.message || 'Failed to assign officer')
     });
@@ -425,29 +426,38 @@ export default function VerificationReviewPage() {
                                                 <div className="mt-3 space-y-2">
                                                     <Label className="text-xs">Assign Officer</Label>
                                                     <div className="flex gap-2">
-                                                        <Select
-                                                            value={assigningVisitId === siteVisit.id ? 'selecting' : ''}
-                                                            onValueChange={(value) => {
-                                                                if (value && value !== 'selecting') {
+                                                        <select
+                                                            value={selectedOfficerId[siteVisit.id] || ''}
+                                                            onChange={(e) => {
+                                                                setSelectedOfficerId(prev => ({
+                                                                    ...prev,
+                                                                    [siteVisit.id]: e.target.value || null
+                                                                }));
+                                                            }}
+                                                            className="flex-1 px-3 py-2 text-sm border border-neutral-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        >
+                                                            <option value="">Select officer...</option>
+                                                            {eligibleOfficers?.map((officer: any) => (
+                                                                <option key={officer.id} value={officer.id}>
+                                                                    {officer.name || officer.email} ({officer.role})
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <Button
+                                                            size="sm"
+                                                            disabled={!selectedOfficerId[siteVisit.id] || assignOfficerMutation.isPending}
+                                                            onClick={() => {
+                                                                const officerId = selectedOfficerId[siteVisit.id];
+                                                                if (officerId) {
                                                                     assignOfficerMutation.mutate({
                                                                         visitId: siteVisit.id,
-                                                                        officerId: value
+                                                                        officerId
                                                                     });
-                                                                    setAssigningVisitId(siteVisit.id);
                                                                 }
                                                             }}
                                                         >
-                                                            <SelectTrigger className="flex-1">
-                                                                <SelectValue placeholder="Select officer..." />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {eligibleOfficers?.map((officer: any) => (
-                                                                    <SelectItem key={officer.id} value={officer.id}>
-                                                                        {officer.name || officer.email} ({officer.role})
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
+                                                            Assign
+                                                        </Button>
                                                     </div>
                                                 </div>
                                             )}
