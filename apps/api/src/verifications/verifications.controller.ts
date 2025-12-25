@@ -30,6 +30,11 @@ export class VerificationsController {
     return this.verificationsService.findAllRequests({ targetType, status });
   }
 
+  @Get('requests/:id')
+  async getRequest(@Param('id') id: string) {
+    return this.verificationsService.getRequest(id);
+  }
+
   @Patch('requests/:requestId/items/:itemId')
   async reviewItem(
     @Param('requestId') requestId: string,

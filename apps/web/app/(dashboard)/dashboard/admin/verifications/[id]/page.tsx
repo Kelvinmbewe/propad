@@ -22,7 +22,8 @@ export default function VerificationReviewPage() {
         queryFn: async () => {
             if (!session?.accessToken) throw new Error('No session');
             const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-            const res = await fetch(`${apiBaseUrl}/verifications/${params.id}`, {
+            // Bind strictly to VerificationRequest model
+            const res = await fetch(`${apiBaseUrl}/verifications/requests/${params.id}`, {
                 headers: { Authorization: `Bearer ${session.accessToken}` }
             });
             if (!res.ok) throw new Error('Failed to load request');
@@ -32,31 +33,39 @@ export default function VerificationReviewPage() {
     });
 
     const reviewMutation = useMutation({
-        mutationFn: async ({ itemId, status, notes }: { itemId: string, status: string, notes?: string }) => {
+        mutationFn: async ({ itemId, status, notes }: { itemId: string, status: 'APPROVED' | 'REJECTED', notes?: string }) => {
             const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-            const res = await fetch(`${apiBaseUrl}/verifications/${params.id}/items/${itemId}/review`, {
-                method: 'POST',
+            // Update VerificationRequestItem.status via PATCH endpoint
+            const res = await fetch(`${apiBaseUrl}/verifications/requests/${params.id}/items/${itemId}`, {
+                method: 'PATCH',
                 headers: {
                     Authorization: `Bearer ${session?.accessToken}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ status, notes })
             });
-            if (!res.ok) throw new Error('Failed to review item');
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({ message: 'Failed to review item' }));
+                throw new Error(error.message || 'Failed to review item');
+            }
             return res.json();
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['verification-request', params.id] });
+            queryClient.invalidateQueries({ queryKey: ['verifications:queue'] });
             notify.success('Item updated');
             setActiveRejection(null);
         },
-        onError: () => notify.error('Failed to update item')
+        onError: (error: any) => notify.error(error.message || 'Failed to update item')
     });
 
     if (isLoading) return <div className="p-8">Loading verification request...</div>;
     if (!request) return <div className="p-8">Request not found</div>;
 
+    // Bind strictly to VerificationRequest model
     const property = request.property;
+    const requester = request.requester;
+    const items = request.items || [];
 
     return (
         <div className="max-w-5xl mx-auto p-6 space-y-6">
@@ -115,52 +124,35 @@ export default function VerificationReviewPage() {
                                 <h3 className="font-semibold text-lg text-indigo-900">Trust Intelligence</h3>
                             </div>
 
-                            {/* User Tier */}
+                            {/* Request Status */}
                             <div>
-                                <p className="text-sm font-medium text-neutral-500 mb-1">Requester Trust Level</p>
+                                <p className="text-sm font-medium text-neutral-500 mb-1">Request Status</p>
                                 {(() => {
-                                    const tier = request.requester?.trustTier || 'NORMAL';
+                                    const status = request.status || 'PENDING';
                                     const colors = {
-                                        'NORMAL': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                                        'WATCH': 'bg-amber-50 text-amber-700 border-amber-200',
-                                        'REVIEW': 'bg-orange-50 text-orange-700 border-orange-200',
-                                        'HIGH_RISK': 'bg-red-50 text-red-700 border-red-200'
+                                        'PENDING': 'bg-amber-50 text-amber-700 border-amber-200',
+                                        'APPROVED': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                                        'REJECTED': 'bg-red-50 text-red-700 border-red-200'
                                     };
                                     return (
-                                        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${colors[tier as keyof typeof colors]}`}>
-                                            {tier.replace('_', ' ')}
+                                        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${colors[status as keyof typeof colors] || colors.PENDING}`}>
+                                            {status}
                                         </div>
                                     );
                                 })()}
                             </div>
 
-                            {/* Flags */}
+                            {/* Requester Info */}
                             <div>
-                                <p className="text-sm font-medium text-neutral-500 mb-2">Active Signals</p>
-                                {request.trustFlags && request.trustFlags.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {request.trustFlags.map((flag: string) => (
-                                            <div key={flag} className="flex items-start gap-2 p-2 bg-red-50 border border-red-100 rounded text-xs text-red-800">
-                                                <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-                                                <span>{flag.replace(/_/g, ' ')}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="p-3 bg-neutral-50 border border-neutral-100 rounded text-xs text-neutral-500 flex items-center gap-2 italic">
-                                        <Check className="h-3 w-3 text-emerald-500" />
-                                        No anomalies detected
-                                    </div>
-                                )}
+                                <p className="text-sm font-medium text-neutral-500 mb-1">Requester</p>
+                                <p className="text-sm">{requester?.name || requester?.email || 'Unknown'}</p>
                             </div>
 
-                            {/* Trust Score Modifier */}
-                            {property.trustScoreModifier !== 0 && (
+                            {/* Request Notes */}
+                            {request.notes && (
                                 <div className="pt-2 border-t border-indigo-50">
-                                    <p className="text-xs font-medium text-neutral-500">Trust Score Modifier</p>
-                                    <p className={`font-mono font-bold ${property.trustScoreModifier > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                        {property.trustScoreModifier > 0 ? '+' : ''}{property.trustScoreModifier} points
-                                    </p>
+                                    <p className="text-xs font-medium text-neutral-500">Notes</p>
+                                    <p className="text-sm text-neutral-700">{request.notes}</p>
                                 </div>
                             )}
                         </CardContent>
@@ -171,30 +163,39 @@ export default function VerificationReviewPage() {
                 <div className="md:col-span-2 space-y-4">
                     <h3 className="font-semibold text-lg">Verification Items</h3>
 
-                    {request.items.map((item: any) => (
+                    {items.map((item: any) => (
                         <Card key={item.id} className={`border-l-4 ${item.status === 'APPROVED' ? 'border-l-emerald-500' :
                             item.status === 'REJECTED' ? 'border-l-red-500' : 'border-l-amber-500'
                             }`}>
                             <CardContent className="p-6">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="flex items-center gap-2">
+                                        {/* Map VerificationRequestItem.type to icons */}
                                         {item.type === 'PROOF_OF_OWNERSHIP' && <FileText className="h-5 w-5 text-blue-500" />}
                                         {item.type === 'LOCATION_CONFIRMATION' && <MapPin className="h-5 w-5 text-red-500" />}
                                         {item.type === 'PROPERTY_PHOTOS' && <Camera className="h-5 w-5 text-purple-500" />}
-                                        <h4 className="font-semibold">{item.type.replace(/_/g, ' ')}</h4>
+                                        <h4 className="font-semibold">
+                                            {item.type === 'PROOF_OF_OWNERSHIP' ? 'Proof of Ownership' :
+                                             item.type === 'LOCATION_CONFIRMATION' ? 'Location Confirmation' :
+                                             item.type === 'PROPERTY_PHOTOS' ? 'Property Photos' :
+                                             item.type.replace(/_/g, ' ')}
+                                        </h4>
                                     </div>
-                                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${item.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                                    {/* Display VerificationRequestItem.status */}
+                                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                        item.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
                                         item.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                                            'bg-amber-100 text-amber-700'
-                                        }`}>
+                                        item.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-700' :
+                                        'bg-amber-100 text-amber-700'
+                                    }`}>
                                         {item.status}
                                     </span>
                                 </div>
 
-                                {/* Evidence Display */}
+                                {/* Evidence Display - from VerificationRequestItem.evidenceUrls */}
                                 <div className="mb-6 bg-neutral-50 p-4 rounded-md">
                                     <p className="text-xs font-semibold text-neutral-500 uppercase mb-2">Evidence</p>
-                                    {item.evidenceUrls && item.evidenceUrls.length > 0 ? (
+                                    {item.evidenceUrls && Array.isArray(item.evidenceUrls) && item.evidenceUrls.length > 0 ? (
                                         <div className="space-y-2">
                                             {item.evidenceUrls.map((url: string, idx: number) => {
                                                 const isDoc = url.toLowerCase().endsWith('.pdf') ||
@@ -263,8 +264,8 @@ export default function VerificationReviewPage() {
                                     </div>
                                 )}
 
-                                {/* Action Buttons */}
-                                {item.status === 'SUBMITTED' && (
+                                {/* Action Buttons - Only show for SUBMITTED or PENDING items */}
+                                {(item.status === 'SUBMITTED' || item.status === 'PENDING') && (
                                     <div className="flex gap-3 justify-end items-end">
                                         {activeRejection === item.id ? (
                                             <div className="w-full space-y-2 animate-in fade-in slide-in-from-top-1">
@@ -325,7 +326,7 @@ export default function VerificationReviewPage() {
                         </Card>
                     ))}
 
-                    {request.items.length === 0 && (
+                    {items.length === 0 && (
                         <div className="text-center p-8 text-neutral-500 bg-neutral-50 rounded-lg border border-dashed">
                             No verification items found for this request.
                         </div>
