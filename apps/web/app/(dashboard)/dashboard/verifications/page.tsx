@@ -95,47 +95,69 @@ export default function VerificationsPage() {
             ) : (
                 <div className="space-y-4">
                     {verificationRequests.map((item) => (
-                        <Card key={item.id} className="hover:shadow-md transition-shadow">
+                        <Card key={item.id} className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-emerald-500">
                             <CardContent className="p-6">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <div className="p-2 bg-neutral-100 rounded-lg text-neutral-600">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1 space-y-3">
+                                        {/* Header Row */}
+                                        <div className="flex items-start gap-4">
+                                            <div className="p-3 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg text-emerald-700 shadow-sm">
                                                 {getTargetIcon(item.targetType)}
                                             </div>
-                                            <div>
-                                                <h3 className="text-lg font-semibold">{item.targetLabel}</h3>
-                                                <div className="flex items-center gap-2 text-sm text-neutral-500">
-                                                    <span>{item.requesterName}</span>
-                                                    <span>•</span>
-                                                    <span>{format(new Date(item.createdAt), 'MMM d, yyyy')}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-start justify-between gap-3 mb-2">
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="text-lg font-semibold text-neutral-900 truncate">
+                                                            {item.targetLabel}
+                                                        </h3>
+                                                        <div className="flex items-center gap-2 text-sm text-neutral-500 mt-1">
+                                                            <span className="flex items-center gap-1">
+                                                                <User className="h-3.5 w-3.5" />
+                                                                {item.requesterName}
+                                                            </span>
+                                                            <span>•</span>
+                                                            <span className="flex items-center gap-1">
+                                                                <span>{format(new Date(item.createdAt), 'MMM d, yyyy')}</span>
+                                                                <span className="text-xs">at {format(new Date(item.createdAt), 'h:mm a')}</span>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                                        {item.isPaid && (
+                                                            <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-bold shadow-sm border border-emerald-200">
+                                                                PAID
+                                                            </span>
+                                                        )}
+                                                        {getStatusBadge(item.status)}
+                                                    </div>
                                                 </div>
                                             </div>
-
-                                            {item.isPaid && (
-                                                <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-full font-bold shadow-sm">
-                                                    PAID
-                                                </span>
-                                            )}
-
-                                            {getStatusBadge(item.status)}
                                         </div>
 
-                                        <div className="flex items-center gap-4 text-sm text-neutral-600 mt-3 pl-12">
-                                            <span className="flex items-center gap-1 bg-neutral-50 px-2 py-1 rounded">
-                                                <ShieldCheck className="h-3 w-3" />
-                                                {item.itemsCount} Items
+                                        {/* Details Row */}
+                                        <div className="flex items-center gap-4 text-sm text-neutral-600 pl-14">
+                                            <span className="flex items-center gap-1.5 bg-neutral-50 px-3 py-1.5 rounded-md border border-neutral-200">
+                                                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                                                <span className="font-medium">{item.itemsCount}</span>
+                                                <span className="text-neutral-500">verification{item.itemsCount !== 1 ? 's' : ''}</span>
                                             </span>
-                                            <span className="text-xs text-neutral-400 font-mono">
+                                            <span className="text-xs text-neutral-400 font-mono bg-neutral-50 px-2 py-1 rounded border border-neutral-200">
                                                 ID: {item.targetId.substring(0, 8)}...
                                             </span>
+                                            {item.targetType === 'PROPERTY' && (
+                                                <span className="text-xs text-neutral-500 flex items-center gap-1">
+                                                    <MapPin className="h-3 w-3" />
+                                                    Property verification
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="ml-4 flex items-center h-full">
+                                    <div className="flex items-center h-full flex-shrink-0">
                                         <Link
                                             href={`/dashboard/admin/verifications/${item.id}`}
-                                            className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 transition-colors"
+                                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm hover:shadow-md"
                                         >
+                                            <ShieldCheck className="h-4 w-4" />
                                             Review
                                         </Link>
                                     </div>

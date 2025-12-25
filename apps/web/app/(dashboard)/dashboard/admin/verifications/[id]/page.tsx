@@ -67,6 +67,15 @@ export default function VerificationReviewPage() {
     const requester = request.requester;
     const items = request.items || [];
 
+    // Derive Trust Intelligence status from verification items
+    // 0 approved → PENDING, some approved → PARTIALLY VERIFIED, all approved → VERIFIED
+    const approvedCount = items.filter((item: any) => item.status === 'APPROVED').length;
+    const totalCount = items.length;
+    const trustStatus = totalCount === 0 ? 'PENDING' :
+                       approvedCount === 0 ? 'PENDING' :
+                       approvedCount === totalCount ? 'VERIFIED' :
+                       'PARTIALLY VERIFIED';
+
     return (
         <div className="max-w-5xl mx-auto p-6 space-y-6">
             <div className="flex items-center gap-4">
@@ -124,22 +133,24 @@ export default function VerificationReviewPage() {
                                 <h3 className="font-semibold text-lg text-indigo-900">Trust Intelligence</h3>
                             </div>
 
-                            {/* Request Status */}
+                            {/* Trust Intelligence Status - Derived from verification items */}
                             <div>
-                                <p className="text-sm font-medium text-neutral-500 mb-1">Request Status</p>
+                                <p className="text-sm font-medium text-neutral-500 mb-1">Verification Status</p>
                                 {(() => {
-                                    const status = request.status || 'PENDING';
                                     const colors = {
                                         'PENDING': 'bg-amber-50 text-amber-700 border-amber-200',
-                                        'APPROVED': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                                        'REJECTED': 'bg-red-50 text-red-700 border-red-200'
+                                        'PARTIALLY VERIFIED': 'bg-blue-50 text-blue-700 border-blue-200',
+                                        'VERIFIED': 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                     };
                                     return (
-                                        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${colors[status as keyof typeof colors] || colors.PENDING}`}>
-                                            {status}
+                                        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${colors[trustStatus as keyof typeof colors] || colors.PENDING}`}>
+                                            {trustStatus}
                                         </div>
                                     );
                                 })()}
+                                <p className="text-xs text-neutral-400 mt-1">
+                                    {approvedCount} of {totalCount} items approved
+                                </p>
                             </div>
 
                             {/* Requester Info */}
@@ -163,10 +174,18 @@ export default function VerificationReviewPage() {
                 <div className="md:col-span-2 space-y-4">
                     <h3 className="font-semibold text-lg">Verification Items</h3>
 
-                    {items.map((item: any) => (
-                        <Card key={item.id} className={`border-l-4 ${item.status === 'APPROVED' ? 'border-l-emerald-500' :
-                            item.status === 'REJECTED' ? 'border-l-red-500' : 'border-l-amber-500'
-                            }`}>
+                    {items.map((item: any) => {
+                        // Visual states: Approved (green, no actions), Rejected (red, show reason), Pending (actions enabled)
+                        const isApproved = item.status === 'APPROVED';
+                        const isRejected = item.status === 'REJECTED';
+                        const isPending = item.status === 'SUBMITTED' || item.status === 'PENDING';
+                        
+                        return (
+                        <Card key={item.id} className={`border-l-4 ${
+                            isApproved ? 'border-l-emerald-500 bg-emerald-50/30' :
+                            isRejected ? 'border-l-red-500 bg-red-50/30' :
+                            'border-l-amber-500'
+                        }`}>
                             <CardContent className="p-6">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="flex items-center gap-2">
@@ -183,8 +202,8 @@ export default function VerificationReviewPage() {
                                     </div>
                                     {/* Display VerificationRequestItem.status */}
                                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                        item.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
-                                        item.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                                        isApproved ? 'bg-emerald-100 text-emerald-700' :
+                                        isRejected ? 'bg-red-100 text-red-700' :
                                         item.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-700' :
                                         'bg-amber-100 text-amber-700'
                                     }`}>
@@ -257,15 +276,36 @@ export default function VerificationReviewPage() {
                                     )}
                                 </div>
 
-                                {/* Rejection Details if Rejected */}
-                                {item.status === 'REJECTED' && item.notes && (
-                                    <div className="mb-4 p-3 bg-red-50 text-red-800 text-sm rounded border border-red-100">
-                                        <strong>Rejection Reason:</strong> {item.notes}
+                                {/* Rejection Details if Rejected - Red, show reason */}
+                                {isRejected && item.notes && (
+                                    <div className="mb-4 p-3 bg-red-50 text-red-800 text-sm rounded border border-red-200">
+                                        <div className="flex items-start gap-2">
+                                            <AlertTriangle className="h-4 w-4 mt-0.5 text-red-600 shrink-0" />
+                                            <div>
+                                                <strong className="text-red-900">Rejection Reason:</strong>
+                                                <p className="mt-1 text-red-700">{item.notes}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Approved state - Green, no actions */}
+                                {isApproved && (
+                                    <div className="mb-4 p-3 bg-emerald-50 text-emerald-800 text-sm rounded border border-emerald-200">
+                                        <div className="flex items-center gap-2">
+                                            <Check className="h-4 w-4 text-emerald-600" />
+                                            <span className="font-medium text-emerald-900">This item has been approved</span>
+                                        </div>
+                                        {item.reviewedAt && (
+                                            <p className="mt-1 text-xs text-emerald-600">
+                                                Reviewed on {new Date(item.reviewedAt).toLocaleDateString()}
+                                            </p>
+                                        )}
                                     </div>
                                 )}
 
                                 {/* Action Buttons - Only show for SUBMITTED or PENDING items */}
-                                {(item.status === 'SUBMITTED' || item.status === 'PENDING') && (
+                                {isPending && (
                                     <div className="flex gap-3 justify-end items-end">
                                         {activeRejection === item.id ? (
                                             <div className="w-full space-y-2 animate-in fade-in slide-in-from-top-1">
@@ -321,10 +361,9 @@ export default function VerificationReviewPage() {
                                     </div>
                                 )}
 
-
                             </CardContent>
                         </Card>
-                    ))}
+                    )})}
 
                     {items.length === 0 && (
                         <div className="text-center p-8 text-neutral-500 bg-neutral-50 rounded-lg border border-dashed">
