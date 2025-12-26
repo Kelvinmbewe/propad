@@ -20,6 +20,12 @@ const links: Array<{ href: string; label: string; roles: Role[]; icon: ReactNode
   { href: '/dashboard/reward-pool', label: 'Reward pool', roles: ['ADMIN'], icon: <BarChart3 className="h-4 w-4" /> },
   { href: '/dashboard/admin/geo', label: 'Geo admin', roles: ['ADMIN'], icon: <Globe2 className="h-4 w-4" /> },
   { href: '/dashboard/admin/billing', label: 'Billing admin', roles: ['ADMIN'], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/payment-providers', label: 'Payment Providers', roles: ['ADMIN'], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/pricing', label: 'Pricing & Fees', roles: ['ADMIN'], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/payouts', label: 'Payout Management', roles: ['ADMIN'], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/wallet', label: 'Wallet', roles: ['USER', 'AGENT', 'LANDLORD'], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/referrals', label: 'Referrals', roles: ['USER', 'AGENT'], icon: <Users className="h-4 w-4" /> },
+  { href: '/dashboard/earnings', label: 'Earnings', roles: ['AGENT'], icon: <BarChart3 className="h-4 w-4" /> },
   { href: '/dashboard/profile', label: 'Profile', roles: ['AGENT', 'LANDLORD', 'USER', 'MODERATOR'], icon: <Users className="h-4 w-4" /> },
 ];
 

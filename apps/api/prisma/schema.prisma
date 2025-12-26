@@ -83,6 +83,23 @@ enum PaymentGateway {
   OFFLINE
 }
 
+enum PaymentProvider {
+  PAYNOW
+  PAYPAL
+  STRIPE
+}
+
+enum ChargeableItemType {
+  PROPERTY_VERIFICATION
+  AGENT_ASSIGNMENT
+  IN_HOUSE_ADVERT_BUYING
+  IN_HOUSE_ADVERT_SELLING
+  FEATURED_LISTING
+  TRUST_BOOST
+  PREMIUM_VERIFICATION
+  OTHER
+}
+
 enum PaymentMethodType {
   CARD
   ECOCASH
@@ -102,6 +119,13 @@ enum PaymentIntentStatus {
   SUCCEEDED
   FAILED
   CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
 }
 
 enum TransactionResult {
@@ -576,6 +600,11 @@ model User {
   // Site Visit Relations
   siteVisitsRequested  SiteVisit[]         @relation("SiteVisitRequester")
   siteVisitsAssigned   SiteVisit[]         @relation("SiteVisitModerator")
+  
+  // Payment Relations
+  paymentProfile        UserPaymentProfile? @relation("UserPaymentProfile")
+  paymentTransactions   PaymentTransaction[] @relation("PaymentTransactionUser")
+  referralEarnings      ReferralEarning[]  @relation("ReferralEarningReferrer")
 }
 
 model UserRole {
@@ -1296,6 +1325,8 @@ model PayoutRequest {
 
   wallet        Wallet        @relation(fields: [walletId], references: [id])
   payoutAccount PayoutAccount @relation(fields: [payoutAccountId], references: [id])
+  payoutTransactions PayoutTransaction[] @relation("PayoutTransactionRequest")
+  referralEarnings ReferralEarning[] @relation("ReferralEarningPayout")
 
   @@index([walletId, status, createdAt(sort: Desc)])
   @@index([txRef])
@@ -1524,6 +1555,7 @@ model Invoice {
   boost       Boost?      @relation("BoostInvoice")
   fxRate      FxRate?   @relation(fields: [fxRateId], references: [id])
   listingPayments ListingPayment[] @relation("ListingPaymentInvoice")
+  paymentTransactions PaymentTransaction[] @relation("PaymentTransactionInvoice")
 
   @@index([status, dueAt])
 }
@@ -1554,6 +1586,7 @@ model PaymentIntent {
   createdAt   DateTime            @default(now())
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  paymentTransactions PaymentTransaction[] @relation("PaymentTransactionIntent")
 
   @@index([invoiceId, gateway, status])
 }
@@ -1854,4 +1887,136 @@ model LedgerEntry {
 
   @@index([entityType, entityId])
   @@index([timestamp])
+}
+
+model PaymentProviderSettings {
+  id              String          @id @default(cuid())
+  provider        PaymentProvider @unique
+  enabled         Boolean         @default(false)
+  isDefault       Boolean         @default(false)
+  isTestMode      Boolean         @default(true)
+  apiKey          String?         // Encrypted in production
+  apiSecret       String?         // Encrypted in production
+  returnUrl       String?
+  webhookUrl      String?
+  webhookSecret   String?         // For webhook verification
+  configJson      Json?           // Additional provider-specific config
+  validatedAt     DateTime?
+  validatedBy     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([enabled])
+  @@index([isDefault])
+}
+
+model PricingRule {
+  id                    String            @id @default(cuid())
+  itemType              ChargeableItemType @unique
+  priceUsdCents         Int
+  currency              Currency
+  commissionPercent     Decimal           @db.Decimal(5, 2) // Platform commission %
+  platformFeePercent    Decimal           @db.Decimal(5, 2) // Platform fee %
+  agentSharePercent     Decimal?          @db.Decimal(5, 2) // Agent share % (if applicable)
+  referralSharePercent  Decimal?          @db.Decimal(5, 2) // Referral share %
+  rewardPoolSharePercent Decimal?          @db.Decimal(5, 2) // Reward pool share %
+  isActive              Boolean           @default(true)
+  metadata              Json?             // Additional pricing context
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@index([itemType, isActive])
+}
+
+model UserPaymentProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  bankName        String?
+  bankAccountNumber String?
+  bankAccountName String?
+  bankBranchCode  String?
+  mobileMoneyProvider String? // Ecocash, OneMoney, etc.
+  mobileMoneyNumber   String?
+  paypalEmail         String?
+  isVerified          Boolean  @default(false)
+  verifiedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation("UserPaymentProfile", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PaymentTransaction {
+  id              String          @id @default(cuid())
+  userId          String
+  featureId       String?         // Property ID, Agent Assignment ID, etc.
+  featureType     ChargeableItemType
+  invoiceId       String?
+  paymentIntentId String?
+  amountCents     Int
+  currency        Currency
+  status          PaymentStatus   @default(PENDING)
+  gateway         PaymentGateway
+  gatewayRef      String?
+  transactionRef  String          @unique
+  receiptUrl      String?
+  metadata        Json?           // Additional context
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user         User          @relation("PaymentTransactionUser", fields: [userId], references: [id])
+  invoice      Invoice?      @relation("PaymentTransactionInvoice", fields: [invoiceId], references: [id])
+  paymentIntent PaymentIntent? @relation("PaymentTransactionIntent", fields: [paymentIntentId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([featureType, featureId])
+  @@index([status])
+  @@index([gatewayRef])
+  @@index([transactionRef])
+}
+
+model PayoutTransaction {
+  id              String        @id @default(cuid())
+  payoutRequestId String
+  amountCents     Int
+  currency        Currency
+  method          PayoutMethod
+  status          PayoutStatus  @default(REQUESTED)
+  gatewayRef      String?       // External payment reference
+  receiptUrl      String?
+  processedAt     DateTime?
+  processedBy     String?       // Admin who processed
+  failureReason   String?
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  payoutRequest PayoutRequest @relation("PayoutTransactionRequest", fields: [payoutRequestId], references: [id])
+
+  @@index([payoutRequestId])
+  @@index([status])
+  @@index([gatewayRef])
+}
+
+model ReferralEarning {
+  id              String   @id @default(cuid())
+  referrerId      String   // User who referred
+  referredUserId  String?  // User who was referred (optional for tracking)
+  sourceType      String   // PAYMENT, VERIFICATION, etc.
+  sourceId        String   // ID of the source transaction/event
+  amountCents     Int
+  currency        Currency
+  status          String   @default("PENDING") // PENDING, PAID, CANCELLED
+  payoutRequestId String?
+  createdAt       DateTime @default(now())
+  paidAt          DateTime?
+
+  referrer User @relation("ReferralEarningReferrer", fields: [referrerId], references: [id])
+  payoutRequest PayoutRequest? @relation("ReferralEarningPayout", fields: [payoutRequestId], references: [id])
+
+  @@index([referrerId, createdAt(sort: Desc)])
+  @@index([status])
+  @@index([sourceType, sourceId])
 }

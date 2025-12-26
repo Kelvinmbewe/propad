@@ -10,13 +10,32 @@ import { PAYMENT_GATEWAYS } from './payments.constants';
 import { PaymentGatewayRegistry } from './payment-gateway.registry';
 import { PaymentMethodsService } from './payment-methods.service';
 import { PaymentMethodsController } from './payment-methods.controller';
+import { PaymentProviderSettingsService } from './payment-provider-settings.service';
+import { PaymentProviderSettingsController } from './payment-provider-settings.controller';
+import { PricingService } from './pricing.service';
+import { PricingController } from './pricing.controller';
+import { PayoutsService } from './payouts.service';
+import { PayoutsController } from './payouts.controller';
+import { ReferralsService } from './referrals.service';
+import { ReferralsController } from './referrals.controller';
 
 @Module({
   imports: [PrismaModule, AuditModule, HttpModule, MailModule],
-  controllers: [PaymentsController, PaymentMethodsController],
+  controllers: [
+    PaymentsController,
+    PaymentMethodsController,
+    PaymentProviderSettingsController,
+    PricingController,
+    PayoutsController,
+    ReferralsController
+  ],
   providers: [
     PaymentsService,
     PaymentMethodsService,
+    PaymentProviderSettingsService,
+    PricingService,
+    PayoutsService,
+    ReferralsService,
     PaynowGateway,
     PaymentGatewayRegistry,
     {
@@ -25,6 +44,6 @@ import { PaymentMethodsController } from './payment-methods.controller';
       inject: [PaynowGateway]
     }
   ],
-  exports: [PaymentsService]
+  exports: [PaymentsService, PricingService, PayoutsService, ReferralsService]
 })
 export class PaymentsModule {}
