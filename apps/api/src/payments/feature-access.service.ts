@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ChargeableItemType, PaymentStatus } from '@prisma/client';
+import { ChargeableItemType, PaymentStatus, Invoice, InvoiceLine } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PricingService } from './pricing.service';
 
@@ -26,7 +26,7 @@ export class FeatureAccessService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pricing: PricingService
-  ) {}
+  ) { }
 
   /**
    * Check access status for a feature
@@ -92,9 +92,9 @@ export class FeatureAccessService {
     });
 
     // Find invoice with matching featureId in line metadata
-    const matchingInvoice = invoices.find((inv) =>
+    const matchingInvoice = invoices.find((inv: Invoice & { lines: InvoiceLine[] }) =>
       inv.lines.some(
-        (line) =>
+        (line: InvoiceLine) =>
           (line.metaJson as { featureType?: string; featureId?: string })?.featureType === featureType &&
           (line.metaJson as { featureType?: string; featureId?: string })?.featureId === targetId
       )

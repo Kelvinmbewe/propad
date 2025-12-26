@@ -1,0 +1,4 @@
+apps/api/src/payments/payment-provider-settings.controller.ts(62,61): error TS2322: Type 'InputJsonValue' is not assignable to type 'JsonValue | undefined'.
+  Type 'InputJsonObject' is not assignable to type 'JsonValue | undefined'.
+    Type 'InputJsonObject' is missing the following properties from type 'JsonValue[]': length, pop, push, concat, and 29 more.
+apps/api/src/payments/pricing.controller.ts(60,72): error TS2322: Type 'InputJsonValue' is not assignable to type 'JsonValue | undefined'.

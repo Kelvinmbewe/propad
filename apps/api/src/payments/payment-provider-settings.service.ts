@@ -8,7 +8,7 @@ export class PaymentProviderSettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService
-  ) {}
+  ) { }
 
   async findAll() {
     return this.prisma.paymentProviderSettings.findMany({
@@ -50,7 +50,7 @@ export class PaymentProviderSettingsService {
       returnUrl?: string;
       webhookUrl?: string;
       webhookSecret?: string;
-      configJson?: Prisma.JsonValue;
+      configJson?: Prisma.InputJsonValue;
     },
     actorId: string
   ) {

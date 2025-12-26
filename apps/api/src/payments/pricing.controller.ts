@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { ChargeableItemType } from '@prisma/client';
+import { ChargeableItemType, Prisma } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -28,7 +28,7 @@ const createPricingRuleSchema = z.object({
 @Controller('pricing')
 @UseGuards(JwtAuthGuard)
 export class PricingController {
-  constructor(private readonly service: PricingService) {}
+  constructor(private readonly service: PricingService) { }
 
   @Get()
   @Roles('ADMIN')
@@ -57,7 +57,7 @@ export class PricingController {
     @Param('itemType') itemType: ChargeableItemType,
     @Body(new ZodValidationPipe(createPricingRuleSchema)) body: z.infer<typeof createPricingRuleSchema>
   ) {
-    return this.service.createOrUpdatePricingRule(itemType, body, req.user.userId);
+    return this.service.createOrUpdatePricingRule(itemType, { ...body, metadata: body.metadata as Prisma.InputJsonValue }, req.user.userId);
   }
 
   @Patch(':itemType/toggle')

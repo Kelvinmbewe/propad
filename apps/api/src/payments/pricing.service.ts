@@ -20,7 +20,7 @@ export class PricingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService
-  ) {}
+  ) { }
 
   async getPricingRule(itemType: ChargeableItemType, allowInactive = false) {
     const rule = await this.prisma.pricingRule.findUnique({
@@ -95,7 +95,7 @@ export class PricingService {
       referralSharePercent?: number;
       rewardPoolSharePercent?: number;
       isActive?: boolean;
-      metadata?: Prisma.JsonValue;
+      metadata?: Prisma.InputJsonValue;
     },
     actorId: string
   ) {

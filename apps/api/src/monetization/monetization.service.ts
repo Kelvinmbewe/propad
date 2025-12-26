@@ -2,7 +2,7 @@
 import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { BoostType, Boost } from '@prisma/client';
+import { BoostType, Boost, Prisma } from '@prisma/client';
 
 @Injectable()
 export class MonetizationService {
@@ -118,7 +118,7 @@ export class MonetizationService {
         type: 'DEBIT' | 'CREDIT' | 'WRITE_OFF';
         amountUsdCents: number;
         description: string;
-        metadata?: any;
+        metadata?: Prisma.InputJsonValue;
     }) {
         return this.prisma.ledgerEntry.create({
             data: {

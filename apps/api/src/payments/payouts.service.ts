@@ -8,7 +8,9 @@ import {
   Prisma,
   WalletTransactionSource,
   WalletLedgerSourceType,
-  PaymentProvider
+  PaymentProvider,
+  PayoutTransaction,
+  Wallet
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -27,7 +29,7 @@ export class PayoutsService {
     private readonly ledger: WalletLedgerService,
     private readonly payoutGatewayRegistry: PayoutGatewayRegistry,
     private readonly providerSettings: PaymentProviderSettingsService
-  ) {}
+  ) { }
 
   async createPayoutRequest(
     ownerType: OwnerType,
@@ -178,7 +180,7 @@ export class PayoutsService {
     }
 
     // If already processed (has DEBIT entry), we can't reject - must reverse
-    if (payoutRequest.status === PayoutStatus.PROCESSING || payoutRequest.status === PayoutStatus.PAID) {
+    if (payoutRequest.status === PayoutStatus.SENT || payoutRequest.status === PayoutStatus.PAID) {
       throw new BadRequestException('Cannot reject payout that is already processing or paid');
     }
 
@@ -231,7 +233,7 @@ export class PayoutsService {
 
     // Get or create payout transaction
     let payoutTransaction = payoutRequest.payoutTransactions.find(
-      (t) => t.status === PayoutStatus.APPROVED || t.status === PayoutStatus.PROCESSING
+      (t: PayoutTransaction) => t.status === PayoutStatus.APPROVED || t.status === PayoutStatus.SENT
     );
 
     if (!payoutTransaction) {
@@ -252,7 +254,7 @@ export class PayoutsService {
       const payout = await tx.payoutRequest.update({
         where: { id: payoutRequestId },
         data: {
-          status: PayoutStatus.PROCESSING,
+          status: PayoutStatus.SENT,
           txRef: gatewayRef
         }
       });
@@ -270,7 +272,7 @@ export class PayoutsService {
       await tx.payoutTransaction.update({
         where: { id: payoutTransaction.id },
         data: {
-          status: PayoutStatus.PROCESSING,
+          status: PayoutStatus.SENT,
           gatewayRef: gatewayRef || undefined,
           processedAt: new Date(),
           processedBy: actorId
@@ -327,7 +329,7 @@ export class PayoutsService {
       }
     });
 
-    const walletIds = wallets.map((w) => w.id);
+    const walletIds = wallets.map((w: Wallet) => w.id);
 
     return this.prisma.payoutRequest.findMany({
       where: {
@@ -368,7 +370,7 @@ export class PayoutsService {
       throw new NotFoundException('Payout request not found');
     }
 
-    if (payoutRequest.status !== PayoutStatus.PROCESSING) {
+    if (payoutRequest.status !== PayoutStatus.SENT) {
       throw new BadRequestException('Payout must be in PROCESSING state to mark as paid');
     }
 
@@ -417,7 +419,7 @@ export class PayoutsService {
       throw new NotFoundException('Payout transaction not found');
     }
 
-    if (payoutTransaction.status !== PayoutStatus.PROCESSING) {
+    if (payoutTransaction.status !== PayoutStatus.SENT) {
       throw new BadRequestException(
         `Payout transaction must be in PROCESSING state to execute. Current status: ${payoutTransaction.status}`
       );
@@ -576,7 +578,7 @@ export class PayoutsService {
     payoutAccountDetails: Record<string, unknown>,
     paymentProfile?: { paypalEmail?: string | null } | null
   ): Record<string, unknown> {
-    const details: Record<string, unknown> = { ...payoutAccountDetails };
+    const details: Record<string, unknown> = { ...(payoutAccountDetails as Prisma.JsonObject) };
 
     // Add PayPal email if available
     if (paymentProfile?.paypalEmail) {

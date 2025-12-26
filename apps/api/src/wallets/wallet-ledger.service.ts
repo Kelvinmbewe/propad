@@ -10,7 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class WalletLedgerService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Create a CREDIT ledger entry (earnings)
@@ -116,7 +116,7 @@ export class WalletLedgerService {
       }
     });
 
-    const pendingCents = pendingPayouts.reduce((sum, p) => sum + p.amountCents, 0);
+    const pendingCents = pendingPayouts.reduce((sum: number, p: { amountCents: number }) => sum + p.amountCents, 0);
     const withdrawableCents = Math.max(balanceCents - pendingCents, 0);
 
     return {

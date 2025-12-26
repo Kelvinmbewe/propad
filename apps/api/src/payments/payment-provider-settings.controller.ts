@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { PaymentProvider } from '@prisma/client';
+import { PaymentProvider, Prisma } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -28,7 +28,7 @@ const updateProviderSchema = z.object({
 @Controller('payment-providers')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PaymentProviderSettingsController {
-  constructor(private readonly service: PaymentProviderSettingsService) {}
+  constructor(private readonly service: PaymentProviderSettingsService) { }
 
   @Get()
   @Roles('ADMIN')
@@ -59,7 +59,7 @@ export class PaymentProviderSettingsController {
     @Param('provider') provider: PaymentProvider,
     @Body(new ZodValidationPipe(updateProviderSchema)) body: z.infer<typeof updateProviderSchema>
   ) {
-    return this.service.createOrUpdate(provider, body, req.user.userId);
+    return this.service.createOrUpdate(provider, { ...body, configJson: body.configJson as Prisma.InputJsonValue }, req.user.userId);
   }
 
   @Patch(':provider/toggle')

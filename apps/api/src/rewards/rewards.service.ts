@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { addDays, startOfMonth } from 'date-fns';
-import { Currency, OwnerType, WalletTransactionSource } from '@prisma/client';
+import { Currency, OwnerType, WalletTransactionSource, WalletLedgerSourceType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateRewardEventDto } from './dto/create-reward-event.dto';
 import { WalletsService } from '../wallets/wallets.service';
+import { WalletLedgerService } from '../wallets/wallet-ledger.service';
 import { env } from '@propad/config';
 
 @Injectable()
@@ -14,7 +15,7 @@ export class RewardsService {
     private readonly audit: AuditService,
     private readonly wallets: WalletsService,
     private readonly ledger: WalletLedgerService
-  ) {}
+  ) { }
 
   async create(dto: CreateRewardEventDto) {
     const reward = await this.prisma.rewardEvent.create({

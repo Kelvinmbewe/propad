@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PaymentGateway, PaymentIntentStatus, PaymentStatus } from '@prisma/client';
+import { PaymentGateway, PaymentIntentStatus, PaymentStatus, InvoiceLine } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentGatewayRegistry } from './payment-gateway.registry';
 
@@ -12,7 +12,7 @@ export class PaymentPollingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly registry: PaymentGatewayRegistry
-  ) {}
+  ) { }
 
   async pollPaymentIntent(intentId: string): Promise<boolean> {
     const intent = await this.prisma.paymentIntent.findUnique({
@@ -125,7 +125,7 @@ export class PaymentPollingService {
 
       // Create PaymentTransaction if invoice has feature metadata
       const invoiceLine = intent.invoice.lines.find(
-        (line) => line.metaJson && typeof line.metaJson === 'object' && 'featureType' in line.metaJson
+        (line: InvoiceLine) => line.metaJson && typeof line.metaJson === 'object' && 'featureType' in line.metaJson
       );
 
       if (invoiceLine && invoiceLine.metaJson && typeof invoiceLine.metaJson === 'object') {

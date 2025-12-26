@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Currency, OwnerType, Prisma, WalletLedgerSourceType } from '@prisma/client';
+import { Currency, OwnerType, Prisma, WalletLedgerSourceType, ReferralEarning } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PricingService } from './pricing.service';
@@ -12,7 +12,7 @@ export class ReferralsService {
     private readonly audit: AuditService,
     private readonly pricing: PricingService,
     private readonly ledger: WalletLedgerService
-  ) {}
+  ) { }
 
   async createReferralEarning(
     referrerId: string,
@@ -102,13 +102,13 @@ export class ReferralsService {
       where: { referrerId: userId }
     });
 
-    const totalEarned = earnings.reduce((sum, e) => sum + e.amountCents, 0);
+    const totalEarned = earnings.reduce((sum: number, e: ReferralEarning) => sum + e.amountCents, 0);
     const pending = earnings
-      .filter((e) => e.status === 'PENDING')
-      .reduce((sum, e) => sum + e.amountCents, 0);
+      .filter((e: ReferralEarning) => e.status === 'PENDING')
+      .reduce((sum: number, e: ReferralEarning) => sum + e.amountCents, 0);
     const paid = earnings
-      .filter((e) => e.status === 'PAID')
-      .reduce((sum, e) => sum + e.amountCents, 0);
+      .filter((e: ReferralEarning) => e.status === 'PAID')
+      .reduce((sum: number, e: ReferralEarning) => sum + e.amountCents, 0);
 
     return {
       totalEarned,
@@ -178,7 +178,7 @@ export class ReferralsService {
       };
     }
 
-    return config.jsonValue as {
+    return config.jsonValue as Prisma.JsonObject as {
       enabled: boolean;
       percentage: number;
       minPayout: number;

@@ -23,6 +23,7 @@ import { AuditService } from '../audit/audit.service';
 import { PaymentGatewayRegistry } from './payment-gateway.registry';
 import { MailService } from '../mail/mail.service';
 import { PaymentPollingService } from './payment-polling.service';
+import { PricingService } from './pricing.service';
 
 const VAT_SCALE = 100;
 const MICRO_SCALE = 1_000_000;
@@ -96,7 +97,7 @@ export class PaymentsService {
     private readonly mail: MailService,
     private readonly polling: PaymentPollingService,
     private readonly pricing: PricingService
-  ) {}
+  ) { }
 
   async createInvoiceForFeature(
     featureType: ChargeableItemType,
@@ -213,9 +214,9 @@ export class PaymentsService {
       throw new BadRequestException('Invoice requires at least one line item');
     }
 
-    const subtotalUsd = options.lines.reduce((acc, line) => acc + line.qty * line.unitPriceCents, 0);
+    const subtotalUsd = options.lines.reduce((acc: number, line: InvoiceLineInput) => acc + line.qty * line.unitPriceCents, 0);
     const taxableSubtotalUsd = options.lines.reduce(
-      (acc, line) => (line.taxable ? acc + line.qty * line.unitPriceCents : acc),
+      (acc: number, line: InvoiceLineInput) => (line.taxable ? acc + line.qty * line.unitPriceCents : acc),
       0
     );
     const taxUsd = Math.round(taxableSubtotalUsd * this.vatRate);
@@ -244,7 +245,7 @@ export class PaymentsService {
         dueAt: options.dueAt ?? this.defaultDueDate(),
         fxRate: fxRate ? { connect: { id: fxRate.id } } : undefined,
         lines: {
-          create: options.lines.map((line) => {
+          create: options.lines.map((line: InvoiceLineInput) => {
             const baseUnit = line.unitPriceCents;
             const baseTotal = baseUnit * line.qty;
             const convertedUnit = convert(baseUnit);
@@ -361,6 +362,10 @@ export class PaymentsService {
     return this.prisma.paymentIntent.update({ where: { id }, data: { status: PaymentIntentStatus.PROCESSING } });
   }
 
+  async pollPaymentStatus(id: string) {
+    return this.polling.pollPaymentIntent(id);
+  }
+
   async handlePaynowWebhook(body: Record<string, string>) {
     const handler = this.registry.get(PaymentGateway.PAYNOW);
     const result = await handler.verifyWebhook(body);
@@ -411,7 +416,7 @@ export class PaymentsService {
       if (result.success) {
         // Create PaymentTransaction if invoice has feature metadata
         const invoiceLine = intent.invoice.lines.find(
-          (line) => line.metaJson && typeof line.metaJson === 'object' && 'featureType' in line.metaJson
+          (line: InvoiceLine) => line.metaJson && typeof line.metaJson === 'object' && 'featureType' in line.metaJson
         );
 
         if (invoiceLine && invoiceLine.metaJson && typeof invoiceLine.metaJson === 'object') {
@@ -740,7 +745,7 @@ export class PaymentsService {
       doc.fontSize(14).text('Line Items');
       doc.moveDown(0.5);
       doc.fontSize(12);
-      invoice.lines.forEach((line) => {
+      invoice.lines.forEach((line: InvoiceLine) => {
         doc.text(`${line.qty} x ${line.description} @ ${(line.unitPriceCents / 100).toFixed(2)} ${invoice.currency}`);
         doc.text(`Total: ${(line.totalCents / 100).toFixed(2)} ${invoice.currency}`);
         doc.moveDown(0.5);
@@ -796,7 +801,7 @@ export class PaymentsService {
       doc.fontSize(14).text('Line Items');
       doc.moveDown(0.5);
       doc.fontSize(12);
-      invoice.lines.forEach((line) => {
+      invoice.lines.forEach((line: InvoiceLine) => {
         doc.text(`${line.qty} x ${line.description} @ ${(line.unitPriceCents / 100).toFixed(2)} ${invoice.currency}`);
         doc.text(`Total: ${(line.totalCents / 100).toFixed(2)} ${invoice.currency}`);
         doc.moveDown(0.5);

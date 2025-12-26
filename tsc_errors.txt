@@ -1,0 +1,13 @@
+apps/api/src/payments/payment-polling.service.ts(128,10): error TS7006: Parameter 'line' implicitly has an 'any' type.
+apps/api/src/payments/payment-provider-settings.controller.ts(62,50): error TS2345: Argument of type '{ returnUrl?: string | undefined; isDefault?: boolean | undefined; enabled?: boolean | undefined; isTestMode?: boolean | undefined; apiKey?: string | undefined; apiSecret?: string | undefined; webhookUrl?: string | undefined; webhookSecret?: string | undefined; configJson?: Record<...> | undefined; }' is not assignable to parameter of type '{ enabled?: boolean | undefined; isDefault?: boolean | undefined; isTestMode?: boolean | undefined; apiKey?: string | undefined; apiSecret?: string | undefined; returnUrl?: string | undefined; webhookUrl?: string | undefined; webhookSecret?: string | undefined; configJson?: JsonValue | undefined; }'.
+  Types of property 'configJson' are incompatible.
+    Type 'Record<string, unknown> | undefined' is not assignable to type 'JsonValue | undefined'.
+      Type 'Record<string, unknown>' is not assignable to type 'JsonValue | undefined'.
+        Type 'Record<string, unknown>' is missing the following properties from type 'JsonValue[]': length, pop, push, concat, and 29 more.
+apps/api/src/payments/payments.controller.ts(63,47): error TS2339: Property 'pollPaymentStatus' does not exist on type 'PaymentsService'.
+apps/api/src/payments/payments.service.ts(98,31): error TS2304: Cannot find name 'PricingService'.
+apps/api/src/payments/pricing.controller.ts(60,61): error TS2345: Argument of type '{ priceUsdCents: number; currency?: "USD" | "ZWG" | undefined; isActive?: boolean | undefined; commissionPercent?: number | undefined; platformFeePercent?: number | undefined; agentSharePercent?: number | undefined; referralSharePercent?: number | undefined; rewardPoolSharePercent?: number | undefined; metadata?: Re...' is not assignable to parameter of type '{ priceUsdCents: number; currency?: Currency | undefined; commissionPercent?: number | undefined; platformFeePercent?: number | undefined; agentSharePercent?: number | undefined; referralSharePercent?: number | undefined; rewardPoolSharePercent?: number | undefined; isActive?: boolean | undefined; metadata?: JsonVal...'.
+  Types of property 'metadata' are incompatible.
+    Type 'Record<string, unknown> | undefined' is not assignable to type 'JsonValue | undefined'.
+apps/api/src/wallets/wallet-ledger.service.ts(119,49): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+apps/api/src/wallets/wallet-ledger.service.ts(119,54): error TS7006: Parameter 'p' implicitly has an 'any' type.
