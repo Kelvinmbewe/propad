@@ -1,8 +1,9 @@
-FROM node:20-alpine AS builder
+ARG NODE_IMAGE=node:20.11.1-alpine
+FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 ENV PRISMA_SKIP_AUTOINSTALL=true
 
-RUN apk add --no-cache openssl
+RUN apk update && apk add --no-cache ca-certificates openssl
 
 COPY package*.json ./
 COPY pnpm-workspace.yaml ./
@@ -22,11 +23,11 @@ RUN pnpm --filter @propad/sdk run build
 RUN pnpm --filter @propad/api... run prisma:generate
 RUN pnpm --filter @propad/api... run build
 
-FROM node:20-alpine AS runner
+FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN apk add --no-cache openssl
+RUN apk update && apk add --no-cache ca-certificates openssl
 
 RUN npm install -g pnpm@10.19.0
 
