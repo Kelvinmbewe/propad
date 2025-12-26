@@ -1,9 +1,9 @@
-ARG NODE_IMAGE=node:20.11.1-alpine
+ARG NODE_IMAGE=node:20.11.1-slim
 FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 ENV PRISMA_SKIP_AUTOINSTALL=true
 
-RUN apk update && apk add --no-cache ca-certificates openssl
+
 
 COPY package*.json ./
 COPY pnpm-workspace.yaml ./
@@ -27,7 +27,7 @@ FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN apk update && apk add --no-cache ca-certificates openssl
+
 
 RUN npm install -g pnpm@10.19.0
 
