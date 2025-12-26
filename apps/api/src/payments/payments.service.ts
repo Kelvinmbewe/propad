@@ -105,8 +105,42 @@ export class PaymentsService {
     currency: Currency = Currency.USD,
     description?: string
   ) {
+    // Check for existing open invoice for this feature (idempotency)
+    const existingInvoice = await this.prisma.invoice.findFirst({
+      where: {
+        buyerUserId: userId,
+        status: {
+          in: [InvoiceStatus.DRAFT, InvoiceStatus.OPEN]
+        },
+        lines: {
+          some: {
+            metaJson: {
+              path: ['featureType'],
+              equals: featureType
+            },
+            sku: {
+              startsWith: `${featureType}-${featureId}`
+            }
+          }
+        }
+      },
+      include: {
+        lines: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Return existing invoice if found (idempotent)
+    if (existingInvoice) {
+      return existingInvoice;
+    }
+
     // Get pricing from PricingService - enforces pricing rules
     const pricing = await this.pricing.calculatePrice(featureType, undefined, currency);
+
+    const featureDisplayName = this.getFeatureDisplayName(featureType);
 
     const invoice = await this.createInvoice(
       {
@@ -116,7 +150,7 @@ export class PaymentsService {
         lines: [
           {
             sku: `${featureType}-${featureId}`,
-            description: description || `${featureType} for ${featureId}`,
+            description: description || `${featureDisplayName} for ${featureId.substring(0, 8)}...`,
             qty: 1,
             unitPriceCents: pricing.priceCents,
             taxable: true,
@@ -139,6 +173,20 @@ export class PaymentsService {
     );
 
     return invoice;
+  }
+
+  private getFeatureDisplayName(featureType: ChargeableItemType): string {
+    const names: Record<ChargeableItemType, string> = {
+      [ChargeableItemType.PROPERTY_VERIFICATION]: 'Property Verification',
+      [ChargeableItemType.AGENT_ASSIGNMENT]: 'Agent Assignment',
+      [ChargeableItemType.FEATURED_LISTING]: 'Featured Listing',
+      [ChargeableItemType.TRUST_BOOST]: 'Trust Boost',
+      [ChargeableItemType.IN_HOUSE_ADVERT_BUYING]: 'In-House Ad (Buying)',
+      [ChargeableItemType.IN_HOUSE_ADVERT_SELLING]: 'In-House Ad (Selling)',
+      [ChargeableItemType.PREMIUM_VERIFICATION]: 'Premium Verification',
+      [ChargeableItemType.OTHER]: 'Other Feature'
+    };
+    return names[featureType] || featureType;
   }
 
   private mapFeatureTypeToPurpose(featureType: ChargeableItemType): InvoicePurpose {

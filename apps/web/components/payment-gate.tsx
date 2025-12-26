@@ -1,13 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Badge } from '@propad/ui';
-import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { formatCurrency } from '@/lib/formatters';
-import { CheckCircle2, Lock, AlertCircle, Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { CheckCircle2, Lock, AlertCircle, Loader2, XCircle } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+
+const getFeatureDisplayName = (featureType: string): string => {
+  const names: Record<string, string> = {
+    PROPERTY_VERIFICATION: 'Property Verification',
+    AGENT_ASSIGNMENT: 'Agent Assignment',
+    FEATURED_LISTING: 'Featured Listing',
+    TRUST_BOOST: 'Trust Boost',
+    IN_HOUSE_ADVERT_BUYING: 'In-House Ad (Buying)',
+    IN_HOUSE_ADVERT_SELLING: 'In-House Ad (Selling)',
+    PREMIUM_VERIFICATION: 'Premium Verification',
+    OTHER: 'Other Feature'
+  };
+  return names[featureType] || featureType;
+};
 
 type ChargeableItemType =
   | 'PROPERTY_VERIFICATION'
@@ -58,10 +70,8 @@ export function PaymentGate({
   children
 }: PaymentGateProps) {
   const { data: session } = useSession();
-  const router = useRouter();
   const [processing, setProcessing] = useState(false);
-
-  const { data: session } = useSession();
+  const onGrantedCalledRef = useRef(false);
 
   const { data: access, isLoading: loadingAccess } = useQuery<FeatureAccess>({
     queryKey: ['feature-access', featureType, targetId],
@@ -104,7 +114,7 @@ export function PaymentGate({
       }
       return response.json();
     },
-    enabled: !!session?.accessToken && access?.status === 'REQUIRED'
+    enabled: !!session?.accessToken && (access?.status === 'REQUIRED' || access?.status === 'EXPIRED')
   });
 
   const handlePayment = async () => {
@@ -196,10 +206,35 @@ export function PaymentGate({
     );
   }
 
+  // Call onGranted callback when status becomes GRANTED (only once)
+  useEffect(() => {
+    if (access?.status === 'GRANTED' && onGranted && !onGrantedCalledRef.current) {
+      onGrantedCalledRef.current = true;
+      onGranted();
+    }
+    // Reset when status changes away from GRANTED
+    if (access?.status !== 'GRANTED') {
+      onGrantedCalledRef.current = false;
+    }
+  }, [access?.status, onGranted]);
+
   // Feature is FREE or already GRANTED - show children
   if (access.status === 'FREE' || access.status === 'GRANTED') {
-    if (access.status === 'GRANTED' && onGranted) {
-      onGranted();
+    if (access.status === 'GRANTED') {
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3">
+            <CheckCircle2 className="h-5 w-5 text-green-600" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-green-900">Access Granted</p>
+              <p className="text-xs text-green-700">
+                You have access to {featureName || getFeatureDisplayName(featureType)}
+              </p>
+            </div>
+          </div>
+          {children}
+        </div>
+      );
     }
     return <>{children}</>;
   }
@@ -217,12 +252,16 @@ export function PaymentGate({
             <Lock className="h-5 w-5 text-amber-500" />
             <CardTitle>Payment Required</CardTitle>
           </div>
-          <CardDescription>{featureDescription || `Complete payment to access ${featureName}`}</CardDescription>
+          <CardDescription>
+            {featureDescription || `Complete payment to access ${featureName || getFeatureDisplayName(featureType)}`}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">{featureName}</span>
+              <span className="text-sm font-medium text-gray-700">
+                {featureName || getFeatureDisplayName(featureType)}
+              </span>
               <span className="text-lg font-semibold text-gray-900">
                 {formatCurrency(totalAmount, currency)}
               </span>
@@ -300,14 +339,46 @@ export function PaymentGate({
     );
   }
 
-  // EXPIRED status
+  // EXPIRED status - show message and allow renewal
+  const handleRenewal = async () => {
+    // Reuse handlePayment logic since it's the same flow
+    await handlePayment();
+  };
+
   return (
-    <Card>
-      <CardContent className="py-8">
-        <div className="flex items-center gap-2 text-amber-600">
-          <AlertCircle className="h-5 w-5" />
-          <p>Your access to this feature has expired. Please contact support.</p>
+    <Card className="border-red-200 bg-red-50">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <XCircle className="h-5 w-5 text-red-600" />
+          <CardTitle className="text-red-900">Access Expired</CardTitle>
         </div>
+        <CardDescription className="text-red-700">
+          Your access to {featureName || getFeatureDisplayName(featureType)} has expired
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-lg border border-red-200 bg-white p-4">
+          <p className="text-sm text-red-800">
+            To regain access, please complete a new payment for this feature or contact support for assistance.
+          </p>
+        </div>
+        <Button
+          onClick={handleRenewal}
+          disabled={processing || !pricing}
+          variant="outline"
+          className="w-full border-red-300 text-red-700 hover:bg-red-100"
+        >
+          {processing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : pricing ? (
+            `Renew Access - ${formatCurrency((pricing.totalCents || 0) / 100, pricing.currency || 'USD')}`
+          ) : (
+            'Loading...'
+          )}
+        </Button>
       </CardContent>
     </Card>
   );

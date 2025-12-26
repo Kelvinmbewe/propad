@@ -76,18 +76,22 @@ export function WalletSummary() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{formatCurrency(balance, currency)}</div>
-          <p className="text-xs text-muted-foreground">Ready to withdraw</p>
+          <p className="text-xs text-muted-foreground">
+            Total earnings (includes locked funds in pending payouts)
+          </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Pending</CardTitle>
+          <CardTitle className="text-sm font-medium">Locked (Pending)</CardTitle>
           <Clock className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{formatCurrency(pending, currency)}</div>
-          <p className="text-xs text-muted-foreground">In processing payouts</p>
+          <p className="text-xs text-muted-foreground">
+            Funds locked in processing payouts (cannot be withdrawn)
+          </p>
         </CardContent>
       </Card>
 
@@ -98,7 +102,9 @@ export function WalletSummary() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{formatCurrency(withdrawable, currency)}</div>
-          <p className="text-xs text-muted-foreground">Available after pending</p>
+          <p className="text-xs text-muted-foreground">
+            Available to withdraw now (balance minus locked funds)
+          </p>
         </CardContent>
       </Card>
     </div>
