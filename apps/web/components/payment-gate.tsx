@@ -46,6 +46,8 @@ interface FeatureAccess {
     priceCents: number;
     currency: string;
     totalCents: number;
+    commissionCents?: number;
+    platformFeeCents?: number;
   };
   paymentTransactionId?: string;
   requiresPayment: boolean;
@@ -78,7 +80,7 @@ export function PaymentGate({
     queryFn: async () => {
       const token = session?.accessToken;
       if (!token) throw new Error('Not authenticated');
-      
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/features/access/${featureType}/${targetId}`,
         {
@@ -100,7 +102,7 @@ export function PaymentGate({
     queryFn: async () => {
       const token = session?.accessToken;
       if (!token) throw new Error('Not authenticated');
-      
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/features/pricing/${featureType}`,
         {

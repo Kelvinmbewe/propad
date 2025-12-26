@@ -1,0 +1,33 @@
+
+> @propad/web@0.1.0 build C:\projects\propad\apps\web
+> next build
+
+  ▲ Next.js 14.2.3
+  - Environments: .env.local, .env
+  - Experiments (use with caution):
+    · instrumentationHook
+
+   Creating an optimized production build ...
+ ✓ (pwa) Compiling for server...
+ ✓ (pwa) Compiling for server...
+ ✓ (pwa) Compiling for client (static)...
+ ○ (pwa) Service worker: C:\projects\propad\apps\web\public\sw.js
+ ○ (pwa)   URL: /sw.js
+ ○ (pwa)   Scope: /
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+Failed to compile.
+
+./components/payment-gate.tsx:269:30
+Type error: Property 'commissionCents' does not exist on type '{ priceCents: number; currency: string; totalCents: number; }'.
+
+[0m [90m 267 |[39m               [33m<[39m[33m/[39m[33mspan[39m[33m>[39m[0m
+[0m [90m 268 |[39m             [33m<[39m[33m/[39m[33mdiv[39m[33m>[39m[0m
+[0m[31m[1m>[22m[39m[90m 269 |[39m             {price [33m&&[39m (price[33m.[39mcommissionCents [33m||[39m price[33m.[39mplatformFeeCents) [33m&&[39m ([0m
+[0m [90m     |[39m                              [31m[1m^[22m[39m[0m
+[0m [90m 270 |[39m               [33m<[39m[33mdiv[39m className[33m=[39m[32m"mt-2 space-y-1 text-xs text-gray-500"[39m[33m>[39m[0m
+[0m [90m 271 |[39m                 {price[33m.[39mcommissionCents [33m&&[39m ([0m
+[0m [90m 272 |[39m                   [33m<[39m[33mdiv[39m className[33m=[39m[32m"flex justify-between"[39m[33m>[39m[0m
+C:\projects\propad\apps\web:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @propad/web@0.1.0 build: `next build`
+Exit status 1

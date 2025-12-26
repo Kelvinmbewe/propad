@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Skele
 import { WalletSummary } from '@/components/wallet-summary';
 import { PaymentHistory } from '@/components/payment-history';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
+import { useSession } from 'next-auth/react';
 import { formatCurrency } from '@/lib/formatters';
 import { DollarSign, Clock, CheckCircle2, XCircle } from 'lucide-react';
 
@@ -37,7 +38,7 @@ const getStatusBadge = (status: string) => {
     case 'FAILED':
     case 'CANCELLED':
       return (
-        <Badge variant="destructive" className="bg-red-100 text-red-800">
+        <Badge variant="secondary" className="bg-red-100 text-red-800">
           <XCircle className="mr-1 h-3 w-3" />
           {status}
         </Badge>
@@ -49,13 +50,14 @@ const getStatusBadge = (status: string) => {
 
 export default function WalletPage() {
   const sdk = useAuthenticatedSDK();
+  const { data: session } = useSession();
 
   const { data: payouts, isLoading: loadingPayouts } = useQuery<PayoutRequest[]>({
     queryKey: ['payouts-my'],
     queryFn: async () => {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/payouts/my`, {
         headers: {
-          Authorization: `Bearer ${await sdk?.getToken()}`
+          Authorization: `Bearer ${session?.accessToken}`
         }
       });
       if (!response.ok) {

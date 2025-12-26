@@ -60,7 +60,7 @@ const getStatusBadge = (status: string) => {
       );
     case 'FAILED':
       return (
-        <Badge variant="destructive" className="bg-red-100 text-red-800">
+        <Badge variant="secondary" className="bg-red-100 text-red-800">
           <XCircle className="mr-1 h-3 w-3" />
           Failed
         </Badge>
@@ -78,7 +78,7 @@ export function PaymentHistory() {
     queryFn: async () => {
       const token = session?.accessToken;
       if (!token) throw new Error('Not authenticated');
-      
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/payments/invoices/my`, {
         headers: {
           Authorization: `Bearer ${token}`
