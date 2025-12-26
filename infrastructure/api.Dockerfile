@@ -1,9 +1,17 @@
 ARG NODE_IMAGE=node:20-slim
+
+############################
+# Builder stage
+############################
 FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
+
+# 🔑 REQUIRED FOR PRISMA (schema + query engine)
+RUN apt-get update -y \
+    && apt-get install -y openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV PRISMA_SKIP_AUTOINSTALL=true
-
-
 
 COPY package*.json ./
 COPY pnpm-workspace.yaml ./
@@ -23,11 +31,18 @@ RUN pnpm --filter @propad/sdk run build
 RUN pnpm --filter @propad/api... run prisma:generate
 RUN pnpm --filter @propad/api... run build
 
+
+############################
+# Runtime stage
+############################
 FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-
+# 🔑 REQUIRED FOR PRISMA AT RUNTIME (migrations, queries)
+RUN apt-get update -y \
+    && apt-get install -y openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g pnpm@10.19.0
 
