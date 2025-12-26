@@ -12,7 +12,8 @@ export class RewardsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly wallets: WalletsService
+    private readonly wallets: WalletsService,
+    private readonly ledger: WalletLedgerService
   ) {}
 
   async create(dto: CreateRewardEventDto) {
@@ -27,14 +28,14 @@ export class RewardsService {
     });
 
     if (dto.usdCents > 0) {
-      await this.wallets.creditWallet({
-        ownerType: OwnerType.USER,
-        ownerId: dto.agentId,
-        amountCents: dto.usdCents,
-        source: WalletTransactionSource.REWARD_EVENT,
-        sourceId: reward.id,
-        description: `Reward ${dto.type}`
-      });
+      // Credit via ledger for USER wallets
+      await this.ledger.credit(
+        dto.agentId,
+        dto.usdCents,
+        Currency.USD,
+        WalletLedgerSourceType.REWARD,
+        reward.id
+      );
     }
 
     await this.audit.log({

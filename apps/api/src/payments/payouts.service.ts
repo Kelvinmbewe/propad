@@ -6,18 +6,21 @@ import {
   PayoutMethod,
   PayoutStatus,
   Prisma,
-  WalletTransactionSource
+  WalletTransactionSource,
+  WalletLedgerSourceType
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PricingService } from './pricing.service';
+import { WalletLedgerService } from '../wallets/wallet-ledger.service';
 
 @Injectable()
 export class PayoutsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly pricing: PricingService
+    private readonly pricing: PricingService,
+    private readonly ledger: WalletLedgerService
   ) {}
 
   async createPayoutRequest(
@@ -55,11 +58,6 @@ export class PayoutsService {
       );
     }
 
-    // Check available balance
-    if (wallet.balanceCents < amountCents) {
-      throw new BadRequestException('Insufficient balance for payout');
-    }
-
     // Verify payout account
     const payoutAccount = await this.prisma.payoutAccount.findUnique({
       where: { id: payoutAccountId }
@@ -68,37 +66,29 @@ export class PayoutsService {
       throw new NotFoundException('Payout account not found');
     }
 
-    // Create payout request
-    const payoutRequest = await this.prisma.$transaction(async (tx) => {
-      // Lock wallet and deduct balance
-      const lockedWallet = await tx.wallet.findUnique({
-        where: { id: wallet.id }
-      });
-      if (!lockedWallet || lockedWallet.balanceCents < amountCents) {
-        throw new BadRequestException('Insufficient balance');
+    // Check available balance using ledger
+    if (ownerType !== OwnerType.USER) {
+      throw new BadRequestException('Only user wallets supported for ledger-based payouts');
+    }
+
+    const hasBalance = await this.ledger.verifyBalance(ownerId, currency, amountCents);
+    if (!hasBalance) {
+      throw new BadRequestException('Insufficient balance for payout');
+    }
+
+    // Create payout request (no ledger entry yet - will be created on approval)
+    const payoutRequest = await this.prisma.payoutRequest.create({
+      data: {
+        walletId: wallet.id,
+        amountCents,
+        method,
+        payoutAccountId,
+        status: PayoutStatus.REQUESTED
+      },
+      include: {
+        wallet: true,
+        payoutAccount: true
       }
-
-      await tx.wallet.update({
-        where: { id: wallet.id },
-        data: {
-          balanceCents: { decrement: amountCents },
-          pendingCents: { increment: amountCents }
-        }
-      });
-
-      return tx.payoutRequest.create({
-        data: {
-          walletId: wallet.id,
-          amountCents,
-          method,
-          payoutAccountId,
-          status: PayoutStatus.REQUESTED
-        },
-        include: {
-          wallet: true,
-          payoutAccount: true
-        }
-      });
     });
 
     await this.audit.log({
@@ -126,13 +116,28 @@ export class PayoutsService {
       throw new BadRequestException('Payout request cannot be approved in current status');
     }
 
+    // Verify balance again before approval
+    if (payoutRequest.wallet.ownerType !== OwnerType.USER) {
+      throw new BadRequestException('Only user wallets supported');
+    }
+
+    const hasBalance = await this.ledger.verifyBalance(
+      payoutRequest.wallet.ownerId,
+      payoutRequest.wallet.currency,
+      payoutRequest.amountCents
+    );
+    if (!hasBalance) {
+      throw new BadRequestException('Insufficient balance for payout approval');
+    }
+
     const updated = await this.prisma.$transaction(async (tx) => {
+      // Update status to APPROVED (will transition to PROCESSING when execution starts)
       const payout = await tx.payoutRequest.update({
         where: { id: payoutRequestId },
         data: { status: PayoutStatus.APPROVED }
       });
 
-      // Create payout transaction
+      // Create payout transaction record
       await tx.payoutTransaction.create({
         data: {
           payoutRequestId: payout.id,
@@ -166,22 +171,17 @@ export class PayoutsService {
       throw new NotFoundException('Payout request not found');
     }
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      // Refund to wallet
-      await tx.wallet.update({
-        where: { id: payoutRequest.walletId },
-        data: {
-          balanceCents: { increment: payoutRequest.amountCents },
-          pendingCents: { decrement: payoutRequest.amountCents }
-        }
-      });
+    // If already processed (has DEBIT entry), we can't reject - must reverse
+    if (payoutRequest.status === PayoutStatus.PROCESSING || payoutRequest.status === PayoutStatus.PAID) {
+      throw new BadRequestException('Cannot reject payout that is already processing or paid');
+    }
 
-      return tx.payoutRequest.update({
-        where: { id: payoutRequestId },
-        data: {
-          status: PayoutStatus.CANCELLED
-        }
-      });
+    // Simply cancel - no ledger entry needed since we never created a DEBIT
+    const updated = await this.prisma.payoutRequest.update({
+      where: { id: payoutRequestId },
+      data: {
+        status: PayoutStatus.CANCELLED
+      }
     });
 
     await this.audit.log({
@@ -209,29 +209,44 @@ export class PayoutsService {
       throw new BadRequestException('Payout must be approved before processing');
     }
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      // Update wallet pending
-      await tx.wallet.update({
-        where: { id: payoutRequest.walletId },
-        data: {
-          pendingCents: { decrement: payoutRequest.amountCents }
-        }
-      });
+    if (payoutRequest.wallet.ownerType !== OwnerType.USER) {
+      throw new BadRequestException('Only user wallets supported');
+    }
 
-      // Update payout request
+    // Verify balance one more time
+    const hasBalance = await this.ledger.verifyBalance(
+      payoutRequest.wallet.ownerId,
+      payoutRequest.wallet.currency,
+      payoutRequest.amountCents
+    );
+    if (!hasBalance) {
+      throw new BadRequestException('Insufficient balance for payout processing');
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // Update status to PROCESSING (locks the balance)
       const payout = await tx.payoutRequest.update({
         where: { id: payoutRequestId },
         data: {
-          status: PayoutStatus.SENT,
+          status: PayoutStatus.PROCESSING,
           txRef: gatewayRef
         }
       });
+
+      // Create DEBIT ledger entry (locks balance during processing)
+      await this.ledger.debit(
+        payoutRequest.wallet.ownerId,
+        payoutRequest.amountCents,
+        payoutRequest.wallet.currency,
+        WalletLedgerSourceType.PAYOUT,
+        payoutRequestId
+      );
 
       // Update payout transaction
       await tx.payoutTransaction.updateMany({
         where: { payoutRequestId },
         data: {
-          status: PayoutStatus.SENT,
+          status: PayoutStatus.PROCESSING,
           gatewayRef,
           processedAt: new Date(),
           processedBy: actorId

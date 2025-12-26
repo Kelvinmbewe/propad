@@ -364,6 +364,20 @@ enum WalletTransactionSource {
   ADJUSTMENT
 }
 
+enum WalletLedgerType {
+  CREDIT
+  DEBIT
+}
+
+enum WalletLedgerSourceType {
+  VERIFICATION
+  AGENT_COMMISSION
+  REFERRAL
+  REWARD
+  PAYOUT
+  ADJUSTMENT
+}
+
 enum PromoTier {
   LITE
   PLUS
@@ -440,30 +454,30 @@ enum ListingIntent {
 }
 
 model Country {
-  id        String     @id @default(cuid())
-  iso2      String     @unique
-  name      String
-  phoneCode String
-  provinces Province[]
-  cities    City[]
-  suburbs   Suburb[]
+  id         String     @id @default(cuid())
+  iso2       String     @unique
+  name       String
+  phoneCode  String
+  provinces  Province[]
+  cities     City[]
+  suburbs    Suburb[]
   properties Property[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
   @@unique([name])
 }
 
 model Province {
-  id        String     @id @default(cuid())
-  countryId String
-  name      String
-  country   Country    @relation(fields: [countryId], references: [id], onDelete: Cascade)
-  cities    City[]
-  suburbs   Suburb[]
+  id         String     @id @default(cuid())
+  countryId  String
+  name       String
+  country    Country    @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  cities     City[]
+  suburbs    Suburb[]
   properties Property[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
   @@unique([countryId, name])
   @@index([countryId, name])
@@ -528,96 +542,97 @@ model PendingGeo {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  role      Role     @default(USER)
-  name      String?
-  phone     String?
-  email     String?  @unique
+  id           String    @id @default(cuid())
+  role         Role      @default(USER)
+  name         String?
+  phone        String?
+  email        String?   @unique
   passwordHash String?
-  kycStatus String?
-  status    String?
-  trustTier TrustTier @default(NORMAL)
-  isVerified Boolean @default(false)
-  createdAt DateTime @default(now())
+  kycStatus    String?
+  status       String?
+  trustTier    TrustTier @default(NORMAL)
+  isVerified   Boolean   @default(false)
+  createdAt    DateTime  @default(now())
 
-  agentProfile    AgentProfile?
-  landlordProfile LandlordProfile?
-  propertiesOwned Property[]      @relation("AgentOwnerProperties")
-  properties      Property[]      @relation("LandlordProperties")
-  leads           Lead[]
-  verifications   Verification[]  @relation("VerificationVerifier")
-  verificationsRequested Verification[] @relation("VerificationRequester")
-  verificationRequestsCreated VerificationRequest[] @relation("VerificationRequestRequester")
-  verificationItemsReviewed VerificationRequestItem[] @relation("VerificationItemVerifier")
-  rewardEvents    RewardEvent[]
-  payouts         Payout[]
-  adImpressions   AdImpression[]
-  promoBoosts     PromoBoost[]
-  policyStrikes   PolicyStrike[]
-  agentAssignments    AgentAssignment[]    @relation("AgentAssignments")
-  landlordAssignments AgentAssignment[]    @relation("LandlordAgentAssignments")
-  sentMessages        PropertyMessage[]    @relation("MessageSender")
-  receivedMessages    PropertyMessage[]    @relation("MessageRecipient")
-  dealConfirmations   Property[]           @relation("PropertyDealConfirmer")
-  agencyMemberships   AgencyMember[]
-  landlordContracts   ManagementContract[] @relation("LandlordManagementContracts")
-  pendingGeos         PendingGeo[]
-  priceHistoryChanges PriceHistory[]       @relation("PriceHistoryChangedBy")
-  discountOffersCreated DiscountOffer[]    @relation("DiscountOfferCreatedBy")
-  listingEventsCreated ListingEvent[]      @relation("ListingEventCreatedBy")
-  watchlistEntries     Watchlist[]
-  notifications        Notification[]
-  buyerInvoices        Invoice[]           @relation("InvoiceBuyerUser")
-  paymentMethodStatusLogs PaymentMethodStatusLog[] @relation("PaymentMethodStatusActor")
-  auditLogs            AuditLog[]          @relation("AuditLogActor")
+  agentProfile                AgentProfile?
+  landlordProfile             LandlordProfile?
+  propertiesOwned             Property[]                @relation("AgentOwnerProperties")
+  properties                  Property[]                @relation("LandlordProperties")
+  leads                       Lead[]
+  verifications               Verification[]            @relation("VerificationVerifier")
+  verificationsRequested      Verification[]            @relation("VerificationRequester")
+  verificationRequestsCreated VerificationRequest[]     @relation("VerificationRequestRequester")
+  verificationItemsReviewed   VerificationRequestItem[] @relation("VerificationItemVerifier")
+  rewardEvents                RewardEvent[]
+  payouts                     Payout[]
+  adImpressions               AdImpression[]
+  promoBoosts                 PromoBoost[]
+  policyStrikes               PolicyStrike[]
+  agentAssignments            AgentAssignment[]         @relation("AgentAssignments")
+  landlordAssignments         AgentAssignment[]         @relation("LandlordAgentAssignments")
+  sentMessages                PropertyMessage[]         @relation("MessageSender")
+  receivedMessages            PropertyMessage[]         @relation("MessageRecipient")
+  dealConfirmations           Property[]                @relation("PropertyDealConfirmer")
+  agencyMemberships           AgencyMember[]
+  landlordContracts           ManagementContract[]      @relation("LandlordManagementContracts")
+  pendingGeos                 PendingGeo[]
+  priceHistoryChanges         PriceHistory[]            @relation("PriceHistoryChangedBy")
+  discountOffersCreated       DiscountOffer[]           @relation("DiscountOfferCreatedBy")
+  listingEventsCreated        ListingEvent[]            @relation("ListingEventCreatedBy")
+  watchlistEntries            Watchlist[]
+  notifications               Notification[]
+  buyerInvoices               Invoice[]                 @relation("InvoiceBuyerUser")
+  paymentMethodStatusLogs     PaymentMethodStatusLog[]  @relation("PaymentMethodStatusActor")
+  auditLogs                   AuditLog[]                @relation("AuditLogActor")
 
   // New relations
-  interestsCreated     Interest[]          @relation("UserInterests")
-  reviewsReceived      UserReview[]        @relation("Reviewee")
-  reviewsGiven         UserReview[]        @relation("Reviewer")
-  propertyRatingsGiven PropertyRating[]    @relation("PropertyRatingReviewer")
-  agencyReviewsGiven   AgencyReview[]
+  interestsCreated         Interest[]           @relation("UserInterests")
+  reviewsReceived          UserReview[]         @relation("Reviewee")
+  reviewsGiven             UserReview[]         @relation("Reviewer")
+  propertyRatingsGiven     PropertyRating[]     @relation("PropertyRatingReviewer")
+  agencyReviewsGiven       AgencyReview[]
   listingActivitiesCreated ListingActivityLog[] @relation("ListingActivityActor")
-  rentPayments         RentPayment[]       @relation("TenantRentPayments")
-  viewingsAsViewer     Viewing[]           @relation("ViewingViewer")
-  viewingsAsAgent      Viewing[]           @relation("ViewingAgent")
-  viewingsAsLandlord   Viewing[]           @relation("ViewingLandlord")
-  
+  rentPayments             RentPayment[]        @relation("TenantRentPayments")
+  viewingsAsViewer         Viewing[]            @relation("ViewingViewer")
+  viewingsAsAgent          Viewing[]            @relation("ViewingAgent")
+  viewingsAsLandlord       Viewing[]            @relation("ViewingLandlord")
+
   // New Profile Fields
   profilePhoto      String?
   bio               String?
   location          String?
-  trustScore        Int      @default(0)
-  verificationScore Int      @default(0)
-  riskScore         Int      @default(0) // Internal only
-  
+  trustScore        Int     @default(0)
+  verificationScore Int     @default(0)
+  riskScore         Int     @default(0) // Internal only
+
   // Role Management
-  roles             UserRole[]
-  rolesAssigned     UserRole[]           @relation("RoleAssigner")
-  
-  agencyMembersAssigned AgencyMember[]   @relation("AgencyMemberAssigner")
-  
+  roles         UserRole[]
+  rolesAssigned UserRole[] @relation("RoleAssigner")
+
+  agencyMembersAssigned AgencyMember[] @relation("AgencyMemberAssigner")
+
   // Site Visit Relations
-  siteVisitsRequested  SiteVisit[]         @relation("SiteVisitRequester")
-  siteVisitsAssigned   SiteVisit[]         @relation("SiteVisitModerator")
-  
+  siteVisitsRequested SiteVisit[] @relation("SiteVisitRequester")
+  siteVisitsAssigned  SiteVisit[] @relation("SiteVisitModerator")
+
   // Payment Relations
-  paymentProfile        UserPaymentProfile? @relation("UserPaymentProfile")
-  paymentTransactions   PaymentTransaction[] @relation("PaymentTransactionUser")
-  referralEarnings      ReferralEarning[]  @relation("ReferralEarningReferrer")
+  paymentProfile      UserPaymentProfile?  @relation("UserPaymentProfile")
+  paymentTransactions PaymentTransaction[] @relation("PaymentTransactionUser")
+  referralEarnings    ReferralEarning[]    @relation("ReferralEarningReferrer")
+  walletLedgerEntries WalletLedger[]       @relation("WalletLedgerUser")
 }
 
 model UserRole {
-  id          String   @id @default(cuid())
-  userId      String
-  role        Role
+  id           String    @id @default(cuid())
+  userId       String
+  role         Role
   assignedById String?
-  assignedAt  DateTime @default(now())
-  revokedAt   DateTime?
+  assignedAt   DateTime  @default(now())
+  revokedAt    DateTime?
 
-  user       User     @relation(fields: [userId], references: [id])
-  assignedBy User?    @relation("RoleAssigner", fields: [assignedById], references: [id])
-  
+  user       User  @relation(fields: [userId], references: [id])
+  assignedBy User? @relation("RoleAssigner", fields: [assignedById], references: [id])
+
   @@index([userId])
   @@index([role])
 }
@@ -636,19 +651,19 @@ model Payout {
 }
 
 model AgentProfile {
-  userId                String @id
+  userId                String  @id
   bio                   String?
-  rating                Float  @default(0)
-  verifiedListingsCount Int    @default(0)
-  leadsCount            Int    @default(0)
-  strikesCount          Int    @default(0)
+  rating                Float   @default(0)
+  verifiedListingsCount Int     @default(0)
+  leadsCount            Int     @default(0)
+  strikesCount          Int     @default(0)
   kycStatus             String?
 
   user User @relation(fields: [userId], references: [id])
 }
 
 model LandlordProfile {
-  userId      String   @id
+  userId      String    @id
   companyName String?
   verifiedAt  DateTime?
 
@@ -656,7 +671,7 @@ model LandlordProfile {
 }
 
 model Agency {
-  id        String        @id @default(cuid())
+  id        String  @id @default(cuid())
   name      String
   licenseNo String?
   email     String?
@@ -664,63 +679,63 @@ model Agency {
   address   String?
   logoUrl   String?
   kycStatus String?
-  
-  slug      String?       @unique
-  
+
+  slug String? @unique
+
   // Company Profile Fields
   registrationNumber String?
-  bio               String?
-  trustScore        Int      @default(0)
-  verificationScore Int      @default(0)
-  riskScore         Int      @default(0) // Internal only
-  verifiedAt        DateTime?
+  bio                String?
+  trustScore         Int       @default(0)
+  verificationScore  Int       @default(0)
+  riskScore          Int       @default(0) // Internal only
+  verifiedAt         DateTime?
 
-  status    AgencyStatus  @default(PENDING)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  status    AgencyStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
-  members    AgencyMember[]
-  contracts  ManagementContract[]
-  properties Property[]
-  buyerInvoices Invoice[] @relation("InvoiceBuyerAgency")
-  reviews    AgencyReview[]
+  members       AgencyMember[]
+  contracts     ManagementContract[]
+  properties    Property[]
+  buyerInvoices Invoice[]            @relation("InvoiceBuyerAgency")
+  reviews       AgencyReview[]
 
   @@index([status])
   @@index([name])
 }
 
 model AgencyMember {
-  id        String           @id @default(cuid())
-  agencyId  String
-  userId    String
-  role      AgencyMemberRole
-  joinedAt  DateTime         @default(now())
-  isActive  Boolean          @default(true)
-  
-  revokedAt DateTime?
+  id       String           @id @default(cuid())
+  agencyId String
+  userId   String
+  role     AgencyMemberRole
+  joinedAt DateTime         @default(now())
+  isActive Boolean          @default(true)
+
+  revokedAt    DateTime?
   assignedById String?
 
-  agency Agency @relation(fields: [agencyId], references: [id])
-  user   User   @relation(fields: [userId], references: [id])
-  assignedBy User? @relation("AgencyMemberAssigner", fields: [assignedById], references: [id])
+  agency     Agency @relation(fields: [agencyId], references: [id])
+  user       User   @relation(fields: [userId], references: [id])
+  assignedBy User?  @relation("AgencyMemberAssigner", fields: [assignedById], references: [id])
 
   @@unique([agencyId, userId])
   @@index([userId, role])
 }
 
 model ManagementContract {
-  id         String                     @id @default(cuid())
+  id         String                   @id @default(cuid())
   agencyId   String
   landlordId String
   startAt    DateTime
   endAt      DateTime?
   scope      ManagementContractScope
   feeType    ManagementFeeType
-  feeValue   Decimal                    @db.Decimal(12, 2)
+  feeValue   Decimal                  @db.Decimal(12, 2)
   notes      String?
-  status     ManagementContractStatus   @default(DRAFT)
-  createdAt  DateTime                   @default(now())
-  updatedAt  DateTime                   @updatedAt
+  status     ManagementContractStatus @default(DRAFT)
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
 
   agency   Agency @relation(fields: [agencyId], references: [id])
   landlord User   @relation("LandlordManagementContracts", fields: [landlordId], references: [id])
@@ -730,48 +745,48 @@ model ManagementContract {
 }
 
 model Property {
-  id             String              @id @default(cuid())
-  landlordId     String?
-  agentOwnerId   String?
-  agencyId       String?
-  countryId      String?
-  provinceId     String?
-  cityId         String?
-  suburbId       String?
-  pendingGeoId   String?
-  title          String
-  lat            Float?
-  lng            Float?
-  type           PropertyType
-  listingIntent  ListingIntent?
-  currency       Currency
-  price          Decimal             @db.Decimal(12, 2)
-  bedrooms       Int?
-  bathrooms      Int?
-  areaSqm        Float?
-  amenities      String[]            @default([])
-  furnishing     PropertyFurnishing  @default(NONE)
-  availability   PropertyAvailability @default(IMMEDIATE)
-  availableFrom  DateTime?
-  commercialFields Json?
-  description    String?
-  status         PropertyStatus      @default(DRAFT)
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  verifiedAt     DateTime?
-  dealConfirmedAt DateTime?
+  id                String               @id @default(cuid())
+  landlordId        String?
+  agentOwnerId      String?
+  agencyId          String?
+  countryId         String?
+  provinceId        String?
+  cityId            String?
+  suburbId          String?
+  pendingGeoId      String?
+  title             String
+  lat               Float?
+  lng               Float?
+  type              PropertyType
+  listingIntent     ListingIntent?
+  currency          Currency
+  price             Decimal              @db.Decimal(12, 2)
+  bedrooms          Int?
+  bathrooms         Int?
+  areaSqm           Float?
+  amenities         String[]             @default([])
+  furnishing        PropertyFurnishing   @default(NONE)
+  availability      PropertyAvailability @default(IMMEDIATE)
+  availableFrom     DateTime?
+  commercialFields  Json?
+  description       String?
+  status            PropertyStatus       @default(DRAFT)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  verifiedAt        DateTime?
+  dealConfirmedAt   DateTime?
   dealConfirmedById String?
-  isManaged      Boolean             @default(false)
+  isManaged         Boolean              @default(false)
 
-  landlord     User?        @relation("LandlordProperties", fields: [landlordId], references: [id])
-  agentOwner   User?        @relation("AgentOwnerProperties", fields: [agentOwnerId], references: [id])
-  agency       Agency?      @relation(fields: [agencyId], references: [id])
-  country      Country?     @relation(fields: [countryId], references: [id])
-  province     Province?    @relation(fields: [provinceId], references: [id])
-  city         City?        @relation(fields: [cityId], references: [id])
-  suburb       Suburb?      @relation(fields: [suburbId], references: [id])
-  pendingGeo   PendingGeo?  @relation(fields: [pendingGeoId], references: [id])
-  dealConfirmedBy User?     @relation("PropertyDealConfirmer", fields: [dealConfirmedById], references: [id])
+  landlord        User?                @relation("LandlordProperties", fields: [landlordId], references: [id])
+  agentOwner      User?                @relation("AgentOwnerProperties", fields: [agentOwnerId], references: [id])
+  agency          Agency?              @relation(fields: [agencyId], references: [id])
+  country         Country?             @relation(fields: [countryId], references: [id])
+  province        Province?            @relation(fields: [provinceId], references: [id])
+  city            City?                @relation(fields: [cityId], references: [id])
+  suburb          Suburb?              @relation(fields: [suburbId], references: [id])
+  pendingGeo      PendingGeo?          @relation(fields: [pendingGeoId], references: [id])
+  dealConfirmedBy User?                @relation("PropertyDealConfirmer", fields: [dealConfirmedById], references: [id])
   media           PropertyMedia[]
   verifications   Verification[]
   leads           Lead[]
@@ -791,21 +806,21 @@ model Property {
   createdByRole ListingCreatorRole @default(LANDLORD)
 
   // Verification Signals
-  verificationScore Int @default(0)
+  verificationScore Int               @default(0)
   verificationLevel VerificationLevel @default(NONE)
-  trustScore        Int @default(0)
-  riskScore         Int @default(0) // Internal only
+  trustScore        Int               @default(0)
+  riskScore         Int               @default(0) // Internal only
 
   // New relations
-  interests       Interest[]
-  rentPayments    RentPayment[]
-  viewings        Viewing[]
-  featuredListing FeaturedListing?
-  listingPayments ListingPayment[]
+  interests            Interest[]
+  rentPayments         RentPayment[]
+  viewings             Viewing[]
+  featuredListing      FeaturedListing?
+  listingPayments      ListingPayment[]
   verificationRequests VerificationRequest[]
-  propertyRatings PropertyRating[]
-  activityLogs ListingActivityLog[]
-  siteVisits   SiteVisit[]
+  propertyRatings      PropertyRating[]
+  activityLogs         ListingActivityLog[]
+  siteVisits           SiteVisit[]
 
   @@index([status])
   @@index([countryId])
@@ -839,12 +854,12 @@ model AgentAssignment {
 }
 
 model PropertyMessage {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   propertyId  String
   senderId    String
   recipientId String
   body        String
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
   readAt      DateTime?
 
   property  Property @relation(fields: [propertyId], references: [id])
@@ -856,16 +871,16 @@ model PropertyMessage {
 }
 
 model PriceHistory {
-  id           String   @id @default(cuid())
-  propertyId   String
+  id            String   @id @default(cuid())
+  propertyId    String
   previousPrice Decimal  @db.Decimal(12, 2)
-  newPrice     Decimal   @db.Decimal(12, 2)
-  currency     Currency
-  changedById  String
-  changedAt    DateTime  @default(now())
+  newPrice      Decimal  @db.Decimal(12, 2)
+  currency      Currency
+  changedById   String
+  changedAt     DateTime @default(now())
 
-  property Property @relation(fields: [propertyId], references: [id])
-  changedBy User    @relation("PriceHistoryChangedBy", fields: [changedById], references: [id])
+  property  Property @relation(fields: [propertyId], references: [id])
+  changedBy User     @relation("PriceHistoryChangedBy", fields: [changedById], references: [id])
 
   @@index([propertyId, changedAt(sort: Desc)], map: "price_history_property_id_changed_at_desc")
 }
@@ -888,11 +903,11 @@ model DiscountOffer {
 }
 
 model ListingEvent {
-  id          String            @id @default(cuid())
+  id          String           @id @default(cuid())
   propertyId  String
   type        ListingEventType
   createdById String
-  createdAt   DateTime          @default(now())
+  createdAt   DateTime         @default(now())
   metaJson    Json?
 
   property  Property @relation(fields: [propertyId], references: [id])
@@ -914,7 +929,7 @@ model Watchlist {
 }
 
 model Notification {
-  id        String            @id @default(cuid())
+  id        String             @id @default(cuid())
   userId    String
   type      NotificationType
   title     String
@@ -924,14 +939,14 @@ model Notification {
   createdAt DateTime           @default(now())
   readAt    DateTime?
 
-  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  logs    NotificationLog[]
+  user User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs NotificationLog[]
 
   @@index([userId, createdAt(sort: Desc)])
 }
 
 model NotificationLog {
-  id             String                 @id @default(cuid())
+  id             String                @id @default(cuid())
   notificationId String
   channel        NotificationChannel
   providerId     String?
@@ -945,14 +960,14 @@ model NotificationLog {
 }
 
 model MetricListingDaily {
-  listingId        String
-  day              DateTime
-  impressions      Int      @default(0)
-  clicks           Int      @default(0)
-  sessions         Int      @default(0)
-  saves            Int      @default(0)
-  qualifiedLeads   Int      @default(0)
-  dwellSeconds     Int      @default(0)
+  listingId      String
+  day            DateTime
+  impressions    Int      @default(0)
+  clicks         Int      @default(0)
+  sessions       Int      @default(0)
+  saves          Int      @default(0)
+  qualifiedLeads Int      @default(0)
+  dwellSeconds   Int      @default(0)
 
   property Property @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
@@ -1016,44 +1031,44 @@ enum VerificationItemStatus {
 }
 
 model Verification {
-  id          String               @id @default(cuid())
-  propertyId  String?              // Optional now as we have polymorphic targetId
+  id          String              @id @default(cuid())
+  propertyId  String? // Optional now as we have polymorphic targetId
   verifierId  String?
   requesterId String?
-  method      VerificationMethod   @default(DOCS)
+  method      VerificationMethod  @default(DOCS)
   result      VerificationResult?
-  status      VerificationStatus   @default(PENDING)
+  status      VerificationStatus  @default(PENDING)
   notes       String?
   evidenceUrl String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime            @default(now())
 
-  property Property? @relation(fields: [propertyId], references: [id])
-  verifier User?    @relation("VerificationVerifier", fields: [verifierId], references: [id])
-  requester User?   @relation("VerificationRequester", fields: [requesterId], references: [id])
-  
+  property  Property? @relation(fields: [propertyId], references: [id])
+  verifier  User?     @relation("VerificationVerifier", fields: [verifierId], references: [id])
+  requester User?     @relation("VerificationRequester", fields: [requesterId], references: [id])
+
   // Polymorphic fields
-  targetType  String   @default("property") // property, user, agent, landlord
-  targetId    String   @default("") 
+  targetType String @default("property") // property, user, agent, landlord
+  targetId   String @default("")
 }
 
 model VerificationRequest {
-  id          String   @id @default(cuid())
-  propertyId  String?
-  agencyId    String?
+  id           String  @id @default(cuid())
+  propertyId   String?
+  agencyId     String?
   targetUserId String?
-  
+
   // Polymorphic Target
-  targetType  VerificationType @default(PROPERTY)
-  targetId    String           @default("") // indexed for admin filtering
+  targetType VerificationType @default(PROPERTY)
+  targetId   String           @default("") // indexed for admin filtering
 
   requesterId String
   status      VerificationStatus @default(PENDING)
   notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
-  property Property?              @relation(fields: [propertyId], references: [id])
-  requester User                 @relation("VerificationRequestRequester", fields: [requesterId], references: [id])
+  property  Property?                 @relation(fields: [propertyId], references: [id])
+  requester User                      @relation("VerificationRequestRequester", fields: [requesterId], references: [id])
   items     VerificationRequestItem[]
 
   @@index([propertyId])
@@ -1069,24 +1084,23 @@ enum VerificationType {
 }
 
 model VerificationRequestItem {
-  id                    String                @id @default(cuid())
+  id                    String                 @id @default(cuid())
   verificationRequestId String
   type                  VerificationItemType
   status                VerificationItemStatus @default(PENDING)
-  evidenceUrls          String[]              @default([]) // Array of uploaded file URLs
-  gpsLat                Float?                // For location confirmation
-  gpsLng                Float?                // For location confirmation
-  notes                 String?               // User notes or verifier feedback
-  verifierId            String?               // Admin/verifier who reviewed
+  evidenceUrls          String[]               @default([]) // Array of uploaded file URLs
+  gpsLat                Float? // For location confirmation
+  gpsLng                Float? // For location confirmation
+  notes                 String? // User notes or verifier feedback
+  verifierId            String? // Admin/verifier who reviewed
   reviewedAt            DateTime?
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
 
-  verificationRequest VerificationRequest @relation(fields: [verificationRequestId], references: [id], onDelete: Cascade)
-  verifier             User?               @relation("VerificationItemVerifier", fields: [verifierId], references: [id])
-  evidence             VerificationEvidence[]
-  siteVisits           SiteVisit[]
-
+  verificationRequest VerificationRequest    @relation(fields: [verificationRequestId], references: [id], onDelete: Cascade)
+  verifier            User?                  @relation("VerificationItemVerifier", fields: [verifierId], references: [id])
+  evidence            VerificationEvidence[]
+  siteVisits          SiteVisit[]
 
   @@index([verificationRequestId])
   @@index([type, status])
@@ -1115,20 +1129,20 @@ enum TrustTier {
 }
 
 model UserReview {
-  id          String       @id @default(cuid())
-  reviewerId  String
-  revieweeId  String
-  propertyId  String?
-  rating      Int
-  weight      Int          @default(1)
-  comment     String?
-  type        ReviewerType @default(EXTERNAL)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id         String       @id @default(cuid())
+  reviewerId String
+  revieweeId String
+  propertyId String?
+  rating     Int
+  weight     Int          @default(1)
+  comment    String?
+  type       ReviewerType @default(EXTERNAL)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 
-  reviewer    User         @relation("Reviewer", fields: [reviewerId], references: [id])
-  reviewee    User         @relation("Reviewee", fields: [revieweeId], references: [id])
-  property    Property?    @relation(fields: [propertyId], references: [id])
+  reviewer User      @relation("Reviewer", fields: [reviewerId], references: [id])
+  reviewee User      @relation("Reviewee", fields: [revieweeId], references: [id])
+  property Property? @relation(fields: [propertyId], references: [id])
 
   @@index([revieweeId])
   @@index([reviewerId])
@@ -1136,18 +1150,18 @@ model UserReview {
 }
 
 model PropertyRating {
-  id              String              @id @default(cuid())
-  propertyId      String
-  reviewerId      String?              // Null if anonymous
-  rating          Int                  // 1-5 stars
-  weight          Int                  @default(1) // Calculated weight
-  comment         String?
-  type            PropertyRatingType
-  isAnonymous     Boolean              @default(false) // For current tenants
-  tenantMonths    Int?                // Length of tenancy in months (for weight calculation)
-  isVerifiedTenant Boolean             @default(false) // Verified tenant status
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  id               String             @id @default(cuid())
+  propertyId       String
+  reviewerId       String? // Null if anonymous
+  rating           Int // 1-5 stars
+  weight           Int                @default(1) // Calculated weight
+  comment          String?
+  type             PropertyRatingType
+  isAnonymous      Boolean            @default(false) // For current tenants
+  tenantMonths     Int? // Length of tenancy in months (for weight calculation)
+  isVerifiedTenant Boolean            @default(false) // Verified tenant status
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   property Property @relation(fields: [propertyId], references: [id])
   reviewer User?    @relation("PropertyRatingReviewer", fields: [reviewerId], references: [id])
@@ -1159,15 +1173,15 @@ model PropertyRating {
 }
 
 model ListingActivityLog {
-  id          String              @id @default(cuid())
-  propertyId  String
-  type        ListingActivityType
-  actorId     String?              // User who performed the action
-  metadata    Json?                // Additional context (offer amount, agent name, etc.)
-  createdAt   DateTime             @default(now())
+  id         String              @id @default(cuid())
+  propertyId String
+  type       ListingActivityType
+  actorId    String? // User who performed the action
+  metadata   Json? // Additional context (offer amount, agent name, etc.)
+  createdAt  DateTime            @default(now())
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  actor     User?    @relation("ListingActivityActor", fields: [actorId], references: [id])
+  actor    User?    @relation("ListingActivityActor", fields: [actorId], references: [id])
 
   @@index([propertyId, createdAt(sort: Desc)])
   @@index([type, createdAt(sort: Desc)])
@@ -1177,8 +1191,8 @@ model Viewing {
   id          String        @id @default(cuid())
   propertyId  String
   viewerId    String
-  agentId     String?       // If assigned agent is handling
-  landlordId  String?       // If landlord is handling
+  agentId     String? // If assigned agent is handling
+  landlordId  String? // If landlord is handling
   scheduledAt DateTime
   status      ViewingStatus @default(PENDING)
   notes       String?
@@ -1198,15 +1212,15 @@ model Viewing {
 }
 
 model FeaturedListing {
-  id            String   @id @default(cuid())
-  listingId     String   @unique
+  id            String                @id @default(cuid())
+  listingId     String                @unique
   startsAt      DateTime
   endsAt        DateTime
   paymentId     String?
-  priorityLevel Int      @default(1)
+  priorityLevel Int                   @default(1)
   status        FeaturedListingStatus @default(ACTIVE)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
 
   property Property @relation(fields: [listingId], references: [id])
 }
@@ -1229,13 +1243,13 @@ model Lead {
 }
 
 model RewardEvent {
-  id        String           @id @default(cuid())
+  id        String          @id @default(cuid())
   agentId   String
   type      RewardEventType
   points    Int
   usdCents  Int
   refId     String?
-  createdAt DateTime @default(now())
+  createdAt DateTime        @default(now())
 
   agent User @relation(fields: [agentId], references: [id])
 
@@ -1243,32 +1257,54 @@ model RewardEvent {
 }
 
 model Wallet {
-  id           String      @id @default(cuid())
+  id           String    @id @default(cuid())
   ownerType    OwnerType
   ownerId      String
   currency     Currency
-  balanceCents Int         @default(0)
-  pendingCents Int         @default(0)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  balanceCents Int       @default(0) // DEPRECATED: Use WalletLedger for balance calculation
+  pendingCents Int       @default(0) // DEPRECATED: Use WalletLedger for balance calculation
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   transactions   WalletTransaction[]
   payoutRequests PayoutRequest[]
   payoutAccounts PayoutAccount[]
+  ledgerEntries  WalletLedger[]
+
   @@unique([ownerType, ownerId, currency])
 }
 
+model WalletLedger {
+  id          String                 @id @default(cuid())
+  userId      String
+  type        WalletLedgerType
+  sourceType  WalletLedgerSourceType
+  sourceId    String? // Reference to source entity (PaymentTransaction, PayoutRequest, etc.)
+  amountCents Int
+  currency    Currency
+  createdAt   DateTime               @default(now())
+
+  user     User    @relation("WalletLedgerUser", fields: [userId], references: [id], onDelete: Cascade)
+  Wallet   Wallet? @relation(fields: [walletId], references: [id])
+  walletId String?
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, type])
+  @@index([sourceType, sourceId])
+  @@index([createdAt])
+}
+
 model WalletTransaction {
-  id                String                   @id @default(cuid())
-  walletId          String
-  amountCents       Int
-  type              WalletTransactionType
-  source            WalletTransactionSource
-  sourceId          String?
-  description       String?
-  availableAt       DateTime?                @default(now())
-  appliedToBalance  Boolean                  @default(false)
-  createdAt         DateTime                 @default(now())
+  id               String                  @id @default(cuid())
+  walletId         String
+  amountCents      Int
+  type             WalletTransactionType
+  source           WalletTransactionSource
+  sourceId         String?
+  description      String?
+  availableAt      DateTime?               @default(now())
+  appliedToBalance Boolean                 @default(false)
+  createdAt        DateTime                @default(now())
 
   wallet Wallet @relation(fields: [walletId], references: [id])
 
@@ -1277,18 +1313,18 @@ model WalletTransaction {
 }
 
 model PayoutAccount {
-  id           String      @id @default(cuid())
-  ownerType    OwnerType
-  ownerId      String
-  walletId     String?
-  type         PayoutMethod
-  displayName  String
-  detailsJson  Json
-  verifiedAt   DateTime?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id          String       @id @default(cuid())
+  ownerType   OwnerType
+  ownerId     String
+  walletId    String?
+  type        PayoutMethod
+  displayName String
+  detailsJson Json
+  verifiedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  wallet       Wallet? @relation(fields: [walletId], references: [id])
+  wallet         Wallet?         @relation(fields: [walletId], references: [id])
   payoutRequests PayoutRequest[]
 
   @@index([ownerType, ownerId])
@@ -1311,36 +1347,36 @@ model KycRecord {
 }
 
 model PayoutRequest {
-  id             String        @id @default(cuid())
-  walletId       String
-  amountCents    Int
-  method         PayoutMethod
+  id              String       @id @default(cuid())
+  walletId        String
+  amountCents     Int
+  method          PayoutMethod
   payoutAccountId String
-  status         PayoutStatus  @default(REQUESTED)
-  scheduledFor   DateTime?
-  txRef          String?
-  receiptPdfUrl  String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  status          PayoutStatus @default(REQUESTED)
+  scheduledFor    DateTime?
+  txRef           String?
+  receiptPdfUrl   String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
-  wallet        Wallet        @relation(fields: [walletId], references: [id])
-  payoutAccount PayoutAccount @relation(fields: [payoutAccountId], references: [id])
+  wallet             Wallet              @relation(fields: [walletId], references: [id])
+  payoutAccount      PayoutAccount       @relation(fields: [payoutAccountId], references: [id])
   payoutTransactions PayoutTransaction[] @relation("PayoutTransactionRequest")
-  referralEarnings ReferralEarning[] @relation("ReferralEarningPayout")
+  referralEarnings   ReferralEarning[]   @relation("ReferralEarningPayout")
 
   @@index([walletId, status, createdAt(sort: Desc)])
   @@index([txRef])
 }
 
 model Advertiser {
-  id           String            @id @default(cuid())
+  id           String           @id @default(cuid())
   name         String
   contactEmail String?
   phone        String?
   billingInfo  Json?
   status       AdvertiserStatus @default(ACTIVE)
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
   campaigns   AdCampaign[]
   creatives   AdCreative[]
@@ -1350,36 +1386,36 @@ model Advertiser {
 }
 
 model AdCreative {
-  id            String         @id @default(cuid())
-  advertiserId  String
-  type          AdCreativeType
-  assetUrl      String?
-  htmlSnippet   String?
-  clickUrl      String
-  width         Int
-  height        Int
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id           String         @id @default(cuid())
+  advertiserId String
+  type         AdCreativeType
+  assetUrl     String?
+  htmlSnippet  String?
+  clickUrl     String
+  width        Int
+  height       Int
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
   advertiser Advertiser @relation(fields: [advertiserId], references: [id])
-  flights     AdFlight[]
+  flights    AdFlight[]
 
   @@index([advertiserId, type])
 }
 
 model AdPlacement {
-  id             String           @id @default(cuid())
-  code           String           @unique
-  name           String
-  description    String?
-  allowedTypes   AdCreativeType[] @default([])
-  page           AdPlacementPage
-  position       AdPlacementPosition
-  allowDirect    Boolean          @default(true)
-  allowAdSense   Boolean          @default(false)
-  policyCompliant Boolean         @default(true)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id              String              @id @default(cuid())
+  code            String              @unique
+  name            String
+  description     String?
+  allowedTypes    AdCreativeType[]    @default([])
+  page            AdPlacementPage
+  position        AdPlacementPosition
+  allowDirect     Boolean             @default(true)
+  allowAdSense    Boolean             @default(false)
+  policyCompliant Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   flights     AdFlight[]
   impressions AdImpression[]
@@ -1389,25 +1425,25 @@ model AdPlacement {
 }
 
 model AdCampaign {
-  id                   String            @id @default(cuid())
-  advertiserId         String
-  invoiceId            String?           @unique
-  name                 String
-  startAt              DateTime
-  endAt                DateTime?
-  targetingJson        Json?
-  cpmUsdCents          Int?
-  cpcUsdCents          Int?
-  dailyCapImpressions  Int?
-  status               AdCampaignStatus @default(DRAFT)
-  rewardPoolShareBps   Int?
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
+  id                  String           @id @default(cuid())
+  advertiserId        String
+  invoiceId           String?          @unique
+  name                String
+  startAt             DateTime
+  endAt               DateTime?
+  targetingJson       Json?
+  cpmUsdCents         Int?
+  cpcUsdCents         Int?
+  dailyCapImpressions Int?
+  status              AdCampaignStatus @default(DRAFT)
+  rewardPoolShareBps  Int?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 
-  advertiser Advertiser  @relation(fields: [advertiserId], references: [id])
-  invoice    Invoice?     @relation("AdCampaignInvoice", fields: [invoiceId], references: [id])
-  flights    AdFlight[]
-  stats      AdStat[]
+  advertiser  Advertiser     @relation(fields: [advertiserId], references: [id])
+  invoice     Invoice?       @relation("AdCampaignInvoice", fields: [invoiceId], references: [id])
+  flights     AdFlight[]
+  stats       AdStat[]
   impressions AdImpression[]
 
   @@index([advertiserId, status])
@@ -1415,19 +1451,19 @@ model AdCampaign {
 }
 
 model AdFlight {
-  id           String   @id @default(cuid())
-  campaignId   String
-  creativeId   String
-  placementId  String
-  weight       Int      @default(1)
-  priority     Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  campaignId  String
+  creativeId  String
+  placementId String
+  weight      Int      @default(1)
+  priority    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  campaign  AdCampaign @relation(fields: [campaignId], references: [id])
-  creative  AdCreative @relation(fields: [creativeId], references: [id])
-  placement AdPlacement @relation(fields: [placementId], references: [id])
-  stats     AdStat[]
+  campaign    AdCampaign     @relation(fields: [campaignId], references: [id])
+  creative    AdCreative     @relation(fields: [creativeId], references: [id])
+  placement   AdPlacement    @relation(fields: [placementId], references: [id])
+  stats       AdStat[]
   impressions AdImpression[]
 
   @@index([campaignId, priority])
@@ -1435,19 +1471,19 @@ model AdFlight {
 }
 
 model AdStat {
-  id           String      @id @default(cuid())
-  campaignId   String
-  flightId     String
-  placementId  String
-  date         DateTime
-  impressions  Int         @default(0)
-  clicks       Int         @default(0)
-  revenueMicros Int        @default(0)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id            String   @id @default(cuid())
+  campaignId    String
+  flightId      String
+  placementId   String
+  date          DateTime
+  impressions   Int      @default(0)
+  clicks        Int      @default(0)
+  revenueMicros Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  campaign  AdCampaign @relation(fields: [campaignId], references: [id])
-  flight    AdFlight   @relation(fields: [flightId], references: [id])
+  campaign  AdCampaign  @relation(fields: [campaignId], references: [id])
+  flight    AdFlight    @relation(fields: [flightId], references: [id])
   placement AdPlacement @relation(fields: [placementId], references: [id])
 
   @@unique([campaignId, flightId, placementId, date])
@@ -1468,12 +1504,12 @@ model AdImpression {
   revenueMicros Int
   createdAt     DateTime @default(now())
 
-  property   Property?     @relation(fields: [propertyId], references: [id])
-  user       User?         @relation(fields: [userId], references: [id])
-  advertiser Advertiser?   @relation(fields: [advertiserId], references: [id])
-  campaign   AdCampaign?   @relation(fields: [campaignId], references: [id])
-  flight     AdFlight?     @relation(fields: [flightId], references: [id])
-  placement  AdPlacement?  @relation(fields: [placementId], references: [id])
+  property   Property?    @relation(fields: [propertyId], references: [id])
+  user       User?        @relation(fields: [userId], references: [id])
+  advertiser Advertiser?  @relation(fields: [advertiserId], references: [id])
+  campaign   AdCampaign?  @relation(fields: [campaignId], references: [id])
+  flight     AdFlight?    @relation(fields: [flightId], references: [id])
+  placement  AdPlacement? @relation(fields: [placementId], references: [id])
 
   @@index([campaignId, placementId, createdAt])
 }
@@ -1490,21 +1526,21 @@ model MetricDailyAds {
 }
 
 model MetricDailyRevenue {
-  date             DateTime @id
-  grossUsdCents    BigInt
-  payoutsUsdCents  BigInt
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  date            DateTime @id
+  grossUsdCents   BigInt
+  payoutsUsdCents BigInt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([date(sort: Desc)])
 }
 
 model MetricDailyTraffic {
-  date          DateTime @id
-  visits        Int
+  date           DateTime @id
+  visits         Int
   uniqueSessions Int
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([date(sort: Desc)])
 }
@@ -1527,41 +1563,41 @@ model PromoBoost {
 }
 
 model Invoice {
-  id            String         @id @default(cuid())
-  buyerUserId   String?
-  buyerAgencyId String?
-  purpose       InvoicePurpose
-  currency      Currency
-  amountCents   Int
-  taxCents      Int
+  id             String         @id @default(cuid())
+  buyerUserId    String?
+  buyerAgencyId  String?
+  purpose        InvoicePurpose
+  currency       Currency
+  amountCents    Int
+  taxCents       Int
   amountUsdCents Int
   taxUsdCents    Int
-  status        InvoiceStatus  @default(DRAFT)
-  dueAt         DateTime?
-  issuedAt      DateTime?
-  invoiceNo     String?        @unique
-  pdfUrl        String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  fxRateId      String?
+  status         InvoiceStatus  @default(DRAFT)
+  dueAt          DateTime?
+  issuedAt       DateTime?
+  invoiceNo      String?        @unique
+  pdfUrl         String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  fxRateId       String?
 
-  buyerUser   User?    @relation("InvoiceBuyerUser", fields: [buyerUserId], references: [id])
-  buyerAgency Agency?  @relation("InvoiceBuyerAgency", fields: [buyerAgencyId], references: [id])
-  lines       InvoiceLine[]
-  paymentIntents PaymentIntent[]
-  transactions Transaction[]
-  campaign    AdCampaign? @relation("AdCampaignInvoice")
-  promoBoost  PromoBoost? @relation("PromoBoostInvoice")
-  boost       Boost?      @relation("BoostInvoice")
-  fxRate      FxRate?   @relation(fields: [fxRateId], references: [id])
-  listingPayments ListingPayment[] @relation("ListingPaymentInvoice")
+  buyerUser           User?                @relation("InvoiceBuyerUser", fields: [buyerUserId], references: [id])
+  buyerAgency         Agency?              @relation("InvoiceBuyerAgency", fields: [buyerAgencyId], references: [id])
+  lines               InvoiceLine[]
+  paymentIntents      PaymentIntent[]
+  transactions        Transaction[]
+  campaign            AdCampaign?          @relation("AdCampaignInvoice")
+  promoBoost          PromoBoost?          @relation("PromoBoostInvoice")
+  boost               Boost?               @relation("BoostInvoice")
+  fxRate              FxRate?              @relation(fields: [fxRateId], references: [id])
+  listingPayments     ListingPayment[]     @relation("ListingPaymentInvoice")
   paymentTransactions PaymentTransaction[] @relation("PaymentTransactionInvoice")
 
   @@index([status, dueAt])
 }
 
 model InvoiceLine {
-  id             String  @id @default(cuid())
+  id             String @id @default(cuid())
   invoiceId      String
   sku            String
   description    String
@@ -1585,7 +1621,7 @@ model PaymentIntent {
   gatewayRef  String?
   createdAt   DateTime            @default(now())
 
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice             Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   paymentTransactions PaymentTransaction[] @relation("PaymentTransactionIntent")
 
   @@index([invoiceId, gateway, status])
@@ -1606,18 +1642,18 @@ model FxRate {
 }
 
 model Transaction {
-  id             String          @id @default(cuid())
+  id             String            @id @default(cuid())
   invoiceId      String
   gateway        PaymentGateway
   externalRef    String
   amountCents    Int
   currency       Currency
-  feeCents       Int             @default(0)
+  feeCents       Int               @default(0)
   netCents       Int
   result         TransactionResult
   rawWebhookJson Json?
   receiptPdfUrl  String?
-  createdAt      DateTime        @default(now())
+  createdAt      DateTime          @default(now())
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
@@ -1625,21 +1661,21 @@ model Transaction {
 }
 
 model PaymentMethod {
-  id                   String               @id @default(cuid())
-  ownerType            OwnerType
-  ownerId              String
-  type                 PaymentMethodType
-  gatewayRef           String?
-  brand                String?
-  last4                String?
-  expMonth             Int?
-  expYear              Int?
-  isDefault            Boolean              @default(false)
-  status               PaymentMethodStatus  @default(ACTIVE)
-  recurringConsentAt   DateTime?
+  id                      String              @id @default(cuid())
+  ownerType               OwnerType
+  ownerId                 String
+  type                    PaymentMethodType
+  gatewayRef              String?
+  brand                   String?
+  last4                   String?
+  expMonth                Int?
+  expYear                 Int?
+  isDefault               Boolean             @default(false)
+  status                  PaymentMethodStatus @default(ACTIVE)
+  recurringConsentAt      DateTime?
   recurringConsentActorId String?
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
 
   statusLogs PaymentMethodStatusLog[]
 
@@ -1648,13 +1684,13 @@ model PaymentMethod {
 }
 
 model PaymentMethodStatusLog {
-  id              String              @id @default(cuid())
+  id              String               @id @default(cuid())
   paymentMethodId String
   fromStatus      PaymentMethodStatus?
   toStatus        PaymentMethodStatus
   reason          String?
   actorId         String?
-  createdAt       DateTime            @default(now())
+  createdAt       DateTime             @default(now())
 
   paymentMethod PaymentMethod @relation(fields: [paymentMethodId], references: [id], onDelete: Cascade)
   actor         User?         @relation("PaymentMethodStatusActor", fields: [actorId], references: [id])
@@ -1679,12 +1715,12 @@ model ShortLink {
 }
 
 model PolicyStrike {
-  id        String              @id @default(cuid())
+  id        String             @id @default(cuid())
   agentId   String
   reason    PolicyStrikeReason
   severity  Int
-  resolved  Boolean  @default(false)
-  createdAt DateTime @default(now())
+  resolved  Boolean            @default(false)
+  createdAt DateTime           @default(now())
 
   agent User @relation(fields: [agentId], references: [id])
 }
@@ -1715,14 +1751,14 @@ model FeatureFlag {
 // New Models
 
 model AgencyReview {
-  id          String   @id @default(cuid())
-  agencyId    String
-  reviewerId  String
-  rating      Int
-  weight      Int      @default(1)
-  comment     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  agencyId   String
+  reviewerId String
+  rating     Int
+  weight     Int      @default(1)
+  comment    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   agency   Agency @relation(fields: [agencyId], references: [id])
   reviewer User   @relation(fields: [reviewerId], references: [id])
@@ -1732,8 +1768,7 @@ model AgencyReview {
 }
 
 model Interest {
-  id          String         @id @default(cuid())
-
+  id String @id @default(cuid())
 
   propertyId  String
   userId      String
@@ -1743,49 +1778,47 @@ model Interest {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  property    Property       @relation(fields: [propertyId], references: [id])
-  user        User           @relation("UserInterests", fields: [userId], references: [id])
+  property Property @relation(fields: [propertyId], references: [id])
+  user     User     @relation("UserInterests", fields: [userId], references: [id])
 
   @@unique([propertyId, userId])
   @@index([propertyId])
   @@index([userId])
 }
 
-
-
 model RentPayment {
-  id          String    @id @default(cuid())
-  propertyId  String
-  tenantId    String
-  amount      Decimal   @db.Decimal(12, 2)
-  currency    Currency
-  paidAt      DateTime
-  proofUrl    String?
-  isVerified  Boolean   @default(false)
-  createdAt   DateTime  @default(now())
+  id         String   @id @default(cuid())
+  propertyId String
+  tenantId   String
+  amount     Decimal  @db.Decimal(12, 2)
+  currency   Currency
+  paidAt     DateTime
+  proofUrl   String?
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
 
-  property    Property  @relation(fields: [propertyId], references: [id])
-  tenant      User      @relation("TenantRentPayments", fields: [tenantId], references: [id])
+  property Property @relation(fields: [propertyId], references: [id])
+  tenant   User     @relation("TenantRentPayments", fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@index([propertyId])
 }
 
 model ListingPayment {
-  id          String              @id @default(cuid())
-  propertyId String
-  type       ListingPaymentType
+  id          String               @id @default(cuid())
+  propertyId  String
+  type        ListingPaymentType
   amountCents Int
-  currency   Currency
-  status     ListingPaymentStatus @default(PENDING)
-  reference  String?              // Payment reference or invoice number
-  invoiceId  String?               // Link to Invoice if applicable
-  metadata   Json?                 // Additional context (e.g., agent assignment ID, featured listing ID)
-  createdAt  DateTime             @default(now())
-  updatedAt  DateTime              @updatedAt
+  currency    Currency
+  status      ListingPaymentStatus @default(PENDING)
+  reference   String? // Payment reference or invoice number
+  invoiceId   String? // Link to Invoice if applicable
+  metadata    Json? // Additional context (e.g., agent assignment ID, featured listing ID)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
 
-  property Property  @relation(fields: [propertyId], references: [id])
-  invoice  Invoice?  @relation("ListingPaymentInvoice", fields: [invoiceId], references: [id])
+  property Property @relation(fields: [propertyId], references: [id])
+  invoice  Invoice? @relation("ListingPaymentInvoice", fields: [invoiceId], references: [id])
 
   @@index([propertyId, createdAt(sort: Desc)])
   @@index([status])
@@ -1793,29 +1826,29 @@ model ListingPayment {
 }
 
 model SiteVisit {
-  id                     String             @id @default(cuid())
-  propertyId             String
-  verificationItemId     String?            // Optional link to specific item
-  requestedByUserId      String
-  assignedModeratorId    String?
+  id                  String  @id @default(cuid())
+  propertyId          String
+  verificationItemId  String? // Optional link to specific item
+  requestedByUserId   String
+  assignedModeratorId String?
 
-  status                 SiteVisitStatus    @default(PENDING_ASSIGNMENT)
-  
-  scheduledAt            DateTime?
-  visitGpsLat            Float?
-  visitGpsLng            Float?
-  distanceFromSubmittedGps Float?           // Computed in km
-  
-  notes                  String?
-  completedAt            DateTime?
+  status SiteVisitStatus @default(PENDING_ASSIGNMENT)
 
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
+  scheduledAt              DateTime?
+  visitGpsLat              Float?
+  visitGpsLng              Float?
+  distanceFromSubmittedGps Float? // Computed in km
 
-  property               Property           @relation(fields: [propertyId], references: [id])
-  requestedBy            User               @relation("SiteVisitRequester", fields: [requestedByUserId], references: [id])
-  assignedModerator      User?              @relation("SiteVisitModerator", fields: [assignedModeratorId], references: [id])
-  verificationItem       VerificationRequestItem? @relation(fields: [verificationItemId], references: [id])
+  notes       String?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  property          Property                 @relation(fields: [propertyId], references: [id])
+  requestedBy       User                     @relation("SiteVisitRequester", fields: [requestedByUserId], references: [id])
+  assignedModerator User?                    @relation("SiteVisitModerator", fields: [assignedModeratorId], references: [id])
+  verificationItem  VerificationRequestItem? @relation(fields: [verificationItemId], references: [id])
 
   @@index([propertyId])
   @@index([assignedModeratorId])
@@ -1832,15 +1865,15 @@ enum SiteVisitStatus {
 }
 
 model RiskEvent {
-  id          String   @id @default(cuid())
-  entityType  String   // USER, AGENCY, PROPERTY
-  entityId    String
-  signalType  String   // BURST_LISTING, GPS_MISMATCH, etc.
-  scoreDelta  Int
-  notes       String?
-  timestamp   DateTime @default(now())
-  resolvedBy  String?  // Admin User ID
-  
+  id         String   @id @default(cuid())
+  entityType String // USER, AGENCY, PROPERTY
+  entityId   String
+  signalType String // BURST_LISTING, GPS_MISMATCH, etc.
+  scoreDelta Int
+  notes      String?
+  timestamp  DateTime @default(now())
+  resolvedBy String? // Admin User ID
+
   @@index([entityType, entityId])
   @@index([signalType])
   @@index([timestamp])
@@ -1854,16 +1887,16 @@ enum BoostType {
 }
 
 model Boost {
-  id          String    @id @default(cuid())
-  type        BoostType
-  entityType  String    // PROPERTY, USER, AGENCY
-  entityId    String
-  startTime   DateTime  @default(now())
-  endTime     DateTime
-  invoiceId   String?   @unique
-  isActive    Boolean   @default(true)
-  
-  invoice     Invoice?  @relation("BoostInvoice", fields: [invoiceId], references: [id])
+  id         String    @id @default(cuid())
+  type       BoostType
+  entityType String // PROPERTY, USER, AGENCY
+  entityId   String
+  startTime  DateTime  @default(now())
+  endTime    DateTime
+  invoiceId  String?   @unique
+  isActive   Boolean   @default(true)
+
+  invoice Invoice? @relation("BoostInvoice", fields: [invoiceId], references: [id])
 
   @@index([entityType, entityId])
   @@index([endTime])
@@ -1877,7 +1910,7 @@ enum LedgerEntryType {
 
 model LedgerEntry {
   id             String          @id @default(cuid())
-  entityType     String          // USER, AGENCY, PROPERTY
+  entityType     String // USER, AGENCY, PROPERTY
   entityId       String
   type           LedgerEntryType
   amountUsdCents Int
@@ -1890,58 +1923,58 @@ model LedgerEntry {
 }
 
 model PaymentProviderSettings {
-  id              String          @id @default(cuid())
-  provider        PaymentProvider @unique
-  enabled         Boolean         @default(false)
-  isDefault       Boolean         @default(false)
-  isTestMode      Boolean         @default(true)
-  apiKey          String?         // Encrypted in production
-  apiSecret       String?         // Encrypted in production
-  returnUrl       String?
-  webhookUrl      String?
-  webhookSecret   String?         // For webhook verification
-  configJson      Json?           // Additional provider-specific config
-  validatedAt     DateTime?
-  validatedBy     String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id            String          @id @default(cuid())
+  provider      PaymentProvider @unique
+  enabled       Boolean         @default(false)
+  isDefault     Boolean         @default(false)
+  isTestMode    Boolean         @default(true)
+  apiKey        String? // Encrypted in production
+  apiSecret     String? // Encrypted in production
+  returnUrl     String?
+  webhookUrl    String?
+  webhookSecret String? // For webhook verification
+  configJson    Json? // Additional provider-specific config
+  validatedAt   DateTime?
+  validatedBy   String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   @@index([enabled])
   @@index([isDefault])
 }
 
 model PricingRule {
-  id                    String            @id @default(cuid())
-  itemType              ChargeableItemType @unique
-  priceUsdCents         Int
-  currency              Currency
-  commissionPercent     Decimal           @db.Decimal(5, 2) // Platform commission %
-  platformFeePercent    Decimal           @db.Decimal(5, 2) // Platform fee %
-  agentSharePercent     Decimal?          @db.Decimal(5, 2) // Agent share % (if applicable)
-  referralSharePercent  Decimal?          @db.Decimal(5, 2) // Referral share %
-  rewardPoolSharePercent Decimal?          @db.Decimal(5, 2) // Reward pool share %
-  isActive              Boolean           @default(true)
-  metadata              Json?             // Additional pricing context
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
+  id                     String             @id @default(cuid())
+  itemType               ChargeableItemType @unique
+  priceUsdCents          Int
+  currency               Currency
+  commissionPercent      Decimal            @db.Decimal(5, 2) // Platform commission %
+  platformFeePercent     Decimal            @db.Decimal(5, 2) // Platform fee %
+  agentSharePercent      Decimal?           @db.Decimal(5, 2) // Agent share % (if applicable)
+  referralSharePercent   Decimal?           @db.Decimal(5, 2) // Referral share %
+  rewardPoolSharePercent Decimal?           @db.Decimal(5, 2) // Reward pool share %
+  isActive               Boolean            @default(true)
+  metadata               Json? // Additional pricing context
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
 
   @@index([itemType, isActive])
 }
 
 model UserPaymentProfile {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  bankName        String?
-  bankAccountNumber String?
-  bankAccountName String?
-  bankBranchCode  String?
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  bankName            String?
+  bankAccountNumber   String?
+  bankAccountName     String?
+  bankBranchCode      String?
   mobileMoneyProvider String? // Ecocash, OneMoney, etc.
   mobileMoneyNumber   String?
   paypalEmail         String?
-  isVerified          Boolean  @default(false)
+  isVerified          Boolean   @default(false)
   verifiedAt          DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   user User @relation("UserPaymentProfile", fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1949,25 +1982,25 @@ model UserPaymentProfile {
 }
 
 model PaymentTransaction {
-  id              String          @id @default(cuid())
+  id              String             @id @default(cuid())
   userId          String
-  featureId       String?         // Property ID, Agent Assignment ID, etc.
+  featureId       String? // Property ID, Agent Assignment ID, etc.
   featureType     ChargeableItemType
   invoiceId       String?
   paymentIntentId String?
   amountCents     Int
   currency        Currency
-  status          PaymentStatus   @default(PENDING)
+  status          PaymentStatus      @default(PENDING)
   gateway         PaymentGateway
   gatewayRef      String?
-  transactionRef  String          @unique
+  transactionRef  String             @unique
   receiptUrl      String?
-  metadata        Json?           // Additional context
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  metadata        Json? // Additional context
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
-  user         User          @relation("PaymentTransactionUser", fields: [userId], references: [id])
-  invoice      Invoice?      @relation("PaymentTransactionInvoice", fields: [invoiceId], references: [id])
+  user          User           @relation("PaymentTransactionUser", fields: [userId], references: [id])
+  invoice       Invoice?       @relation("PaymentTransactionInvoice", fields: [invoiceId], references: [id])
   paymentIntent PaymentIntent? @relation("PaymentTransactionIntent", fields: [paymentIntentId], references: [id])
 
   @@index([userId, createdAt(sort: Desc)])
@@ -1978,20 +2011,20 @@ model PaymentTransaction {
 }
 
 model PayoutTransaction {
-  id              String        @id @default(cuid())
+  id              String       @id @default(cuid())
   payoutRequestId String
   amountCents     Int
   currency        Currency
   method          PayoutMethod
-  status          PayoutStatus  @default(REQUESTED)
-  gatewayRef      String?       // External payment reference
+  status          PayoutStatus @default(REQUESTED)
+  gatewayRef      String? // External payment reference
   receiptUrl      String?
   processedAt     DateTime?
-  processedBy     String?       // Admin who processed
+  processedBy     String? // Admin who processed
   failureReason   String?
   metadata        Json?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   payoutRequest PayoutRequest @relation("PayoutTransactionRequest", fields: [payoutRequestId], references: [id])
 
@@ -2001,19 +2034,19 @@ model PayoutTransaction {
 }
 
 model ReferralEarning {
-  id              String   @id @default(cuid())
-  referrerId      String   // User who referred
-  referredUserId  String?  // User who was referred (optional for tracking)
-  sourceType      String   // PAYMENT, VERIFICATION, etc.
-  sourceId        String   // ID of the source transaction/event
+  id              String    @id @default(cuid())
+  referrerId      String // User who referred
+  referredUserId  String? // User who was referred (optional for tracking)
+  sourceType      String // PAYMENT, VERIFICATION, etc.
+  sourceId        String // ID of the source transaction/event
   amountCents     Int
   currency        Currency
-  status          String   @default("PENDING") // PENDING, PAID, CANCELLED
+  status          String    @default("PENDING") // PENDING, PAID, CANCELLED
   payoutRequestId String?
-  createdAt       DateTime @default(now())
+  createdAt       DateTime  @default(now())
   paidAt          DateTime?
 
-  referrer User @relation("ReferralEarningReferrer", fields: [referrerId], references: [id])
+  referrer      User           @relation("ReferralEarningReferrer", fields: [referrerId], references: [id])
   payoutRequest PayoutRequest? @relation("ReferralEarningPayout", fields: [payoutRequestId], references: [id])
 
   @@index([referrerId, createdAt(sort: Desc)])

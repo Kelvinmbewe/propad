@@ -40,6 +40,7 @@ import {
   walletThresholdTypes
 } from './dto/upsert-wallet-threshold.dto';
 import { MailService } from '../mail/mail.service';
+import { WalletLedgerService } from './wallet-ledger.service';
 
 type FeatureFlagRecord = {
   key: string;
@@ -88,16 +89,64 @@ export class WalletsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly mail: MailService
+    private readonly mail: MailService,
+    private readonly ledger: WalletLedgerService
   ) {}
 
   async getMyWallet(actor: AuthContext) {
     const owner = this.resolveOwner(actor);
-    return this.prisma.$transaction(async (tx: PrismaClientOrTx) => {
-      const wallet = await this.getOrCreateWallet(owner.ownerType, owner.ownerId, DEFAULT_CURRENCY, tx);
-      await this.releasePendingTransactions(wallet.id, tx);
-      return this.buildWalletResponse(wallet.id, tx);
+    
+    // Only USER wallets support ledger system for now
+    if (owner.ownerType !== OwnerType.USER) {
+      return this.prisma.$transaction(async (tx: PrismaClientOrTx) => {
+        const wallet = await this.getOrCreateWallet(owner.ownerType, owner.ownerId, DEFAULT_CURRENCY, tx);
+        await this.releasePendingTransactions(wallet.id, tx);
+        return this.buildWalletResponse(wallet.id, tx);
+      });
+    }
+
+    // Use ledger-based calculation for USER wallets
+    const balance = await this.ledger.calculateBalance(owner.ownerId, DEFAULT_CURRENCY);
+    
+    const wallet = await this.prisma.wallet.findUnique({
+      where: {
+        ownerType_ownerId_currency: {
+          ownerType: owner.ownerType,
+          ownerId: owner.ownerId,
+          currency: DEFAULT_CURRENCY
+        }
+      },
+      include: {
+        payoutAccounts: {
+          where: { verifiedAt: { not: null } },
+          orderBy: { createdAt: 'desc' }
+        }
+      }
     });
+
+    const latestKyc = await this.prisma.kycRecord.findFirst({
+      where: {
+        ownerType: owner.ownerType,
+        ownerId: owner.ownerId
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    return {
+      id: wallet?.id ?? 'pending',
+      currency: DEFAULT_CURRENCY,
+      balanceCents: balance.balanceCents,
+      pendingCents: balance.pendingCents,
+      withdrawableCents: balance.withdrawableCents,
+      latestKyc: latestKyc
+        ? {
+            id: latestKyc.id,
+            status: latestKyc.status,
+            updatedAt: latestKyc.updatedAt
+          }
+        : null,
+      payoutAccounts: wallet?.payoutAccounts ?? []
+    };
   }
 
   async listTransactions(walletId: string, actor: AuthContext) {

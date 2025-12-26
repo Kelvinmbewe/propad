@@ -1,15 +1,17 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Currency, OwnerType, Prisma } from '@prisma/client';
+import { Currency, OwnerType, Prisma, WalletLedgerSourceType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PricingService } from './pricing.service';
+import { WalletLedgerService } from '../wallets/wallet-ledger.service';
 
 @Injectable()
 export class ReferralsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly pricing: PricingService
+    private readonly pricing: PricingService,
+    private readonly ledger: WalletLedgerService
   ) {}
 
   async createReferralEarning(
@@ -65,27 +67,14 @@ export class ReferralsService {
       }
     });
 
-    // Credit wallet
-    await this.prisma.$transaction(async (tx) => {
-      await tx.wallet.update({
-        where: { id: wallet.id },
-        data: {
-          balanceCents: { increment: amountCents }
-        }
-      });
-
-      await tx.walletTransaction.create({
-        data: {
-          walletId: wallet.id,
-          amountCents,
-          type: 'CREDIT',
-          source: 'REWARD_EVENT',
-          sourceId: earning.id,
-          description: `Referral earning from ${sourceType}`,
-          appliedToBalance: true
-        }
-      });
-    });
+    // Credit wallet via ledger
+    await this.ledger.credit(
+      referrerId,
+      amountCents,
+      currency,
+      WalletLedgerSourceType.REFERRAL,
+      earning.id
+    );
 
     await this.audit.log({
       action: 'referralEarning.created',

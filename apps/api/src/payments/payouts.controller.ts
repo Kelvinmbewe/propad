@@ -81,5 +81,14 @@ export class PayoutsController {
   ) {
     return this.service.processPayout(id, gatewayRef, req.user.userId);
   }
+
+  @Patch(':id/paid')
+  @Roles('ADMIN')
+  markPayoutPaid(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string
+  ) {
+    return this.service.markPayoutPaid(id, req.user.userId);
+  }
 }
 

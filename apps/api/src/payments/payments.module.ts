@@ -20,9 +20,10 @@ import { ReferralsService } from './referrals.service';
 import { ReferralsController } from './referrals.controller';
 import { PaymentPollingService } from './payment-polling.service';
 import { PaymentRequiredGuard } from './guards/payment-required.guard';
+import { WalletsModule } from '../wallets/wallets.module';
 
 @Module({
-  imports: [PrismaModule, AuditModule, HttpModule, MailModule],
+  imports: [PrismaModule, AuditModule, HttpModule, MailModule, WalletsModule],
   controllers: [
     PaymentsController,
     PaymentMethodsController,
