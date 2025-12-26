@@ -1,4 +1,4 @@
-ARG NODE_IMAGE=node:20-bookworm-slim
+ARG NODE_IMAGE=node:20-slim
 FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 ENV PRISMA_SKIP_AUTOINSTALL=true
