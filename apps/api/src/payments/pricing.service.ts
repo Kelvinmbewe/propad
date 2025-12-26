@@ -22,14 +22,14 @@ export class PricingService {
     private readonly audit: AuditService
   ) {}
 
-  async getPricingRule(itemType: ChargeableItemType) {
+  async getPricingRule(itemType: ChargeableItemType, allowInactive = false) {
     const rule = await this.prisma.pricingRule.findUnique({
       where: { itemType }
     });
     if (!rule) {
       throw new NotFoundException(`Pricing rule not found for ${itemType}`);
     }
-    if (!rule.isActive) {
+    if (!allowInactive && !rule.isActive) {
       throw new BadRequestException(`Pricing rule for ${itemType} is inactive`);
     }
     return rule;

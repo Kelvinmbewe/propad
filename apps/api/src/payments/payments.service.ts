@@ -94,17 +94,20 @@ export class PaymentsService {
     private readonly audit: AuditService,
     private readonly registry: PaymentGatewayRegistry,
     private readonly mail: MailService,
-    private readonly polling: PaymentPollingService
+    private readonly polling: PaymentPollingService,
+    private readonly pricing: PricingService
   ) {}
 
   async createInvoiceForFeature(
     featureType: ChargeableItemType,
     featureId: string,
     userId: string,
-    amountUsdCents: number,
     currency: Currency = Currency.USD,
     description?: string
   ) {
+    // Get pricing from PricingService - enforces pricing rules
+    const pricing = await this.pricing.calculatePrice(featureType, undefined, currency);
+
     const invoice = await this.createInvoice(
       {
         buyerUserId: userId,
@@ -115,10 +118,19 @@ export class PaymentsService {
             sku: `${featureType}-${featureId}`,
             description: description || `${featureType} for ${featureId}`,
             qty: 1,
-            unitPriceCents: amountUsdCents,
+            unitPriceCents: pricing.priceCents,
+            taxable: true,
             meta: {
               featureType,
-              featureId
+              featureId,
+              pricingBreakdown: {
+                basePriceUsdCents: pricing.basePriceUsdCents,
+                commissionCents: pricing.commissionCents,
+                platformFeeCents: pricing.platformFeeCents,
+                agentShareCents: pricing.agentShareCents,
+                referralShareCents: pricing.referralShareCents,
+                rewardPoolShareCents: pricing.rewardPoolShareCents
+              }
             }
           }
         ]

@@ -4,9 +4,9 @@ import { PaymentRequiredMetadata } from '../guards/payment-required.guard';
 
 export const PAYMENT_REQUIRED_KEY = 'paymentRequired';
 
-export const PaymentRequired = (featureType: ChargeableItemType, featureIdParam?: string) =>
+export const PaymentRequired = (featureType: ChargeableItemType | string, featureIdParam?: string) =>
   SetMetadata<typeof PAYMENT_REQUIRED_KEY, PaymentRequiredMetadata>(PAYMENT_REQUIRED_KEY, {
-    featureType,
-    featureIdParam
+    featureType: featureType as ChargeableItemType,
+    featureIdParam: featureIdParam || 'id'
   });
 

@@ -21,6 +21,8 @@ import { ReferralsController } from './referrals.controller';
 import { PaymentPollingService } from './payment-polling.service';
 import { PaymentRequiredGuard } from './guards/payment-required.guard';
 import { WalletsModule } from '../wallets/wallets.module';
+import { FeatureAccessService } from './feature-access.service';
+import { FeatureAccessController } from './feature-access.controller';
 import { PaynowPayoutGateway } from './gateways/paynow-payout.gateway';
 import { StripePayoutGateway } from './gateways/stripe-payout.gateway';
 import { PayPalPayoutGateway } from './gateways/paypal-payout.gateway';
@@ -35,7 +37,8 @@ import { PayoutGatewayRegistry } from './payout-gateway.registry';
     PaymentProviderSettingsController,
     PricingController,
     PayoutsController,
-    ReferralsController
+    ReferralsController,
+    FeatureAccessController
   ],
   providers: [
     PaymentsService,
@@ -46,6 +49,7 @@ import { PayoutGatewayRegistry } from './payout-gateway.registry';
     ReferralsService,
     PaymentPollingService,
     PaymentRequiredGuard,
+    FeatureAccessService,
     PaynowGateway,
     PaymentGatewayRegistry,
     PaynowPayoutGateway,
@@ -67,6 +71,6 @@ import { PayoutGatewayRegistry } from './payout-gateway.registry';
       inject: [PaynowPayoutGateway, StripePayoutGateway, PayPalPayoutGateway]
     }
   ],
-  exports: [PaymentsService, PricingService, PayoutsService, ReferralsService, PaymentRequiredGuard]
+  exports: [PaymentsService, PricingService, PayoutsService, ReferralsService, PaymentRequiredGuard, FeatureAccessService]
 })
 export class PaymentsModule {}

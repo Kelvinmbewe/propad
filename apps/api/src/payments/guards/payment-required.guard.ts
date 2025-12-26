@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
-import { ChargeableItemType, PaymentStatus } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { ChargeableItemType } from '@prisma/client';
+import { FeatureAccessService, FeatureAccessStatus } from '../feature-access.service';
 
 export interface PaymentRequiredMetadata {
   featureType: ChargeableItemType;
@@ -9,7 +9,7 @@ export interface PaymentRequiredMetadata {
 
 @Injectable()
 export class PaymentRequiredGuard implements CanActivate {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly featureAccess: FeatureAccessService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -38,29 +38,33 @@ export class PaymentRequiredGuard implements CanActivate {
       throw new ForbiddenException(`Feature ID is required for ${featureType}`);
     }
 
-    // Check for valid payment transaction
-    const payment = await this.prisma.paymentTransaction.findFirst({
-      where: {
-        userId: user.userId,
-        featureType,
-        featureId,
-        status: PaymentStatus.PAID
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+    // Check feature access using FeatureAccessService
+    const access = await this.featureAccess.checkAccess(user.userId, featureType, featureId);
 
-    if (!payment) {
+    if (access.status === FeatureAccessStatus.FREE) {
+      // Feature is free, allow access
+      return true;
+    }
+
+    if (access.status === FeatureAccessStatus.GRANTED) {
+      // Payment completed, allow access
+      return true;
+    }
+
+    if (access.status === FeatureAccessStatus.REQUIRED) {
+      // Payment required but not paid
+      const price = access.pricingBreakdown
+        ? `${(access.pricingBreakdown.totalCents / 100).toFixed(2)} ${access.pricingBreakdown.currency}`
+        : 'payment';
       throw new ForbiddenException(
-        `Payment required for ${featureType}. Please complete payment before accessing this feature.`
+        `Payment required for ${featureType}. Amount: ${price}. Please complete payment before accessing this feature.`
       );
     }
 
-    // Attach payment to request for use in handlers
-    request.paymentTransaction = payment;
-
-    return true;
+    // EXPIRED or other status - deny access
+    throw new ForbiddenException(
+      `Access to ${featureType} is not available. Please contact support.`
+    );
   }
 }
 
