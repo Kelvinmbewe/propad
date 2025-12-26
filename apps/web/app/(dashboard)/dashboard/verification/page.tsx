@@ -1,16 +1,27 @@
-import { auth } from '@/auth';
-import { prisma } from '@/lib/prisma';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useSession } from 'next-auth/react';
 import { CheckCircle, ShieldCheck } from 'lucide-react';
+import { PaymentGate } from '@/components/payment-gate';
+import { useQuery } from '@tanstack/react-query';
 
-export default async function VerificationPage() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    redirect('/auth/signin');
-  }
+export default function VerificationPage() {
+  const { data: session } = useSession();
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id }
+  const { data: user } = useQuery({
+    queryKey: ['user-me'],
+    queryFn: async () => {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/me`, {
+        headers: {
+          Authorization: `Bearer ${session?.accessToken}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to load user');
+      }
+      return response.json();
+    },
+    enabled: !!session?.accessToken
   });
 
   if (user?.isVerified) {
@@ -33,40 +44,24 @@ export default async function VerificationPage() {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-8">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900">Standard Verification</h3>
-            <p className="mt-1 text-slate-500">Fast-track your verification process.</p>
+      <PaymentGate
+        featureType="TRUST_BOOST"
+        targetId={user?.id || ''}
+        featureName="User Verification"
+        featureDescription="Get verified to build trust with landlords and tenants"
+      >
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-8">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Standard Verification</h3>
+              <p className="mt-1 text-slate-500">Fast-track your verification process.</p>
+            </div>
           </div>
-          <div className="text-2xl font-bold text-slate-900">$20</div>
-        </div>
-
-        <div className="mt-8 space-y-4">
-          <p className="text-sm text-slate-600">Select Payment Method:</p>
-          <div className="grid gap-4 sm:grid-cols-3">
-             {/* Mock buttons for payment gateways */}
-             <form action="/api/verification/checkout" method="POST">
-                <input type="hidden" name="gateway" value="PAYNOW" />
-                <button className="flex w-full flex-col items-center justify-center rounded-lg border border-slate-200 p-4 hover:border-emerald-500 hover:bg-emerald-50">
-                  <span className="font-semibold">Paynow</span>
-                </button>
-             </form>
-             <form action="/api/verification/checkout" method="POST">
-                <input type="hidden" name="gateway" value="STRIPE" />
-                <button className="flex w-full flex-col items-center justify-center rounded-lg border border-slate-200 p-4 hover:border-emerald-500 hover:bg-emerald-50">
-                  <span className="font-semibold">Stripe</span>
-                </button>
-             </form>
-             <form action="/api/verification/checkout" method="POST">
-                <input type="hidden" name="gateway" value="PAYPAL" />
-                <button className="flex w-full flex-col items-center justify-center rounded-lg border border-slate-200 p-4 hover:border-emerald-500 hover:bg-emerald-50">
-                  <span className="font-semibold">PayPal</span>
-                </button>
-             </form>
+          <div className="mt-8">
+            <p className="text-sm text-slate-500">Verification access granted. Please proceed with the verification process.</p>
           </div>
         </div>
-      </div>
+      </PaymentGate>
     </div>
   );
 }

@@ -1,15 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getServerApiBaseUrl } from '@propad/config';
-import { useSession } from 'next-auth/react';
-
-interface Wallet {
-  id: string;
-  currency: string;
-  balanceCents: number;
-  pendingCents: number;
-}
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Skeleton } from '@propad/ui';
+import { WalletSummary } from '@/components/wallet-summary';
+import { PaymentHistory } from '@/components/payment-history';
+import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
+import { formatCurrency } from '@/lib/formatters';
+import { DollarSign, Clock, CheckCircle2, XCircle } from 'lucide-react';
 
 interface PayoutRequest {
   id: string;
@@ -17,130 +14,126 @@ interface PayoutRequest {
   method: string;
   status: string;
   createdAt: string;
+  txRef?: string;
 }
 
-export default function WalletPage() {
-  const { data: session } = useSession();
-  const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (session?.accessToken) {
-      loadWallet();
-      loadPayouts();
-    }
-  }, [session]);
-
-  const loadWallet = async () => {
-    try {
-      const response = await fetch(`${getServerApiBaseUrl()}/wallets/my`, {
-        headers: {
-          Authorization: `Bearer ${session?.accessToken}`
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setWallet(data[0] || null);
-      }
-    } catch (error) {
-      console.error('Failed to load wallet:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadPayouts = async () => {
-    try {
-      const response = await fetch(`${getServerApiBaseUrl()}/payouts/my`, {
-        headers: {
-          Authorization: `Bearer ${session?.accessToken}`
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setPayouts(data);
-      }
-    } catch (error) {
-      console.error('Failed to load payouts:', error);
-    }
-  };
-
-  if (loading) {
-    return <div>Loading wallet...</div>;
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case 'PAID':
+      return (
+        <Badge variant="default" className="bg-green-100 text-green-800">
+          <CheckCircle2 className="mr-1 h-3 w-3" />
+          Paid
+        </Badge>
+      );
+    case 'PROCESSING':
+    case 'APPROVED':
+      return (
+        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+          <Clock className="mr-1 h-3 w-3" />
+          {status}
+        </Badge>
+      );
+    case 'FAILED':
+    case 'CANCELLED':
+      return (
+        <Badge variant="destructive" className="bg-red-100 text-red-800">
+          <XCircle className="mr-1 h-3 w-3" />
+          {status}
+        </Badge>
+      );
+    default:
+      return <Badge variant="outline">{status}</Badge>;
   }
+};
+
+export default function WalletPage() {
+  const sdk = useAuthenticatedSDK();
+
+  const { data: payouts, isLoading: loadingPayouts } = useQuery<PayoutRequest[]>({
+    queryKey: ['payouts-my'],
+    queryFn: async () => {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/payouts/my`, {
+        headers: {
+          Authorization: `Bearer ${await sdk?.getToken()}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to load payouts');
+      }
+      return response.json();
+    },
+    enabled: !!sdk
+  });
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-8">
+    <div className="mx-auto flex max-w-6xl flex-col gap-8">
       <div>
         <h1 className="text-2xl font-bold">Wallet</h1>
-        <p className="text-sm text-gray-600">Manage your balance and payout requests</p>
+        <p className="text-sm text-gray-600">Manage your balance, payouts, and payment history</p>
       </div>
 
-      {wallet && (
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Available Balance</h3>
-            <p className="mt-2 text-3xl font-bold">
-              ${(wallet.balanceCents / 100).toFixed(2)} {wallet.currency}
-            </p>
-          </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Pending</h3>
-            <p className="mt-2 text-3xl font-bold">
-              ${(wallet.pendingCents / 100).toFixed(2)} {wallet.currency}
-            </p>
-          </div>
-        </div>
-      )}
+      <WalletSummary />
 
-      <div>
-        <h2 className="mb-4 text-lg font-semibold">Payout Requests</h2>
-        {payouts.length === 0 ? (
-          <p className="text-sm text-gray-500">No payout requests yet</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Method
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Created
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {payouts.map((payout) => (
-                  <tr key={payout.id}>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                      ${(payout.amountCents / 100).toFixed(2)}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      {payout.method}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm">
-                      <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
-                        {payout.status}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      {new Date(payout.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Payout Requests</CardTitle>
+            <CardDescription>Track your withdrawal requests</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingPayouts ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center justify-between border-b pb-4">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </div>
+            ) : !payouts || payouts.length === 0 ? (
+              <div className="py-8 text-center text-sm text-gray-500">No payout requests yet</div>
+            ) : (
+              <div className="space-y-4">
+                {payouts.map((payout) => (
+                  <div key={payout.id} className="flex items-center justify-between border-b pb-4 last:border-0">
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {formatCurrency(payout.amountCents / 100, 'USD')}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {payout.method} • {new Date(payout.createdAt).toLocaleDateString()}
+                      </p>
+                      {payout.txRef && (
+                        <p className="text-xs text-gray-400">Ref: {payout.txRef.substring(0, 12)}...</p>
+                      )}
+                    </div>
+                    {getStatusBadge(payout.status)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Minimum Payout Threshold</CardTitle>
+            <CardDescription>Amount required to request a payout</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-gray-400" />
+              <div>
+                <p className="text-2xl font-bold">$10.00 USD</p>
+                <p className="text-xs text-gray-500">Minimum amount to withdraw</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <PaymentHistory />
     </div>
   );
 }

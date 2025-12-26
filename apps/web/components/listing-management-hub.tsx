@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { getInterestsForProperty, getChatThreads, getThreadMessages, sendMessage, getViewings } from '@/app/actions/listings';
 import { acceptInterest, rejectInterest } from '@/app/actions/landlord';
 import { getFeaturedStatus, createFeaturedListing, completeFeaturedPayment } from '@/app/actions/featured';
+import { PaymentGate } from '@/components/payment-gate';
 import { ArrowLeft, Check, X, MessageSquare, Send, Calendar, Clock, MapPin, ShieldCheck, AlertTriangle, Loader2, CreditCard, TrendingUp, Star, Upload, MapPin as MapPinIcon, Camera, FileText, Navigation, UserCheck, UserX, Eye, Handshake, DollarSign, CheckCircle2, XCircle, Ban, History, AlertCircle, Info } from 'lucide-react';
 
 const formatDate = (date: Date | string) => {
@@ -326,12 +327,19 @@ function ManagementTab({
                         />
                     </div>
 
-                    <Button
-                        onClick={assignment ? () => updateFee({ serviceFeeUsd: Number(serviceFee) }) : handleAssign}
-                        disabled={isAssigning || isUpdatingFee}
+                    <PaymentGate
+                        featureType="AGENT_ASSIGNMENT"
+                        targetId={property.id}
+                        featureName="Agent Assignment"
+                        featureDescription="Assign a verified agent to manage your property listing"
                     >
-                        {assignment ? 'Update Fee' : 'Assign Agent'}
-                    </Button>
+                        <Button
+                            onClick={assignment ? () => updateFee({ serviceFeeUsd: Number(serviceFee) }) : handleAssign}
+                            disabled={isAssigning || isUpdatingFee}
+                        >
+                            {assignment ? 'Update Fee' : 'Assign Agent'}
+                        </Button>
+                    </PaymentGate>
 
                     {assignment && (
                         <div className="mt-4 p-4 bg-blue-50 text-blue-800 rounded-md text-sm flex items-start gap-2">
@@ -398,17 +406,24 @@ function FeaturedSection({ propertyId }: { propertyId: string }) {
                         </Button>
                     </div>
                 ) : (
-                    <div className="space-y-4">
-                        <p className="text-sm text-neutral-600">Boost your listing to get up to 3x more views.</p>
-                        <Button
-                            variant="outline"
-                            className="w-full border-purple-200 text-purple-700 hover:bg-purple-50"
-                            onClick={() => createMut.mutate()}
-                            disabled={createMut.isPending}
-                        >
-                            {createMut.isPending ? 'Processing...' : 'Boost for 7 days ($20)'}
-                        </Button>
-                    </div>
+                    <PaymentGate
+                        featureType="FEATURED_LISTING"
+                        targetId={propertyId}
+                        featureName="Featured Listing"
+                        featureDescription="Boost your listing visibility for 7 days"
+                    >
+                        <div className="space-y-4">
+                            <p className="text-sm text-neutral-600">Boost your listing to get up to 3x more views.</p>
+                            <Button
+                                variant="outline"
+                                className="w-full border-purple-200 text-purple-700 hover:bg-purple-50"
+                                onClick={() => createMut.mutate()}
+                                disabled={createMut.isPending}
+                            >
+                                {createMut.isPending ? 'Processing...' : 'Boost for 7 days ($20)'}
+                            </Button>
+                        </div>
+                    </PaymentGate>
                 )}
             </CardContent>
         </Card>
@@ -1259,16 +1274,36 @@ function VerificationStep({
                                 </div>
                             </>
                         )}
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={
-                                uploading ||
-                                ((type === 'proof' || type === 'photos') ? evidenceUrls.length === 0 :
-                                    type === 'location' ? !((gpsLat && gpsLng) || requestOnSiteVisit) : false)
-                            }
-                        >
-                            {uploading ? 'Uploading...' : item ? 'Update' : 'Submit'}
-                        </Button>
+                        {!item ? (
+                            <PaymentGate
+                                featureType="PROPERTY_VERIFICATION"
+                                targetId={propertyId}
+                                featureName="Property Verification"
+                                featureDescription="Complete payment to submit your property for verification"
+                            >
+                                <Button
+                                    onClick={handleSubmit}
+                                    disabled={
+                                        uploading ||
+                                        ((type === 'proof' || type === 'photos') ? evidenceUrls.length === 0 :
+                                            type === 'location' ? !((gpsLat && gpsLng) || requestOnSiteVisit) : false)
+                                    }
+                                >
+                                    {uploading ? 'Uploading...' : 'Submit'}
+                                </Button>
+                            </PaymentGate>
+                        ) : (
+                            <Button
+                                onClick={handleSubmit}
+                                disabled={
+                                    uploading ||
+                                    ((type === 'proof' || type === 'photos') ? evidenceUrls.length === 0 :
+                                        type === 'location' ? !((gpsLat && gpsLng) || requestOnSiteVisit) : false)
+                                }
+                            >
+                                {uploading ? 'Uploading...' : 'Update'}
+                            </Button>
+                        )}
                         {(type === 'proof' || type === 'photos') && evidenceUrls.length === 0 && (
                             <p className="text-xs text-neutral-500">Please upload a file to submit</p>
                         )}

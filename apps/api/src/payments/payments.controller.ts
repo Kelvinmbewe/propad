@@ -1,18 +1,45 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { ChargeableItemType, Currency } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentIntentDto, createPaymentIntentSchema } from './dto/create-payment-intent.dto';
 import { MarkProcessingDto, markProcessingSchema } from './dto/processing-intent.dto';
 
+interface AuthenticatedRequest {
+  user: {
+    userId: string;
+  };
+}
+
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @UseGuards(JwtAuthGuard)
-  @Post('intent')
+  @Post('intents')
   createIntent(@Body(new ZodValidationPipe(createPaymentIntentSchema)) dto: CreatePaymentIntentDto) {
     return this.paymentsService.createPaymentIntent(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('invoices/for-feature')
+  createInvoiceForFeature(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { featureType: ChargeableItemType; featureId: string; currency?: Currency }
+  ) {
+    return this.paymentsService.createInvoiceForFeature(
+      body.featureType,
+      body.featureId,
+      req.user.userId,
+      body.currency || Currency.USD
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('invoices/my')
+  getMyInvoices(@Req() req: AuthenticatedRequest) {
+    return this.paymentsService.listMyInvoices(req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard)

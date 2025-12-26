@@ -757,4 +757,31 @@ export class PaymentsService {
       doc.end();
     });
   }
+
+  async listMyInvoices(userId: string) {
+    const invoices = await this.prisma.invoice.findMany({
+      where: {
+        buyerUserId: userId
+      },
+      include: {
+        lines: true,
+        paymentTransactions: {
+          select: {
+            id: true,
+            status: true,
+            gatewayRef: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return invoices;
+  }
 }
