@@ -18,6 +18,8 @@ import { PayoutsService } from './payouts.service';
 import { PayoutsController } from './payouts.controller';
 import { ReferralsService } from './referrals.service';
 import { ReferralsController } from './referrals.controller';
+import { PaymentPollingService } from './payment-polling.service';
+import { PaymentRequiredGuard } from './guards/payment-required.guard';
 
 @Module({
   imports: [PrismaModule, AuditModule, HttpModule, MailModule],
@@ -36,6 +38,8 @@ import { ReferralsController } from './referrals.controller';
     PricingService,
     PayoutsService,
     ReferralsService,
+    PaymentPollingService,
+    PaymentRequiredGuard,
     PaynowGateway,
     PaymentGatewayRegistry,
     {
@@ -44,6 +48,6 @@ import { ReferralsController } from './referrals.controller';
       inject: [PaynowGateway]
     }
   ],
-  exports: [PaymentsService, PricingService, PayoutsService, ReferralsService]
+  exports: [PaymentsService, PricingService, PayoutsService, ReferralsService, PaymentRequiredGuard]
 })
 export class PaymentsModule {}

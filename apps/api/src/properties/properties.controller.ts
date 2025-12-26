@@ -41,6 +41,8 @@ import { RespondViewingDto, respondViewingSchema } from './dto/respond-viewing.d
 import { UpdateVerificationItemDto, updateVerificationItemSchema } from './dto/update-verification-item.dto';
 import { ReviewVerificationItemDto, reviewVerificationItemSchema } from './dto/review-verification-item.dto';
 import { SubmitPropertyRatingDto, submitPropertyRatingSchema } from './dto/submit-property-rating.dto';
+import { PaymentRequired } from '../payments/decorators/payment-required.decorator';
+import { PaymentRequiredGuard } from '../payments/guards/payment-required.guard';
 
 interface AuthenticatedRequest {
   user: {
@@ -179,8 +181,9 @@ export class PropertiesController {
   }
 
   @Post(':id/assign-agent')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PaymentRequiredGuard)
   @Roles(Role.LANDLORD, Role.ADMIN)
+  @PaymentRequired('AGENT_ASSIGNMENT', 'id')
   assignVerifiedAgent(
     @Param('id') id: string,
     @Req() req: AuthenticatedRequest,
@@ -228,8 +231,9 @@ export class PropertiesController {
   }
 
   @Post(':id/submit')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PaymentRequiredGuard)
   @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @PaymentRequired('PROPERTY_VERIFICATION', 'id')
   submitForVerification(
     @Param('id') id: string,
     @Req() req: AuthenticatedRequest,

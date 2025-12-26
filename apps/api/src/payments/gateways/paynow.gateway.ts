@@ -93,6 +93,56 @@ export class PaynowGateway implements PaymentGatewayHandler {
     };
   }
 
+  async pollStatus(pollUrl: string): Promise<PaymentWebhookResult> {
+    const config = this.requireConfig();
+
+    try {
+      const response = await firstValueFrom(
+        this.http.get(pollUrl, {
+          timeout: 10000, // 10 second timeout
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        })
+      );
+
+      const data = this.parseKeyValue(response.data);
+      
+      // Verify hash if present
+      const providedHash = data.hash ?? data.HASH;
+      if (providedHash) {
+        const computed = this.computeHash(data, config.key);
+        if (computed !== providedHash.toUpperCase()) {
+          throw new Error('Invalid Paynow signature in poll response');
+        }
+      }
+
+      const amount = this.toNumber(data.amount ?? data.paidamount ?? '0');
+      const amountCents = Math.round(amount * 100);
+      const status = (data.status ?? '').toLowerCase();
+      const success = status === 'paid' || status === 'awaiting delivery';
+
+      return {
+        reference: data.reference || data.pollreference || data.paynowreference || '',
+        externalRef: data.paynowreference ?? data.transactionreference ?? '',
+        amountCents,
+        currency: this.detectCurrency(data.currency),
+        success,
+        rawPayload: data
+      };
+    } catch (error) {
+      // If polling fails, return a failed result
+      return {
+        reference: '',
+        externalRef: '',
+        amountCents: 0,
+        currency: Currency.USD,
+        success: false,
+        rawPayload: { error: error instanceof Error ? error.message : String(error) }
+      };
+    }
+  }
+
   private requireConfig(): PaynowConfig {
     const id = env.PAYNOW_INTEGRATION_ID;
     const key = env.PAYNOW_INTEGRATION_KEY;

@@ -29,4 +29,11 @@ export class PaymentsController {
     await this.paymentsService.handlePaynowWebhook(body);
     return { success: true };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('intent/:id/poll')
+  async pollPayment(@Param('id') id: string) {
+    const result = await this.paymentsService.pollPaymentStatus(id);
+    return { success: result };
+  }
 }

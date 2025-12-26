@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  ChargeableItemType,
   Currency,
   FxRate,
   Invoice,
@@ -8,6 +9,7 @@ import {
   InvoiceStatus,
   PaymentGateway,
   PaymentIntentStatus,
+  PaymentStatus,
   Prisma,
   PrismaClient,
   TransactionResult
@@ -20,6 +22,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PaymentGatewayRegistry } from './payment-gateway.registry';
 import { MailService } from '../mail/mail.service';
+import { PaymentPollingService } from './payment-polling.service';
 
 const VAT_SCALE = 100;
 const MICRO_SCALE = 1_000_000;
@@ -90,8 +93,58 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly registry: PaymentGatewayRegistry,
-    private readonly mail: MailService
+    private readonly mail: MailService,
+    private readonly polling: PaymentPollingService
   ) {}
+
+  async createInvoiceForFeature(
+    featureType: ChargeableItemType,
+    featureId: string,
+    userId: string,
+    amountUsdCents: number,
+    currency: Currency = Currency.USD,
+    description?: string
+  ) {
+    const invoice = await this.createInvoice(
+      {
+        buyerUserId: userId,
+        purpose: this.mapFeatureTypeToPurpose(featureType),
+        currency,
+        lines: [
+          {
+            sku: `${featureType}-${featureId}`,
+            description: description || `${featureType} for ${featureId}`,
+            qty: 1,
+            unitPriceCents: amountUsdCents,
+            meta: {
+              featureType,
+              featureId
+            }
+          }
+        ]
+      },
+      undefined
+    );
+
+    return invoice;
+  }
+
+  private mapFeatureTypeToPurpose(featureType: ChargeableItemType): InvoicePurpose {
+    switch (featureType) {
+      case ChargeableItemType.PROPERTY_VERIFICATION:
+        return InvoicePurpose.VERIFICATION;
+      case ChargeableItemType.FEATURED_LISTING:
+        return InvoicePurpose.BOOST;
+      case ChargeableItemType.AGENT_ASSIGNMENT:
+      case ChargeableItemType.IN_HOUSE_ADVERT_BUYING:
+      case ChargeableItemType.IN_HOUSE_ADVERT_SELLING:
+      case ChargeableItemType.TRUST_BOOST:
+      case ChargeableItemType.PREMIUM_VERIFICATION:
+        return InvoicePurpose.OTHER;
+      default:
+        return InvoicePurpose.OTHER;
+    }
+  }
 
   async createInvoice(options: CreateInvoiceOptions, tx?: PrismaClientOrTx) {
     const client = tx ?? this.prisma;
@@ -221,6 +274,13 @@ export class PaymentsService {
       }
     });
 
+    // Start polling for Paynow payments
+    if (options.gateway === PaymentGateway.PAYNOW && result.gatewayReference) {
+      this.polling.startPolling(updated.id).catch((error) => {
+        console.error('Failed to start polling:', error);
+      });
+    }
+
     return { id: updated.id, redirectUrl: updated.redirectUrl };
   }
 
@@ -289,6 +349,38 @@ export class PaymentsService {
       });
 
       if (result.success) {
+        // Create PaymentTransaction if invoice has feature metadata
+        const invoiceLine = intent.invoice.lines.find(
+          (line) => line.metaJson && typeof line.metaJson === 'object' && 'featureType' in line.metaJson
+        );
+
+        if (invoiceLine && invoiceLine.metaJson && typeof invoiceLine.metaJson === 'object') {
+          const meta = invoiceLine.metaJson as { featureType?: string; featureId?: string };
+          if (meta.featureType && meta.featureId && intent.invoice.buyerUserId) {
+            await tx.paymentTransaction.upsert({
+              where: { transactionRef: result.externalRef || result.reference },
+              create: {
+                userId: intent.invoice.buyerUserId,
+                featureId: meta.featureId,
+                featureType: meta.featureType as ChargeableItemType,
+                invoiceId: intent.invoiceId,
+                paymentIntentId: intent.id,
+                amountCents: result.amountCents,
+                currency: result.currency,
+                status: PaymentStatus.PAID,
+                gateway: intent.gateway,
+                gatewayRef: result.externalRef,
+                transactionRef: result.externalRef || result.reference,
+                metadata: { webhook: true, webhookAt: new Date().toISOString() }
+              },
+              update: {
+                status: PaymentStatus.PAID,
+                gatewayRef: result.externalRef
+              }
+            });
+          }
+        }
+
         const updatedInvoice = await this.finalizeInvoice(tx, intent.invoice);
         return {
           invoice: updatedInvoice,

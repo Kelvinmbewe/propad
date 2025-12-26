@@ -29,4 +29,6 @@ export interface PaymentGatewayHandler {
   }): Promise<PaymentIntentResult>;
 
   verifyWebhook(payload: Record<string, string>): Promise<PaymentWebhookResult>;
+
+  pollStatus?(pollUrl: string): Promise<PaymentWebhookResult>;
 }
