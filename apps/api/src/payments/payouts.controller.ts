@@ -90,5 +90,14 @@ export class PayoutsController {
   ) {
     return this.service.markPayoutPaid(id, req.user.userId);
   }
+
+  @Post('transactions/:transactionId/execute')
+  @Roles('ADMIN')
+  executePayout(
+    @Req() req: AuthenticatedRequest,
+    @Param('transactionId') transactionId: string
+  ) {
+    return this.service.executePayout(transactionId, req.user.userId);
+  }
 }
 

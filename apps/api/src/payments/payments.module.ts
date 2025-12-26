@@ -21,6 +21,11 @@ import { ReferralsController } from './referrals.controller';
 import { PaymentPollingService } from './payment-polling.service';
 import { PaymentRequiredGuard } from './guards/payment-required.guard';
 import { WalletsModule } from '../wallets/wallets.module';
+import { PaynowPayoutGateway } from './gateways/paynow-payout.gateway';
+import { StripePayoutGateway } from './gateways/stripe-payout.gateway';
+import { PayPalPayoutGateway } from './gateways/paypal-payout.gateway';
+import { PAYOUT_GATEWAYS } from './payments.constants';
+import { PayoutGatewayRegistry } from './payout-gateway.registry';
 
 @Module({
   imports: [PrismaModule, AuditModule, HttpModule, MailModule, WalletsModule],
@@ -43,10 +48,23 @@ import { WalletsModule } from '../wallets/wallets.module';
     PaymentRequiredGuard,
     PaynowGateway,
     PaymentGatewayRegistry,
+    PaynowPayoutGateway,
+    StripePayoutGateway,
+    PayPalPayoutGateway,
+    PayoutGatewayRegistry,
     {
       provide: PAYMENT_GATEWAYS,
       useFactory: (paynow: PaynowGateway) => [paynow],
       inject: [PaynowGateway]
+    },
+    {
+      provide: PAYOUT_GATEWAYS,
+      useFactory: (
+        paynow: PaynowPayoutGateway,
+        stripe: StripePayoutGateway,
+        paypal: PayPalPayoutGateway
+      ) => [paynow, stripe, paypal],
+      inject: [PaynowPayoutGateway, StripePayoutGateway, PayPalPayoutGateway]
     }
   ],
   exports: [PaymentsService, PricingService, PayoutsService, ReferralsService, PaymentRequiredGuard]

@@ -1,1 +1,2 @@
 export const PAYMENT_GATEWAYS = Symbol('PAYMENT_GATEWAYS');
+export const PAYOUT_GATEWAYS = Symbol('PAYOUT_GATEWAYS');
