@@ -8,6 +8,7 @@ import { FacebookService } from './facebook.service';
 @Module({
   imports: [HttpModule, PropertiesModule, ShortLinksModule],
   controllers: [FacebookController],
-  providers: [FacebookService]
+  providers: [FacebookService],
+  exports: [FacebookService]
 })
-export class FacebookModule {}
+export class FacebookModule { }

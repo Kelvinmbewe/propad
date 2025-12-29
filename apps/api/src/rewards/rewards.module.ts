@@ -8,6 +8,7 @@ import { WalletsModule } from '../wallets/wallets.module';
 @Module({
   imports: [PrismaModule, AuditModule, WalletsModule],
   controllers: [RewardsController],
-  providers: [RewardsService]
+  providers: [RewardsService],
+  exports: [RewardsService]
 })
-export class RewardsModule {}
+export class RewardsModule { }

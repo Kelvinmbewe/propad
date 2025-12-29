@@ -8,6 +8,7 @@ import { PaymentsModule } from '../payments/payments.module';
 @Module({
   imports: [PrismaModule, AuditModule, PaymentsModule],
   controllers: [PromosController],
-  providers: [PromosService]
+  providers: [PromosService],
+  exports: [PromosService]
 })
-export class PromosModule {}
+export class PromosModule { }

@@ -11,5 +11,6 @@ import { ProfilesService } from './profiles.service';
     imports: [PrismaModule, AgenciesModule, TrustModule],
     controllers: [ProfilesController],
     providers: [ProfilesService],
+    exports: [ProfilesService],
 })
 export class ProfilesModule { }

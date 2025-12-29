@@ -7,6 +7,7 @@ import { LeadsService } from './leads.service';
 @Module({
   imports: [PrismaModule, AuditModule],
   controllers: [LeadsController],
-  providers: [LeadsService]
+  providers: [LeadsService],
+  exports: [LeadsService]
 })
-export class LeadsModule {}
+export class LeadsModule { }

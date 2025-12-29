@@ -8,6 +8,7 @@ import { AuditModule } from '../audit/audit.module';
 @Module({
   imports: [PrismaModule, PaymentsModule, AuditModule],
   controllers: [AdsController],
-  providers: [AdsService]
+  providers: [AdsService],
+  exports: [AdsService]
 })
-export class AdsModule {}
+export class AdsModule { }
