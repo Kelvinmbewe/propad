@@ -3,8 +3,12 @@ services:
     build:
       context: ..
       dockerfile: infrastructure/web.Dockerfile
-    # Run socat in background to forward localhost:3001 to api:3001 (on both IPv4 and IPv6), then start Next.js
-    command: sh -c "apk add --no-cache socat && (socat TCP4-LISTEN:3001,fork,reuseaddr TCP:api:3001 &) && (socat TCP6-LISTEN:3001,fork,reuseaddr,ipv6only TCP:api:3001 &) && pnpm --filter @propad/web run start"
+    command: >
+      sh -c "
+        socat TCP4-LISTEN:3001,fork,reuseaddr TCP:api:3001 &
+        socat TCP6-LISTEN:3001,fork,reuseaddr,ipv6only TCP:api:3001 &
+        pnpm --filter @propad/web run start
+      "
     environment:
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: this-is-a-very-secure-secret-that-is-at-least-32-chars-long
@@ -13,7 +17,7 @@ services:
       INTERNAL_API_BASE_URL: http://api:3001
       DATABASE_URL: postgresql://kelvin:Kellzbiax95@postgres:5432/propad?schema=public
     ports:
-      - '3000:3000'
+      - "3000:3000"
     depends_on:
       api:
         condition: service_healthy
@@ -34,14 +38,13 @@ services:
       DATABASE_URL: postgresql://kelvin:Kellzbiax95@postgres:5432/propad?schema=public
       JWT_SECRET: this-is-a-very-secure-secret-that-is-at-least-32-chars-long
     ports:
-      - '3001:3001'
+      - "3001:3001"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_started
     volumes:
-      # Persist uploaded media and make it available on the host under ./uploads
       - ../uploads:/app/uploads
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))" ]
@@ -57,11 +60,11 @@ services:
       POSTGRES_USER: kelvin
       POSTGRES_PASSWORD: Kellzbiax95
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ 'CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB' ]
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -69,7 +72,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - '6379:6379'
+      - "6379:6379"
 
   minio:
     image: minio/minio:latest
@@ -78,8 +81,8 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - '9000:9000'
-      - '9001:9001'
+      - "9000:9000"
+      - "9001:9001"
     volumes:
       - minio_data:/data
 
