@@ -6,8 +6,10 @@ import { VerificationsService } from './verifications.service';
 import { VerificationFingerprintService } from './verification-fingerprint.service';
 import { TrustModule } from '../trust/trust.module';
 
+import { PaymentsModule } from '../payments/payments.module';
+
 @Module({
-  imports: [PrismaModule, AuditModule, TrustModule],
+  imports: [PrismaModule, AuditModule, TrustModule, PaymentsModule],
   controllers: [VerificationsController],
   providers: [VerificationsService, VerificationFingerprintService],
   exports: [VerificationsService, VerificationFingerprintService]
