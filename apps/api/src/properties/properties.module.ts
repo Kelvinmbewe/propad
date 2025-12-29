@@ -10,8 +10,10 @@ import { VerificationsModule } from '../verifications/verifications.module';
 import { TrustModule } from '../trust/trust.module';
 import { RankingModule } from '../ranking/ranking.module';
 
+import { PaymentsModule } from '../payments/payments.module';
+
 @Module({
-  imports: [PrismaModule, AuditModule, GeoModule, VerificationsModule, TrustModule, RankingModule],
+  imports: [PrismaModule, AuditModule, GeoModule, VerificationsModule, TrustModule, RankingModule, PaymentsModule],
   controllers: [PropertiesController],
   providers: [PropertiesService, OfferAutoConfirmationService],
   exports: [PropertiesService]
