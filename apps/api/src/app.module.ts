@@ -60,7 +60,6 @@ import { MonetizationModule } from './monetization/monetization.module';
     AppConfigModule,
     RolesModule,
     AgenciesModule,
-    AgenciesModule,
     ProfilesModule,
     TrustModule,
     RankingModule,
