@@ -3,19 +3,13 @@ services:
     build:
       context: ..
       dockerfile: infrastructure/web.Dockerfile
-    command: >
-      sh -c "
-        socat TCP4-LISTEN:3001,fork,reuseaddr TCP:api:3001 &
-        socat TCP6-LISTEN:3001,fork,reuseaddr,ipv6only TCP:api:3001 &
-        pnpm --filter @propad/web run start
-      "
+    command: pnpm --filter @propad/web run start
     environment:
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: this-is-a-very-secure-secret-that-is-at-least-32-chars-long
       JWT_SECRET: this-is-a-very-secure-secret-that-is-at-least-32-chars-long
       NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
       INTERNAL_API_BASE_URL: http://api:3001
-      DATABASE_URL: postgresql://kelvin:Kellzbiax95@postgres:5432/propad?schema=public
     ports:
       - "3000:3000"
     depends_on:
