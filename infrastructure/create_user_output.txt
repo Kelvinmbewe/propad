@@ -1,0 +1,19 @@
+Creating user demo.user@propad.co.zw...
+Error creating user: PrismaClientKnownRequestError: 
+Invalid `prisma.user.upsert()` invocation in
+/app/apps/api/create_user.js:14:40
+
+  11 console.log(`Creating user ${email}...`);
+  12 
+  13 try {
+→ 14     const user = await prisma.user.upsert(
+The column `trustScore` does not exist in the current database.
+    at $n.handleRequestError (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:121:7315)
+    at $n.handleAndLogRequestError (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async main (/app/apps/api/create_user.js:14:22) {
+  code: 'P2022',
+  clientVersion: '5.22.0',
+  meta: { modelName: 'User', column: 'trustScore' }
+}
