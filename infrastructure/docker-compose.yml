@@ -18,6 +18,11 @@ services:
         condition: service_started
     env_file:
       - ../apps/web/.env.example
+    environment:
+      DATABASE_URL: postgresql://kelvin:Kellzbiax95@postgres:5432/propad?schema=public
+      JWT_SECRET: this-is-a-very-secure-secret-that-is-at-least-32-chars-long
+      NEXTAUTH_SECRET: this-is-a-very-secure-secret-that-is-at-least-32-chars-long
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
