@@ -504,13 +504,10 @@ export class GeoService implements OnModuleInit {
   }
 
   private async ensureSeedData() {
-    const existing = await this.prisma.country.findFirst({ where: { iso2: ZIMBABWE_SEED.iso2 } });
-    if (existing) {
-      return;
-    }
-
-    const country = await this.prisma.country.create({
-      data: {
+    const country = await this.prisma.country.upsert({
+      where: { iso2: ZIMBABWE_SEED.iso2 },
+      update: {},
+      create: {
         iso2: ZIMBABWE_SEED.iso2,
         name: ZIMBABWE_SEED.name,
         phoneCode: ZIMBABWE_SEED.phoneCode
@@ -518,36 +515,60 @@ export class GeoService implements OnModuleInit {
     });
 
     for (const provinceSeed of ZIMBABWE_SEED.provinces) {
-      const province = await this.prisma.province.create({
-        data: {
-          name: provinceSeed.name,
-          countryId: country.id
-        }
+      // Assuming name+countryId is unique or we find by name/country (but prisma needs unique where)
+      // Since we don't have a unique ID for seed, we findFirst then create if missing, or use upsert if we have a unique compound key.
+      // Checking schema.prisma would be ideal, but assuming name is unique per country or globally?
+      // Based on typical schema, name might be unique.
+      // Let's safe-guard by checking first.
+
+      let province = await this.prisma.province.findFirst({
+        where: { name: provinceSeed.name, countryId: country.id }
       });
 
-      for (const citySeed of provinceSeed.cities) {
-        const city = await this.prisma.city.create({
+      if (!province) {
+        province = await this.prisma.province.create({
           data: {
-            name: citySeed.name,
-            provinceId: province.id,
-            countryId: country.id,
-            lat: citySeed.lat ?? null,
-            lng: citySeed.lng ?? null
+            name: provinceSeed.name,
+            countryId: country.id
           }
         });
+      }
 
-        for (const suburbSeed of citySeed.suburbs ?? []) {
-          await this.prisma.suburb.create({
+      for (const citySeed of provinceSeed.cities) {
+        let city = await this.prisma.city.findFirst({
+          where: { name: citySeed.name, provinceId: province.id }
+        });
+
+        if (!city) {
+          city = await this.prisma.city.create({
             data: {
-              name: suburbSeed.name,
-              cityId: city.id,
+              name: citySeed.name,
               provinceId: province.id,
               countryId: country.id,
-              lat: suburbSeed.lat ?? null,
-              lng: suburbSeed.lng ?? null,
-              polygonGeoJson: suburbSeed.polygonGeoJson ?? null
+              lat: citySeed.lat ?? null,
+              lng: citySeed.lng ?? null
             }
           });
+        }
+
+        for (const suburbSeed of citySeed.suburbs ?? []) {
+          const existingSuburb = await this.prisma.suburb.findFirst({
+            where: { name: suburbSeed.name, cityId: city.id }
+          });
+
+          if (!existingSuburb) {
+            await this.prisma.suburb.create({
+              data: {
+                name: suburbSeed.name,
+                cityId: city.id,
+                provinceId: province.id,
+                countryId: country.id,
+                lat: suburbSeed.lat ?? null,
+                lng: suburbSeed.lng ?? null,
+                polygonGeoJson: suburbSeed.polygonGeoJson ?? null
+              }
+            });
+          }
         }
       }
     }

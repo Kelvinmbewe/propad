@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-set -o pipefail
+
 
 if [ -z "$DATABASE_URL" ]; then
   echo "Error: DATABASE_URL is missing!"
