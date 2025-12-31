@@ -12,7 +12,10 @@ if [ -z "$JWT_SECRET" ]; then
   exit 1
 fi
 
-
+echo "Running database migrations..."
+cd /app/apps/api
+npx prisma migrate deploy
 
 echo "Starting application..."
+cd /app
 node apps/api/dist/src/main.js
