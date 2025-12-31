@@ -6,21 +6,21 @@ const prisma = new PrismaClient();
 async function main() {
     console.log('Start seeding ...');
 
-    const passwordHash = await hash('password123', 10);
-
     // 1. SUPER ADMIN
+    const adminPassword = await hash('Admin123!', 10);
     const admin = await prisma.user.upsert({
-        where: { email: 'admin@propad.co.zw' },
+        where: { email: 'admin@propad.local' },
         update: {
+            passwordHash: adminPassword,
             role: Role.ADMIN,
             isVerified: true,
             trustScore: 100,
             verificationScore: 100,
         },
         create: {
-            email: 'admin@propad.co.zw',
+            email: 'admin@propad.local',
             name: 'Super Admin',
-            passwordHash,
+            passwordHash: adminPassword,
             role: Role.ADMIN,
             status: 'ACTIVE',
             phone: '+263770000000',
@@ -33,35 +33,18 @@ async function main() {
     });
     console.log('Seeded Admin:', admin.email);
 
-    // 2. MODERATOR
-    const moderator = await prisma.user.upsert({
-        where: { email: 'moderator@propad.co.zw' },
-        update: {
-            role: Role.MODERATOR,
-        },
-        create: {
-            email: 'moderator@propad.co.zw',
-            name: 'Site Moderator',
-            passwordHash,
-            role: Role.MODERATOR,
-            status: 'ACTIVE',
-            phone: '+263770000001',
-            bio: 'Regional Moderator for Harare',
-            location: 'Harare',
-        },
-    });
-    console.log('Seeded Moderator:', moderator.email);
-
     // 3. VERIFIER
+    const verifierPassword = await hash('Verifier123!', 10);
     const verifier = await prisma.user.upsert({
-        where: { email: 'verifier@propad.co.zw' },
+        where: { email: 'verifier@propad.local' },
         update: {
+            passwordHash: verifierPassword,
             role: Role.VERIFIER,
         },
         create: {
-            email: 'verifier@propad.co.zw',
+            email: 'verifier@propad.local',
             name: 'Trusted Verifier',
-            passwordHash,
+            passwordHash: verifierPassword,
             role: Role.VERIFIER,
             status: 'ACTIVE',
             phone: '+263770000002',
@@ -71,15 +54,17 @@ async function main() {
     console.log('Seeded Verifier:', verifier.email);
 
     // 4. AGENT (Independent / Company Linked)
+    const agentPassword = await hash('Agent123!', 10);
     const agent = await prisma.user.upsert({
-        where: { email: 'agent@propad.co.zw' },
+        where: { email: 'agent@propad.local' },
         update: {
+            passwordHash: agentPassword,
             role: Role.AGENT,
         },
         create: {
-            email: 'agent@propad.co.zw',
+            email: 'agent@propad.local',
             name: 'Verified Agent',
-            passwordHash,
+            passwordHash: agentPassword,
             role: Role.AGENT,
             status: 'ACTIVE',
             phone: '+263771111111',
@@ -113,50 +98,18 @@ async function main() {
 
     console.log('Seeded Agent:', agent.email);
 
-    // 5. LANDLORD
-    const landlord = await prisma.user.upsert({
-        where: { email: 'landlord@propad.co.zw' },
-        update: {
-            role: Role.LANDLORD,
-        },
-        create: {
-            email: 'landlord@propad.co.zw',
-            name: 'Property Owner',
-            passwordHash,
-            role: Role.LANDLORD,
-            status: 'ACTIVE',
-            phone: '+263773333333',
-            kycStatus: 'VERIFIED',
-            landlordProfile: {
-                create: {
-                    verifiedAt: new Date(),
-                },
-            },
-        },
-    });
-
-    // Ensure Landlord Profile exists
-    await prisma.landlordProfile.upsert({
-        where: { userId: landlord.id },
-        update: {},
-        create: {
-            userId: landlord.id,
-            verifiedAt: new Date(),
-        }
-    });
-
-    console.log('Seeded Landlord:', landlord.email);
-
     // 6. STANDARD USER
+    const userPassword = await hash('User123!', 10);
     const user = await prisma.user.upsert({
-        where: { email: 'user@propad.co.zw' },
+        where: { email: 'user@propad.local' },
         update: {
+            passwordHash: userPassword,
             role: Role.USER,
         },
         create: {
-            email: 'user@propad.co.zw',
+            email: 'user@propad.local',
             name: 'Standard User',
-            passwordHash,
+            passwordHash: userPassword,
             role: Role.USER,
             status: 'ACTIVE',
             phone: '+263772222222',
@@ -171,7 +124,7 @@ async function main() {
         create: {
             name: 'Prestige Properties',
             slug: 'prestige-properties',
-            email: 'info@prestigeprop.co.zw',
+            email: 'info@prestigeprop.local',
             phone: '+263242000000',
             address: '123 Samora Machel Ave, Harare',
             status: AgencyStatus.ACTIVE,

@@ -84,10 +84,10 @@ pnpm --filter @propad/scripts seed
 ```
 
 **Default Credentials:**
-- **Admin**: `admin@propad.co.zw` / `Admin@123`
-- **Agents**: `agent1@propad.co.zw` through `agent30@propad.co.zw` / `PropAd123!`
-- **Landlords**: `landlord1@propad.co.zw` / `PropAd123!`
-- **Verifiers**: `verifier1@propad.co.zw` / `PropAd123!`
+- **Admin**: `admin@propad.local` / `Admin123!`
+- **Verifier**: `verifier@propad.local` / `Verifier123!`
+- **Agent**: `agent@propad.local` / `Agent123!`
+- **User**: `user@propad.local` / `User123!`
 
 *Note: The seed script generates fresh random data for names and property details each time, but maintains the email addresses listed above for login convenience.*
 

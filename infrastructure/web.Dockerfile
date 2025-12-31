@@ -4,8 +4,6 @@ WORKDIR /app
 ENV PRISMA_SKIP_AUTOINSTALL=true
 ENV NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 
-
-
 COPY package*.json ./
 COPY pnpm-workspace.yaml ./
 COPY tsconfig.json ./
@@ -30,8 +28,6 @@ RUN pnpm --filter @propad/web... run build
 FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-
-
 
 RUN npm install -g pnpm@10.19.0
 

@@ -7,6 +7,7 @@ FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 
 # 🔑 REQUIRED FOR PRISMA (schema + query engine)
+# Using apt-get because node:20-slim is Debian-based
 RUN apt-get update -y \
     && apt-get install -y openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
