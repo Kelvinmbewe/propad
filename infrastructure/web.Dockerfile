@@ -29,6 +29,7 @@ FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
+RUN apt-get update -y && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm@10.19.0
 
 COPY --from=builder /app/package*.json ./

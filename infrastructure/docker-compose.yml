@@ -3,18 +3,17 @@ services:
     build:
       context: ..
       dockerfile: infrastructure/web.Dockerfile
-    command: pnpm --filter @propad/web run start
-    environment:
-      NEXTAUTH_URL: http://localhost:3000
-      NEXTAUTH_SECRET: this-is-a-very-secure-secret-that-is-at-least-32-chars-long
-      JWT_SECRET: this-is-a-very-secure-secret-that-is-at-least-32-chars-long
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
-      INTERNAL_API_BASE_URL: http://api:3001
-    ports:
-      - "3000:3000"
+    command: >
+      sh -c "
+        until curl -sf http://api:3001/health; do
+          echo 'Waiting for API...';
+          sleep 3;
+        done;
+        pnpm --filter @propad/web run start
+      "
     depends_on:
       api:
-        condition: service_healthy
+        condition: service_started
     env_file:
       - ../apps/web/.env.example
     extra_hosts:
@@ -24,6 +23,7 @@ services:
     build:
       context: ..
       dockerfile: infrastructure/api.Dockerfile
+    restart: unless-stopped
     env_file:
       - ../apps/api/.env.example
       - .env
@@ -41,10 +41,11 @@ services:
     volumes:
       - ../uploads:/app/uploads
     healthcheck:
-      test: [ "CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))" ]
+      test: [ "CMD-SHELL", "curl -sf http://localhost:3001/health || exit 1" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
 
   postgres:
     image: postgres:15

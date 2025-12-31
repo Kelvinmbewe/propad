@@ -9,7 +9,7 @@ WORKDIR /app
 # 🔑 REQUIRED FOR PRISMA (schema + query engine)
 # Using apt-get because node:20-slim is Debian-based
 RUN apt-get update -y \
-    && apt-get install -y openssl ca-certificates \
+    && apt-get install -y openssl ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PRISMA_SKIP_AUTOINSTALL=true
@@ -42,7 +42,7 @@ ENV NODE_ENV=production
 
 # 🔑 REQUIRED FOR PRISMA AT RUNTIME (migrations, queries)
 RUN apt-get update -y \
-    && apt-get install -y openssl ca-certificates \
+    && apt-get install -y openssl ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g pnpm@10.19.0
