@@ -35,8 +35,8 @@ import { hash } from 'bcryptjs';
 // Maybe the client wasn't generated correctly or it's named differently in the generated client?
 // Let's assume it is missing and use strings or cast as needed.
 const PowerPhase = {
-    SINGLE: 'SINGLE',
-    THREE: 'THREE'
+  SINGLE: 'SINGLE',
+  THREE: 'THREE'
 } as const;
 
 
@@ -99,11 +99,14 @@ async function upsertUser({
 }
 
 async function main() {
-  const adminPasswordHash = await hash('Admin@123', 10);
+  const adminPasswordHash = await hash('Admin123!', 10);
   const defaultPasswordHash = await hash('PropAd123!', 10);
+  const verifierPasswordHash = await hash('Verifier123!', 10);
+  const agentPasswordHash = await hash('Agent123!', 10);
+  const userPasswordHash = await hash('User123!', 10);
 
   const admin = await upsertUser({
-    email: 'admin@propad.co.zw',
+    email: 'admin@propad.local',
     role: Role.ADMIN,
     name: 'Propad Administrator',
     phone: '+263777000001',
@@ -113,11 +116,11 @@ async function main() {
   const verifierUsers = await Promise.all(
     Array.from({ length: 3 }).map((_, index) =>
       upsertUser({
-        email: `verifier${index + 1}@propad.co.zw`,
+        email: `verifier${index + 1}@propad.local`,
         role: Role.VERIFIER,
         name: generateName(),
         phone: `+26377800${getRandomInt(1000, 9999)}`,
-        passwordHash: defaultPasswordHash
+        passwordHash: verifierPasswordHash
       })
     )
   );
@@ -125,11 +128,11 @@ async function main() {
   const agentUsers = await Promise.all(
     Array.from({ length: 30 }).map((_, index) =>
       upsertUser({
-        email: `agent${index + 1}@propad.co.zw`,
+        email: `agent${index + 1}@propad.local`,
         role: Role.AGENT,
         name: generateName(),
         phone: `+26377100${(index + 1).toString().padStart(3, '0')}`, // Keep deterministic for login testing? Or randomize? User asked for dynamic. But specific login emails are listed in README. I will keep emails deterministic but randomize names/details.
-        passwordHash: defaultPasswordHash
+        passwordHash: agentPasswordHash
       })
     )
   );
@@ -409,7 +412,7 @@ async function main() {
   const landlordUsers = await Promise.all(
     Array.from({ length: 10 }).map((_, index) =>
       upsertUser({
-        email: `landlord${index + 1}@propad.co.zw`,
+        email: `landlord${index + 1}@propad.local`,
         role: Role.LANDLORD,
         name: generateName(),
         phone: `+26377220${(index + 1).toString().padStart(3, '0')}`,
@@ -481,11 +484,11 @@ async function main() {
   const consumerUsers = await Promise.all(
     Array.from({ length: 20 }).map((_, index) =>
       upsertUser({
-        email: `user${index + 1}@propad.co.zw`,
+        email: `user${index + 1}@propad.local`,
         role: Role.USER,
         name: generateName(),
         phone: `+26377330${(index + 1).toString().padStart(3, '0')}`,
-        passwordHash: defaultPasswordHash
+        passwordHash: userPasswordHash
       })
     )
   );
@@ -567,14 +570,14 @@ async function main() {
       : ['Generator', 'Parking', 'Road frontage'];
     const commercialFieldsValue = isCommercial
       ? {
-          floorAreaSqm: 120 + getRandomInt(0, 10) * 15,
-          lotSizeSqm: 600 + getRandomInt(0, 10) * 20,
-          parkingBays: getRandomInt(2, 10),
-          powerPhase: Math.random() < 0.5 ? PowerPhase.SINGLE : PowerPhase.THREE,
-          loadingBay: type === PropertyType.WAREHOUSE || Math.random() < 0.25,
-          zoning: Math.random() < 0.5 ? 'Commercial' : 'Industrial',
-          complianceDocsUrl: 'https://cdn.propad.co.zw/docs/compliance-sample.pdf'
-        }
+        floorAreaSqm: 120 + getRandomInt(0, 10) * 15,
+        lotSizeSqm: 600 + getRandomInt(0, 10) * 20,
+        parkingBays: getRandomInt(2, 10),
+        powerPhase: Math.random() < 0.5 ? PowerPhase.SINGLE : PowerPhase.THREE,
+        loadingBay: type === PropertyType.WAREHOUSE || Math.random() < 0.25,
+        zoning: Math.random() < 0.5 ? 'Commercial' : 'Industrial',
+        complianceDocsUrl: 'https://cdn.propad.co.zw/docs/compliance-sample.pdf'
+      }
       : Prisma.JsonNull;
     const bedrooms = isResidential ? (type === PropertyType.ROOM ? 1 : getRandomInt(1, 5)) : null;
     const bathrooms = isResidential ? (type === PropertyType.ROOM ? 1 : getRandomInt(1, 3)) : null;
@@ -628,13 +631,13 @@ async function main() {
         verifications:
           status === PropertyStatus.VERIFIED
             ? {
-                create: {
-                  verifierId: verifierUsers[index % verifierUsers.length].id,
-                  method: VerificationMethod.SITE,
-                  result: VerificationResult.PASS,
-                  notes: 'Routine site visit verification with supporting documents.'
-                }
+              create: {
+                verifierId: verifierUsers[index % verifierUsers.length].id,
+                method: VerificationMethod.SITE,
+                result: VerificationResult.PASS,
+                notes: 'Routine site visit verification with supporting documents.'
               }
+            }
             : undefined
       }
     });
@@ -843,7 +846,7 @@ async function main() {
   */
 
   // ===== MONETIZATION SEED DATA =====
-  
+
   // 1. Seed Pricing Rules (Zimbabwe defaults)
   console.log('Seeding pricing rules...');
   const pricingRules = [
@@ -1102,7 +1105,7 @@ async function main() {
   if (demoLandlord && properties.length > 0) {
     // Property with paid verification
     const paidProperty = properties[0];
-    
+
     // Create paid payment transaction for verification
     const paidInvoice = await prisma.invoice.create({
       data: {
@@ -1180,7 +1183,7 @@ async function main() {
     // Property with paid agent assignment
     if (properties.length > 2 && demoAgent) {
       const agentProperty = properties[2];
-      
+
       const agentInvoice = await prisma.invoice.create({
         data: {
           buyerUserId: demoLandlord.id,

@@ -1,8 +1,17 @@
 #!/bin/sh
 set -e
 
-echo "Running migrations..."
-pnpm --filter @propad/api exec prisma migrate deploy --schema ./prisma/schema.prisma
+if [ -z "$DATABASE_URL" ]; then
+  echo "Error: DATABASE_URL is missing!"
+  exit 1
+fi
+
+if [ -z "$JWT_SECRET" ]; then
+  echo "Error: JWT_SECRET is missing!"
+  exit 1
+fi
+
+
 
 echo "Starting application..."
 node apps/api/dist/src/main.js
