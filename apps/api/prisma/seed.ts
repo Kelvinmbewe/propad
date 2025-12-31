@@ -118,22 +118,25 @@ async function main() {
     console.log('Seeded User:', user.email);
 
     // 7. REAL ESTATE COMPANY (AGENCY)
-    const agency = await prisma.agency.upsert({
-        where: { slug: 'prestige-properties' },
-        update: {},
-        create: {
-            name: 'Prestige Properties',
-            slug: 'prestige-properties',
-            email: 'info@prestigeprop.local',
-            phone: '+263242000000',
-            address: '123 Samora Machel Ave, Harare',
-            status: AgencyStatus.ACTIVE,
-            trustScore: 95,
-            verificationScore: 95,
-            verifiedAt: new Date(),
-            bio: 'Zimbabwe’s leading luxury property specialists.',
-        }
+    let agency = await prisma.agency.findFirst({
+        where: { slug: 'prestige-properties' }
     });
+    if (!agency) {
+        agency = await prisma.agency.create({
+            data: {
+                name: 'Prestige Properties',
+                slug: 'prestige-properties',
+                email: 'info@prestigeprop.local',
+                phone: '+263242000000',
+                address: '123 Samora Machel Ave, Harare',
+                status: AgencyStatus.ACTIVE,
+                trustScore: 95,
+                verificationScore: 95,
+                verifiedAt: new Date(),
+                bio: 'Zimbabwe\'s leading luxury property specialists.',
+            }
+        });
+    }
     console.log('Seeded Agency:', agency.name);
 
     // 8. LINK AGENT TO AGENCY

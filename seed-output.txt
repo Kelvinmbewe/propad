@@ -1,0 +1,149 @@
+Start seeding ...
+Seeded Admin: admin@propad.local
+Seeded Verifier: verifier@propad.local
+Seeded Agent: agent@propad.local
+Seeded User: user@propad.local
+docker : PrismaClient
+KnownRequestError: 
+At line:1 char:1
++ docker exec 
+infrastructure-api-1 
+sh -c "cd 
+/app/apps/api && 
+node dist ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (PrismaC   
+ lientKnownReques    
+tError: :String)     
+[], RemoteExcep    
+tion
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+Invalid `prisma.agenc
+y.findFirst()` 
+invocation in
+/app/apps/api/dist/pr
+isma/seed.js:167:56
+
+  164 case 9:
+  165     user = 
+_a.sent();
+  166     
+console.log('Seeded 
+User:', user.email);
+??? 167     return 
+[4 /*yield*/, prisma.
+agency.findFirst(
+The column 
+`Agency.slug` does 
+not exist in the 
+current database.
+    at $n.handleReque
+stError (/app/node_mo
+dules/.pnpm/@prisma+c
+lient@5.22.0_prisma@5
+.22.0/node_modules/@p
+risma/client/runtime/
+library.js:121:7315)
+    at $n.handleAndLo
+gRequestError (/app/n
+ode_modules/.pnpm/@pr
+isma+client@5.22.0_pr
+isma@5.22.0/node_modu
+les/@prisma/client/ru
+ntime/library.js:121:
+6623)
+    at $n.request (/a
+pp/node_modules/.pnpm
+/@prisma+client@5.22.
+0_prisma@5.22.0/node_
+modules/@prisma/clien
+t/runtime/library.js:
+121:6307)
+    at async l (/app/
+node_modules/.pnpm/@p
+risma+client@5.22.0_p
+risma@5.22.0/node_mod
+ules/@prisma/client/r
+untime/library.js:130
+:9633) {
+  code: 'P2022',
+  clientVersion: 
+'5.22.0',
+  meta: { modelName: 
+'Agency', column: 
+'Agency.slug' }
+}
+node:internal/process
+/promises:391
+    triggerUncaughtEx
+ception(err, true /* 
+fromPromise */);
+    ^
+
+PrismaClientKnownRequ
+estError: 
+Invalid `prisma.agenc
+y.findFirst()` 
+invocation in
+/app/apps/api/dist/pr
+isma/seed.js:167:56
+
+  164 case 9:
+  165     user = 
+_a.sent();
+  166     
+console.log('Seeded 
+User:', user.email);
+??? 167     return 
+[4 /*yield*/, prisma.
+agency.findFirst(
+The column 
+`Agency.slug` does 
+not exist in the 
+current database.
+    at $n.handleReque
+stError (/app/node_mo
+dules/.pnpm/@prisma+c
+lient@5.22.0_prisma@5
+.22.0/node_modules/@p
+risma/client/runtime/
+library.js:121:7315)
+    at $n.handleAndLo
+gRequestError (/app/n
+ode_modules/.pnpm/@pr
+isma+client@5.22.0_pr
+isma@5.22.0/node_modu
+les/@prisma/client/ru
+ntime/library.js:121:
+6623)
+    at $n.request (/a
+pp/node_modules/.pnpm
+/@prisma+client@5.22.
+0_prisma@5.22.0/node_
+modules/@prisma/clien
+t/runtime/library.js:
+121:6307)
+    at async l (/app/
+node_modules/.pnpm/@p
+risma+client@5.22.0_p
+risma@5.22.0/node_mod
+ules/@prisma/client/r
+untime/library.js:130
+:9633) {
+  code: 'P2022',
+  clientVersion: 
+'5.22.0',
+  meta: { modelName: 
+'Agency', column: 
+'Agency.slug' }
+}
+
+Node.js v20.19.6
