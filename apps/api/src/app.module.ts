@@ -68,7 +68,6 @@ import { PayoutsModule } from './payouts/payouts.module';
     RankingModule,
     MonetizationModule,
     AdvertisersModule,
-    AdvertisersModule,
     WalletModule,
     PayoutsModule
   ],

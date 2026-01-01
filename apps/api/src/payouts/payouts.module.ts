@@ -7,6 +7,10 @@ import { BankProvider } from './providers/bank.provider';
 import { ManualProvider } from './providers/manual.provider';
 import { WalletModule } from '../wallet/wallet.module';
 
+import { MinThresholdRule } from './rules/min-threshold.rule';
+import { KycRule } from './rules/kyc.rule';
+import { FraudRule } from './rules/fraud.rule';
+
 @Module({
     imports: [WalletModule],
     controllers: [PayoutsController],
@@ -16,6 +20,9 @@ import { WalletModule } from '../wallet/wallet.module';
         PaynowProvider,
         BankProvider,
         ManualProvider,
+        MinThresholdRule,
+        KycRule,
+        FraudRule,
     ],
 })
 export class PayoutsModule { }

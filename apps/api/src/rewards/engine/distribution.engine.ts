@@ -59,4 +59,37 @@ export class DistributionEngine {
             return event;
         });
     }
+
+    async ingestRevenue(date: Date, amountUsdCents: bigint) {
+        this.logger.log(`Ingesting revenue for ${date.toISOString()}: ${amountUsdCents} cents`);
+
+        // Find or Create Daily Pool
+        // For simplicity, we assume one global pool for now, or distribute to active pools.
+        // Let's create a "Daily Ad Revenue" pool record or add to existing.
+
+        const poolName = `Ads-${date.toISOString().split('T')[0]}`;
+
+        // Check if pool exists
+        let pool = await this.prisma.rewardPool.findFirst({
+            where: { name: poolName },
+        });
+
+        if (!pool) {
+            pool = await this.prisma.rewardPool.create({
+                data: {
+                    name: poolName,
+                    totalUsdCents: Number(amountUsdCents),
+                    remainingUsdCents: Number(amountUsdCents), // Initial
+                    spentUsdCents: 0,
+                    isActive: true,
+                    startDate: date,
+                    endDate: new Date(date.getTime() + 24 * 60 * 60 * 1000), // 1 day validity
+                },
+            });
+        } else {
+            // Update logic if needed
+        }
+
+        return pool;
+    }
 }

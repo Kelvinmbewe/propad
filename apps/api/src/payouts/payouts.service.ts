@@ -6,6 +6,9 @@ import { BankProvider } from './providers/bank.provider';
 import { ManualProvider } from './providers/manual.provider';
 import { LedgerService } from '../wallet/ledger.service';
 import { IPayoutProvider } from './providers/payout-provider.interface';
+import { MinThresholdRule } from './rules/min-threshold.rule';
+import { KycRule } from './rules/kyc.rule';
+import { FraudRule } from './rules/fraud.rule';
 
 @Injectable()
 export class PayoutsService {
@@ -18,11 +21,26 @@ export class PayoutsService {
         private paynowProvider: PaynowProvider,
         private bankProvider: BankProvider,
         private manualProvider: ManualProvider,
+        private minThresholdRule: MinThresholdRule,
+        private kycRule: KycRule,
+        private fraudRule: FraudRule,
     ) {
         this.providers = [paynowProvider, bankProvider, manualProvider];
     }
 
     async requestPayout(userId: string, amountCents: number, method: PayoutMethod, payoutAccountId: string) {
+        // Validation
+        const mockRequest = {
+            walletId: (await this.getWalletId(userId)),
+            amountCents,
+            method,
+            id: 'validation-check'
+        } as any;
+
+        await this.minThresholdRule.validate(mockRequest);
+        await this.kycRule.validate(mockRequest);
+        await this.fraudRule.validate(mockRequest);
+
         // 1. Validate Balance
         const wallet = await this.prisma.wallet.findFirst({
             where: { ownerId: userId },
@@ -53,13 +71,11 @@ export class PayoutsService {
             });
 
             // Debit Ledger (Hold Funds)
-            // We record a DEBIT but maybe with a status or separate hold?
-            // For simplicity, we deduct immediately. If rejected, we refund.
             await this.ledgerService.recordTransaction(
                 userId,
                 amountCents,
                 WalletLedgerType.DEBIT,
-                WalletLedgerSourceType.PAYOUT, // Assuming this exists or map to correct one
+                WalletLedgerSourceType.PAYOUT,
                 request.id,
                 wallet.currency,
                 wallet.id
@@ -69,6 +85,11 @@ export class PayoutsService {
         });
 
         return result;
+    }
+
+    private async getWalletId(userId: string): Promise<string> {
+        const w = await this.prisma.wallet.findFirst({ where: { ownerId: userId } });
+        return w?.id || '';
     }
 
     async approvePayout(requestId: string, adminId: string) {
@@ -93,16 +114,14 @@ export class PayoutsService {
             await this.prisma.payoutRequest.update({
                 where: { id: requestId },
                 data: {
-                    status: result.status === 'COMPLETED' ? PayoutStatus.PAID : PayoutStatus.PROCESSING, // Map correctly
+                    status: result.status === 'COMPLETED' ? PayoutStatus.PAID : PayoutStatus.SENT, // Use SENT or PAID
                     txRef: result.transactionRef,
                 },
             });
 
             return { success: true, result };
-        } catch (error) {
+        } catch (error: any) {
             this.logger.error(`Payout failed: ${error.message}`);
-            // Refund? Or mark as FAILED?
-            // For now, mark FAILED and refund manually or auto-refund
             await this.prisma.payoutRequest.update({
                 where: { id: requestId },
                 data: { status: PayoutStatus.FAILED },
@@ -112,7 +131,6 @@ export class PayoutsService {
     }
 
     async getMyPayouts(userId: string) {
-        // Logic to fetch payouts via PayoutRequest -> Wallet -> Owner
         return this.prisma.payoutRequest.findMany({
             where: { wallet: { ownerId: userId } },
             orderBy: { createdAt: 'desc' },
