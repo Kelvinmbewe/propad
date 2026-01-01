@@ -33,6 +33,7 @@ import { SiteVisitsModule } from './site-visits/site-visits.module';
 import { MonetizationModule } from './monetization/monetization.module';
 import { AdvertisersModule } from './advertisers/advertisers.module';
 import { WalletModule } from './wallet/wallet.module';
+import { PayoutsModule } from './payouts/payouts.module';
 
 @Module({
   imports: [
@@ -67,7 +68,9 @@ import { WalletModule } from './wallet/wallet.module';
     RankingModule,
     MonetizationModule,
     AdvertisersModule,
-    WalletModule
+    AdvertisersModule,
+    WalletModule,
+    PayoutsModule
   ],
   providers: [
     {

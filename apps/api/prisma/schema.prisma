@@ -2130,3 +2130,24 @@ model ReferralEarning {
   @@index([status])
   @@index([sourceType, sourceId])
 }
+
+// AdSense Ingestion
+
+model AdSenseSync {
+  id        String   @id @default(cuid())
+  date      DateTime @unique
+  status    String // SUCCESS, FAILED
+  rawJson   Json?
+  createdAt DateTime @default(now())
+}
+
+model AdSenseDailyStat {
+  id            String   @id @default(cuid())
+  date          DateTime @unique
+  impressions   Int
+  clicks        Int
+  revenueMicros BigInt
+  currencyCode  String   @default("USD")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
