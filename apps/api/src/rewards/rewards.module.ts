@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '../prisma/prisma.module';
-import { AuditModule } from '../audit/audit.module';
-import { RewardsController } from './rewards.controller';
 import { RewardsService } from './rewards.service';
-import { WalletsModule } from '../wallets/wallets.module';
+import { RewardsController } from './rewards.controller';
+import { DistributionEngine } from './engine/distribution.engine';
+import { RewardCron } from './cron/reward.cron';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
-  imports: [PrismaModule, AuditModule, WalletsModule],
+  imports: [WalletModule],
+  providers: [RewardsService, DistributionEngine, RewardCron],
   controllers: [RewardsController],
-  providers: [RewardsService],
-  exports: [RewardsService]
+  exports: [RewardsService, DistributionEngine],
 })
 export class RewardsModule { }

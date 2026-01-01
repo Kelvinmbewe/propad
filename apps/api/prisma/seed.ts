@@ -157,6 +157,45 @@ async function main() {
     });
     console.log('Linked Agent to Agency');
 
+    // 9. ADVERTISER
+    const advertiserPassword = await hash('Advertiser123!', 10);
+    const advertiser = await prisma.user.upsert({
+        where: { email: 'advertiser@propad.local' },
+        update: {
+            passwordHash: advertiserPassword,
+            role: Role.ADVERTISER,
+        },
+        create: {
+            email: 'advertiser@propad.local',
+            name: 'Premium Advertiser',
+            passwordHash: advertiserPassword,
+            role: Role.ADVERTISER,
+            status: 'ACTIVE',
+            phone: '+263773333333',
+            isVerified: true,
+            kycStatus: 'VERIFIED',
+        },
+    });
+    console.log('Seeded Advertiser:', advertiser.email);
+
+    // 10. REWARD POOL
+    const pool = await prisma.rewardPool.upsert({
+        where: { id: 'default-pool-1' },
+        update: {},
+        create: {
+            id: 'default-pool-1',
+            name: 'January 2026 Listing Bonus',
+            description: 'Rewards for agents who list verified properties in January.',
+            totalFund: 5000,
+            remainingFund: 5000,
+            currency: 'USD',
+            isActive: true,
+            startDate: new Date('2026-01-01'),
+            endDate: new Date('2026-01-31'),
+        },
+    });
+    console.log('Seeded Reward Pool:', pool.name);
+
     console.log('Seeding finished.');
 }
 

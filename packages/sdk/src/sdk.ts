@@ -521,6 +521,8 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .post('ads/impressions', { json: payload })
           .json<AdImpression>()
           .then((data) => AdImpressionSchema.parse(data)),
+      getActive: async () => client.get('ads/active').json<any[]>(),
+      getStats: async (id: string) => client.get(`ads/stats/${id}`).json<any[]>(),
     },
     rewards: {
       estimateMe: async () =>
@@ -528,6 +530,8 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .get('rewards/estimate/me')
           .json<RewardsEstimate>()
           .then((data) => RewardsEstimateSchema.parse(data)),
+      my: async () => client.get('rewards/my').json<any[]>(),
+      pools: async () => client.get('rewards/pools').json<any[]>(),
     },
     shortlinks: {
       create: async (payload: {
@@ -911,6 +915,13 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             .json<WalletThreshold>()
             .then((data) => WalletThresholdSchema.parse(data)),
       },
+    },
+    advertiser: {
+      getProfile: async () => client.get('advertisers/profile').json<any>(),
+      getCampaigns: async () => client.get('advertisers/campaigns').json<any[]>(),
+    },
+    wallet: {
+      getBalance: async () => client.get('wallet/balance').json<number>(),
     },
   };
 }

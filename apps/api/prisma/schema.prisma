@@ -20,6 +20,7 @@ enum Role {
   SELLER
   TENANT
   BUYER
+  ADVERTISER
 }
 
 enum PropertyType {
@@ -453,6 +454,15 @@ enum ListingIntent {
   TO_RENT
 }
 
+enum AdEventType {
+  IMPRESSION
+  CLICK
+  HOVER
+  CONVERSION
+  VIDEO_START
+  VIDEO_COMPLETE
+}
+
 model Country {
   id         String     @id @default(cuid())
   iso2       String     @unique
@@ -620,6 +630,7 @@ model User {
   paymentTransactions PaymentTransaction[] @relation("PaymentTransactionUser")
   referralEarnings    ReferralEarning[]    @relation("ReferralEarningReferrer")
   walletLedgerEntries WalletLedger[]       @relation("WalletLedgerUser")
+  adEvents            AdEvent[]            @relation("AdEventUser")
 }
 
 model UserRole {
@@ -1284,9 +1295,11 @@ model WalletLedger {
   currency    Currency
   createdAt   DateTime               @default(now())
 
-  user     User    @relation("WalletLedgerUser", fields: [userId], references: [id], onDelete: Cascade)
-  Wallet   Wallet? @relation(fields: [walletId], references: [id])
-  walletId String?
+  user                 User                @relation("WalletLedgerUser", fields: [userId], references: [id], onDelete: Cascade)
+  wallet               Wallet?             @relation(fields: [walletId], references: [id])
+  walletId             String?
+  rewardDistribution   RewardDistribution? @relation(fields: [rewardDistributionId], references: [id])
+  rewardDistributionId String?
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, type])
@@ -1399,6 +1412,7 @@ model AdCreative {
 
   advertiser Advertiser @relation(fields: [advertiserId], references: [id])
   flights    AdFlight[]
+  AdEvent    AdEvent[]
 
   @@index([advertiserId, type])
 }
@@ -1420,6 +1434,7 @@ model AdPlacement {
   flights     AdFlight[]
   impressions AdImpression[]
   stats       AdStat[]
+  AdEvent     AdEvent[]
 
   @@index([page, position])
 }
@@ -1437,14 +1452,17 @@ model AdCampaign {
   dailyCapImpressions Int?
   status              AdCampaignStatus @default(DRAFT)
   rewardPoolShareBps  Int?
+  rewardPoolId        String?
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
 
   advertiser  Advertiser     @relation(fields: [advertiserId], references: [id])
   invoice     Invoice?       @relation("AdCampaignInvoice", fields: [invoiceId], references: [id])
+  rewardPool  RewardPool?    @relation(fields: [rewardPoolId], references: [id])
   flights     AdFlight[]
   stats       AdStat[]
   impressions AdImpression[]
+  adEvents    AdEvent[]
 
   @@index([advertiserId, status])
   @@index([startAt, endAt])
@@ -1465,6 +1483,7 @@ model AdFlight {
   placement   AdPlacement    @relation(fields: [placementId], references: [id])
   stats       AdStat[]
   impressions AdImpression[]
+  AdEvent     AdEvent[]
 
   @@index([campaignId, priority])
   @@index([placementId])
@@ -1594,6 +1613,60 @@ model Invoice {
   paymentTransactions PaymentTransaction[] @relation("PaymentTransactionInvoice")
 
   @@index([status, dueAt])
+}
+
+model RewardPool {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  totalUsdCents Int      @default(0)
+  spentUsdCents Int      @default(0)
+  currency      Currency @default(USD)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  distributions RewardDistribution[]
+  campaigns     AdCampaign[]
+}
+
+model RewardDistribution {
+  id          String    @id @default(cuid())
+  poolId      String
+  amountCents Int
+  currency    Currency
+  reason      String?
+  status      String    @default("PENDING")
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  pool          RewardPool     @relation(fields: [poolId], references: [id])
+  ledgerEntries WalletLedger[]
+}
+
+model AdEvent {
+  id          String      @id @default(cuid())
+  campaignId  String
+  flightId    String
+  placementId String
+  creativeId  String
+  userId      String?
+  type        AdEventType
+  metadata    Json?
+  userAgent   String?
+  ipAddress   String?
+  sessionId   String?
+  createdAt   DateTime    @default(now())
+
+  campaign  AdCampaign  @relation(fields: [campaignId], references: [id])
+  flight    AdFlight    @relation(fields: [flightId], references: [id])
+  placement AdPlacement @relation(fields: [placementId], references: [id])
+  creative  AdCreative  @relation(fields: [creativeId], references: [id])
+  user      User?       @relation("AdEventUser", fields: [userId], references: [id])
+
+  @@index([campaignId, type, createdAt])
+  @@index([userId, type])
+  @@index([sessionId])
 }
 
 model InvoiceLine {

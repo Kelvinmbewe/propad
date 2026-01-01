@@ -1,0 +1,62 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { LedgerService } from '../../wallet/ledger.service';
+import { WalletService } from '../../wallet/wallet.service';
+import { WalletLedgerType, WalletLedgerSourceType, Currency, OwnerType } from '@prisma/client';
+
+@Injectable()
+export class DistributionEngine {
+    private readonly logger = new Logger(DistributionEngine.name);
+
+    constructor(
+        private prisma: PrismaService,
+        private ledger: LedgerService,
+        private wallet: WalletService,
+    ) { }
+
+    async distributePool(poolId: string) {
+        const pool = await this.prisma.rewardPool.findUnique({
+            where: { id: poolId, isActive: true },
+        });
+
+        if (!pool || pool.totalUsdCents <= pool.spentUsdCents) {
+            this.logger.warn(`Pool ${poolId} is exhausted or inactive`);
+            return;
+        }
+
+        // Logic for distribution would go here
+        // For now, it's a placeholder for the cron job to call
+        this.logger.log(`Processing distribution for pool: ${pool.name}`);
+    }
+
+    async awardPoints(userId: string, points: number, usdCents: number, reason: string, refId?: string) {
+        return this.prisma.$transaction(async (tx) => {
+            // 1. Create RewardEvent
+            const event = await tx.rewardEvent.create({
+                data: {
+                    agentId: userId,
+                    points,
+                    usdCents,
+                    type: 'BONUS_TIER', // Default for engine distribution
+                    refId,
+                },
+            });
+
+            // 2. Get/Create Wallet
+            const wallet = await this.wallet.getOrCreateWallet(userId, OwnerType.USER, Currency.USD);
+
+            // 3. Record Ledger entry
+            await this.ledger.recordTransaction(
+                userId,
+                usdCents,
+                WalletLedgerType.CREDIT,
+                WalletLedgerSourceType.REWARD,
+                event.id,
+                Currency.USD,
+                wallet.id,
+            );
+
+            return event;
+        });
+    }
+}

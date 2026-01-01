@@ -31,6 +31,8 @@ import { TrustModule } from './trust/trust.module';
 import { RankingModule } from './ranking/ranking.module';
 import { SiteVisitsModule } from './site-visits/site-visits.module';
 import { MonetizationModule } from './monetization/monetization.module';
+import { AdvertisersModule } from './advertisers/advertisers.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
@@ -63,7 +65,9 @@ import { MonetizationModule } from './monetization/monetization.module';
     ProfilesModule,
     TrustModule,
     RankingModule,
-    MonetizationModule
+    MonetizationModule,
+    AdvertisersModule,
+    WalletModule
   ],
   providers: [
     {
