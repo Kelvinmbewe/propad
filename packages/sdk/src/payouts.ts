@@ -1,37 +1,26 @@
-// Local type definitions matching Prisma schema
-export type PayoutMethod = 'ECOCASH' | 'INNBUCKS' | 'BANK_TRANSFER';
-export type PayoutStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
-
-export interface PayoutRequest {
-    id: string;
-    walletId: string;
-    amountCents: number;
-    method: PayoutMethod;
-    accountId: string;
-    status: PayoutStatus;
-    createdAt: Date;
-    updatedAt: Date;
-}
+// Note: PayoutMethod types here are for client use. Full PayoutRequest type is in schemas.ts
+export type PayoutMethodType = 'ECOCASH' | 'INNBUCKS' | 'BANK_TRANSFER';
+export type PayoutStatusType = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
 
 export interface RequestPayoutParams {
     amountCents: number;
-    method: PayoutMethod;
+    method: PayoutMethodType;
     accountId: string;
 }
 
 export class PayoutsClient {
     constructor(private client: any) { }
 
-    async requestPayout(params: RequestPayoutParams): Promise<PayoutRequest> {
+    async requestPayout(params: RequestPayoutParams): Promise<any> {
         return this.client.post('/payouts/request', { json: params }).json();
     }
 
-    async getMyPayouts(): Promise<PayoutRequest[]> {
+    async getMyPayouts(): Promise<any[]> {
         return this.client.get('/payouts/my').json();
     }
 
     // Admin
-    async getAllPayouts(): Promise<(PayoutRequest & { wallet: { user: any } })[]> {
+    async getAllPayouts(): Promise<any[]> {
         return this.client.get('/payouts/all').json();
     }
 
