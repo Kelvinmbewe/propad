@@ -7,7 +7,7 @@ import { Role } from '@prisma/client';
 
 @Controller('advertisers')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADVERTISER, Role.ADMIN)
+@Roles((Role as any).ADVERTISER, Role.ADMIN)
 export class AdvertisersController {
     constructor(private readonly advertisersService: AdvertisersService) { }
 

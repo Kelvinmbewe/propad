@@ -163,13 +163,13 @@ async function main() {
         where: { email: 'advertiser@propad.local' },
         update: {
             passwordHash: advertiserPassword,
-            role: Role.ADVERTISER,
+            role: (Role as any).ADVERTISER,
         },
         create: {
             email: 'advertiser@propad.local',
             name: 'Premium Advertiser',
             passwordHash: advertiserPassword,
-            role: Role.ADVERTISER,
+            role: (Role as any).ADVERTISER,
             status: 'ACTIVE',
             phone: '+263773333333',
             isVerified: true,

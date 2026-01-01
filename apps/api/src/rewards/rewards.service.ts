@@ -6,8 +6,8 @@ export class RewardsService {
   constructor(private prisma: PrismaService) { }
 
   async getUserRewards(userId: string) {
-    return this.prisma.rewardEvent.findMany({
-      where: { agentId: userId },
+    return this.prisma.rewardDistribution.findMany({
+      where: { userId },
       orderBy: { createdAt: 'desc' },
     });
   }

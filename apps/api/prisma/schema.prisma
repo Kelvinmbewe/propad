@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -1633,6 +1634,7 @@ model RewardPool {
 model RewardDistribution {
   id          String    @id @default(cuid())
   poolId      String
+  userId      String
   amountCents Int
   currency    Currency
   reason      String?
@@ -1641,6 +1643,7 @@ model RewardDistribution {
   createdAt   DateTime  @default(now())
 
   pool          RewardPool     @relation(fields: [poolId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
   ledgerEntries WalletLedger[]
 }
 
