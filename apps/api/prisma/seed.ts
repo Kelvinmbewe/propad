@@ -196,6 +196,27 @@ async function main() {
     });
     console.log('Seeded Reward Pool:', pool.name);
 
+    // 11. MOCK ADSENSE DATA
+    console.log('Seeding AdSense Data...');
+    const today = new Date();
+    for (let i = 0; i < 30; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const impressions = Math.floor(Math.random() * 5000) + 1000;
+        const clicks = Math.floor(impressions * 0.02);
+        const revenueMicros = BigInt(clicks * 500000); // 0.50 CPC
+
+        await prisma.adSenseDailyStat.upsert({
+            where: { date },
+            update: {},
+            create: {
+                date,
+                impressions,
+                clicks,
+                revenueMicros,
+            }
+        });
+    }
     console.log('Seeding finished.');
 }
 

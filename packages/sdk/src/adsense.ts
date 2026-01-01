@@ -1,15 +1,21 @@
-import { AxiosInstance } from 'axios';
-import { AdSenseDailyStat } from '@prisma/client';
+// Local type definition matching Prisma schema
+export interface AdSenseDailyStat {
+    id: string;
+    date: Date;
+    impressions: number;
+    clicks: number;
+    revenueCents: number;
+    syncedAt: Date;
+}
 
 export class AdSenseClient {
-    constructor(private axios: AxiosInstance) { }
+    constructor(private client: any) { }
 
     async getStats(): Promise<AdSenseDailyStat[]> {
-        const { data } = await this.axios.get('/adsense/stats');
-        return data;
+        return this.client.get('/adsense/stats').json();
     }
 
     async triggerSync(): Promise<void> {
-        await this.axios.get('/adsense/sync');
+        await this.client.get('/adsense/sync');
     }
 }
