@@ -632,6 +632,7 @@ model User {
   referralEarnings    ReferralEarning[]    @relation("ReferralEarningReferrer")
   walletLedgerEntries WalletLedger[]       @relation("WalletLedgerUser")
   adEvents            AdEvent[]            @relation("AdEventUser")
+  rewardDistributions RewardDistribution[]
 }
 
 model UserRole {
