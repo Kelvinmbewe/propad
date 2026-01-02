@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PayoutMethod, PayoutStatus, PayoutRequest, WalletLedgerType, WalletLedgerSourceType } from '@prisma/client';
+import { PayoutStatus, PayoutRequest, WalletLedgerType, WalletLedgerSourceType } from '@prisma/client';
+import { PayoutMethod } from './payout-method.enum';
 import { PaynowProvider } from './providers/paynow.provider';
 import { BankProvider } from './providers/bank.provider';
 import { ManualProvider } from './providers/manual.provider';
@@ -33,7 +34,7 @@ export class PayoutsService {
         const mockRequest = {
             walletId: (await this.getWalletId(userId)),
             amountCents,
-            method,
+            method: method as any,
             id: 'validation-check'
         } as any;
 
@@ -64,7 +65,7 @@ export class PayoutsService {
                 data: {
                     walletId: wallet.id,
                     amountCents,
-                    method,
+                    method: method as any,
                     payoutAccountId,
                     status: PayoutStatus.REQUESTED,
                 },
