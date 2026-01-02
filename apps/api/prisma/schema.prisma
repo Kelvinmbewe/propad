@@ -326,8 +326,13 @@ enum ListingPaymentStatus {
 
 enum PayoutMethod {
   ECOCASH
+  ONEMONEY
   BANK
+  BANK_TRANSFER
+  ZIPIT
   WALLET
+  CASH
+  OTHER
 }
 
 enum PayoutStatus {

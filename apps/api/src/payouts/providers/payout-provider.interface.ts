@@ -1,5 +1,4 @@
-import { PayoutRequest } from '@prisma/client';
-import { PayoutMethod } from '../payout-method.enum';
+import { PayoutMethod, PayoutRequest } from '@prisma/client';
 
 export interface IPayoutProvider {
     canHandle(method: PayoutMethod): boolean;

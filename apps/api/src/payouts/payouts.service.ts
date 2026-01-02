@@ -34,7 +34,7 @@ export class PayoutsService {
         const mockRequest = {
             walletId: (await this.getWalletId(userId)),
             amountCents,
-            method: method as any,
+            method,
             id: 'validation-check'
         } as any;
 
@@ -65,7 +65,7 @@ export class PayoutsService {
                 data: {
                     walletId: wallet.id,
                     amountCents,
-                    method: method as any,
+                    method,
                     payoutAccountId,
                     status: PayoutStatus.REQUESTED,
                 },
