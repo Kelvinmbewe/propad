@@ -3,7 +3,8 @@ import { PayoutsService } from './payouts.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { PayoutMethod, Role } from '@prisma/client';
+import { Role } from '@prisma/client';
+import { PayoutMethod } from './payout-method.enum';
 
 @Controller('payouts')
 @UseGuards(JwtAuthGuard, RolesGuard)
