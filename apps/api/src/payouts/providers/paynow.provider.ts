@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PayoutMethod, PayoutRequest } from '@prisma/client';
+import { PayoutMethod } from '@prisma/client';
 import { IPayoutProvider } from './payout-provider.interface';
 
 @Injectable()
@@ -10,7 +10,7 @@ export class PaynowProvider implements IPayoutProvider {
         return method === PayoutMethod.ECOCASH || method === PayoutMethod.ONEMONEY;
     }
 
-    async processPayout(request: PayoutRequest, accountDetails: any): Promise<{ transactionRef: string; status: string; metadata?: any }> {
+    async processPayout(request: any, accountDetails: any): Promise<{ transactionRef: string; status: string; metadata?: any }> {
         this.logger.log(`Processing Paynow payout for ${request.id} via ${request.method}`);
         // Simulate Paynow API call
         const mockRef = `PAYNOW-${Math.floor(Math.random() * 1000000)}`;

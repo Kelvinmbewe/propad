@@ -85,23 +85,6 @@ enum PaymentGateway {
   OFFLINE
 }
 
-enum PaymentProvider {
-  PAYNOW
-  PAYPAL
-  STRIPE
-}
-
-enum ChargeableItemType {
-  PROPERTY_VERIFICATION
-  AGENT_ASSIGNMENT
-  IN_HOUSE_ADVERT_BUYING
-  IN_HOUSE_ADVERT_SELLING
-  FEATURED_LISTING
-  TRUST_BOOST
-  PREMIUM_VERIFICATION
-  OTHER
-}
-
 enum PaymentMethodType {
   CARD
   ECOCASH
@@ -121,13 +104,6 @@ enum PaymentIntentStatus {
   SUCCEEDED
   FAILED
   CANCELLED
-}
-
-enum PaymentStatus {
-  PENDING
-  PAID
-  FAILED
-  REFUNDED
 }
 
 enum TransactionResult {
@@ -291,32 +267,10 @@ enum OwnerType {
   AGENCY
 }
 
-enum ListingCreatorRole {
-  LANDLORD
-  AGENT
-  ADMIN
-}
-
-enum ViewingStatus {
-  PENDING
-  ACCEPTED
-  POSTPONED
-  CANCELLED
-  COMPLETED
-  NO_SHOW
-}
-
 enum FeaturedListingStatus {
   ACTIVE
   EXPIRED
   PENDING_PAYMENT
-}
-
-enum ListingPaymentType {
-  AGENT_FEE
-  FEATURED
-  VERIFICATION
-  OTHER
 }
 
 enum ListingPaymentStatus {
@@ -439,22 +393,6 @@ enum ReviewerType {
   ANONYMOUS
 }
 
-enum PropertyRatingType {
-  PREVIOUS_TENANT
-  CURRENT_TENANT
-  VISITOR
-  ANONYMOUS
-}
-
-enum InterestStatus {
-  PENDING
-  ACCEPTED
-  ON_HOLD
-  REJECTED
-  CONFIRMED
-  WITHDRAWN
-}
-
 enum ListingIntent {
   FOR_SALE
   TO_RENT
@@ -558,17 +496,17 @@ model PendingGeo {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  role         Role      @default(USER)
+  id           String   @id @default(cuid())
+  role         Role     @default(USER)
   name         String?
   phone        String?
-  email        String?   @unique
+  email        String?  @unique
   passwordHash String?
   kycStatus    String?
   status       String?
-  trustTier    TrustTier @default(NORMAL)
-  isVerified   Boolean   @default(false)
-  createdAt    DateTime  @default(now())
+  trustTier    String   @default("NORMAL")
+  isVerified   Boolean  @default(false)
+  createdAt    DateTime @default(now())
 
   agentProfile                AgentProfile?
   landlordProfile             LandlordProfile?
@@ -821,7 +759,7 @@ model Property {
   reviews         UserReview[]
 
   // Role-Aware
-  createdByRole ListingCreatorRole @default(LANDLORD)
+  createdByRole String @default("LANDLORD")
 
   // Verification Signals
   verificationScore Int               @default(0)
@@ -1015,12 +953,6 @@ model PropertyMedia {
   @@index([propertyId, order])
 }
 
-enum VerificationStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
 enum VerificationItemType {
   PROOF_OF_OWNERSHIP
   LOCATION_CONFIRMATION
@@ -1041,13 +973,6 @@ enum VerificationLevel {
   VERIFIED
 }
 
-enum VerificationItemStatus {
-  PENDING
-  SUBMITTED
-  APPROVED
-  REJECTED
-}
-
 model Verification {
   id          String              @id @default(cuid())
   propertyId  String? // Optional now as we have polymorphic targetId
@@ -1055,7 +980,7 @@ model Verification {
   requesterId String?
   method      VerificationMethod  @default(DOCS)
   result      VerificationResult?
-  status      VerificationStatus  @default(PENDING)
+  status      String              @default("PENDING")
   notes       String?
   evidenceUrl String?
   createdAt   DateTime            @default(now())
@@ -1080,10 +1005,10 @@ model VerificationRequest {
   targetId   String           @default("") // indexed for admin filtering
 
   requesterId String
-  status      VerificationStatus @default(PENDING)
+  status      String   @default("PENDING")
   notes       String?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   property  Property?                 @relation(fields: [propertyId], references: [id])
   requester User                      @relation("VerificationRequestRequester", fields: [requesterId], references: [id])
@@ -1102,18 +1027,18 @@ enum VerificationType {
 }
 
 model VerificationRequestItem {
-  id                    String                 @id @default(cuid())
+  id                    String               @id @default(cuid())
   verificationRequestId String
   type                  VerificationItemType
-  status                VerificationItemStatus @default(PENDING)
-  evidenceUrls          String[]               @default([]) // Array of uploaded file URLs
+  status                String               @default("PENDING")
+  evidenceUrls          String[]             @default([]) // Array of uploaded file URLs
   gpsLat                Float? // For location confirmation
   gpsLng                Float? // For location confirmation
   notes                 String? // User notes or verifier feedback
   verifierId            String? // Admin/verifier who reviewed
   reviewedAt            DateTime?
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
 
   verificationRequest VerificationRequest    @relation(fields: [verificationRequestId], references: [id], onDelete: Cascade)
   verifier            User?                  @relation("VerificationItemVerifier", fields: [verifierId], references: [id])
@@ -1139,13 +1064,6 @@ model VerificationEvidence {
   @@index([itemId])
 }
 
-enum TrustTier {
-  NORMAL
-  WATCH
-  REVIEW
-  HIGH_RISK
-}
-
 model UserReview {
   id         String       @id @default(cuid())
   reviewerId String
@@ -1168,18 +1086,18 @@ model UserReview {
 }
 
 model PropertyRating {
-  id               String             @id @default(cuid())
+  id               String   @id @default(cuid())
   propertyId       String
   reviewerId       String? // Null if anonymous
   rating           Int // 1-5 stars
-  weight           Int                @default(1) // Calculated weight
+  weight           Int      @default(1) // Calculated weight
   comment          String?
-  type             PropertyRatingType
-  isAnonymous      Boolean            @default(false) // For current tenants
+  type             String
+  isAnonymous      Boolean  @default(false) // For current tenants
   tenantMonths     Int? // Length of tenancy in months (for weight calculation)
-  isVerifiedTenant Boolean            @default(false) // Verified tenant status
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  isVerifiedTenant Boolean  @default(false) // Verified tenant status
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   property Property @relation(fields: [propertyId], references: [id])
   reviewer User?    @relation("PropertyRatingReviewer", fields: [reviewerId], references: [id])
@@ -1206,18 +1124,18 @@ model ListingActivityLog {
 }
 
 model Viewing {
-  id          String        @id @default(cuid())
+  id          String   @id @default(cuid())
   propertyId  String
   viewerId    String
   agentId     String? // If assigned agent is handling
   landlordId  String? // If landlord is handling
   scheduledAt DateTime
-  status      ViewingStatus @default(PENDING)
+  status      String   @default("PENDING")
   notes       String?
   locationLat Float?
   locationLng Float?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   property Property @relation(fields: [propertyId], references: [id])
   viewer   User     @relation("ViewingViewer", fields: [viewerId], references: [id])
@@ -1854,11 +1772,11 @@ model Interest {
 
   propertyId  String
   userId      String
-  status      InterestStatus @default(PENDING)
-  offerAmount Decimal?       @db.Decimal(12, 2)
+  status      String   @default("PENDING")
+  offerAmount Decimal? @db.Decimal(12, 2)
   message     String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   property Property @relation(fields: [propertyId], references: [id])
   user     User     @relation("UserInterests", fields: [userId], references: [id])
@@ -1889,7 +1807,7 @@ model RentPayment {
 model ListingPayment {
   id          String               @id @default(cuid())
   propertyId  String
-  type        ListingPaymentType
+  type        String
   amountCents Int
   currency    Currency
   status      ListingPaymentStatus @default(PENDING)
@@ -1914,7 +1832,7 @@ model SiteVisit {
   requestedByUserId   String
   assignedModeratorId String?
 
-  status SiteVisitStatus @default(PENDING_ASSIGNMENT)
+  status String @default("PENDING_ASSIGNMENT")
 
   scheduledAt              DateTime?
   visitGpsLat              Float?
@@ -1935,15 +1853,6 @@ model SiteVisit {
   @@index([propertyId])
   @@index([assignedModeratorId])
   @@index([status])
-}
-
-enum SiteVisitStatus {
-  PENDING_ASSIGNMENT
-  ASSIGNED
-  IN_PROGRESS
-  COMPLETED
-  FAILED
-  CANCELLED
 }
 
 model RiskEvent {
@@ -2005,11 +1914,11 @@ model LedgerEntry {
 }
 
 model PaymentProviderSettings {
-  id            String          @id @default(cuid())
-  provider      PaymentProvider @unique
-  enabled       Boolean         @default(false)
-  isDefault     Boolean         @default(false)
-  isTestMode    Boolean         @default(true)
+  id            String    @id @default(cuid())
+  provider      String    @unique
+  enabled       Boolean   @default(false)
+  isDefault     Boolean   @default(false)
+  isTestMode    Boolean   @default(true)
   apiKey        String? // Encrypted in production
   apiSecret     String? // Encrypted in production
   returnUrl     String?
@@ -2018,27 +1927,27 @@ model PaymentProviderSettings {
   configJson    Json? // Additional provider-specific config
   validatedAt   DateTime?
   validatedBy   String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([enabled])
   @@index([isDefault])
 }
 
 model PricingRule {
-  id                     String             @id @default(cuid())
-  itemType               ChargeableItemType @unique
+  id                     String   @id @default(cuid())
+  itemType               String   @unique
   priceUsdCents          Int
   currency               Currency
-  commissionPercent      Decimal            @db.Decimal(5, 2) // Platform commission %
-  platformFeePercent     Decimal            @db.Decimal(5, 2) // Platform fee %
-  agentSharePercent      Decimal?           @db.Decimal(5, 2) // Agent share % (if applicable)
-  referralSharePercent   Decimal?           @db.Decimal(5, 2) // Referral share %
-  rewardPoolSharePercent Decimal?           @db.Decimal(5, 2) // Reward pool share %
-  isActive               Boolean            @default(true)
+  commissionPercent      Decimal  @db.Decimal(5, 2) // Platform commission %
+  platformFeePercent     Decimal  @db.Decimal(5, 2) // Platform fee %
+  agentSharePercent      Decimal? @db.Decimal(5, 2) // Agent share % (if applicable)
+  referralSharePercent   Decimal? @db.Decimal(5, 2) // Referral share %
+  rewardPoolSharePercent Decimal? @db.Decimal(5, 2) // Reward pool share %
+  isActive               Boolean  @default(true)
   metadata               Json? // Additional pricing context
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   @@index([itemType, isActive])
 }
@@ -2064,22 +1973,22 @@ model UserPaymentProfile {
 }
 
 model PaymentTransaction {
-  id              String             @id @default(cuid())
+  id              String         @id @default(cuid())
   userId          String
   featureId       String? // Property ID, Agent Assignment ID, etc.
-  featureType     ChargeableItemType
+  featureType     String
   invoiceId       String?
   paymentIntentId String?
   amountCents     Int
   currency        Currency
-  status          PaymentStatus      @default(PENDING)
+  status          String         @default("PENDING")
   gateway         PaymentGateway
   gatewayRef      String?
-  transactionRef  String             @unique
+  transactionRef  String         @unique
   receiptUrl      String?
   metadata        Json? // Additional context
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   user          User           @relation("PaymentTransactionUser", fields: [userId], references: [id])
   invoice       Invoice?       @relation("PaymentTransactionInvoice", fields: [invoiceId], references: [id])

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AdEventType } from '@prisma/client';
+// import { AdEventType } from '@prisma/client';
+export type AdEventType = 'VIEW' | 'CLICK' | 'LEAD';
 
 @Injectable()
 export class AdEventsService {

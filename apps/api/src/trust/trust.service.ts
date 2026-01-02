@@ -1,7 +1,14 @@
 
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { TrustTier } from '@prisma/client';
+
+const TrustTier = {
+    NORMAL: 'NORMAL',
+    WATCH: 'WATCH',
+    REVIEW: 'REVIEW',
+    HIGH_RISK: 'HIGH_RISK',
+} as const;
+type TrustTier = typeof TrustTier[keyof typeof TrustTier];
 
 @Injectable()
 export class TrustService {

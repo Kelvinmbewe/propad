@@ -7,23 +7,115 @@ import {
 } from '@nestjs/common';
 import {
   Currency,
-  InterestStatus,
-  ListingActivityType,
-  ListingCreatorRole,
-  ListingPaymentStatus,
-  ListingPaymentType,
   Prisma,
   PropertyAvailability,
   PropertyFurnishing,
-  PropertyRatingType,
   PropertyStatus,
   PropertyType,
   Role,
   RewardEventType,
-  VerificationItemStatus,
-  VerificationStatus,
-  ViewingStatus
 } from '@prisma/client';
+
+// Local Enum Definitions
+const InterestStatus = {
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED',
+  WITHDRAWN: 'WITHDRAWN',
+  EXPIRED: 'EXPIRED',
+  CONFIRMED: 'CONFIRMED',
+} as const;
+type InterestStatus = typeof InterestStatus[keyof typeof InterestStatus];
+
+const ListingCreatorRole = {
+  AGENT: 'AGENT',
+  LANDLORD: 'LANDLORD',
+  ADMIN: 'ADMIN',
+} as const;
+type ListingCreatorRole = typeof ListingCreatorRole[keyof typeof ListingCreatorRole];
+
+const ListingPaymentType = {
+  LISTING_FEE: 'LISTING_FEE',
+  PROMOTION: 'PROMOTION',
+  VERIFICATION: 'VERIFICATION',
+  AGENT_FEE: 'AGENT_FEE',
+} as const;
+type ListingPaymentType = typeof ListingPaymentType[keyof typeof ListingPaymentType];
+
+const ViewingStatus = {
+  PENDING: 'PENDING',
+  CONFIRMED: 'CONFIRMED',
+  CANCELLED: 'CANCELLED',
+  COMPLETED: 'COMPLETED',
+  NO_SHOW: 'NO_SHOW',
+} as const;
+type ViewingStatus = typeof ViewingStatus[keyof typeof ViewingStatus];
+
+const VerificationStatus = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+} as const;
+type VerificationStatus = typeof VerificationStatus[keyof typeof VerificationStatus];
+
+const VerificationItemStatus = {
+  PENDING: 'PENDING',
+  SUBMITTED: 'SUBMITTED',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+} as const;
+type VerificationItemStatus = typeof VerificationItemStatus[keyof typeof VerificationItemStatus];
+
+const PropertyRatingType = {
+  LOCATION: 'LOCATION',
+  VALUE: 'VALUE',
+  CONDITION: 'CONDITION',
+  SAFETY: 'SAFETY',
+  PREVIOUS_TENANT: 'PREVIOUS_TENANT',
+  CURRENT_TENANT: 'CURRENT_TENANT',
+  VISITOR: 'VISITOR',
+  ANONYMOUS: 'ANONYMOUS',
+} as const;
+type PropertyRatingType = typeof PropertyRatingType[keyof typeof PropertyRatingType];
+
+const ListingActivityType = {
+  CREATED: 'CREATED',
+  UPDATED: 'UPDATED',
+  VIEWED: 'VIEWED',
+  SAVED: 'SAVED',
+  INQUIRED: 'INQUIRED',
+  CONTACTED: 'CONTACTED',
+  SHARED: 'SHARED',
+  REPORTED: 'REPORTED',
+  AGENT_ASSIGNED: 'AGENT_ASSIGNED',
+  OFFER_RECEIVED: 'OFFER_RECEIVED',
+  OFFER_ACCEPTED: 'OFFER_ACCEPTED',
+  OFFER_REJECTED: 'OFFER_REJECTED',
+  OFFER_CONFIRMED: 'OFFER_CONFIRMED',
+  OFFER_ON_HOLD: 'OFFER_ON_HOLD',
+  PAYMENT_CREATED: 'PAYMENT_CREATED',
+  PAYMENT_PAID: 'PAYMENT_PAID',
+  PAYMENT_FAILED: 'PAYMENT_FAILED',
+  VERIFICATION_SUBMITTED: 'VERIFICATION_SUBMITTED',
+  VERIFICATION_APPROVED: 'VERIFICATION_APPROVED',
+  VERIFICATION_REJECTED: 'VERIFICATION_REJECTED',
+  VIEWING_SCHEDULED: 'VIEWING_SCHEDULED',
+  VIEWING_ACCEPTED: 'VIEWING_ACCEPTED',
+  VIEWING_POSTPONED: 'VIEWING_POSTPONED',
+  VIEWING_CANCELLED: 'VIEWING_CANCELLED',
+  CHAT_MESSAGE: 'CHAT_MESSAGE',
+  RATING_SUBMITTED: 'RATING_SUBMITTED',
+  PROPERTY_VIEWED: 'PROPERTY_VIEWED',
+} as const;
+type ListingActivityType = string;
+
+const ListingPaymentStatus = {
+  PENDING: 'PENDING',
+  PAID: 'PAID',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED',
+} as const;
+type ListingPaymentStatus = string;
 import { PowerPhase } from '../common/enums';
 import { createHmac, randomUUID } from 'crypto';
 import { extname, join, resolve } from 'path';
@@ -1505,7 +1597,7 @@ export class PropertiesService {
     const isOwner = property.landlordId === actor.userId || property.agentOwnerId === actor.userId;
     const isAdmin = actor.role === Role.ADMIN;
 
-    let where: Prisma.PropertyMessageWhereInput = { propertyId: id };
+    let where: any = { propertyId: id };
 
     if (!isOwner && !isAdmin) {
       // Regular users only see their own messages
@@ -1770,7 +1862,7 @@ export class PropertiesService {
     const fetchLimit = useRanking ? limit * 5 : limit;
 
     // Sort Strategy
-    let orderBy: Prisma.PropertyOrderByWithRelationInput | Prisma.PropertyOrderByWithRelationInput[] = { createdAt: 'desc' };
+    let orderBy: any = { createdAt: 'desc' };
     if (dto.sort === 'PRICE_ASC') orderBy = { price: 'asc' };
     if (dto.sort === 'PRICE_DESC') orderBy = { price: 'desc' };
     if (dto.sort === 'NEWEST') orderBy = { createdAt: 'desc' };
@@ -2015,12 +2107,12 @@ export class PropertiesService {
     } else {
       // NEW Request Logic
       // MANDATORY: Create VerificationRequest with targetType='PROPERTY' and at least one SUBMITTED item
-      
+
       // Validate that at least one item will be SUBMITTED
       const hasProofOfOwnership = dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0;
       const hasLocation = dto.locationGpsLat && dto.locationGpsLng;
       const hasPropertyPhotos = dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0;
-      
+
       if (!hasProofOfOwnership && !hasLocation && !hasPropertyPhotos) {
         throw new BadRequestException('At least one verification item with evidence must be provided (proof of ownership, location GPS, or property photos)');
       }
@@ -2086,7 +2178,7 @@ export class PropertiesService {
       }
 
       // PRODUCTION HARDENING: Auto-create SiteVisit when location item requests on-site visit
-      const locationItem = verificationRequest.items.find((i: any) => 
+      const locationItem = verificationRequest.items.find((i: any) =>
         i.type === 'LOCATION_CONFIRMATION' && i.notes?.includes('On-site visit requested')
       );
       if (locationItem && dto.requestOnSiteVisit) {

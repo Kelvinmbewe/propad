@@ -1,7 +1,14 @@
 
 import { Body, Controller, Get, Logger, Param, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { VerificationsService } from './verifications.service';
-import { VerificationType, VerificationItemStatus, Role } from '@prisma/client';
+import { VerificationType, Role } from '@prisma/client';
+
+const VerificationItemStatus = {
+  PENDING: 'PENDING',
+  SUBMITTED: 'SUBMITTED',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+} as const;
 import { ReviewVerificationItemDto } from '../properties/dto/review-verification-item.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 

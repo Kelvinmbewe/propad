@@ -1,6 +1,30 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { SiteVisitStatus, VerificationItemType, VerificationItemStatus, VerificationStatus, Role } from '@prisma/client';
+import { VerificationItemType, Role } from '@prisma/client';
+
+const SiteVisitStatus = {
+    PENDING_ASSIGNMENT: 'PENDING_ASSIGNMENT',
+    ASSIGNED: 'ASSIGNED',
+    IN_PROGRESS: 'IN_PROGRESS',
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED',
+} as const;
+type SiteVisitStatus = typeof SiteVisitStatus[keyof typeof SiteVisitStatus];
+
+const VerificationStatus = {
+    PENDING: 'PENDING',
+    APPROVED: 'APPROVED',
+    REJECTED: 'REJECTED',
+} as const;
+type VerificationStatus = typeof VerificationStatus[keyof typeof VerificationStatus];
+
+const VerificationItemStatus = {
+    PENDING: 'PENDING',
+    SUBMITTED: 'SUBMITTED',
+    APPROVED: 'APPROVED',
+    REJECTED: 'REJECTED',
+} as const;
+type VerificationItemStatus = typeof VerificationItemStatus[keyof typeof VerificationItemStatus];
 import { TrustService } from '../trust/trust.service';
 import { RiskService, RiskSignalType } from '../trust/risk.service';
 

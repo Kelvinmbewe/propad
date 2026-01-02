@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { WalletLedgerType, WalletLedgerSourceType, Currency } from '@prisma/client';
+import { Currency } from '@prisma/client';
+import { WalletLedgerType, WalletLedgerSourceType } from './enums';
 
 @Injectable()
 export class LedgerService {

@@ -2,14 +2,27 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException,
 import {
   PropertyStatus,
   VerificationResult,
-  VerificationItemStatus,
-  VerificationStatus,
   VerificationRequestItem,
   VerificationType,
   Property,
   VerificationRequest,
   Prisma
 } from '@prisma/client';
+
+const VerificationStatus = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+} as const;
+type VerificationStatus = typeof VerificationStatus[keyof typeof VerificationStatus];
+
+const VerificationItemStatus = {
+  PENDING: 'PENDING',
+  SUBMITTED: 'SUBMITTED',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+} as const;
+type VerificationItemStatus = typeof VerificationItemStatus[keyof typeof VerificationItemStatus];
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { ReviewVerificationDto } from './dto/review-verification.dto';
@@ -97,7 +110,7 @@ export class VerificationsService {
       // PROOF: Log request count before returning
       const requestCount = rawRequests.length;
       console.log(`VERIFICATION REQUESTS FOUND: ${requestCount}`);
-      
+
       this.logger.log(
         `[VERIFICATION QUEUE] Found ${requestCount} requests with SUBMITTED items`,
         rawRequests.map((r: any) => ({
@@ -301,10 +314,10 @@ export class VerificationsService {
 
       // If item.evidence is null or empty → throw BadRequestException("No evidence submitted")
       // Check evidenceUrls array - for location items, check GPS or notes instead
-      const hasEvidence = item.type === 'LOCATION_CONFIRMATION' 
+      const hasEvidence = item.type === 'LOCATION_CONFIRMATION'
         ? (item.gpsLat && item.gpsLng) || item.notes?.includes('On-site visit requested')
         : (item.evidenceUrls && Array.isArray(item.evidenceUrls) && item.evidenceUrls.length > 0);
-      
+
       if (!hasEvidence) {
         throw new BadRequestException('No evidence submitted');
       }
@@ -324,7 +337,7 @@ export class VerificationsService {
       return await this.prisma.$transaction(async (tx) => {
         // Validate verifier exists: const verifier = await tx.user.findUnique({ where: { id: verifierId } });
         // If not found → throw BadRequestException("Invalid verifier")
-        const verifier = await tx.user.findUnique({ 
+        const verifier = await tx.user.findUnique({
           where: { id: verifierId },
           select: { id: true }
         });
@@ -391,11 +404,11 @@ export class VerificationsService {
       if (error instanceof NotFoundException || error instanceof BadRequestException || error instanceof ForbiddenException) {
         throw error;
       }
-      
+
       // Wrap the method in try/catch and log the error message before rethrowing
       console.error('[VERIFY ITEM ERROR]', error);
       this.logger.error('[VERIFY ITEM ERROR]', error);
-      
+
       // Convert unknown errors to BadRequestException
       throw new BadRequestException(error instanceof Error ? error.message : 'Failed to review verification item');
     }

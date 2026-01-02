@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PayoutMethod, PayoutRequest } from '@prisma/client';
+import { PayoutMethod } from '@prisma/client';
 import { IPayoutProvider } from './payout-provider.interface';
 
 @Injectable()
@@ -10,7 +10,7 @@ export class ManualProvider implements IPayoutProvider {
         return method === PayoutMethod.CASH || method === PayoutMethod.OTHER;
     }
 
-    async processPayout(request: PayoutRequest, accountDetails: any): Promise<{ transactionRef: string; status: string; metadata?: any }> {
+    async processPayout(request: any, accountDetails: any): Promise<{ transactionRef: string; status: string; metadata?: any }> {
         this.logger.log(`Processing Manual/Cash payout for ${request.id}`);
 
         return {
