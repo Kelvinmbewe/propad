@@ -1,4 +1,4 @@
-import { Role } from '@prisma/client';
+import { Role } from './roles.enum';
 
 export const PERMISSIONS = {
     PAYOUT_REQUEST: 'payout.request',

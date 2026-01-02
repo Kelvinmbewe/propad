@@ -1,5 +1,7 @@
+import { PayoutMethod } from './enums';
+
 // Note: PayoutMethod types here are for client use. Full PayoutRequest type is in schemas.ts
-export type PayoutMethodType = 'ECOCASH' | 'INNBUCKS' | 'BANK_TRANSFER';
+export type PayoutMethodType = PayoutMethod;
 export type PayoutStatusType = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
 
 export interface RequestPayoutParams {

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PayoutMethod, PayoutRequest } from '@prisma/client';
+import { PayoutRequest } from '@prisma/client';
+import { PayoutMethod } from '../../payout-method.enum';
 import { IPayoutProvider } from './payout-provider.interface';
 
 @Injectable()
@@ -7,7 +8,7 @@ export class BankProvider implements IPayoutProvider {
     private readonly logger = new Logger(BankProvider.name);
 
     canHandle(method: PayoutMethod): boolean {
-        return method === PayoutMethod.BANK_TRANSFER || method === PayoutMethod.ZIPIT;
+        return method === PayoutMethod.BANK || method === PayoutMethod.BANK_TRANSFER || method === PayoutMethod.ZIPIT;
     }
 
     async processPayout(request: PayoutRequest, accountDetails: any): Promise<{ transactionRef: string; status: string; metadata?: any }> {

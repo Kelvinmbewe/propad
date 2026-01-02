@@ -1,0 +1,26 @@
+export enum Role {
+    ADMIN = 'ADMIN',
+    VERIFIER = 'VERIFIER',
+    AGENT = 'AGENT',
+    LANDLORD = 'LANDLORD',
+    USER = 'USER',
+    MODERATOR = 'MODERATOR',
+    COMPANY_ADMIN = 'COMPANY_ADMIN',
+    COMPANY_AGENT = 'COMPANY_AGENT',
+    INDEPENDENT_AGENT = 'INDEPENDENT_AGENT',
+    SELLER = 'SELLER',
+    TENANT = 'TENANT',
+    BUYER = 'BUYER',
+    ADVERTISER = 'ADVERTISER',
+}
+
+export enum PayoutMethod {
+    ECOCASH = 'ECOCASH',
+    ONEMONEY = 'ONEMONEY',
+    BANK = 'BANK',
+    BANK_TRANSFER = 'BANK_TRANSFER',
+    ZIPIT = 'ZIPIT',
+    WALLET = 'WALLET',
+    CASH = 'CASH',
+    OTHER = 'OTHER',
+}

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PayoutMethod, PayoutRequest } from '@prisma/client';
+import { PayoutRequest } from '@prisma/client';
+import { PayoutMethod } from '../../payout-method.enum';
 import { IPayoutProvider } from './payout-provider.interface';
 
 @Injectable()
