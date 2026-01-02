@@ -484,7 +484,7 @@ export class VerificationsService {
     let hasAddress = false;
 
     (requests as (VerificationRequest & { items: any[] })[]).forEach((r) => {
-      r.items.forEach((i) => {
+      r.items.forEach((i: any) => {
         if (i.status === 'APPROVED') {
           if (i.type === 'IDENTITY_DOC') { score += 40; hasId = true; }
           if (i.type === 'SELFIE_VERIFICATION') { score += 30; hasSelfie = true; }
@@ -512,7 +512,7 @@ export class VerificationsService {
     let docsCount = 0;
 
     (requests as (VerificationRequest & { items: any[] })[]).forEach((r) => {
-      r.items.forEach((i) => {
+      r.items.forEach((i: any) => {
         if (i.status === 'APPROVED') {
           if (i.type === 'COMPANY_REGS') score += 40;
           if (i.type === 'TAX_CLEARANCE') score += 30;

@@ -2,10 +2,9 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import {
   Currency,
   OwnerType,
-  WalletLedgerType,
-  WalletLedgerSourceType,
   Prisma
 } from '@prisma/client';
+import { WalletLedgerType, WalletLedgerSourceType } from '../wallet/enums';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()

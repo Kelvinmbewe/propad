@@ -7,6 +7,8 @@
     "**/*spec.ts",
     "vitest.config.ts",
     "eslint.config.mjs",
-    "prisma/migrations/**/*"
+    "prisma/migrations/**/*",
+    "src/_monetization_disabled/**/*",
+    "src/_payments_disabled/**/*"
   ]
 }
