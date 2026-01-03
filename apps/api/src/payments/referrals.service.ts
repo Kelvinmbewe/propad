@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Currency, OwnerType, Prisma, WalletLedgerSourceType, ReferralEarning } from '@prisma/client';
+import { Currency, OwnerType, Prisma, ReferralEarning } from '@prisma/client';
+import { WalletLedgerSourceType } from '../wallet/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PricingService } from './pricing.service';

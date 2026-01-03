@@ -11,4 +11,5 @@ export enum WalletLedgerSourceType {
     REFERRAL = 'REFERRAL',
     MANUAL = 'MANUAL',
     REWARD = 'REWARD',
+    ADJUSTMENT = 'ADJUSTMENT',
 }

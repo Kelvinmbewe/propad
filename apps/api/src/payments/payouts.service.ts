@@ -7,11 +7,11 @@ import {
   PayoutStatus,
   Prisma,
   WalletTransactionSource,
-  WalletLedgerSourceType,
   PaymentProvider,
   PayoutTransaction,
   Wallet
 } from '@prisma/client';
+import { WalletLedgerSourceType } from '../wallet/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PricingService } from './pricing.service';

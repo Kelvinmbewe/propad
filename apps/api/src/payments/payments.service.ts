@@ -178,9 +178,12 @@ export class PaymentsService {
 
   private getFeatureDisplayName(featureType: ChargeableItemType): string {
     const names: Record<ChargeableItemType, string> = {
+      [ChargeableItemType.PROPERTY_LISTING]: 'Property Listing',
       [ChargeableItemType.PROPERTY_VERIFICATION]: 'Property Verification',
       [ChargeableItemType.AGENT_ASSIGNMENT]: 'Agent Assignment',
+      [ChargeableItemType.PROMO_BOOST]: 'Promo Boost',
       [ChargeableItemType.FEATURED_LISTING]: 'Featured Listing',
+      [ChargeableItemType.ADVERTISEMENT]: 'Advertisement',
       [ChargeableItemType.TRUST_BOOST]: 'Trust Boost',
       [ChargeableItemType.IN_HOUSE_ADVERT_BUYING]: 'In-House Ad (Buying)',
       [ChargeableItemType.IN_HOUSE_ADVERT_SELLING]: 'In-House Ad (Selling)',
