@@ -77,7 +77,7 @@ export default async function RentHistoryPage() {
                             </div>
                         ) : (
                             <ul role="list" className="divide-y divide-slate-100">
-                                {payments.map((payment) => (
+                                {payments.map((payment: Awaited<ReturnType<typeof getRentHistory>>[number]) => (
                                     <li key={payment.id} className="flex items-center justify-between px-6 py-4">
                                         <div>
                                             <p className="font-medium text-slate-900">{payment.property.title}</p>
