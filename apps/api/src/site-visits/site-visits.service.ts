@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { VerificationItemType, Role } from '@prisma/client';
+import { Role } from '@prisma/client';
 
 const SiteVisitStatus = {
     PENDING_ASSIGNMENT: 'PENDING_ASSIGNMENT',

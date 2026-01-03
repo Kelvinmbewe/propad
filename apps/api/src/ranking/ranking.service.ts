@@ -50,9 +50,9 @@ export class RankingService {
 
             // 2. Calculate boostEffect (Max +15)
             let boostEffect = 0;
-            if (activeBoosts.some(b => b.type === 'LISTING_BOOST')) {
+            if (activeBoosts.some((b: { type: string }) => b.type === 'LISTING_BOOST')) {
                 boostEffect += 15;
-            } else if (activeBoosts.some(b => b.type === 'FEATURED_LISTING')) {
+            } else if (activeBoosts.some((b: { type: string }) => b.type === 'FEATURED_LISTING')) {
                 boostEffect += 10;
             }
 

@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { ViewingStatus } from '@prisma/client';
 
 export const respondViewingSchema = z
   .object({
-    status: z.nativeEnum(ViewingStatus),
+    status: z.enum(['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'POSTPONED']),
     notes: z.string().optional()
   })
   .strict();
 
 export type RespondViewingDto = z.infer<typeof respondViewingSchema>;
+
 

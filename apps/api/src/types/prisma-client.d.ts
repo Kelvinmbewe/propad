@@ -158,8 +158,20 @@ declare module '@prisma/client' {
   export const OwnerType: LiteralEnum<'USER' | 'AGENCY'>;
   export type OwnerType = EnumValues<typeof OwnerType>;
 
-  export const PayoutMethod: LiteralEnum<'ECOCASH' | 'BANK' | 'WALLET'>;
+  export const PayoutMethod: LiteralEnum<'ECOCASH' | 'ONEMONEY' | 'BANK' | 'BANK_TRANSFER' | 'ZIPIT' | 'WALLET' | 'CASH' | 'OTHER'>;
   export type PayoutMethod = EnumValues<typeof PayoutMethod>;
+
+  export const ViewingStatus: LiteralEnum<'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'POSTPONED'>;
+  export type ViewingStatus = EnumValues<typeof ViewingStatus>;
+
+  export const VerificationItemStatus: LiteralEnum<'PENDING' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'>;
+  export type VerificationItemStatus = EnumValues<typeof VerificationItemStatus>;
+
+  export const PropertyRatingType: LiteralEnum<'PREVIOUS_TENANT' | 'NEIGHBOR' | 'VISITOR' | 'EXTERNAL'>;
+  export type PropertyRatingType = EnumValues<typeof PropertyRatingType>;
+
+  export const VerificationItemType: LiteralEnum<'PROOF_OF_OWNERSHIP' | 'LOCATION_CONFIRMATION' | 'PROPERTY_PHOTOS' | 'COMPANY_REGS' | 'IDENTITY_DOC' | 'PROOF_OF_ADDRESS' | 'SELFIE_VERIFICATION' | 'TAX_CLEARANCE' | 'DIRECTOR_ID' | 'BUSINESS_ADDRESS'>;
+  export type VerificationItemType = EnumValues<typeof VerificationItemType>;
 
   export const PayoutStatus: LiteralEnum<'REQUESTED' | 'REVIEW' | 'APPROVED' | 'SENT' | 'PAID' | 'FAILED' | 'CANCELLED'>;
   export type PayoutStatus = EnumValues<typeof PayoutStatus>;
@@ -253,4 +265,7 @@ declare module '@prisma/client' {
   export type RewardEvent = Record<string, any>;
   export type Verification = Record<string, any>;
   export type Transaction = Record<string, any>;
+  export type PayoutRequest = Record<string, any>;
+  export type VerificationRequest = Record<string, any>;
+  export type VerificationRequestItem = Record<string, any>;
 }
