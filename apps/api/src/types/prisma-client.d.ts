@@ -209,6 +209,22 @@ declare module '@prisma/client' {
   export const AdCampaignStatus: LiteralEnum<'DRAFT' | 'ACTIVE' | 'PAUSED' | 'ENDED'>;
   export type AdCampaignStatus = EnumValues<typeof AdCampaignStatus>;
 
+  // Payments module enums
+  export const ChargeableItemType: LiteralEnum<'PROPERTY_LISTING' | 'PROPERTY_VERIFICATION' | 'AGENT_ASSIGNMENT' | 'PROMO_BOOST' | 'FEATURED_LISTING' | 'ADVERTISEMENT' | 'TRUST_BOOST' | 'IN_HOUSE_ADVERT_BUYING' | 'IN_HOUSE_ADVERT_SELLING' | 'PREMIUM_VERIFICATION' | 'OTHER'>;
+  export type ChargeableItemType = EnumValues<typeof ChargeableItemType>;
+
+  export const PaymentStatus: LiteralEnum<'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'REFUNDED' | 'CANCELLED' | 'PAID'>;
+  export type PaymentStatus = EnumValues<typeof PaymentStatus>;
+
+  export const PaymentProvider: LiteralEnum<'PAYNOW' | 'STRIPE' | 'PAYPAL' | 'MANUAL'>;
+  export type PaymentProvider = EnumValues<typeof PaymentProvider>;
+
+  export const WalletLedgerType: LiteralEnum<'CREDIT' | 'DEBIT'>;
+  export type WalletLedgerType = EnumValues<typeof WalletLedgerType>;
+
+  export const WalletLedgerSourceType: LiteralEnum<'VERIFICATION' | 'AGENT_COMMISSION' | 'REFERRAL' | 'REWARD' | 'PAYOUT' | 'ADJUSTMENT'>;
+  export type WalletLedgerSourceType = EnumValues<typeof WalletLedgerSourceType>;
+
   export type PrismaPromise<T = any> = Promise<T>;
 
   export interface PrismaClientEventEmitter {
@@ -240,6 +256,8 @@ declare module '@prisma/client' {
     export type Decimal = RuntimeDecimal;
     export const Decimal: { new(value: number | string | bigint): Decimal };
     export type JsonObject = Record<string, any>;
+    export type JsonValue = string | number | boolean | null | JsonObject | JsonValue[];
+    export type InputJsonValue = string | number | boolean | null | { [key: string]: InputJsonValue } | InputJsonValue[];
     export type PropertyInclude = Record<string, any>;
     export type PropertyWhereInput = Record<string, any>;
     export type WalletUpdateInput = Record<string, any>;
@@ -268,4 +286,8 @@ declare module '@prisma/client' {
   export type PayoutRequest = Record<string, any>;
   export type VerificationRequest = Record<string, any>;
   export type VerificationRequestItem = Record<string, any>;
+  export type Boost = { type: string;[key: string]: any };
+  export type PayoutTransaction = Record<string, any>;
+  export type ReferralEarning = Record<string, any>;
+  export type User = Record<string, any>;
 }

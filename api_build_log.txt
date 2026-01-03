@@ -1,0 +1,246 @@
+﻿#1 [internal] load local bake definitions
+#1 reading from stdin 516B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from api.Dockerfile
+#2 transferring dockerfile: 1.95kB 0.0s done
+#2 DONE 0.1s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 DONE 1.4s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B 0.0s done
+#4 DONE 0.1s
+
+#5 [internal] load build context
+#5 DONE 0.0s
+
+#6 [builder  1/15] FROM docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520
+#6 resolve docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520 0.1s done
+#6 DONE 0.1s
+
+#5 [internal] load build context
+#5 transferring context: 109.57kB 4.7s
+#5 transferring context: 109.57kB 4.7s done
+#5 DONE 5.1s
+
+#7 [builder  9/15] COPY apps/api/prisma ./prisma
+#7 CACHED
+
+#8 [builder 12/15] RUN pnpm install --filter @propad/api... --frozen-lockfile=false
+#8 CACHED
+
+#9 [builder  8/15] COPY apps/api ./apps/api
+#9 CACHED
+
+#10 [builder 10/15] RUN npm install -g pnpm@10.19.0
+#10 CACHED
+
+#11 [builder 11/15] RUN pnpm config set fetch-retries 5     && pnpm config set fetch-retry-mintimeout 20000     && pnpm config set fetch-retry-maxtimeout 120000
+#11 CACHED
+
+#12 [builder  2/15] WORKDIR /app
+#12 CACHED
+
+#13 [builder  3/15] RUN apt-get update -y     && apt-get install -y openssl ca-certificates curl     && rm -rf /var/lib/apt/lists/*
+#13 CACHED
+
+#14 [builder  7/15] COPY packages ./packages
+#14 CACHED
+
+#15 [builder  4/15] COPY package*.json ./
+#15 CACHED
+
+#16 [builder  6/15] COPY tsconfig.json ./
+#16 CACHED
+
+#17 [builder 13/15] RUN pnpm --filter @propad/sdk run build
+#17 CACHED
+
+#18 [builder  5/15] COPY pnpm-workspace.yaml ./
+#18 CACHED
+
+#19 [builder 14/15] RUN pnpm --filter @propad/api... run prisma:generate
+#19 CACHED
+
+#20 [builder 15/15] RUN pnpm --filter @propad/api... run build
+#20 2.396 Scope: 3 of 7 workspace projects
+#20 2.411 packages/config build$ tsc -p tsconfig.json
+#20 2.413 packages/sdk build$ tsc -p tsconfig.json
+#20 9.663 packages/config build: Done
+#20 17.62 packages/sdk build: Done
+#20 17.62 apps/api build$ nest build
+#20 52.43 apps/api build: [96msrc/monetization/monetization.service.ts[0m:[93m5[0m:[93m21[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'Boost'.
+#20 52.43 apps/api build: [7m5[0m import { BoostType, Boost, Prisma } from '@prisma/client';
+#20 52.44 apps/api build: [7m [0m [91m                    ~~~~~[0m
+#20 52.44 apps/api build: [96msrc/monetization/monetization.service.ts[0m:[93m121[0m:[93m27[0m - [91merror[0m[90m TS2694: [0mNamespace '"/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+#20 52.44 apps/api build: [7m121[0m         metadata?: Prisma.InputJsonValue;
+#20 52.45 apps/api build: [7m   [0m [91m                          ~~~~~~~~~~~~~~[0m
+#20 52.45 apps/api build: [96msrc/payments/decorators/payment-required.decorator.ts[0m:[93m2[0m:[93m10[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'ChargeableItemType'.
+#20 52.45 apps/api build: [7m2[0m import { ChargeableItemType } from '@prisma/client';
+#20 52.46 apps/api build: [7m [0m [91m         ~~~~~~~~~~~~~~~~~~[0m
+#20 52.46 apps/api build: [96msrc/payments/feature-access.controller.ts[0m:[93m2[0m:[93m10[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'ChargeableItemType'.
+#20 52.46 apps/api build: [7m2[0m import { ChargeableItemType } from '@prisma/client';
+#20 52.46 apps/api build: [7m [0m [91m         ~~~~~~~~~~~~~~~~~~[0m
+#20 52.47 apps/api build: [96msrc/payments/feature-access.service.ts[0m:[93m2[0m:[93m10[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'ChargeableItemType'.
+#20 52.47 apps/api build: [7m2[0m import { ChargeableItemType, PaymentStatus, Invoice, InvoiceLine } from '@prisma/client';
+#20 52.47 apps/api build: [7m [0m [91m         ~~~~~~~~~~~~~~~~~~[0m
+#20 52.47 apps/api build: [96msrc/payments/feature-access.service.ts[0m:[93m2[0m:[93m30[0m - [91merror[0m[90m TS2724: [0m'"@prisma/client"' has no exported member named 'PaymentStatus'. Did you mean 'PayoutStatus'?
+#20 52.47 apps/api build: [7m2[0m import { ChargeableItemType, PaymentStatus, Invoice, InvoiceLine } from '@prisma/client';
+#20 52.48 apps/api build: [7m [0m [91m                             ~~~~~~~~~~~~~[0m
+#20 52.48 apps/api build:   [96msrc/types/prisma-client.d.ts[0m:[93m176[0m:[93m16[0m
+#20 52.48 apps/api build:     [7m176[0m   export const PayoutStatus: LiteralEnum<'REQUESTED' | 'REVIEW' | 'APPROVED' | 'SENT' | 'PAID' | 'FAILED' | 'CANCELLED'>;
+#20 52.48 apps/api build:     [7m   [0m [96m               ~~~~~~~~~~~~[0m
+#20 52.48 apps/api build:     'PayoutStatus' is declared here.
+#20 52.48 apps/api build: [96msrc/payments/gateways/paynow-payout.gateway.ts[0m:[93m5[0m:[93m34[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'PaymentProvider'.
+#20 52.48 apps/api build: [7m5[0m import { Currency, PayoutMethod, PaymentProvider } from '@prisma/client';
+#20 52.48 apps/api build: [7m [0m [91m                                 ~~~~~~~~~~~~~~~[0m
+#20 52.48 apps/api build: [96msrc/payments/gateways/paypal-payout.gateway.ts[0m:[93m2[0m:[93m24[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'PaymentProvider'.
+#20 52.49 apps/api build: [7m2[0m import { PayoutMethod, PaymentProvider } from '@prisma/client';
+#20 52.49 apps/api build: [7m [0m [91m                       ~~~~~~~~~~~~~~~[0m
+#20 52.49 apps/api build: [96msrc/payments/gateways/stripe-payout.gateway.ts[0m:[93m2[0m:[93m24[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'PaymentProvider'.
+#20 52.49 apps/api build: [7m2[0m import { PayoutMethod, PaymentProvider } from '@prisma/client';
+#20 52.49 apps/api build: [7m [0m [91m                       ~~~~~~~~~~~~~~~[0m
+#20 52.49 apps/api build: [96msrc/payments/guards/payment-required.guard.ts[0m:[93m2[0m:[93m10[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'ChargeableItemType'.
+#20 52.50 apps/api build: [7m2[0m import { ChargeableItemType } from '@prisma/client';
+#20 52.50 apps/api build: [7m [0m [91m         ~~~~~~~~~~~~~~~~~~[0m
+#20 52.50 apps/api build: [96msrc/payments/interfaces/payout-gateway.ts[0m:[93m1[0m:[93m34[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'PaymentProvider'.
+#20 52.50 apps/api build: [7m1[0m import { Currency, PayoutMethod, PaymentProvider } from '@prisma/client';
+#20 52.50 apps/api build: [7m [0m [91m                                 ~~~~~~~~~~~~~~~[0m
+#20 52.50 apps/api build: [96msrc/payments/payment-polling.service.ts[0m:[93m2[0m:[93m47[0m - [91merror[0m[90m TS2724: [0m'"@prisma/client"' has no exported member named 'PaymentStatus'. Did you mean 'PayoutStatus'?
+#20 52.50 apps/api build: [7m2[0m import { PaymentGateway, PaymentIntentStatus, PaymentStatus, InvoiceLine } from '@prisma/client';
+#20 52.50 apps/api build: [7m [0m [91m                                              ~~~~~~~~~~~~~[0m
+#20 52.50 apps/api build:   [96msrc/types/prisma-client.d.ts[0m:[93m176[0m:[93m16[0m
+#20 52.50 apps/api build:     [7m176[0m   export const PayoutStatus: LiteralEnum<'REQUESTED' | 'REVIEW' | 'APPROVED' | 'SENT' | 'PAID' | 'FAILED' | 'CANCELLED'>;
+#20 52.50 apps/api build:     [7m   [0m [96m               ~~~~~~~~~~~~[0m
+#20 52.50 apps/api build:     'PayoutStatus' is declared here.
+#20 52.50 apps/api build: [96msrc/payments/payment-provider-settings.controller.ts[0m:[93m2[0m:[93m10[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'PaymentProvider'.
+#20 52.50 apps/api build: [7m2[0m import { PaymentProvider, Prisma } from '@prisma/client';
+#20 52.50 apps/api build: [7m [0m [91m         ~~~~~~~~~~~~~~~[0m
+#20 52.50 apps/api build: [96msrc/payments/payment-provider-settings.controller.ts[0m:[93m62[0m:[93m99[0m - [91merror[0m[90m TS2694: [0mNamespace '"/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+#20 52.50 apps/api build: [7m62[0m     return this.service.createOrUpdate(provider, { ...body, configJson: body.configJson as Prisma.InputJsonValue }, req.user.userId);
+#20 52.51 apps/api build: [7m  [0m [91m                                                                                                  ~~~~~~~~~~~~~~[0m
+#20 52.51 apps/api build: [96msrc/payments/payment-provider-settings.service.ts[0m:[93m2[0m:[93m10[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'PaymentProvider'.
+#20 52.51 apps/api build: [7m2[0m import { PaymentProvider, Prisma } from '@prisma/client';
+#20 52.51 apps/api build: [7m [0m [91m         ~~~~~~~~~~~~~~~[0m
+#20 52.51 apps/api build: [96msrc/payments/payment-provider-settings.service.ts[0m:[93m53[0m:[93m27[0m - [91merror[0m[90m TS2694: [0mNamespace '"/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+#20 52.51 apps/api build: [7m53[0m       configJson?: Prisma.InputJsonValue;
+#20 52.51 apps/api build: [7m  [0m [91m                          ~~~~~~~~~~~~~~[0m
+#20 52.51 apps/api build: [96msrc/payments/payments.controller.ts[0m:[93m2[0m:[93m10[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'ChargeableItemType'.
+#20 52.52 apps/api build: [7m2[0m import { ChargeableItemType, Currency } from '@prisma/client';
+#20 52.52 apps/api build: [7m [0m [91m         ~~~~~~~~~~~~~~~~~~[0m
+#20 52.52 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m3[0m:[93m3[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'ChargeableItemType'.
+#20 52.53 apps/api build: [7m3[0m   ChargeableItemType,
+#20 52.53 apps/api build: [7m [0m [91m  ~~~~~~~~~~~~~~~~~~[0m
+#20 52.53 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m12[0m:[93m3[0m - [91merror[0m[90m TS2724: [0m'"@prisma/client"' has no exported member named 'PaymentStatus'. Did you mean 'PayoutStatus'?
+#20 52.53 apps/api build: [7m12[0m   PaymentStatus,
+#20 52.53 apps/api build: [7m  [0m [91m  ~~~~~~~~~~~~~[0m
+#20 52.53 apps/api build:   [96msrc/types/prisma-client.d.ts[0m:[93m176[0m:[93m16[0m
+#20 52.53 apps/api build:     [7m176[0m   export const PayoutStatus: LiteralEnum<'REQUESTED' | 'REVIEW' | 'APPROVED' | 'SENT' | 'PAID' | 'FAILED' | 'CANCELLED'>;
+#20 52.53 apps/api build:     [7m   [0m [96m               ~~~~~~~~~~~~[0m
+#20 52.53 apps/api build:     'PayoutStatus' is declared here.
+#20 52.54 apps/api build: [96msrc/payments/payout-gateway.registry.ts[0m:[93m2[0m:[93m10[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'PaymentProvider'.
+#20 52.54 apps/api build: [7m2[0m import { PaymentProvider } from '@prisma/client';
+#20 52.54 apps/api build: [7m [0m [91m         ~~~~~~~~~~~~~~~[0m
+#20 52.54 apps/api build: [96msrc/payments/payouts.service.ts[0m:[93m3[0m:[93m3[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'ChargeableItemType'.
+#20 52.55 apps/api build: [7m3[0m   ChargeableItemType,
+#20 52.55 apps/api build: [7m [0m [91m  ~~~~~~~~~~~~~~~~~~[0m
+#20 52.55 apps/api build: [96msrc/payments/payouts.service.ts[0m:[93m10[0m:[93m3[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'WalletLedgerSourceType'.
+#20 52.55 apps/api build: [7m10[0m   WalletLedgerSourceType,
+#20 52.55 apps/api build: [7m  [0m [91m  ~~~~~~~~~~~~~~~~~~~~~~[0m
+#20 52.55 apps/api build: [96msrc/payments/payouts.service.ts[0m:[93m11[0m:[93m3[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'PaymentProvider'.
+#20 52.56 apps/api build: [7m11[0m   PaymentProvider,
+#20 52.56 apps/api build: [7m  [0m [91m  ~~~~~~~~~~~~~~~[0m
+#20 52.57 apps/api build: [96msrc/payments/payouts.service.ts[0m:[93m12[0m:[93m3[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'PayoutTransaction'.
+#20 52.57 apps/api build: [7m12[0m   PayoutTransaction,
+#20 52.57 apps/api build: [7m  [0m [91m  ~~~~~~~~~~~~~~~~~[0m
+#20 52.57 apps/api build: [96msrc/payments/pricing.controller.ts[0m:[93m2[0m:[93m10[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'ChargeableItemType'.
+#20 52.57 apps/api build: [7m2[0m import { ChargeableItemType, Prisma } from '@prisma/client';
+#20 52.57 apps/api build: [7m [0m [91m         ~~~~~~~~~~~~~~~~~~[0m
+#20 52.57 apps/api build: [96msrc/payments/pricing.controller.ts[0m:[93m60[0m:[93m106[0m - [91merror[0m[90m TS2694: [0mNamespace '"/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+#20 52.58 apps/api build: [7m60[0m     return this.service.createOrUpdatePricingRule(itemType, { ...body, metadata: body.metadata as Prisma.InputJsonValue }, req.user.userId);
+#20 52.58 apps/api build: [7m  [0m [91m                                                                                                         ~~~~~~~~~~~~~~[0m
+#20 52.58 apps/api build: [96msrc/payments/pricing.service.ts[0m:[93m2[0m:[93m10[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'ChargeableItemType'.
+#20 52.58 apps/api build: [7m2[0m import { ChargeableItemType, Currency, Prisma } from '@prisma/client';
+#20 52.58 apps/api build: [7m [0m [91m         ~~~~~~~~~~~~~~~~~~[0m
+#20 52.58 apps/api build: [96msrc/payments/pricing.service.ts[0m:[93m98[0m:[93m25[0m - [91merror[0m[90m TS2694: [0mNamespace '"/app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/default".Prisma' has no exported member 'InputJsonValue'.
+#20 52.58 apps/api build: [7m98[0m       metadata?: Prisma.InputJsonValue;
+#20 52.58 apps/api build: [7m  [0m [91m                        ~~~~~~~~~~~~~~[0m
+#20 52.59 apps/api build: [96msrc/payments/referrals.service.ts[0m:[93m2[0m:[93m39[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'WalletLedgerSourceType'.
+#20 52.59 apps/api build: [7m2[0m import { Currency, OwnerType, Prisma, WalletLedgerSourceType, ReferralEarning } from '@prisma/client';
+#20 52.59 apps/api build: [7m [0m [91m                                      ~~~~~~~~~~~~~~~~~~~~~~[0m
+#20 52.59 apps/api build: [96msrc/payments/referrals.service.ts[0m:[93m2[0m:[93m63[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'ReferralEarning'.
+#20 52.59 apps/api build: [7m2[0m import { Currency, OwnerType, Prisma, WalletLedgerSourceType, ReferralEarning } from '@prisma/client';
+#20 52.59 apps/api build: [7m [0m [91m                                                              ~~~~~~~~~~~~~~~[0m
+#20 52.60 apps/api build: Found 30 error(s).
+#20 52.65 apps/api build: Failed
+#20 52.74 /app/apps/api:
+#20 52.74 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/api@0.1.0 build: `nest build`
+#20 52.74 Exit status 1
+#20 ERROR: process "/bin/sh -c pnpm --filter @propad/api... run build" did not complete successfully: exit code: 1
+------
+ > [builder 15/15] RUN pnpm --filter @propad/api... run build:
+52.59 apps/api build: [7m2[0m import { Currency, OwnerType, Prisma, WalletLedgerSourceType, ReferralEarning } from '@prisma/client';
+52.59 apps/api build: [7m [0m [91m                                      ~~~~~~~~~~~~~~~~~~~~~~[0m
+52.59 apps/api build: [96msrc/payments/referrals.service.ts[0m:[93m2[0m:[93m63[0m - [91merror[0m[90m TS2305: [0mModule '"@prisma/client"' has no exported member 'ReferralEarning'.
+52.59 apps/api build: [7m2[0m import { Currency, OwnerType, Prisma, WalletLedgerSourceType, ReferralEarning } from '@prisma/client';
+52.59 apps/api build: [7m [0m [91m                                                              ~~~~~~~~~~~~~~~[0m
+52.60 apps/api build: Found 30 error(s).
+52.65 apps/api build: Failed
+52.74 /app/apps/api:
+52.74 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/api@0.1.0 build: `nest build`
+52.74 Exit status 1
+------
+docker : 
+api.Dockerfile:33
+At line:1 char:1
++ docker compose 
+build api 2>&1 | 
+Out-File -FilePath 
+"c:\projects\propa 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (api.Doc   
+ kerfile:33:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+
+--------------------
+
+  31 |     RUN pnpm 
+--filter @propad/sdk 
+run build
+
+  32 |     RUN pnpm 
+--filter 
+@propad/api... run 
+prisma:generate
+
+  33 | >>> RUN pnpm 
+--filter 
+@propad/api... run 
+build
+
+  34 |     
+
+  35 |     
+
+--------------------
+
+failed to solve: 
+process "/bin/sh -c 
+pnpm --filter 
+@propad/api... run 
+build" did not 
+complete 
+successfully: exit 
+code: 1
+

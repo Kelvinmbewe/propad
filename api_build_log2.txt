@@ -1,0 +1,340 @@
+﻿#1 [internal] load local bake definitions
+#1 reading from stdin 516B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from api.Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 1.95kB 0.0s done
+#2 DONE 0.2s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 ...
+
+#4 [auth] library/node:pull token for registry-1.docker.io
+#4 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 DONE 2.9s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 2B done
+#5 DONE 0.1s
+
+#6 [internal] load build context
+#6 DONE 0.0s
+
+#7 [builder  1/15] FROM docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520
+#7 resolve docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520 0.1s done
+#7 DONE 0.1s
+
+#6 [internal] load build context
+#6 transferring context: 105.84kB 7.9s
+#6 transferring context: 123.16kB 8.1s done
+#6 DONE 8.4s
+
+#8 [builder  2/15] WORKDIR /app
+#8 CACHED
+
+#9 [builder  3/15] RUN apt-get update -y     && apt-get install -y openssl ca-certificates curl     && rm -rf /var/lib/apt/lists/*
+#9 CACHED
+
+#10 [builder  4/15] COPY package*.json ./
+#10 CACHED
+
+#11 [builder  5/15] COPY pnpm-workspace.yaml ./
+#11 CACHED
+
+#12 [builder  6/15] COPY tsconfig.json ./
+#12 CACHED
+
+#13 [builder  7/15] COPY packages ./packages
+#13 CACHED
+
+#14 [builder  8/15] COPY apps/api ./apps/api
+#14 DONE 8.0s
+
+#15 [builder  9/15] COPY apps/api/prisma ./prisma
+#15 DONE 0.3s
+
+#16 [builder 10/15] RUN npm install -g pnpm@10.19.0
+#16 12.44 
+#16 12.44 added 1 package in 9s
+#16 12.44 
+#16 12.44 1 package is looking for funding
+#16 12.44   run `npm fund` for details
+#16 12.45 npm notice
+#16 12.45 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+#16 12.45 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+#16 12.45 npm notice To update run: npm install -g npm@11.7.0
+#16 12.45 npm notice
+#16 DONE 12.8s
+
+#17 [builder 11/15] RUN pnpm config set fetch-retries 5     && pnpm config set fetch-retry-mintimeout 20000     && pnpm config set fetch-retry-maxtimeout 120000
+#17 DONE 4.9s
+
+#18 [builder 12/15] RUN pnpm install --filter @propad/api... --frozen-lockfile=false
+#18 1.699 Scope: 3 of 7 workspace projects
+#18 2.942 Progress: resolved 1, reused 0, downloaded 0, added 0
+#18 3.957 Progress: resolved 8, reused 0, downloaded 0, added 0
+#18 4.960 Progress: resolved 23, reused 0, downloaded 0, added 0
+#18 5.983 Progress: resolved 36, reused 0, downloaded 0, added 0
+#18 7.201 Progress: resolved 46, reused 0, downloaded 0, added 0
+#18 8.230 Progress: resolved 55, reused 0, downloaded 0, added 0
+#18 9.231 Progress: resolved 61, reused 0, downloaded 0, added 0
+#18 9.434 
+#18 9.434    Ôò¡ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò«
+#18 9.434    Ôöé                                          Ôöé
+#18 9.434    Ôöé   Update available! 10.19.0 ÔåÆ 10.27.0.   Ôöé
+#18 9.434    Ôöé   Changelog: https://pnpm.io/v/10.27.0   Ôöé
+#18 9.434    Ôöé     To update, run: pnpm add -g pnpm     Ôöé
+#18 9.434    Ôöé                                          Ôöé
+#18 9.434    Ôò░ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò»
+#18 9.434 
+#18 10.37 Progress: resolved 66, reused 0, downloaded 0, added 0
+#18 11.37 Progress: resolved 70, reused 0, downloaded 0, added 0
+#18 12.18 ÔÇëWARNÔÇë Request took 10086ms: https://registry.npmjs.org/typescript
+#18 13.73 Progress: resolved 71, reused 0, downloaded 0, added 0
+#18 14.75 Progress: resolved 72, reused 0, downloaded 0, added 0
+#18 15.26 ÔÇëWARNÔÇë Request took 13224ms: https://registry.npmjs.org/prisma
+#18 15.75 Progress: resolved 73, reused 0, downloaded 0, added 0
+#18 17.19 ÔÇëWARNÔÇë Request took 12979ms: https://registry.npmjs.org/@prisma%2Fclient
+#18 18.04 Progress: resolved 75, reused 0, downloaded 0, added 0
+#18 19.04 Progress: resolved 78, reused 0, downloaded 0, added 0
+#18 20.04 Progress: resolved 104, reused 0, downloaded 0, added 0
+#18 21.04 Progress: resolved 132, reused 0, downloaded 0, added 0
+#18 22.26 Progress: resolved 155, reused 0, downloaded 0, added 0
+#18 23.26 Progress: resolved 188, reused 0, downloaded 0, added 0
+#18 24.26 Progress: resolved 214, reused 0, downloaded 0, added 0
+#18 25.26 Progress: resolved 232, reused 0, downloaded 0, added 0
+#18 26.27 Progress: resolved 267, reused 0, downloaded 0, added 0
+#18 27.27 Progress: resolved 280, reused 0, downloaded 0, added 0
+#18 28.31 Progress: resolved 300, reused 0, downloaded 0, added 0
+#18 29.34 Progress: resolved 335, reused 0, downloaded 0, added 0
+#18 30.34 Progress: resolved 373, reused 0, downloaded 0, added 0
+#18 31.34 Progress: resolved 430, reused 0, downloaded 0, added 0
+#18 32.35 Progress: resolved 456, reused 0, downloaded 0, added 0
+#18 33.36 Progress: resolved 489, reused 0, downloaded 0, added 0
+#18 34.36 Progress: resolved 508, reused 0, downloaded 0, added 0
+#18 35.36 Progress: resolved 522, reused 0, downloaded 0, added 0
+#18 36.76 Progress: resolved 533, reused 0, downloaded 0, added 0
+#18 37.76 Progress: resolved 574, reused 0, downloaded 0, added 0
+#18 38.79 Progress: resolved 586, reused 0, downloaded 0, added 0
+#18 39.84 Progress: resolved 613, reused 0, downloaded 0, added 0
+#18 40.84 Progress: resolved 627, reused 0, downloaded 0, added 0
+#18 41.84 Progress: resolved 688, reused 0, downloaded 0, added 0
+#18 42.84 Progress: resolved 725, reused 0, downloaded 0, added 0
+#18 43.84 Progress: resolved 786, reused 0, downloaded 0, added 0
+#18 44.84 Progress: resolved 831, reused 0, downloaded 0, added 0
+#18 45.84 Progress: resolved 840, reused 0, downloaded 0, added 0
+#18 46.85 Progress: resolved 844, reused 0, downloaded 0, added 0
+#18 47.50 Progress: resolved 845, reused 0, downloaded 0, added 0, done
+#18 47.89 .                                        | +704 ++++++++++++++++++++++++++++++++
+#18 73.21 .../node_modules/@prisma/engines postinstall$ node scripts/postinstall.js
+#18 73.28 .../node_modules/@nestjs/core postinstall$ opencollective || exit 0
+#18 73.29 .../node_modules/msgpackr-extract install$ node-gyp-build-optional-packages
+#18 73.29 .../esbuild@0.21.5/node_modules/esbuild postinstall$ node install.js
+#18 73.58 .../esbuild@0.21.5/node_modules/esbuild postinstall: Done
+#18 73.87 .../node_modules/msgpackr-extract install: Done
+#18 74.52 .../node_modules/@nestjs/core postinstall:                            Thanks for installing nest 
+#18 74.52 .../node_modules/@nestjs/core postinstall:                  Please consider donating to our open collective
+#18 74.53 .../node_modules/@nestjs/core postinstall:                         to help us maintain this package.
+#18 74.53 .../node_modules/@nestjs/core postinstall:                                          
+#18 74.53 .../node_modules/@nestjs/core postinstall:                             Number of contributors: 0
+#18 74.53 .../node_modules/@nestjs/core postinstall:                              Number of backers: 1157
+#18 74.83 .../node_modules/@nestjs/core postinstall:                              Annual budget: $129,083
+#18 74.84 .../node_modules/@nestjs/core postinstall:                              Current balance: $6,068
+#18 74.84 .../node_modules/@nestjs/core postinstall:                                          
+#18 74.84 .../node_modules/@nestjs/core postinstall:              Become a partner: https://opencollective.com/nest/donate
+#18 74.84 .../node_modules/@nestjs/core postinstall:                                          
+#18 75.39 .../node_modules/@nestjs/core postinstall: Done
+#18 80.09 .../node_modules/@prisma/engines postinstall: Done
+#18 80.88 .../prisma@5.22.0/node_modules/prisma preinstall$ node scripts/preinstall-entry.js
+#18 81.30 .../prisma@5.22.0/node_modules/prisma preinstall: Done
+#18 81.65 .../node_modules/@prisma/client postinstall$ node scripts/postinstall.js
+#18 85.85 .../node_modules/@prisma/client postinstall: Prisma schema loaded from prisma/schema.prisma
+#18 93.87 .../node_modules/@prisma/client postinstall: info The postinstall script automatically ran `prisma generate`, which failed.
+#18 93.87 .../node_modules/@prisma/client postinstall: The postinstall script still succeeds but won't generate the Prisma Client.
+#18 93.87 .../node_modules/@prisma/client postinstall: Please run `prisma generate` to see the errors.
+#18 94.06 .../node_modules/@prisma/client postinstall: Done
+#18 95.11 . preinstall$ node -e "const ua=process.env.npm_config_user_agent||''; if(!ua.includes('pnpm')) console.warn('[warn] Please use pnpm. Detected UA:', ua);"
+#18 95.20 . preinstall: Done
+#18 95.31 apps/api postinstall$ pnpm run prisma:generate
+#18 96.43 apps/api postinstall: > @propad/api@0.1.0 prisma:generate /app/apps/api
+#18 96.43 apps/api postinstall: > prisma generate
+#18 98.05 apps/api postinstall: Environment variables loaded from .env
+#18 98.06 apps/api postinstall: Prisma schema loaded from prisma/schema.prisma
+#18 110.3 apps/api postinstall: Ô£ö Generated Prisma Client (v5.22.0) to ./node_modules/.prisma/client in 8.81s
+#18 110.3 apps/api postinstall: Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#18 110.3 apps/api postinstall: Tip: Easily identify and fix slow SQL queries in your app. Optimize helps you enhance your visibility: https://pris.ly/--optimize
+#18 110.5 apps/api postinstall: Done
+#18 110.7 Done in 1m 50s using pnpm v10.19.0
+#18 DONE 112.2s
+
+#19 [builder 13/15] RUN pnpm --filter @propad/sdk run build
+#19 5.817 
+#19 5.817 > @propad/sdk@0.1.0 build /app/packages/sdk
+#19 5.817 > tsc -p tsconfig.json
+#19 5.817 
+#19 DONE 19.9s
+
+#20 [builder 14/15] RUN pnpm --filter @propad/api... run prisma:generate
+#20 1.887 Scope: 3 of 7 workspace projects
+#20 1.899 apps/api prisma:generate$ prisma generate
+#20 3.517 apps/api prisma:generate: Environment variables loaded from .env
+#20 3.528 apps/api prisma:generate: Prisma schema loaded from prisma/schema.prisma
+#20 11.21 apps/api prisma:generate: Ô£ö Generated Prisma Client (v5.22.0) to ./node_modules/.prisma/client in 5.67s
+#20 11.21 apps/api prisma:generate: Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#20 11.21 apps/api prisma:generate: Tip: Want real-time updates to your database without manual polling? Discover how with Pulse: https://pris.ly/tip-0-pulse
+#20 11.44 apps/api prisma:generate: Done
+#20 DONE 11.7s
+
+#21 [builder 15/15] RUN pnpm --filter @propad/api... run build
+#21 1.776 Scope: 3 of 7 workspace projects
+#21 1.787 packages/config build$ tsc -p tsconfig.json
+#21 1.791 packages/sdk build$ tsc -p tsconfig.json
+#21 7.031 packages/config build: Done
+#21 11.21 packages/sdk build: Done
+#21 11.22 apps/api build$ nest build
+#21 29.54 apps/api build: [96msrc/payments/feature-access.service.ts[0m:[93m84[0m:[93m35[0m - [91merror[0m[90m TS2339: [0mProperty 'PAID' does not exist on type 'LiteralEnum<"FAILED" | "CANCELLED" | "PENDING" | "COMPLETED" | "PROCESSING" | "REFUNDED">'.
+#21 29.55 apps/api build: [7m84[0m             status: PaymentStatus.PAID
+#21 29.55 apps/api build: [7m  [0m [91m                                  ~~~~[0m
+#21 29.55 apps/api build: [96msrc/payments/payment-polling.service.ts[0m:[93m145[0m:[93m37[0m - [91merror[0m[90m TS2339: [0mProperty 'PAID' does not exist on type 'LiteralEnum<"FAILED" | "CANCELLED" | "PENDING" | "COMPLETED" | "PROCESSING" | "REFUNDED">'.
+#21 29.55 apps/api build: [7m145[0m               status: PaymentStatus.PAID,
+#21 29.55 apps/api build: [7m   [0m [91m                                    ~~~~[0m
+#21 29.55 apps/api build: [96msrc/payments/payment-polling.service.ts[0m:[93m152[0m:[93m37[0m - [91merror[0m[90m TS2339: [0mProperty 'PAID' does not exist on type 'LiteralEnum<"FAILED" | "CANCELLED" | "PENDING" | "COMPLETED" | "PROCESSING" | "REFUNDED">'.
+#21 29.56 apps/api build: [7m152[0m               status: PaymentStatus.PAID,
+#21 29.56 apps/api build: [7m   [0m [91m                                    ~~~~[0m
+#21 29.56 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m180[0m:[93m11[0m - [91merror[0m[90m TS2739: [0mType '{ [x: number]: string; PROPERTY_VERIFICATION: string; AGENT_ASSIGNMENT: string; FEATURED_LISTING: string; }' is missing the following properties from type 'Record<ChargeableItemType, string>': PROPERTY_LISTING, PROMO_BOOST, ADVERTISEMENT
+#21 29.56 apps/api build: [7m180[0m     const names: Record<ChargeableItemType, string> = {
+#21 29.56 apps/api build: [7m   [0m [91m          ~~~~~[0m
+#21 29.56 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m184[0m:[93m27[0m - [91merror[0m[90m TS2339: [0mProperty 'TRUST_BOOST' does not exist on type 'LiteralEnum<"FEATURED_LISTING" | "PROPERTY_LISTING" | "PROPERTY_VERIFICATION" | "AGENT_ASSIGNMENT" | "PROMO_BOOST" | "ADVERTISEMENT">'.
+#21 29.56 apps/api build: [7m184[0m       [ChargeableItemType.TRUST_BOOST]: 'Trust Boost',
+#21 29.56 apps/api build: [7m   [0m [91m                          ~~~~~~~~~~~[0m
+#21 29.57 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m185[0m:[93m27[0m - [91merror[0m[90m TS2339: [0mProperty 'IN_HOUSE_ADVERT_BUYING' does not exist on type 'LiteralEnum<"FEATURED_LISTING" | "PROPERTY_LISTING" | "PROPERTY_VERIFICATION" | "AGENT_ASSIGNMENT" | "PROMO_BOOST" | "ADVERTISEMENT">'.
+#21 29.57 apps/api build: [7m185[0m       [ChargeableItemType.IN_HOUSE_ADVERT_BUYING]: 'In-House Ad (Buying)',
+#21 29.57 apps/api build: [7m   [0m [91m                          ~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 29.57 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m186[0m:[93m27[0m - [91merror[0m[90m TS2339: [0mProperty 'IN_HOUSE_ADVERT_SELLING' does not exist on type 'LiteralEnum<"FEATURED_LISTING" | "PROPERTY_LISTING" | "PROPERTY_VERIFICATION" | "AGENT_ASSIGNMENT" | "PROMO_BOOST" | "ADVERTISEMENT">'.
+#21 29.57 apps/api build: [7m186[0m       [ChargeableItemType.IN_HOUSE_ADVERT_SELLING]: 'In-House Ad (Selling)',
+#21 29.57 apps/api build: [7m   [0m [91m                          ~~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 29.57 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m187[0m:[93m27[0m - [91merror[0m[90m TS2339: [0mProperty 'PREMIUM_VERIFICATION' does not exist on type 'LiteralEnum<"FEATURED_LISTING" | "PROPERTY_LISTING" | "PROPERTY_VERIFICATION" | "AGENT_ASSIGNMENT" | "PROMO_BOOST" | "ADVERTISEMENT">'.
+#21 29.57 apps/api build: [7m187[0m       [ChargeableItemType.PREMIUM_VERIFICATION]: 'Premium Verification',
+#21 29.58 apps/api build: [7m   [0m [91m                          ~~~~~~~~~~~~~~~~~~~~[0m
+#21 29.58 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m188[0m:[93m27[0m - [91merror[0m[90m TS2339: [0mProperty 'OTHER' does not exist on type 'LiteralEnum<"FEATURED_LISTING" | "PROPERTY_LISTING" | "PROPERTY_VERIFICATION" | "AGENT_ASSIGNMENT" | "PROMO_BOOST" | "ADVERTISEMENT">'.
+#21 29.58 apps/api build: [7m188[0m       [ChargeableItemType.OTHER]: 'Other Feature'
+#21 29.58 apps/api build: [7m   [0m [91m                          ~~~~~[0m
+#21 29.58 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m200[0m:[93m31[0m - [91merror[0m[90m TS2339: [0mProperty 'IN_HOUSE_ADVERT_BUYING' does not exist on type 'LiteralEnum<"FEATURED_LISTING" | "PROPERTY_LISTING" | "PROPERTY_VERIFICATION" | "AGENT_ASSIGNMENT" | "PROMO_BOOST" | "ADVERTISEMENT">'.
+#21 29.58 apps/api build: [7m200[0m       case ChargeableItemType.IN_HOUSE_ADVERT_BUYING:
+#21 29.58 apps/api build: [7m   [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 29.58 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m201[0m:[93m31[0m - [91merror[0m[90m TS2339: [0mProperty 'IN_HOUSE_ADVERT_SELLING' does not exist on type 'LiteralEnum<"FEATURED_LISTING" | "PROPERTY_LISTING" | "PROPERTY_VERIFICATION" | "AGENT_ASSIGNMENT" | "PROMO_BOOST" | "ADVERTISEMENT">'.
+#21 29.58 apps/api build: [7m201[0m       case ChargeableItemType.IN_HOUSE_ADVERT_SELLING:
+#21 29.59 apps/api build: [7m   [0m [91m                              ~~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 29.59 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m202[0m:[93m31[0m - [91merror[0m[90m TS2339: [0mProperty 'TRUST_BOOST' does not exist on type 'LiteralEnum<"FEATURED_LISTING" | "PROPERTY_LISTING" | "PROPERTY_VERIFICATION" | "AGENT_ASSIGNMENT" | "PROMO_BOOST" | "ADVERTISEMENT">'.
+#21 29.59 apps/api build: [7m202[0m       case ChargeableItemType.TRUST_BOOST:
+#21 29.59 apps/api build: [7m   [0m [91m                              ~~~~~~~~~~~[0m
+#21 29.59 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m203[0m:[93m31[0m - [91merror[0m[90m TS2339: [0mProperty 'PREMIUM_VERIFICATION' does not exist on type 'LiteralEnum<"FEATURED_LISTING" | "PROPERTY_LISTING" | "PROPERTY_VERIFICATION" | "AGENT_ASSIGNMENT" | "PROMO_BOOST" | "ADVERTISEMENT">'.
+#21 29.59 apps/api build: [7m203[0m       case ChargeableItemType.PREMIUM_VERIFICATION:
+#21 29.59 apps/api build: [7m   [0m [91m                              ~~~~~~~~~~~~~~~~~~~~[0m
+#21 29.59 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m435[0m:[93m39[0m - [91merror[0m[90m TS2339: [0mProperty 'PAID' does not exist on type 'LiteralEnum<"FAILED" | "CANCELLED" | "PENDING" | "COMPLETED" | "PROCESSING" | "REFUNDED">'.
+#21 29.59 apps/api build: [7m435[0m                 status: PaymentStatus.PAID,
+#21 29.59 apps/api build: [7m   [0m [91m                                      ~~~~[0m
+#21 29.59 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m442[0m:[93m39[0m - [91merror[0m[90m TS2339: [0mProperty 'PAID' does not exist on type 'LiteralEnum<"FAILED" | "CANCELLED" | "PENDING" | "COMPLETED" | "PROCESSING" | "REFUNDED">'.
+#21 29.59 apps/api build: [7m442[0m                 status: PaymentStatus.PAID,
+#21 29.59 apps/api build: [7m   [0m [91m                                      ~~~~[0m
+#21 29.59 apps/api build: [96msrc/payments/payouts.service.ts[0m:[93m267[0m:[93m9[0m - [91merror[0m[90m TS2345: [0mArgument of type '"PAYOUT"' is not assignable to parameter of type 'WalletLedgerSourceType'.
+#21 29.59 apps/api build: [7m267[0m         WalletLedgerSourceType.PAYOUT,
+#21 29.60 apps/api build: [7m   [0m [91m        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 29.60 apps/api build: [96msrc/payments/payouts.service.ts[0m:[93m520[0m:[93m11[0m - [91merror[0m[90m TS2345: [0mArgument of type '"ADJUSTMENT"' is not assignable to parameter of type 'WalletLedgerSourceType'.
+#21 29.60 apps/api build: [7m520[0m           WalletLedgerSourceType.ADJUSTMENT,
+#21 29.60 apps/api build: [7m   [0m [91m          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 29.60 apps/api build: [96msrc/payments/referrals.service.ts[0m:[93m75[0m:[93m7[0m - [91merror[0m[90m TS2345: [0mArgument of type '"REFERRAL"' is not assignable to parameter of type 'WalletLedgerSourceType'.
+#21 29.60 apps/api build: [7m75[0m       WalletLedgerSourceType.REFERRAL,
+#21 29.60 apps/api build: [7m  [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 29.60 apps/api build: [96msrc/ranking/ranking.service.ts[0m:[93m53[0m:[93m35[0m - [91merror[0m[90m TS2345: [0mArgument of type '(b: {    type: string;}) => boolean' is not assignable to parameter of type '(value: Boost, index: number, array: Boost[]) => unknown'.
+#21 29.60 apps/api build:   Types of parameters 'b' and 'value' are incompatible.
+#21 29.60 apps/api build:     Property 'type' is missing in type 'Boost' but required in type '{ type: string; }'.
+#21 29.60 apps/api build: [7m53[0m             if (activeBoosts.some((b: { type: string }) => b.type === 'LISTING_BOOST')) {
+#21 29.61 apps/api build: [7m  [0m [91m                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 29.61 apps/api build:   [96msrc/ranking/ranking.service.ts[0m:[93m53[0m:[93m41[0m
+#21 29.61 apps/api build:     [7m53[0m             if (activeBoosts.some((b: { type: string }) => b.type === 'LISTING_BOOST')) {
+#21 29.61 apps/api build:     [7m  [0m [96m                                        ~~~~[0m
+#21 29.61 apps/api build:     'type' is declared here.
+#21 29.61 apps/api build: [96msrc/ranking/ranking.service.ts[0m:[93m55[0m:[93m42[0m - [91merror[0m[90m TS2345: [0mArgument of type '(b: {    type: string;}) => boolean' is not assignable to parameter of type '(value: Boost, index: number, array: Boost[]) => unknown'.
+#21 29.61 apps/api build:   Types of parameters 'b' and 'value' are incompatible.
+#21 29.61 apps/api build:     Property 'type' is missing in type 'Boost' but required in type '{ type: string; }'.
+#21 29.61 apps/api build: [7m55[0m             } else if (activeBoosts.some((b: { type: string }) => b.type === 'FEATURED_LISTING')) {
+#21 29.61 apps/api build: [7m  [0m [91m                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 29.61 apps/api build:   [96msrc/ranking/ranking.service.ts[0m:[93m55[0m:[93m48[0m
+#21 29.62 apps/api build:     [7m55[0m             } else if (activeBoosts.some((b: { type: string }) => b.type === 'FEATURED_LISTING')) {
+#21 29.62 apps/api build:     [7m  [0m [96m                                               ~~~~[0m
+#21 29.62 apps/api build:     'type' is declared here.
+#21 29.62 apps/api build: Found 20 error(s).
+#21 29.67 apps/api build: Failed
+#21 29.72 /app/apps/api:
+#21 29.72 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/api@0.1.0 build: `nest build`
+#21 29.72 Exit status 1
+#21 ERROR: process "/bin/sh -c pnpm --filter @propad/api... run build" did not complete successfully: exit code: 1
+------
+ > [builder 15/15] RUN pnpm --filter @propad/api... run build:
+29.61 apps/api build: [7m  [0m [91m                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+29.61 apps/api build:   [96msrc/ranking/ranking.service.ts[0m:[93m55[0m:[93m48[0m
+29.62 apps/api build:     [7m55[0m             } else if (activeBoosts.some((b: { type: string }) => b.type === 'FEATURED_LISTING')) {
+29.62 apps/api build:     [7m  [0m [96m                                               ~~~~[0m
+29.62 apps/api build:     'type' is declared here.
+29.62 apps/api build: Found 20 error(s).
+29.67 apps/api build: Failed
+29.72 /app/apps/api:
+29.72 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/api@0.1.0 build: `nest build`
+29.72 Exit status 1
+------
+docker : 
+api.Dockerfile:33
+At line:1 char:1
++ docker compose 
+build api 2>&1 | 
+Out-File -FilePath 
+"c:\projects\propa 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (api.Doc   
+ kerfile:33:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+
+--------------------
+
+  31 |     RUN pnpm 
+--filter @propad/sdk 
+run build
+
+  32 |     RUN pnpm 
+--filter 
+@propad/api... run 
+prisma:generate
+
+  33 | >>> RUN pnpm 
+--filter 
+@propad/api... run 
+build
+
+  34 |     
+
+  35 |     
+
+--------------------
+
+failed to solve: 
+process "/bin/sh -c 
+pnpm --filter 
+@propad/api... run 
+build" did not 
+complete 
+successfully: exit 
+code: 1
+
