@@ -235,3 +235,98 @@
 #21 17.06 packages/ui build: Done
 #21 18.71 packages/sdk build: Done
 #21 18.71 apps/web build$ next build
+#21 31.17 apps/web build: Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#21 31.17 apps/web build: This information is used to shape Next.js' roadmap and prioritize features.
+#21 31.17 apps/web build: You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#21 31.17 apps/web build: https://nextjs.org/telemetry
+#21 31.44 apps/web build:   Ôû▓ Next.js 14.2.3
+#21 31.44 apps/web build:   - Environments: .env.local, .env
+#21 31.45 apps/web build:   - Experiments (use with caution):
+#21 31.45 apps/web build:     ┬À instrumentationHook
+#21 32.43 apps/web build:    Creating an optimized production build ...
+#21 33.97 apps/web build:  Ô£ô (pwa) Compiling for server...
+#21 33.99 apps/web build:  Ô£ô (pwa) Compiling for server...
+#21 34.00 apps/web build:  Ô£ô (pwa) Compiling for client (static)...
+#21 34.03 apps/web build:  Ôùï (pwa) Service worker: /app/apps/web/public/sw.js
+#21 34.03 apps/web build:  Ôùï (pwa)   URL: /sw.js
+#21 34.03 apps/web build:  Ôùï (pwa)   Scope: /
+#21 150.1 apps/web build:  Ô£ô Compiled successfully
+#21 150.2 apps/web build:    Linting and checking validity of types ...
+#21 195.9 apps/web build: Failed to compile.
+#21 195.9 apps/web build: ./app/(dashboard)/dashboard/interests/page.tsx:71:29
+#21 195.9 apps/web build: Type error: Parameter 'interest' implicitly has an 'any' type.
+#21 195.9 apps/web build: [0m [90m 69 |[39m         ) [33m:[39m ([0m
+#21 195.9 apps/web build: [0m [90m 70 |[39m           [33m<[39m[33mul[39m role[33m=[39m[32m"list"[39m className[33m=[39m[32m"divide-y divide-slate-100"[39m[33m>[39m[0m
+#21 195.9 apps/web build: [0m[31m[1m>[22m[39m[90m 71 |[39m             {interests[33m.[39mmap((interest) [33m=>[39m ([0m
+#21 195.9 apps/web build: [0m [90m    |[39m                             [31m[1m^[22m[39m[0m
+#21 195.9 apps/web build: [0m [90m 72 |[39m               [33m<[39m[33mli[39m key[33m=[39m{interest[33m.[39mid} className[33m=[39m[32m"p-6"[39m[33m>[39m[0m
+#21 195.9 apps/web build: [0m [90m 73 |[39m                 [33m<[39m[33mdiv[39m className[33m=[39m[32m"flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"[39m[33m>[39m[0m
+#21 195.9 apps/web build: [0m [90m 74 |[39m                   [33m<[39m[33mdiv[39m className[33m=[39m[32m"flex-1"[39m[33m>[39m[0m
+#21 196.2 apps/web build: Failed
+#21 197.9 /app/apps/web:
+#21 197.9 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/web@0.1.0 build: `next build`
+#21 197.9 Exit status 1
+#21 ERROR: process "/bin/sh -c pnpm --filter @propad/web... run build" did not complete successfully: exit code: 1
+------
+ > [builder 15/15] RUN pnpm --filter @propad/web... run build:
+195.9 apps/web build: [0m [90m 70 |[39m           [33m<[39m[33mul[39m role[33m=[39m[32m"list"[39m className[33m=[39m[32m"divide-y divide-slate-100"[39m[33m>[39m[0m
+195.9 apps/web build: [0m[31m[1m>[22m[39m[90m 71 |[39m             {interests[33m.[39mmap((interest) [33m=>[39m ([0m
+195.9 apps/web build: [0m [90m    |[39m                             [31m[1m^[22m[39m[0m
+195.9 apps/web build: [0m [90m 72 |[39m               [33m<[39m[33mli[39m key[33m=[39m{interest[33m.[39mid} className[33m=[39m[32m"p-6"[39m[33m>[39m[0m
+195.9 apps/web build: [0m [90m 73 |[39m                 [33m<[39m[33mdiv[39m className[33m=[39m[32m"flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"[39m[33m>[39m[0m
+195.9 apps/web build: [0m [90m 74 |[39m                   [33m<[39m[33mdiv[39m className[33m=[39m[32m"flex-1"[39m[33m>[39m[0m
+196.2 apps/web build: Failed
+197.9 /app/apps/web:
+197.9 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/web@0.1.0 build: `next build`
+197.9 Exit status 1
+------
+docker : 
+web.Dockerfile:26
+At line:1 char:1
++ docker compose 
+build web 2>&1 | 
+Out-File -FilePath 
+"c:\projects\propa 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (web.Doc   
+ kerfile:26:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+
+--------------------
+
+  24 |     WORKDIR 
+/app
+
+  25 |     
+
+  26 | >>> RUN pnpm 
+--filter 
+@propad/web... run 
+build
+
+  27 |     
+
+  28 |     FROM 
+${NODE_IMAGE} AS 
+runner
+
+--------------------
+
+failed to solve: 
+process "/bin/sh -c 
+pnpm --filter 
+@propad/web... run 
+build" did not 
+complete 
+successfully: exit 
+code: 1
+

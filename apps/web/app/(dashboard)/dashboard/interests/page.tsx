@@ -68,7 +68,7 @@ export default async function InterestsPage() {
           </div>
         ) : (
           <ul role="list" className="divide-y divide-slate-100">
-            {interests.map((interest) => (
+            {interests.map((interest: Awaited<ReturnType<typeof getLandlordInterests>>[number]) => (
               <li key={interest.id} className="p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex-1">
@@ -77,9 +77,9 @@ export default async function InterestsPage() {
                         {interest.user.name || 'Anonymous User'}
                       </Link>
                       {interest.user.isVerified && (
-                         <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
-                           Verified
-                         </span>
+                        <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                          Verified
+                        </span>
                       )}
                       <span className="text-sm text-slate-500">
                         on <Link href={`/properties/${interest.property.id}`} className="text-emerald-600 hover:underline">{interest.property.title}</Link>

@@ -64,7 +64,7 @@ export default async function MyInterestsPage() {
           </div>
         ) : (
           <ul role="list" className="divide-y divide-slate-200">
-            {interests.map((interest) => {
+            {interests.map((interest: Awaited<ReturnType<typeof getUserInterests>>[number]) => {
               const property = interest.property as any;
               const location = [property.suburb?.name, property.city?.name].filter(Boolean).join(', ') || 'Location not specified';
               // Convert Decimal to number if needed (Prisma Decimal has toNumber() method)
@@ -82,8 +82,8 @@ export default async function MyInterestsPage() {
                         {property.media?.[0]?.url && (
                           <Link href={`/properties/${property.id}`} className="flex-shrink-0">
                             <PropertyImage
-                              src={property.media[0].url.startsWith('http') 
-                                ? property.media[0].url 
+                              src={property.media[0].url.startsWith('http')
+                                ? property.media[0].url
                                 : `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'}${property.media[0].url}`}
                               alt={property.title}
                               className="h-24 w-32 rounded-lg object-cover"

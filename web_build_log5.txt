@@ -1,0 +1,537 @@
+﻿#1 [internal] load local bake definitions
+#1 reading from stdin 930B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from web.Dockerfile
+#2 transferring dockerfile: 1.20kB 0.0s done
+#2 DONE 0.1s
+
+#3 [auth] library/node:pull token for registry-1.docker.io
+#3 DONE 0.0s
+
+#4 [internal] load metadata for docker.io/library/node:20-slim
+#4 DONE 2.7s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 2B done
+#5 DONE 0.1s
+
+#6 [internal] load build context
+#6 DONE 0.0s
+
+#7 [builder  1/15] FROM docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520
+#7 resolve docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520 0.1s done
+#7 DONE 0.1s
+
+#8 [builder  2/15] WORKDIR /app
+#8 CACHED
+
+#6 [internal] load build context
+#6 transferring context: 104.42kB 6.5s
+#6 transferring context: 121.73kB 6.5s done
+#6 DONE 6.7s
+
+#9 [runner 3/8] RUN apt-get update -y && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+#9 2.930 Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+#9 3.556 Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+#9 3.794 Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+#9 4.031 Get:4 http://deb.debian.org/debian bookworm/main amd64 Packages [8791 kB]
+#9 ...
+
+#10 [builder  3/15] COPY package*.json ./
+#10 CACHED
+
+#11 [builder  4/15] COPY pnpm-workspace.yaml ./
+#11 CACHED
+
+#12 [builder  5/15] COPY tsconfig.json ./
+#12 CACHED
+
+#13 [builder  6/15] COPY packages ./packages
+#13 CACHED
+
+#14 [builder  7/15] COPY apps/web ./apps/web
+#14 ...
+
+#9 [runner 3/8] RUN apt-get update -y && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+#9 8.177 Get:5 http://deb.debian.org/debian bookworm-updates/main amd64 Packages [6924 B]
+#9 8.378 Get:6 http://deb.debian.org/debian-security bookworm-security/main amd64 Packages [290 kB]
+#9 9.887 Fetched 9342 kB in 7s (1259 kB/s)
+#9 9.887 Reading package lists...
+#9 12.47 Reading package lists...
+#9 15.13 Building dependency tree...
+#9 15.34 Reading state information...
+#9 15.62 The following additional packages will be installed:
+#9 15.62   ca-certificates krb5-locales libbrotli1 libcurl4 libgssapi-krb5-2
+#9 15.62   libk5crypto3 libkeyutils1 libkrb5-3 libkrb5support0 libldap-2.5-0
+#9 15.63   libldap-common libnghttp2-14 libpsl5 librtmp1 libsasl2-2 libsasl2-modules
+#9 15.63   libsasl2-modules-db libssh2-1 libssl3 openssl publicsuffix
+#9 15.63 Suggested packages:
+#9 15.63   krb5-doc krb5-user libsasl2-modules-gssapi-mit
+#9 15.63   | libsasl2-modules-gssapi-heimdal libsasl2-modules-ldap libsasl2-modules-otp
+#9 15.63   libsasl2-modules-sql
+#9 16.05 The following NEW packages will be installed:
+#9 16.05   ca-certificates curl krb5-locales libbrotli1 libcurl4 libgssapi-krb5-2
+#9 16.05   libk5crypto3 libkeyutils1 libkrb5-3 libkrb5support0 libldap-2.5-0
+#9 16.06   libldap-common libnghttp2-14 libpsl5 librtmp1 libsasl2-2 libsasl2-modules
+#9 16.06   libsasl2-modules-db libssh2-1 libssl3 openssl publicsuffix
+#9 16.66 0 upgraded, 22 newly installed, 0 to remove and 0 not upgraded.
+#9 16.66 Need to get 6111 kB of archives.
+#9 16.66 After this operation, 15.7 MB of additional disk space will be used.
+#9 16.66 Get:1 http://deb.debian.org/debian-security bookworm-security/main amd64 libssl3 amd64 3.0.17-1~deb12u3 [2028 kB]
+#9 20.34 Get:2 http://deb.debian.org/debian-security bookworm-security/main amd64 openssl amd64 3.0.17-1~deb12u3 [1434 kB]
+#9 23.66 Get:3 http://deb.debian.org/debian bookworm/main amd64 ca-certificates all 20230311+deb12u1 [155 kB]
+#9 23.78 Get:4 http://deb.debian.org/debian bookworm/main amd64 krb5-locales all 1.20.1-2+deb12u4 [63.4 kB]
+#9 23.88 Get:5 http://deb.debian.org/debian bookworm/main amd64 libbrotli1 amd64 1.0.9-2+b6 [275 kB]
+#9 24.35 Get:6 http://deb.debian.org/debian bookworm/main amd64 libkrb5support0 amd64 1.20.1-2+deb12u4 [33.2 kB]
+#9 24.40 Get:7 http://deb.debian.org/debian bookworm/main amd64 libk5crypto3 amd64 1.20.1-2+deb12u4 [79.8 kB]
+#9 24.53 Get:8 http://deb.debian.org/debian bookworm/main amd64 libkeyutils1 amd64 1.6.3-2 [8808 B]
+#9 24.55 Get:9 http://deb.debian.org/debian bookworm/main amd64 libkrb5-3 amd64 1.20.1-2+deb12u4 [334 kB]
+#9 25.11 Get:10 http://deb.debian.org/debian bookworm/main amd64 libgssapi-krb5-2 amd64 1.20.1-2+deb12u4 [135 kB]
+#9 25.48 Get:11 http://deb.debian.org/debian bookworm/main amd64 libsasl2-modules-db amd64 2.1.28+dfsg-10 [20.3 kB]
+#9 25.48 Get:12 http://deb.debian.org/debian bookworm/main amd64 libsasl2-2 amd64 2.1.28+dfsg-10 [59.7 kB]
+#9 25.54 Get:13 http://deb.debian.org/debian bookworm/main amd64 libldap-2.5-0 amd64 2.5.13+dfsg-5 [183 kB]
+#9 25.97 Get:14 http://deb.debian.org/debian bookworm/main amd64 libnghttp2-14 amd64 1.52.0-1+deb12u2 [73.0 kB]
+#9 26.17 Get:15 http://deb.debian.org/debian bookworm/main amd64 libpsl5 amd64 0.21.2-1 [58.7 kB]
+#9 26.25 Get:16 http://deb.debian.org/debian bookworm/main amd64 librtmp1 amd64 2.4+20151223.gitfa8646d.1-2+b2 [60.8 kB]
+#9 26.68 Get:17 http://deb.debian.org/debian bookworm/main amd64 libssh2-1 amd64 1.10.0-3+b1 [179 kB]
+#9 26.88 Get:18 http://deb.debian.org/debian bookworm/main amd64 libcurl4 amd64 7.88.1-10+deb12u14 [392 kB]
+#9 27.73 Get:19 http://deb.debian.org/debian bookworm/main amd64 curl amd64 7.88.1-10+deb12u14 [316 kB]
+#9 28.31 Get:20 http://deb.debian.org/debian bookworm/main amd64 libldap-common all 2.5.13+dfsg-5 [29.3 kB]
+#9 28.35 Get:21 http://deb.debian.org/debian bookworm/main amd64 libsasl2-modules amd64 2.1.28+dfsg-10 [66.6 kB]
+#9 28.47 Get:22 http://deb.debian.org/debian bookworm/main amd64 publicsuffix all 20230209.2326-1 [126 kB]
+#9 29.52 debconf: delaying package configuration, since apt-utils is not installed
+#9 29.82 Fetched 6111 kB in 13s (480 kB/s)
+#9 30.64 Selecting previously unselected package libssl3:amd64.
+#9 30.64 (Reading database ... 
+(Reading database ... 5%
+(Reading database ... 10%
+(Reading database ... 15%
+(Reading database ... 20%
+(Reading database ... 25%
+(Reading database ... 30%
+(Reading database ... 35%
+(Reading database ... 40%
+(Reading database ... 45%
+(Reading database ... 50%
+(Reading database ... 55%
+(Reading database ... 60%
+(Reading database ... 65%
+(Reading database ... 70%
+(Reading database ... 75%
+(Reading database ... 80%
+(Reading database ... 85%
+(Reading database ... 90%
+(Reading database ... 95%
+(Reading database ... 100%
+(Reading database ... 6095 files and directories currently installed.)
+#9 30.73 Preparing to unpack .../00-libssl3_3.0.17-1~deb12u3_amd64.deb ...
+#9 33.76 Unpacking libssl3:amd64 (3.0.17-1~deb12u3) ...
+#9 ...
+
+#14 [builder  7/15] COPY apps/web ./apps/web
+#14 DONE 26.9s
+
+#15 [builder  8/15] COPY apps/api/prisma ./apps/web/prisma
+#15 DONE 0.6s
+
+#9 [runner 3/8] RUN apt-get update -y && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+#9 34.11 Selecting previously unselected package openssl.
+#9 34.11 Preparing to unpack .../01-openssl_3.0.17-1~deb12u3_amd64.deb ...
+#9 34.12 Unpacking openssl (3.0.17-1~deb12u3) ...
+#9 34.49 Selecting previously unselected package ca-certificates.
+#9 34.49 Preparing to unpack .../02-ca-certificates_20230311+deb12u1_all.deb ...
+#9 34.51 Unpacking ca-certificates (20230311+deb12u1) ...
+#9 34.86 Selecting previously unselected package krb5-locales.
+#9 34.86 Preparing to unpack .../03-krb5-locales_1.20.1-2+deb12u4_all.deb ...
+#9 34.89 Unpacking krb5-locales (1.20.1-2+deb12u4) ...
+#9 35.05 Selecting previously unselected package libbrotli1:amd64.
+#9 35.05 Preparing to unpack .../04-libbrotli1_1.0.9-2+b6_amd64.deb ...
+#9 35.08 Unpacking libbrotli1:amd64 (1.0.9-2+b6) ...
+#9 35.31 Selecting previously unselected package libkrb5support0:amd64.
+#9 35.31 Preparing to unpack .../05-libkrb5support0_1.20.1-2+deb12u4_amd64.deb ...
+#9 35.33 Unpacking libkrb5support0:amd64 (1.20.1-2+deb12u4) ...
+#9 35.48 Selecting previously unselected package libk5crypto3:amd64.
+#9 35.49 Preparing to unpack .../06-libk5crypto3_1.20.1-2+deb12u4_amd64.deb ...
+#9 35.49 Unpacking libk5crypto3:amd64 (1.20.1-2+deb12u4) ...
+#9 35.67 Selecting previously unselected package libkeyutils1:amd64.
+#9 35.67 Preparing to unpack .../07-libkeyutils1_1.6.3-2_amd64.deb ...
+#9 35.68 Unpacking libkeyutils1:amd64 (1.6.3-2) ...
+#9 35.89 Selecting previously unselected package libkrb5-3:amd64.
+#9 35.89 Preparing to unpack .../08-libkrb5-3_1.20.1-2+deb12u4_amd64.deb ...
+#9 35.99 Unpacking libkrb5-3:amd64 (1.20.1-2+deb12u4) ...
+#9 36.14 Selecting previously unselected package libgssapi-krb5-2:amd64.
+#9 36.15 Preparing to unpack .../09-libgssapi-krb5-2_1.20.1-2+deb12u4_amd64.deb ...
+#9 36.20 Unpacking libgssapi-krb5-2:amd64 (1.20.1-2+deb12u4) ...
+#9 36.39 Selecting previously unselected package libsasl2-modules-db:amd64.
+#9 36.40 Preparing to unpack .../10-libsasl2-modules-db_2.1.28+dfsg-10_amd64.deb ...
+#9 36.42 Unpacking libsasl2-modules-db:amd64 (2.1.28+dfsg-10) ...
+#9 36.57 Selecting previously unselected package libsasl2-2:amd64.
+#9 36.57 Preparing to unpack .../11-libsasl2-2_2.1.28+dfsg-10_amd64.deb ...
+#9 36.58 Unpacking libsasl2-2:amd64 (2.1.28+dfsg-10) ...
+#9 36.72 Selecting previously unselected package libldap-2.5-0:amd64.
+#9 36.73 Preparing to unpack .../12-libldap-2.5-0_2.5.13+dfsg-5_amd64.deb ...
+#9 36.73 Unpacking libldap-2.5-0:amd64 (2.5.13+dfsg-5) ...
+#9 36.99 Selecting previously unselected package libnghttp2-14:amd64.
+#9 36.99 Preparing to unpack .../13-libnghttp2-14_1.52.0-1+deb12u2_amd64.deb ...
+#9 37.12 Unpacking libnghttp2-14:amd64 (1.52.0-1+deb12u2) ...
+#9 37.34 Selecting previously unselected package libpsl5:amd64.
+#9 37.34 Preparing to unpack .../14-libpsl5_0.21.2-1_amd64.deb ...
+#9 37.35 Unpacking libpsl5:amd64 (0.21.2-1) ...
+#9 37.57 Selecting previously unselected package librtmp1:amd64.
+#9 37.57 Preparing to unpack .../15-librtmp1_2.4+20151223.gitfa8646d.1-2+b2_amd64.deb ...
+#9 37.59 Unpacking librtmp1:amd64 (2.4+20151223.gitfa8646d.1-2+b2) ...
+#9 37.68 Selecting previously unselected package libssh2-1:amd64.
+#9 37.68 Preparing to unpack .../16-libssh2-1_1.10.0-3+b1_amd64.deb ...
+#9 37.69 Unpacking libssh2-1:amd64 (1.10.0-3+b1) ...
+#9 37.79 Selecting previously unselected package libcurl4:amd64.
+#9 37.79 Preparing to unpack .../17-libcurl4_7.88.1-10+deb12u14_amd64.deb ...
+#9 37.80 Unpacking libcurl4:amd64 (7.88.1-10+deb12u14) ...
+#9 37.89 Selecting previously unselected package curl.
+#9 37.89 Preparing to unpack .../18-curl_7.88.1-10+deb12u14_amd64.deb ...
+#9 37.90 Unpacking curl (7.88.1-10+deb12u14) ...
+#9 37.99 Selecting previously unselected package libldap-common.
+#9 37.99 Preparing to unpack .../19-libldap-common_2.5.13+dfsg-5_all.deb ...
+#9 38.00 Unpacking libldap-common (2.5.13+dfsg-5) ...
+#9 38.09 Selecting previously unselected package libsasl2-modules:amd64.
+#9 38.09 Preparing to unpack .../20-libsasl2-modules_2.1.28+dfsg-10_amd64.deb ...
+#9 38.12 Unpacking libsasl2-modules:amd64 (2.1.28+dfsg-10) ...
+#9 38.22 Selecting previously unselected package publicsuffix.
+#9 38.23 Preparing to unpack .../21-publicsuffix_20230209.2326-1_all.deb ...
+#9 38.23 Unpacking publicsuffix (20230209.2326-1) ...
+#9 38.33 Setting up libkeyutils1:amd64 (1.6.3-2) ...
+#9 38.35 Setting up libpsl5:amd64 (0.21.2-1) ...
+#9 38.38 Setting up libbrotli1:amd64 (1.0.9-2+b6) ...
+#9 38.40 Setting up libssl3:amd64 (3.0.17-1~deb12u3) ...
+#9 38.43 Setting up libnghttp2-14:amd64 (1.52.0-1+deb12u2) ...
+#9 38.45 Setting up krb5-locales (1.20.1-2+deb12u4) ...
+#9 38.48 Setting up libldap-common (2.5.13+dfsg-5) ...
+#9 38.52 Setting up libkrb5support0:amd64 (1.20.1-2+deb12u4) ...
+#9 38.55 Setting up libsasl2-modules-db:amd64 (2.1.28+dfsg-10) ...
+#9 38.59 Setting up librtmp1:amd64 (2.4+20151223.gitfa8646d.1-2+b2) ...
+#9 38.63 Setting up libk5crypto3:amd64 (1.20.1-2+deb12u4) ...
+#9 38.66 Setting up libsasl2-2:amd64 (2.1.28+dfsg-10) ...
+#9 38.69 Setting up libssh2-1:amd64 (1.10.0-3+b1) ...
+#9 38.72 Setting up libkrb5-3:amd64 (1.20.1-2+deb12u4) ...
+#9 38.76 Setting up openssl (3.0.17-1~deb12u3) ...
+#9 38.81 Setting up publicsuffix (20230209.2326-1) ...
+#9 38.84 Setting up libsasl2-modules:amd64 (2.1.28+dfsg-10) ...
+#9 38.88 Setting up libldap-2.5-0:amd64 (2.5.13+dfsg-5) ...
+#9 38.91 Setting up ca-certificates (20230311+deb12u1) ...
+#9 39.12 debconf: unable to initialize frontend: Dialog
+#9 39.12 debconf: (TERM is not set, so the dialog frontend is not usable.)
+#9 39.12 debconf: falling back to frontend: Readline
+#9 39.12 debconf: unable to initialize frontend: Readline
+#9 39.12 debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC contains: /etc/perl /usr/local/lib/x86_64-linux-gnu/perl/5.36.0 /usr/local/share/perl/5.36.0 /usr/lib/x86_64-linux-gnu/perl5/5.36 /usr/share/perl5 /usr/lib/x86_64-linux-gnu/perl-base /usr/lib/x86_64-linux-gnu/perl/5.36 /usr/share/perl/5.36 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 7.)
+#9 39.12 debconf: falling back to frontend: Teletype
+#9 40.32 Updating certificates in /etc/ssl/certs...
+#9 ...
+
+#16 [builder  9/15] RUN npm install -g pnpm@10.19.0
+#16 6.027 
+#16 6.027 added 1 package in 5s
+#16 6.027 
+#16 6.027 1 package is looking for funding
+#16 6.027   run `npm fund` for details
+#16 6.034 npm notice
+#16 6.034 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+#16 6.034 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+#16 6.034 npm notice To update run: npm install -g npm@11.7.0
+#16 6.034 npm notice
+#16 DONE 7.0s
+
+#17 [builder 10/15] RUN pnpm config set fetch-retries 5     && pnpm config set fetch-retry-mintimeout 20000     && pnpm config set fetch-retry-maxtimeout 120000
+#17 ...
+
+#9 [runner 3/8] RUN apt-get update -y && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+#9 42.59 142 added, 0 removed; done.
+#9 42.68 Setting up libgssapi-krb5-2:amd64 (1.20.1-2+deb12u4) ...
+#9 42.70 Setting up libcurl4:amd64 (7.88.1-10+deb12u14) ...
+#9 42.72 Setting up curl (7.88.1-10+deb12u14) ...
+#9 42.75 Processing triggers for libc-bin (2.36-9+deb12u13) ...
+#9 42.82 Processing triggers for ca-certificates (20230311+deb12u1) ...
+#9 42.84 Updating certificates in /etc/ssl/certs...
+#9 44.21 0 added, 0 removed; done.
+#9 44.21 Running hooks in /etc/ca-certificates/update.d...
+#9 44.22 done.
+#9 DONE 44.4s
+
+#18 [runner 4/8] RUN npm install -g pnpm@10.19.0
+#18 ...
+
+#17 [builder 10/15] RUN pnpm config set fetch-retries 5     && pnpm config set fetch-retry-mintimeout 20000     && pnpm config set fetch-retry-maxtimeout 120000
+#17 DONE 4.2s
+
+#19 [builder 11/15] RUN pnpm install --recursive --frozen-lockfile=false
+#19 1.509 Scope: all 7 workspace projects
+#19 2.684 Progress: resolved 1, reused 0, downloaded 0, added 0
+#19 3.416 
+#19 3.416    Ôò¡ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò«
+#19 3.416    Ôöé                                          Ôöé
+#19 3.416    Ôöé   Update available! 10.19.0 ÔåÆ 10.27.0.   Ôöé
+#19 3.416    Ôöé   Changelog: https://pnpm.io/v/10.27.0   Ôöé
+#19 3.416    Ôöé     To update, run: pnpm add -g pnpm     Ôöé
+#19 3.416    Ôöé                                          Ôöé
+#19 3.416    Ôò░ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò»
+#19 3.416 
+#19 3.716 Progress: resolved 6, reused 0, downloaded 1, added 0
+#19 ...
+
+#18 [runner 4/8] RUN npm install -g pnpm@10.19.0
+#18 5.033 
+#18 5.033 added 1 package in 4s
+#18 5.033 
+#18 5.035 1 package is looking for funding
+#18 5.038   run `npm fund` for details
+#18 5.047 npm notice
+#18 5.047 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+#18 5.047 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+#18 5.047 npm notice To update run: npm install -g npm@11.7.0
+#18 5.047 npm notice
+#18 DONE 5.7s
+
+#19 [builder 11/15] RUN pnpm install --recursive --frozen-lockfile=false
+#19 4.716 Progress: resolved 14, reused 0, downloaded 4, added 0
+#19 5.716 Progress: resolved 17, reused 0, downloaded 9, added 0
+#19 6.806 Progress: resolved 23, reused 3, downloaded 14, added 0
+#19 7.807 Progress: resolved 34, reused 3, downloaded 16, added 0
+#19 8.807 Progress: resolved 36, reused 3, downloaded 24, added 0
+#19 9.808 Progress: resolved 42, reused 3, downloaded 27, added 0
+#19 10.90 Progress: resolved 43, reused 3, downloaded 29, added 0
+#19 11.90 Progress: resolved 44, reused 3, downloaded 33, added 0
+#19 12.90 Progress: resolved 51, reused 3, downloaded 36, added 0
+#19 14.87 ÔÇëWARNÔÇë Request took 10691ms: https://registry.npmjs.org/prisma
+#19 15.69 Progress: resolved 57, reused 3, downloaded 41, added 0
+#19 15.70 ÔÇëWARNÔÇë Tarball download average speed 49 KiB/s (size 114 KiB) is below 50 KiB/s: https://registry.npmjs.org/tsup/-/tsup-8.0.2.tgz (GET)
+#19 16.70 Progress: resolved 63, reused 3, downloaded 48, added 0
+#19 17.70 Progress: resolved 64, reused 3, downloaded 54, added 0
+#19 22.18 ÔÇëWARNÔÇë Request took 13608ms: https://registry.npmjs.org/next
+#19 23.05 apps/web                                 | ÔÇëWARNÔÇë deprecated next@14.2.3
+#19 23.06 Progress: resolved 65, reused 3, downloaded 57, added 0
+#19 24.46 ÔÇëWARNÔÇë Request took 18470ms: https://registry.npmjs.org/@prisma%2Fclient
+#19 26.48 Progress: resolved 66, reused 3, downloaded 61, added 0
+#19 28.34 Progress: resolved 69, reused 3, downloaded 62, added 0
+#19 29.35 Progress: resolved 78, reused 3, downloaded 67, added 0
+#19 30.35 Progress: resolved 98, reused 3, downloaded 75, added 0
+#19 31.35 Progress: resolved 114, reused 3, downloaded 92, added 0
+#19 32.35 Progress: resolved 125, reused 3, downloaded 99, added 0
+#19 33.35 Progress: resolved 128, reused 3, downloaded 106, added 0
+#19 34.35 Progress: resolved 132, reused 3, downloaded 109, added 0
+#19 35.35 Progress: resolved 138, reused 3, downloaded 117, added 0
+#19 36.35 Progress: resolved 149, reused 3, downloaded 123, added 0
+#19 37.50 Progress: resolved 159, reused 3, downloaded 133, added 0
+#19 38.82 Progress: resolved 182, reused 3, downloaded 154, added 0
+#19 40.02 Progress: resolved 195, reused 3, downloaded 164, added 0
+#19 41.02 Progress: resolved 216, reused 3, downloaded 182, added 0
+#19 42.02 Progress: resolved 238, reused 3, downloaded 205, added 0
+#19 43.02 Progress: resolved 251, reused 3, downloaded 222, added 0
+#19 44.02 Progress: resolved 256, reused 3, downloaded 224, added 0
+#19 45.10 Progress: resolved 261, reused 3, downloaded 228, added 0
+#19 46.11 Progress: resolved 265, reused 3, downloaded 230, added 0
+#19 47.10 Progress: resolved 269, reused 3, downloaded 235, added 0
+#19 48.10 Progress: resolved 277, reused 3, downloaded 242, added 0
+#19 48.43 ÔÇëWARNÔÇë Tarball download average speed 11 KiB/s (size 12 KiB) is below 50 KiB/s: https://registry.npmjs.org/debug/-/debug-4.3.7.tgz (GET)
+#19 49.10 Progress: resolved 296, reused 3, downloaded 255, added 0
+#19 50.15 Progress: resolved 317, reused 3, downloaded 271, added 0
+#19 51.15 Progress: resolved 336, reused 3, downloaded 291, added 0
+#19 52.15 Progress: resolved 341, reused 3, downloaded 299, added 0
+#19 53.16 Progress: resolved 344, reused 3, downloaded 303, added 0
+#19 54.16 Progress: resolved 347, reused 3, downloaded 307, added 0
+#19 55.16 Progress: resolved 352, reused 3, downloaded 309, added 0
+#19 56.16 Progress: resolved 359, reused 3, downloaded 314, added 0
+#19 57.16 Progress: resolved 365, reused 3, downloaded 319, added 0
+#19 58.51 Progress: resolved 373, reused 3, downloaded 325, added 0
+#19 59.50 Progress: resolved 379, reused 3, downloaded 332, added 0
+#19 60.50 Progress: resolved 389, reused 3, downloaded 343, added 0
+#19 61.50 Progress: resolved 398, reused 3, downloaded 350, added 0
+#19 62.54 Progress: resolved 407, reused 3, downloaded 359, added 0
+#19 63.54 Progress: resolved 418, reused 3, downloaded 370, added 0
+#19 64.55 Progress: resolved 424, reused 3, downloaded 371, added 0
+#19 65.56 Progress: resolved 427, reused 3, downloaded 377, added 0
+#19 66.56 Progress: resolved 437, reused 3, downloaded 388, added 0
+#19 67.56 Progress: resolved 447, reused 3, downloaded 396, added 0
+#19 68.56 Progress: resolved 454, reused 3, downloaded 405, added 0
+#19 69.56 Progress: resolved 464, reused 3, downloaded 413, added 0
+#19 70.56 Progress: resolved 477, reused 3, downloaded 428, added 0
+#19 71.56 Progress: resolved 487, reused 3, downloaded 435, added 0
+#19 72.56 Progress: resolved 502, reused 3, downloaded 443, added 0
+#19 73.56 Progress: resolved 517, reused 3, downloaded 464, added 0
+#19 74.56 Progress: resolved 531, reused 3, downloaded 465, added 0
+#19 75.06 ÔÇëWARNÔÇë Request took 15671ms: https://registry.npmjs.org/@prisma%2Ffetch-engine
+#19 75.66 Progress: resolved 533, reused 3, downloaded 465, added 0
+#19 76.66 Progress: resolved 552, reused 3, downloaded 468, added 0
+#19 77.86 ÔÇëWARNÔÇë Request took 18463ms: https://registry.npmjs.org/@prisma%2Fget-platform
+#19 78.56 Progress: resolved 565, reused 3, downloaded 469, added 0
+#19 79.56 Progress: resolved 586, reused 3, downloaded 485, added 0
+#19 80.57 Progress: resolved 600, reused 3, downloaded 494, added 0
+#19 81.57 Progress: resolved 641, reused 3, downloaded 515, added 0
+#19 82.57 Progress: resolved 657, reused 3, downloaded 529, added 0
+#19 83.45 ÔÇëWARNÔÇë Request took 28229ms: https://registry.npmjs.org/playwright-core
+#19 83.74 Progress: resolved 663, reused 3, downloaded 534, added 0
+#19 84.75 Progress: resolved 668, reused 3, downloaded 541, added 0
+#19 85.76 Progress: resolved 682, reused 3, downloaded 552, added 0
+#19 86.76 Progress: resolved 692, reused 3, downloaded 562, added 0
+#19 87.76 Progress: resolved 705, reused 3, downloaded 573, added 0
+#19 88.75 Progress: resolved 718, reused 3, downloaded 590, added 0
+#19 89.75 Progress: resolved 734, reused 3, downloaded 603, added 0
+#19 90.76 Progress: resolved 764, reused 3, downloaded 630, added 0
+#19 91.76 Progress: resolved 804, reused 3, downloaded 669, added 0
+#19 92.76 Progress: resolved 831, reused 3, downloaded 687, added 0
+#19 93.76 Progress: resolved 869, reused 3, downloaded 729, added 0
+#19 94.76 Progress: resolved 908, reused 3, downloaded 772, added 0
+#19 97.04 Progress: resolved 919, reused 3, downloaded 806, added 0
+#19 97.27 .                                        | +834 ++++++++++++++++++++++++++++++++
+#19 98.04 Progress: resolved 919, reused 3, downloaded 831, added 0
+#19 99.04 Progress: resolved 919, reused 3, downloaded 833, added 0
+#19 100.0 Progress: resolved 919, reused 3, downloaded 833, added 357
+#19 101.0 Progress: resolved 919, reused 3, downloaded 833, added 740
+#19 101.9 Progress: resolved 919, reused 3, downloaded 833, added 834, done
+#19 103.1 .../node_modules/@prisma/engines postinstall$ node scripts/postinstall.js
+#19 103.5 .../esbuild@0.21.5/node_modules/esbuild postinstall$ node install.js
+#19 103.6 .../esbuild@0.19.12/node_modules/esbuild postinstall$ node install.js
+#19 103.9 .../esbuild@0.19.12/node_modules/esbuild postinstall: Done
+#19 104.0 .../esbuild@0.21.5/node_modules/esbuild postinstall: Done
+#19 104.4 .../node_modules/@prisma/engines postinstall: prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#19 104.4 .../node_modules/@prisma/engines postinstall: Please manually install OpenSSL via `apt-get update -y && apt-get install -y openssl` and try installing Prisma again. If you're running Prisma on Docker, add this command to your Dockerfile, or switch to an image that already has OpenSSL installed.
+#19 110.9 .../node_modules/@prisma/engines postinstall: Done
+#19 111.4 .../prisma@5.22.0/node_modules/prisma preinstall$ node scripts/preinstall-entry.js
+#19 111.7 .../prisma@5.22.0/node_modules/prisma preinstall: Done
+#19 112.2 .../node_modules/@prisma/client postinstall$ node scripts/postinstall.js
+#19 113.2 .../node_modules/@prisma/client postinstall: prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#19 113.2 .../node_modules/@prisma/client postinstall: Please manually install OpenSSL via `apt-get update -y && apt-get install -y openssl` and try installing Prisma again. If you're running Prisma on Docker, add this command to your Dockerfile, or switch to an image that already has OpenSSL installed.
+#19 113.5 .../node_modules/@prisma/client postinstall: prisma:warn We could not find your Prisma schema in the default locations (see: https://pris.ly/d/prisma-schema-location).
+#19 113.5 .../node_modules/@prisma/client postinstall: If you have a Prisma schema file in a custom path, you will need to run
+#19 113.5 .../node_modules/@prisma/client postinstall: `prisma generate --schema=./path/to/your/schema.prisma` to generate Prisma Client.
+#19 113.5 .../node_modules/@prisma/client postinstall: If you do not have a Prisma schema file yet, you can ignore this message.
+#19 113.6 .../node_modules/@prisma/client postinstall: Done
+#19 117.9 . preinstall$ node -e "const ua=process.env.npm_config_user_agent||''; if(!ua.includes('pnpm')) console.warn('[warn] Please use pnpm. Detected UA:', ua);"
+#19 118.1 . preinstall: Done
+#19 118.3 Done in 1m 57.5s using pnpm v10.19.0
+#19 DONE 119.4s
+
+#20 [builder 12/15] WORKDIR /app/apps/web
+#20 DONE 3.1s
+
+#21 [builder 13/15] RUN pnpm exec prisma generate --schema ./prisma/schema.prisma
+#21 2.341 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#21 2.341 Please manually install OpenSSL via `apt-get update -y && apt-get install -y openssl` and try installing Prisma again. If you're running Prisma on Docker, add this command to your Dockerfile, or switch to an image that already has OpenSSL installed.
+#21 2.705 Environment variables loaded from .env
+#21 2.712 Prisma schema loaded from prisma/schema.prisma
+#21 2.793 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#21 2.793 Please manually install OpenSSL via `apt-get update -y && apt-get install -y openssl` and try installing Prisma again. If you're running Prisma on Docker, add this command to your Dockerfile, or switch to an image that already has OpenSSL installed.
+#21 6.867 
+#21 6.867 Ô£ö Generated Prisma Client (v5.22.0) to ./node_modules/.prisma/client in 2.13s
+#21 6.867 
+#21 6.867 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#21 6.867 
+#21 6.867 Tip: Want to react to database changes in your app as they happen? Discover how with Pulse: https://pris.ly/tip-1-pulse
+#21 6.867 
+#21 DONE 7.3s
+
+#22 [builder 14/15] WORKDIR /app
+#22 DONE 0.2s
+
+#23 [builder 15/15] RUN pnpm --filter @propad/web... run build
+#23 1.115 Scope: 4 of 7 workspace projects
+#23 1.122 packages/config build$ tsc -p tsconfig.json
+#23 1.123 packages/sdk build$ tsc -p tsconfig.json
+#23 1.125 packages/ui build$ tsc -p tsconfig.json
+#23 5.507 packages/config build: Done
+#23 9.357 packages/ui build: Done
+#23 10.09 packages/sdk build: Done
+#23 10.09 apps/web build$ next build
+#23 12.74 apps/web build: Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#23 12.74 apps/web build: This information is used to shape Next.js' roadmap and prioritize features.
+#23 12.74 apps/web build: You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#23 12.74 apps/web build: https://nextjs.org/telemetry
+#23 12.82 apps/web build:   Ôû▓ Next.js 14.2.3
+#23 12.82 apps/web build:   - Environments: .env.local, .env
+#23 12.82 apps/web build:   - Experiments (use with caution):
+#23 12.82 apps/web build:     ┬À instrumentationHook
+#23 13.26 apps/web build:    Creating an optimized production build ...
+#23 14.08 apps/web build:  Ô£ô (pwa) Compiling for server...
+#23 14.08 apps/web build:  Ô£ô (pwa) Compiling for server...
+#23 14.09 apps/web build:  Ô£ô (pwa) Compiling for client (static)...
+#23 14.10 apps/web build:  Ôùï (pwa) Service worker: /app/apps/web/public/sw.js
+#23 14.10 apps/web build:  Ôùï (pwa)   URL: /sw.js
+#23 14.10 apps/web build:  Ôùï (pwa)   Scope: /
+#23 104.9 apps/web build:  Ô£ô Compiled successfully
+#23 104.9 apps/web build:    Linting and checking validity of types ...
+#23 145.0 apps/web build: Failed to compile.
+#23 145.0 apps/web build: ./app/(dashboard)/dashboard/rent-history/page.tsx:38:30
+#23 145.0 apps/web build: Type error: Parameter 'i' implicitly has an 'any' type.
+#23 145.0 apps/web build: [0m [90m 36 |[39m[0m
+#23 145.0 apps/web build: [0m [90m 37 |[39m     [36mif[39m (interests[33m.[39mlength [33m>[39m [35m0[39m) {[0m
+#23 145.0 apps/web build: [0m[31m[1m>[22m[39m[90m 38 |[39m         [36mreturn[39m interests[33m.[39mmap(i [33m=>[39m ({ id[33m:[39m i[33m.[39mproperty[33m.[39mid[33m,[39m title[33m:[39m i[33m.[39mproperty[33m.[39mtitle }))[33m;[39m[0m
+#23 145.0 apps/web build: [0m [90m    |[39m                              [31m[1m^[22m[39m[0m
+#23 145.0 apps/web build: [0m [90m 39 |[39m     }[0m
+#23 145.0 apps/web build: [0m [90m 40 |[39m[0m
+#23 145.0 apps/web build: [0m [90m 41 |[39m     [90m// Fallback: Just return top 50 properties to pick from (for demo purposes if they haven't done the full flow)[39m[0m
+#23 145.3 apps/web build: Failed
+#23 146.3 /app/apps/web:
+#23 146.3 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/web@0.1.0 build: `next build`
+#23 146.3 Exit status 1
+#23 ERROR: process "/bin/sh -c pnpm --filter @propad/web... run build" did not complete successfully: exit code: 1
+------
+ > [builder 15/15] RUN pnpm --filter @propad/web... run build:
+145.0 apps/web build: [0m [90m 37 |[39m     [36mif[39m (interests[33m.[39mlength [33m>[39m [35m0[39m) {[0m
+145.0 apps/web build: [0m[31m[1m>[22m[39m[90m 38 |[39m         [36mreturn[39m interests[33m.[39mmap(i [33m=>[39m ({ id[33m:[39m i[33m.[39mproperty[33m.[39mid[33m,[39m title[33m:[39m i[33m.[39mproperty[33m.[39mtitle }))[33m;[39m[0m
+145.0 apps/web build: [0m [90m    |[39m                              [31m[1m^[22m[39m[0m
+145.0 apps/web build: [0m [90m 39 |[39m     }[0m
+145.0 apps/web build: [0m [90m 40 |[39m[0m
+145.0 apps/web build: [0m [90m 41 |[39m     [90m// Fallback: Just return top 50 properties to pick from (for demo purposes if they haven't done the full flow)[39m[0m
+145.3 apps/web build: Failed
+146.3 /app/apps/web:
+146.3 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/web@0.1.0 build: `next build`
+146.3 Exit status 1
+------
+docker : 
+web.Dockerfile:26
+At line:1 char:1
++ docker compose 
+build web 2>&1 | 
+Out-File -FilePath 
+"c:\projects\propa 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (web.Doc   
+ kerfile:26:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+
+--------------------
+
+  24 |     WORKDIR 
+/app
+
+  25 |     
+
+  26 | >>> RUN pnpm 
+--filter 
+@propad/web... run 
+build
+
+  27 |     
+
+  28 |     FROM 
+${NODE_IMAGE} AS 
+runner
+
+--------------------
+
+failed to solve: 
+process "/bin/sh -c 
+pnpm --filter 
+@propad/web... run 
+build" did not 
+complete 
+successfully: exit 
+code: 1
+
