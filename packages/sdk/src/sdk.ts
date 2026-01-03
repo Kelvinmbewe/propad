@@ -923,6 +923,33 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
     wallet: {
       getBalance: async () => client.get('wallet/balance').json<number>(),
     },
+    payouts: {
+      requestPayout: async (params: { amountCents: number; method: string; accountId: string }) =>
+        client.post('payouts/request', { json: params }).json<PayoutRequest>()
+          .then((data) => PayoutRequestSchema.parse(data)),
+      getMyPayouts: async () =>
+        client.get('payouts/my').json<PayoutRequest[]>()
+          .then((data) => PayoutRequestSchema.array().parse(data)),
+      getAllPayouts: async () =>
+        client.get('payouts/all').json<PayoutRequest[]>()
+          .then((data) => PayoutRequestSchema.array().parse(data)),
+      approvePayout: async (requestId: string) =>
+        client.post(`payouts/approve/${requestId}`).json<PayoutRequest>()
+          .then((data) => PayoutRequestSchema.parse(data)),
+    },
+    adsense: {
+      getStats: async () =>
+        client.get('adsense/stats').json<Array<{
+          id: string;
+          date: string;
+          impressions: number;
+          clicks: number;
+          revenueMicros: string;
+        }>>(),
+      triggerSync: async () => {
+        await client.post('adsense/sync');
+      },
+    },
   };
 }
 

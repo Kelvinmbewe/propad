@@ -1,0 +1,185 @@
+﻿#1 [internal] load local bake definitions
+#1 reading from stdin 930B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from web.Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 1.20kB 0.1s done
+#2 DONE 0.5s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 ...
+
+#4 [auth] library/node:pull token for registry-1.docker.io
+#4 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 DONE 4.1s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 2B 0.0s done
+#5 DONE 0.1s
+
+#6 [internal] load build context
+#6 DONE 0.0s
+
+#7 [builder  1/15] FROM docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520
+#7 resolve docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520 0.1s done
+#7 DONE 0.1s
+
+#6 [internal] load build context
+#6 transferring context: 97.68kB 11.9s
+#6 transferring context: 114.99kB 12.0s done
+#6 DONE 12.4s
+
+#8 [builder  3/15] COPY package*.json ./
+#8 CACHED
+
+#9 [builder  7/15] COPY apps/web ./apps/web
+#9 CACHED
+
+#10 [builder  8/15] COPY apps/api/prisma ./apps/web/prisma
+#10 CACHED
+
+#11 [builder 12/15] WORKDIR /app/apps/web
+#11 CACHED
+
+#12 [builder  4/15] COPY pnpm-workspace.yaml ./
+#12 CACHED
+
+#13 [builder  6/15] COPY packages ./packages
+#13 CACHED
+
+#14 [builder  9/15] RUN npm install -g pnpm@10.19.0
+#14 CACHED
+
+#15 [builder  2/15] WORKDIR /app
+#15 CACHED
+
+#16 [builder  5/15] COPY tsconfig.json ./
+#16 CACHED
+
+#17 [builder 10/15] RUN pnpm config set fetch-retries 5     && pnpm config set fetch-retry-mintimeout 20000     && pnpm config set fetch-retry-maxtimeout 120000
+#17 CACHED
+
+#18 [builder 11/15] RUN pnpm install --recursive --frozen-lockfile=false
+#18 CACHED
+
+#19 [builder 13/15] RUN pnpm exec prisma generate --schema ./prisma/schema.prisma
+#19 CACHED
+
+#20 [builder 14/15] WORKDIR /app
+#20 CACHED
+
+#21 [builder 15/15] RUN pnpm --filter @propad/web... run build
+#21 8.395 Scope: 4 of 7 workspace projects
+#21 8.440 packages/config build$ tsc -p tsconfig.json
+#21 8.443 packages/sdk build$ tsc -p tsconfig.json
+#21 8.446 packages/ui build$ tsc -p tsconfig.json
+#21 17.38 packages/config build: Done
+#21 21.84 packages/ui build: Done
+#21 23.70 packages/sdk build: Done
+#21 23.70 apps/web build$ next build
+#21 30.68 apps/web build: Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#21 30.68 apps/web build: This information is used to shape Next.js' roadmap and prioritize features.
+#21 30.68 apps/web build: You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#21 30.69 apps/web build: https://nextjs.org/telemetry
+#21 30.83 apps/web build:   Ôû▓ Next.js 14.2.3
+#21 30.84 apps/web build:   - Environments: .env.local, .env
+#21 30.84 apps/web build:   - Experiments (use with caution):
+#21 30.84 apps/web build:     ┬À instrumentationHook
+#21 32.06 apps/web build:    Creating an optimized production build ...
+#21 34.02 apps/web build:  Ô£ô (pwa) Compiling for server...
+#21 34.03 apps/web build:  Ô£ô (pwa) Compiling for server...
+#21 34.04 apps/web build:  Ô£ô (pwa) Compiling for client (static)...
+#21 34.05 apps/web build:  Ôùï (pwa) Service worker: /app/apps/web/public/sw.js
+#21 34.05 apps/web build:  Ôùï (pwa)   URL: /sw.js
+#21 34.05 apps/web build:  Ôùï (pwa)   Scope: /
+#21 215.3 apps/web build:  ÔÜá Compiled with warnings
+#21 215.3 apps/web build: ./app/(dashboard)/dashboard/wallet/payouts/page.tsx
+#21 215.3 apps/web build: Attempted import error: 'PayoutMethod' is not exported from '@propad/sdk' (imported as 'PayoutMethod').
+#21 215.3 apps/web build: Import trace for requested module:
+#21 215.3 apps/web build: ./app/(dashboard)/dashboard/wallet/payouts/page.tsx
+#21 215.3 apps/web build: ./app/(dashboard)/dashboard/wallet/payouts/page.tsx
+#21 215.3 apps/web build: Attempted import error: 'PayoutMethod' is not exported from '@propad/sdk' (imported as 'PayoutMethod').
+#21 215.3 apps/web build: Import trace for requested module:
+#21 215.3 apps/web build: ./app/(dashboard)/dashboard/wallet/payouts/page.tsx
+#21 215.3 apps/web build:    Linting and checking validity of types ...
+#21 333.6 apps/web build: Failed to compile.
+#21 333.6 apps/web build: ./app/(dashboard)/dashboard/admin/adsense/page.tsx:17:32
+#21 333.6 apps/web build: Type error: 'sdk' is possibly 'null'.
+#21 333.6 apps/web build: [0m [90m 15 |[39m     [36mconst[39m fetchStats [33m=[39m [36masync[39m () [33m=>[39m {[0m
+#21 333.6 apps/web build: [0m [90m 16 |[39m         [36mtry[39m {[0m
+#21 333.6 apps/web build: [0m[31m[1m>[22m[39m[90m 17 |[39m             [36mconst[39m data [33m=[39m [36mawait[39m sdk[33m.[39madsense[33m.[39mgetStats()[33m;[39m[0m
+#21 333.6 apps/web build: [0m [90m    |[39m                                [31m[1m^[22m[39m[0m
+#21 333.6 apps/web build: [0m [90m 18 |[39m             setStats(data)[33m;[39m[0m
+#21 333.6 apps/web build: [0m [90m 19 |[39m         } [36mcatch[39m (e) {[0m
+#21 333.6 apps/web build: [0m [90m 20 |[39m             console[33m.[39merror(e)[33m;[39m[0m
+#21 334.9 apps/web build: Failed
+#21 337.6 /app/apps/web:
+#21 337.6 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/web@0.1.0 build: `next build`
+#21 337.6 Exit status 1
+#21 ERROR: process "/bin/sh -c pnpm --filter @propad/web... run build" did not complete successfully: exit code: 1
+------
+ > [builder 15/15] RUN pnpm --filter @propad/web... run build:
+333.6 apps/web build: [0m [90m 16 |[39m         [36mtry[39m {[0m
+333.6 apps/web build: [0m[31m[1m>[22m[39m[90m 17 |[39m             [36mconst[39m data [33m=[39m [36mawait[39m sdk[33m.[39madsense[33m.[39mgetStats()[33m;[39m[0m
+333.6 apps/web build: [0m [90m    |[39m                                [31m[1m^[22m[39m[0m
+333.6 apps/web build: [0m [90m 18 |[39m             setStats(data)[33m;[39m[0m
+333.6 apps/web build: [0m [90m 19 |[39m         } [36mcatch[39m (e) {[0m
+333.6 apps/web build: [0m [90m 20 |[39m             console[33m.[39merror(e)[33m;[39m[0m
+334.9 apps/web build: Failed
+337.6 /app/apps/web:
+337.6 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/web@0.1.0 build: `next build`
+337.6 Exit status 1
+------
+docker : 
+web.Dockerfile:26
+At line:1 char:1
++ docker compose 
+build web 2>&1 | 
+Out-File -FilePath 
+"c:\projects\propa 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (web.Doc   
+ kerfile:26:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+
+--------------------
+
+  24 |     WORKDIR 
+/app
+
+  25 |     
+
+  26 | >>> RUN pnpm 
+--filter 
+@propad/web... run 
+build
+
+  27 |     
+
+  28 |     FROM 
+${NODE_IMAGE} AS 
+runner
+
+--------------------
+
+failed to solve: 
+process "/bin/sh -c 
+pnpm --filter 
+@propad/web... run 
+build" did not 
+complete 
+successfully: exit 
+code: 1
+

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@propad/ui';
 import { Button } from '@propad/ui';
-import { useAuthenticatedSDK } from '../../../../../../hooks/use-authenticated-sdk';
+import { useAuthenticatedSDK } from '../../../../../hooks/use-authenticated-sdk';
 import { AdSenseDailyStat } from '@propad/sdk';
 import { toast } from 'sonner';
 
@@ -13,6 +13,7 @@ export default function AdminAdSensePage() {
     const [loading, setLoading] = useState(false);
 
     const fetchStats = async () => {
+        if (!sdk) return;
         try {
             const data = await sdk.adsense.getStats();
             setStats(data);
@@ -23,9 +24,10 @@ export default function AdminAdSensePage() {
 
     useEffect(() => {
         fetchStats();
-    }, []);
+    }, [sdk]);
 
     const handleSync = async () => {
+        if (!sdk) return;
         setLoading(true);
         try {
             await sdk.adsense.triggerSync();

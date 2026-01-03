@@ -4,19 +4,20 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@propad/ui';
 import { Button } from '@propad/ui';
 import { Input } from '@propad/ui';
-import { useAuthenticatedSDK } from '../../../../../../hooks/use-authenticated-sdk';
+import { useAuthenticatedSDK } from '../../../../../hooks/use-authenticated-sdk';
 import { PayoutMethod, PayoutRequest } from '@propad/sdk';
 import { toast } from 'sonner';
 
 export default function AgentPayoutsPage() {
     const sdk = useAuthenticatedSDK();
     const [amount, setAmount] = useState('');
-    const [method, setMethod] = useState<PayoutMethod>(PayoutMethod.MOBILE_MONEY); // Default
+    const [method, setMethod] = useState<PayoutMethod>(PayoutMethod.ECOCASH);
     const [accountId, setAccountId] = useState('');
     const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
     const [loading, setLoading] = useState(false);
 
     const fetchPayouts = async () => {
+        if (!sdk) return;
         try {
             const data = await sdk.payouts.getMyPayouts();
             setPayouts(data);
@@ -27,16 +28,16 @@ export default function AgentPayoutsPage() {
 
     useEffect(() => {
         fetchPayouts();
-    }, []);
+    }, [sdk]);
 
     const handleRequest = async () => {
-        if (!amount || !accountId) return;
+        if (!amount || !accountId || !sdk) return;
         setLoading(true);
         try {
             await sdk.payouts.requestPayout({
-                amountCents: Number(amount) * 100, // Convert to cents
+                amountCents: Number(amount) * 100,
                 method: method,
-                accountId: accountId, // In real app, this should be selected from saved accounts
+                accountId: accountId,
             });
             toast.success('Payout requested successfully');
             setAmount('');

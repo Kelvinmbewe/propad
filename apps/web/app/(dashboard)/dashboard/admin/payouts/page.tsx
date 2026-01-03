@@ -3,16 +3,17 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@propad/ui';
 import { Button } from '@propad/ui';
-import { useAuthenticatedSDK } from '../../../../../../hooks/use-authenticated-sdk';
+import { useAuthenticatedSDK } from '../../../../../hooks/use-authenticated-sdk';
 import { PayoutRequest } from '@propad/sdk';
 import { toast } from 'sonner';
 
 export default function AdminPayoutsPage() {
   const sdk = useAuthenticatedSDK();
-  const [requests, setRequests] = useState<(PayoutRequest & { wallet: { user: any } })[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
   const [processing, setProcessing] = useState<string | null>(null);
 
   const fetchRequests = async () => {
+    if (!sdk) return;
     try {
       const data = await sdk.payouts.getAllPayouts();
       setRequests(data);
@@ -23,9 +24,10 @@ export default function AdminPayoutsPage() {
 
   useEffect(() => {
     fetchRequests();
-  }, []);
+  }, [sdk]);
 
   const handleApprove = async (id: string) => {
+    if (!sdk) return;
     setProcessing(id);
     try {
       await sdk.payouts.approvePayout(id);

@@ -1,11 +1,11 @@
-// Local type definition matching Prisma schema
+// Local type definition matching SDK response
 export interface AdSenseDailyStat {
     id: string;
-    date: Date;
+    date: string;
     impressions: number;
     clicks: number;
-    revenueCents: number;
-    syncedAt: Date;
+    revenueMicros: string;
+    syncedAt?: Date;
 }
 
 export class AdSenseClient {
