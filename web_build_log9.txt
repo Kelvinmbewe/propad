@@ -1,0 +1,315 @@
+﻿#1 [internal] load local bake definitions
+#1 reading from stdin 930B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from web.Dockerfile
+#2 transferring dockerfile: 1.20kB 0.0s done
+#2 DONE 0.2s
+
+#3 [auth] library/node:pull token for registry-1.docker.io
+#3 DONE 0.0s
+
+#4 [internal] load metadata for docker.io/library/node:20-slim
+#4 DONE 2.3s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 2B done
+#5 DONE 0.1s
+
+#6 [internal] load build context
+#6 DONE 0.0s
+
+#7 [builder  1/15] FROM docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520
+#7 resolve docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520 0.1s done
+#7 DONE 0.1s
+
+#8 [builder  2/15] WORKDIR /app
+#8 CACHED
+
+#9 [runner 3/8] RUN apt-get update -y && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+#9 CACHED
+
+#10 [runner 4/8] RUN npm install -g pnpm@10.19.0
+#10 CACHED
+
+#6 [internal] load build context
+#6 transferring context: 117.93kB 4.7s done
+#6 DONE 4.9s
+
+#11 [builder  5/15] COPY tsconfig.json ./
+#11 CACHED
+
+#12 [builder  3/15] COPY package*.json ./
+#12 CACHED
+
+#13 [builder  4/15] COPY pnpm-workspace.yaml ./
+#13 CACHED
+
+#14 [builder  6/15] COPY packages ./packages
+#14 CACHED
+
+#15 [builder  7/15] COPY apps/web ./apps/web
+#15 DONE 50.6s
+
+#16 [builder  8/15] COPY apps/api/prisma ./apps/web/prisma
+#16 DONE 2.6s
+
+#17 [builder  9/15] RUN npm install -g pnpm@10.19.0
+#17 10.98 
+#17 10.98 added 1 package in 6s
+#17 10.98 
+#17 10.98 1 package is looking for funding
+#17 10.98   run `npm fund` for details
+#17 10.98 npm notice
+#17 10.98 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+#17 10.98 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+#17 10.98 npm notice To update run: npm install -g npm@11.7.0
+#17 10.98 npm notice
+#17 DONE 11.4s
+
+#18 [builder 10/15] RUN pnpm config set fetch-retries 5     && pnpm config set fetch-retry-mintimeout 20000     && pnpm config set fetch-retry-maxtimeout 120000
+#18 DONE 2.2s
+
+#19 [builder 11/15] RUN pnpm install --recursive --frozen-lockfile=false
+#19 0.955 Scope: all 7 workspace projects
+#19 1.502 Progress: resolved 1, reused 0, downloaded 0, added 0
+#19 2.415 
+#19 2.415    Ôò¡ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò«
+#19 2.415    Ôöé                                          Ôöé
+#19 2.415    Ôöé   Update available! 10.19.0 ÔåÆ 10.27.0.   Ôöé
+#19 2.415    Ôöé   Changelog: https://pnpm.io/v/10.27.0   Ôöé
+#19 2.415    Ôöé     To update, run: pnpm add -g pnpm     Ôöé
+#19 2.415    Ôöé                                          Ôöé
+#19 2.415    Ôò░ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò»
+#19 2.415 
+#19 2.506 Progress: resolved 13, reused 0, downloaded 5, added 0
+#19 3.541 Progress: resolved 18, reused 0, downloaded 12, added 0
+#19 4.551 Progress: resolved 26, reused 3, downloaded 15, added 0
+#19 5.549 Progress: resolved 38, reused 3, downloaded 24, added 0
+#19 7.046 Progress: resolved 41, reused 3, downloaded 27, added 0
+#19 8.052 Progress: resolved 42, reused 3, downloaded 31, added 0
+#19 9.053 Progress: resolved 47, reused 3, downloaded 34, added 0
+#19 10.91 Progress: resolved 49, reused 3, downloaded 35, added 0
+#19 12.09 Progress: resolved 57, reused 3, downloaded 44, added 0
+#19 14.33 ÔÇëWARNÔÇë Request took 12010ms: https://registry.npmjs.org/prisma
+#19 15.07 Progress: resolved 63, reused 3, downloaded 55, added 0
+#19 15.90 ÔÇëWARNÔÇë Request took 10604ms: https://registry.npmjs.org/next
+#19 16.64 apps/web                                 | ÔÇëWARNÔÇë deprecated next@14.2.3
+#19 16.66 Progress: resolved 65, reused 3, downloaded 59, added 0
+#19 17.92 ÔÇëWARNÔÇë Request took 14738ms: https://registry.npmjs.org/@prisma%2Fclient
+#19 19.31 Progress: resolved 66, reused 3, downloaded 60, added 0
+#19 20.74 Progress: resolved 67, reused 3, downloaded 61, added 0
+#19 21.74 Progress: resolved 84, reused 3, downloaded 71, added 0
+#19 22.74 Progress: resolved 105, reused 3, downloaded 82, added 0
+#19 23.74 Progress: resolved 121, reused 3, downloaded 101, added 0
+#19 24.74 Progress: resolved 130, reused 3, downloaded 105, added 0
+#19 25.74 Progress: resolved 138, reused 3, downloaded 113, added 0
+#19 26.75 Progress: resolved 143, reused 3, downloaded 120, added 0
+#19 27.76 Progress: resolved 158, reused 3, downloaded 132, added 0
+#19 28.76 Progress: resolved 174, reused 3, downloaded 149, added 0
+#19 29.81 Progress: resolved 197, reused 3, downloaded 170, added 0
+#19 30.84 Progress: resolved 226, reused 3, downloaded 194, added 0
+#19 31.99 Progress: resolved 237, reused 3, downloaded 210, added 0
+#19 33.11 Progress: resolved 253, reused 3, downloaded 222, added 0
+#19 34.12 Progress: resolved 258, reused 3, downloaded 226, added 0
+#19 35.13 Progress: resolved 268, reused 3, downloaded 231, added 0
+#19 36.13 Progress: resolved 283, reused 3, downloaded 242, added 0
+#19 37.13 Progress: resolved 299, reused 3, downloaded 257, added 0
+#19 38.13 Progress: resolved 329, reused 3, downloaded 288, added 0
+#19 39.14 Progress: resolved 338, reused 3, downloaded 297, added 0
+#19 40.14 Progress: resolved 343, reused 3, downloaded 301, added 0
+#19 41.15 Progress: resolved 348, reused 3, downloaded 305, added 0
+#19 42.15 Progress: resolved 359, reused 3, downloaded 312, added 0
+#19 43.15 Progress: resolved 370, reused 3, downloaded 325, added 0
+#19 44.15 Progress: resolved 388, reused 3, downloaded 341, added 0
+#19 45.15 Progress: resolved 403, reused 3, downloaded 356, added 0
+#19 46.15 Progress: resolved 416, reused 3, downloaded 369, added 0
+#19 47.21 Progress: resolved 431, reused 3, downloaded 372, added 0
+#19 48.15 Progress: resolved 435, reused 3, downloaded 386, added 0
+#19 49.15 Progress: resolved 449, reused 3, downloaded 389, added 0
+#19 50.15 Progress: resolved 452, reused 3, downloaded 391, added 0
+#19 51.22 Progress: resolved 455, reused 3, downloaded 392, added 0
+#19 52.23 Progress: resolved 466, reused 3, downloaded 412, added 0
+#19 53.23 Progress: resolved 477, reused 3, downloaded 422, added 0
+#19 54.23 Progress: resolved 485, reused 3, downloaded 430, added 0
+#19 55.23 Progress: resolved 491, reused 3, downloaded 439, added 0
+#19 57.79 Progress: resolved 493, reused 3, downloaded 441, added 0
+#19 58.79 Progress: resolved 510, reused 3, downloaded 457, added 0
+#19 60.58 Progress: resolved 516, reused 3, downloaded 461, added 0
+#19 61.75 Progress: resolved 526, reused 3, downloaded 466, added 0
+#19 62.74 Progress: resolved 542, reused 3, downloaded 469, added 0
+#19 63.74 Progress: resolved 560, reused 3, downloaded 472, added 0
+#19 64.74 Progress: resolved 584, reused 3, downloaded 489, added 0
+#19 65.75 Progress: resolved 625, reused 3, downloaded 498, added 0
+#19 66.75 Progress: resolved 639, reused 3, downloaded 514, added 0
+#19 67.75 Progress: resolved 655, reused 3, downloaded 536, added 0
+#19 68.75 Progress: resolved 672, reused 3, downloaded 549, added 0
+#19 69.75 Progress: resolved 682, reused 3, downloaded 557, added 0
+#19 70.75 Progress: resolved 693, reused 3, downloaded 568, added 0
+#19 71.75 Progress: resolved 703, reused 3, downloaded 579, added 0
+#19 72.75 Progress: resolved 714, reused 3, downloaded 589, added 0
+#19 73.75 Progress: resolved 728, reused 3, downloaded 602, added 0
+#19 74.75 Progress: resolved 749, reused 3, downloaded 621, added 0
+#19 75.75 Progress: resolved 774, reused 3, downloaded 645, added 0
+#19 76.75 Progress: resolved 791, reused 3, downloaded 664, added 0
+#19 77.75 Progress: resolved 812, reused 3, downloaded 683, added 0
+#19 78.75 Progress: resolved 830, reused 3, downloaded 700, added 0
+#19 79.76 Progress: resolved 850, reused 3, downloaded 720, added 0
+#19 80.76 Progress: resolved 880, reused 3, downloaded 745, added 0
+#19 81.76 Progress: resolved 908, reused 3, downloaded 779, added 0
+#19 82.76 Progress: resolved 913, reused 3, downloaded 824, added 0
+#19 84.03 Progress: resolved 919, reused 3, downloaded 832, added 0
+#19 84.06 .                                        | +834 ++++++++++++++++++++++++++++++++
+#19 85.03 Progress: resolved 919, reused 3, downloaded 833, added 189
+#19 86.03 Progress: resolved 919, reused 3, downloaded 833, added 663
+#19 87.03 Progress: resolved 919, reused 3, downloaded 833, added 827
+#19 87.40 Progress: resolved 919, reused 3, downloaded 833, added 834, done
+#19 88.12 .../node_modules/@prisma/engines postinstall$ node scripts/postinstall.js
+#19 88.20 .../esbuild@0.21.5/node_modules/esbuild postinstall$ node install.js
+#19 88.25 .../esbuild@0.19.12/node_modules/esbuild postinstall$ node install.js
+#19 88.51 .../esbuild@0.21.5/node_modules/esbuild postinstall: Done
+#19 88.51 .../esbuild@0.19.12/node_modules/esbuild postinstall: Done
+#19 88.74 .../node_modules/@prisma/engines postinstall: prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#19 88.74 .../node_modules/@prisma/engines postinstall: Please manually install OpenSSL via `apt-get update -y && apt-get install -y openssl` and try installing Prisma again. If you're running Prisma on Docker, add this command to your Dockerfile, or switch to an image that already has OpenSSL installed.
+#19 92.88 .../node_modules/@prisma/engines postinstall: Done
+#19 93.30 .../prisma@5.22.0/node_modules/prisma preinstall$ node scripts/preinstall-entry.js
+#19 93.40 .../prisma@5.22.0/node_modules/prisma preinstall: Done
+#19 93.59 .../node_modules/@prisma/client postinstall$ node scripts/postinstall.js
+#19 94.54 .../node_modules/@prisma/client postinstall: prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#19 94.54 .../node_modules/@prisma/client postinstall: Please manually install OpenSSL via `apt-get update -y && apt-get install -y openssl` and try installing Prisma again. If you're running Prisma on Docker, add this command to your Dockerfile, or switch to an image that already has OpenSSL installed.
+#19 95.07 .../node_modules/@prisma/client postinstall: prisma:warn We could not find your Prisma schema in the default locations (see: https://pris.ly/d/prisma-schema-location).
+#19 95.07 .../node_modules/@prisma/client postinstall: If you have a Prisma schema file in a custom path, you will need to run
+#19 95.07 .../node_modules/@prisma/client postinstall: `prisma generate --schema=./path/to/your/schema.prisma` to generate Prisma Client.
+#19 95.07 .../node_modules/@prisma/client postinstall: If you do not have a Prisma schema file yet, you can ignore this message.
+#19 95.12 .../node_modules/@prisma/client postinstall: Done
+#19 99.11 . preinstall$ node -e "const ua=process.env.npm_config_user_agent||''; if(!ua.includes('pnpm')) console.warn('[warn] Please use pnpm. Detected UA:', ua);"
+#19 99.23 . preinstall: Done
+#19 99.39 Done in 1m 38.9s using pnpm v10.19.0
+#19 DONE 101.6s
+
+#20 [builder 12/15] WORKDIR /app/apps/web
+#20 DONE 4.1s
+
+#21 [builder 13/15] RUN pnpm exec prisma generate --schema ./prisma/schema.prisma
+#21 4.302 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#21 4.302 Please manually install OpenSSL via `apt-get update -y && apt-get install -y openssl` and try installing Prisma again. If you're running Prisma on Docker, add this command to your Dockerfile, or switch to an image that already has OpenSSL installed.
+#21 4.613 Environment variables loaded from .env
+#21 4.617 Prisma schema loaded from prisma/schema.prisma
+#21 4.685 prisma:warn Prisma failed to detect the libssl/openssl version to use, and may not work as expected. Defaulting to "openssl-1.1.x".
+#21 4.685 Please manually install OpenSSL via `apt-get update -y && apt-get install -y openssl` and try installing Prisma again. If you're running Prisma on Docker, add this command to your Dockerfile, or switch to an image that already has OpenSSL installed.
+#21 7.623 
+#21 7.623 Ô£ö Generated Prisma Client (v5.22.0) to ./node_modules/.prisma/client in 1.48s
+#21 7.623 
+#21 7.623 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#21 7.623 
+#21 7.623 Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+#21 7.623 
+#21 DONE 8.0s
+
+#22 [builder 14/15] WORKDIR /app
+#22 DONE 0.1s
+
+#23 [builder 15/15] RUN pnpm --filter @propad/web... run build
+#23 1.244 Scope: 4 of 7 workspace projects
+#23 1.266 packages/config build$ tsc -p tsconfig.json
+#23 1.271 packages/sdk build$ tsc -p tsconfig.json
+#23 1.273 packages/ui build$ tsc -p tsconfig.json
+#23 6.710 packages/config build: Done
+#23 10.71 packages/ui build: Done
+#23 11.88 packages/sdk build: Done
+#23 11.88 apps/web build$ next build
+#23 14.68 apps/web build: Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#23 14.68 apps/web build: This information is used to shape Next.js' roadmap and prioritize features.
+#23 14.68 apps/web build: You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#23 14.69 apps/web build: https://nextjs.org/telemetry
+#23 14.80 apps/web build:   Ôû▓ Next.js 14.2.3
+#23 14.80 apps/web build:   - Environments: .env.local, .env
+#23 14.80 apps/web build:   - Experiments (use with caution):
+#23 14.81 apps/web build:     ┬À instrumentationHook
+#23 15.42 apps/web build:    Creating an optimized production build ...
+#23 16.20 apps/web build:  Ô£ô (pwa) Compiling for server...
+#23 16.20 apps/web build:  Ô£ô (pwa) Compiling for server...
+#23 16.21 apps/web build:  Ô£ô (pwa) Compiling for client (static)...
+#23 16.22 apps/web build:  Ôùï (pwa) Service worker: /app/apps/web/public/sw.js
+#23 16.22 apps/web build:  Ôùï (pwa)   URL: /sw.js
+#23 16.22 apps/web build:  Ôùï (pwa)   Scope: /
+#23 95.81 apps/web build:  Ô£ô Compiled successfully
+#23 95.81 apps/web build:    Linting and checking validity of types ...
+#23 135.4 apps/web build: Failed to compile.
+#23 135.4 apps/web build: ./app/actions/ratings.ts:69:54
+#23 135.4 apps/web build: Type error: Parameter 'r' implicitly has an 'any' type.
+#23 135.4 apps/web build: [0m [90m 67 |[39m         [36mlet[39m ratingScore [33m=[39m [35m0[39m[33m;[39m[0m
+#23 135.4 apps/web build: [0m [90m 68 |[39m         [36mif[39m (reviews[33m.[39mlength [33m>[39m [35m0[39m) {[0m
+#23 135.4 apps/web build: [0m[31m[1m>[22m[39m[90m 69 |[39m             [36mconst[39m avg [33m=[39m reviews[33m.[39mreduce((acc[33m:[39m number[33m,[39m r) [33m=>[39m acc [33m+[39m r[33m.[39mrating[33m,[39m [35m0[39m) [33m/[39m reviews[33m.[39mlength[33m;[39m[0m
+#23 135.4 apps/web build: [0m [90m    |[39m                                                      [31m[1m^[22m[39m[0m
+#23 135.4 apps/web build: [0m [90m 70 |[39m             ratingScore [33m=[39m avg [33m*[39m [35m10[39m[33m;[39m[0m
+#23 135.4 apps/web build: [0m [90m 71 |[39m         }[0m
+#23 135.4 apps/web build: [0m [90m 72 |[39m[0m
+#23 136.3 apps/web build: Failed
+#23 137.3 /app/apps/web:
+#23 137.3 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/web@0.1.0 build: `next build`
+#23 137.3 Exit status 1
+#23 ERROR: process "/bin/sh -c pnpm --filter @propad/web... run build" did not complete successfully: exit code: 1
+------
+ > [builder 15/15] RUN pnpm --filter @propad/web... run build:
+135.4 apps/web build: [0m [90m 68 |[39m         [36mif[39m (reviews[33m.[39mlength [33m>[39m [35m0[39m) {[0m
+135.4 apps/web build: [0m[31m[1m>[22m[39m[90m 69 |[39m             [36mconst[39m avg [33m=[39m reviews[33m.[39mreduce((acc[33m:[39m number[33m,[39m r) [33m=>[39m acc [33m+[39m r[33m.[39mrating[33m,[39m [35m0[39m) [33m/[39m reviews[33m.[39mlength[33m;[39m[0m
+135.4 apps/web build: [0m [90m    |[39m                                                      [31m[1m^[22m[39m[0m
+135.4 apps/web build: [0m [90m 70 |[39m             ratingScore [33m=[39m avg [33m*[39m [35m10[39m[33m;[39m[0m
+135.4 apps/web build: [0m [90m 71 |[39m         }[0m
+135.4 apps/web build: [0m [90m 72 |[39m[0m
+136.3 apps/web build: Failed
+137.3 /app/apps/web:
+137.3 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/web@0.1.0 build: `next build`
+137.3 Exit status 1
+------
+docker : 
+web.Dockerfile:26
+At line:1 char:1
++ docker compose 
+build web 2>&1 | 
+Out-File -FilePath 
+"c:\projects\propa 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (web.Doc   
+ kerfile:26:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+
+--------------------
+
+  24 |     WORKDIR 
+/app
+
+  25 |     
+
+  26 | >>> RUN pnpm 
+--filter 
+@propad/web... run 
+build
+
+  27 |     
+
+  28 |     FROM 
+${NODE_IMAGE} AS 
+runner
+
+--------------------
+
+failed to solve: 
+process "/bin/sh -c 
+pnpm --filter 
+@propad/web... run 
+build" did not 
+complete 
+successfully: exit 
+code: 1
+

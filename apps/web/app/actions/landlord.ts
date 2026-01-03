@@ -3,7 +3,24 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { PropertyStatus, InterestStatus } from '@prisma/client';
+// Local status constants matching Prisma schema
+const PropertyStatus = {
+  DRAFT: 'DRAFT',
+  PENDING_VERIFY: 'PENDING_VERIFY',
+  VERIFIED: 'VERIFIED',
+  UNDER_OFFER: 'UNDER_OFFER',
+  RENTED: 'RENTED',
+  SOLD: 'SOLD',
+  ARCHIVED: 'ARCHIVED',
+  OCCUPIED: 'OCCUPIED',
+} as const;
+
+const InterestStatus = {
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED',
+  ON_HOLD: 'ON_HOLD',
+} as const;
 
 export async function acceptInterest(interestId: string) {
   try {

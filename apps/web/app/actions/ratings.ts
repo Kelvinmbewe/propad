@@ -66,7 +66,7 @@ export async function computeTrustScore(userId: string) {
 
         let ratingScore = 0;
         if (reviews.length > 0) {
-            const avg = reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length;
+            const avg = reviews.reduce((acc: number, r: { rating: number }) => acc + r.rating, 0) / reviews.length;
             ratingScore = avg * 10;
         }
 
