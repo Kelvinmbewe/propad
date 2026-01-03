@@ -3,7 +3,32 @@
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
-import { VerificationStatus, VerificationType, VerificationItemStatus, VerificationItemType } from '@prisma/client';
+// Local status/type constants matching Prisma schema
+const VerificationStatus = {
+    PENDING: 'PENDING',
+    APPROVED: 'APPROVED',
+    REJECTED: 'REJECTED',
+} as const;
+
+const VerificationType = {
+    AUTO: 'AUTO',
+    CALL: 'CALL',
+    SITE: 'SITE',
+    DOCS: 'DOCS',
+} as const;
+
+const VerificationItemStatus = {
+    PENDING: 'PENDING',
+    SUBMITTED: 'SUBMITTED',
+    APPROVED: 'APPROVED',
+    REJECTED: 'REJECTED',
+} as const;
+
+const VerificationItemType = {
+    PROOF_OF_OWNERSHIP: 'PROOF_OF_OWNERSHIP',
+    LOCATION_CONFIRMATION: 'LOCATION_CONFIRMATION',
+    PROPERTY_PHOTOS: 'PROPERTY_PHOTOS',
+} as const;
 
 export async function getPropertyVerification(propertyId: string) {
     try {
@@ -43,7 +68,7 @@ export async function requestPropertyVerification(propertyId: string, type: 'OWN
     try {
         // Enforce Canonical Model: VerificationRequest
         // Map legacy frontend types to Schema Enum
-        let schemaType: VerificationItemType = VerificationItemType.PROOF_OF_OWNERSHIP;
+        let schemaType: string = VerificationItemType.PROOF_OF_OWNERSHIP;
         if (type === 'LOCATION_CHECK') schemaType = VerificationItemType.LOCATION_CONFIRMATION;
         if (type === 'MEDIA_VALIDATION') schemaType = VerificationItemType.PROPERTY_PHOTOS;
 

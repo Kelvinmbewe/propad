@@ -19,7 +19,7 @@ async function getProperties() {
         }
     });
 
-    return properties.map((p) => ({
+    return properties.map((p: any) => ({
         id: p.id,
         title: p.title || `${p.bedrooms} Bed ${p.type} in ${p.suburb?.name || 'Harare'}`,
         location: `${p.suburb?.name || 'Harare'}, ${p.city?.name || 'Zimbabwe'}`,

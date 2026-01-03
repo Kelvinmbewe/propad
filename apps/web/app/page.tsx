@@ -36,7 +36,6 @@ const heroCards: FloatingHeroCard[] = [
 ];
 
 import { prisma } from '@/lib/prisma';
-import { PropertyStatus } from '@prisma/client';
 
 // ... (keep imports)
 
@@ -44,7 +43,7 @@ async function getFeaturedProperties(): Promise<ShowcaseProperty[]> {
   try {
     const properties = await prisma.property.findMany({
       where: {
-        status: PropertyStatus.VERIFIED
+        status: 'VERIFIED'
       },
       take: 6,
       orderBy: {
