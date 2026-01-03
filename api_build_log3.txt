@@ -187,3 +187,88 @@
 #21 6.935 packages/config build$ tsc -p tsconfig.json
 #21 6.937 packages/sdk build$ tsc -p tsconfig.json
 #21 19.74 packages/config build: Done
+#21 31.75 packages/sdk build: Done
+#21 31.76 apps/api build$ nest build
+#21 65.50 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m180[0m:[93m11[0m - [91merror[0m[90m TS2739: [0mType '{ PROPERTY_VERIFICATION: string; AGENT_ASSIGNMENT: string; FEATURED_LISTING: string; TRUST_BOOST: string; IN_HOUSE_ADVERT_BUYING: string; IN_HOUSE_ADVERT_SELLING: string; PREMIUM_VERIFICATION: string; OTHER: string; }' is missing the following properties from type 'Record<ChargeableItemType, string>': PROPERTY_LISTING, PROMO_BOOST, ADVERTISEMENT
+#21 65.51 apps/api build: [7m180[0m     const names: Record<ChargeableItemType, string> = {
+#21 65.51 apps/api build: [7m   [0m [91m          ~~~~~[0m
+#21 65.51 apps/api build: [96msrc/payments/payouts.service.ts[0m:[93m267[0m:[93m9[0m - [91merror[0m[90m TS2345: [0mArgument of type '"PAYOUT"' is not assignable to parameter of type 'WalletLedgerSourceType'.
+#21 65.52 apps/api build: [7m267[0m         WalletLedgerSourceType.PAYOUT,
+#21 65.52 apps/api build: [7m   [0m [91m        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 65.53 apps/api build: [96msrc/payments/payouts.service.ts[0m:[93m520[0m:[93m11[0m - [91merror[0m[90m TS2345: [0mArgument of type '"ADJUSTMENT"' is not assignable to parameter of type 'WalletLedgerSourceType'.
+#21 65.53 apps/api build: [7m520[0m           WalletLedgerSourceType.ADJUSTMENT,
+#21 65.53 apps/api build: [7m   [0m [91m          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 65.54 apps/api build: [96msrc/payments/referrals.service.ts[0m:[93m75[0m:[93m7[0m - [91merror[0m[90m TS2345: [0mArgument of type '"REFERRAL"' is not assignable to parameter of type 'WalletLedgerSourceType'.
+#21 65.54 apps/api build: [7m75[0m       WalletLedgerSourceType.REFERRAL,
+#21 65.55 apps/api build: [7m  [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 65.55 apps/api build: Found 4 error(s).
+#21 65.66 apps/api build: Failed
+#21 66.00 /app/apps/api:
+#21 66.00 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/api@0.1.0 build: `nest build`
+#21 66.00 Exit status 1
+#21 ERROR: process "/bin/sh -c pnpm --filter @propad/api... run build" did not complete successfully: exit code: 1
+------
+ > [builder 15/15] RUN pnpm --filter @propad/api... run build:
+65.53 apps/api build: [7m520[0m           WalletLedgerSourceType.ADJUSTMENT,
+65.53 apps/api build: [7m   [0m [91m          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+65.54 apps/api build: [96msrc/payments/referrals.service.ts[0m:[93m75[0m:[93m7[0m - [91merror[0m[90m TS2345: [0mArgument of type '"REFERRAL"' is not assignable to parameter of type 'WalletLedgerSourceType'.
+65.54 apps/api build: [7m75[0m       WalletLedgerSourceType.REFERRAL,
+65.55 apps/api build: [7m  [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+65.55 apps/api build: Found 4 error(s).
+65.66 apps/api build: Failed
+66.00 /app/apps/api:
+66.00 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/api@0.1.0 build: `nest build`
+66.00 Exit status 1
+------
+docker : 
+api.Dockerfile:33
+At line:1 char:1
++ docker compose 
+build api 2>&1 | 
+Out-File -FilePath 
+"c:\projects\propa 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (api.Doc   
+ kerfile:33:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+
+--------------------
+
+  31 |     RUN pnpm 
+--filter @propad/sdk 
+run build
+
+  32 |     RUN pnpm 
+--filter 
+@propad/api... run 
+prisma:generate
+
+  33 | >>> RUN pnpm 
+--filter 
+@propad/api... run 
+build
+
+  34 |     
+
+  35 |     
+
+--------------------
+
+failed to solve: 
+process "/bin/sh -c 
+pnpm --filter 
+@propad/api... run 
+build" did not 
+complete 
+successfully: exit 
+code: 1
+
