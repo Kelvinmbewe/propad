@@ -1,4 +1,4 @@
-ARG NODE_IMAGE=node:20-slim
+ARG NODE_IMAGE=node:20-alpine
 
 ############################
 # Builder stage
@@ -7,10 +7,16 @@ FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 
 # 🔑 REQUIRED FOR PRISMA (schema + query engine)
-# Using apt-get because node:20-slim is Debian-based
-RUN apt-get update -y \
-    && apt-get install -y openssl ca-certificates curl \
-    && rm -rf /var/lib/apt/lists/*
+# Using apk because node:20-alpine is Alpine-based
+RUN apk add --no-cache \
+    libc6-compat \
+    openssl \
+    python3 \
+    make \
+    g++ \
+    git \
+    ca-certificates \
+    curl
 
 ENV PRISMA_SKIP_AUTOINSTALL=true
 
@@ -41,9 +47,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # 🔑 REQUIRED FOR PRISMA AT RUNTIME (migrations, queries)
-RUN apt-get update -y \
-    && apt-get install -y openssl ca-certificates curl \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache \
+    libc6-compat \
+    openssl \
+    ca-certificates \
+    curl
 
 RUN npm install -g pnpm@10.19.0
 
