@@ -1,9 +1,8 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import { MetricsService } from './metrics.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { Roles, Role } from '../auth/roles.decorator';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { DailyAdsQueryDto, dailyAdsQuerySchema } from './dto/daily-ads-query.dto';
 import { TopAgentsQueryDto, topAgentsQuerySchema } from './dto/top-agents-query.dto';

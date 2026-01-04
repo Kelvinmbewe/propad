@@ -17,5 +17,5 @@ cd /app/apps/api
 npx prisma migrate deploy
 
 echo "Starting application..."
-cd /app
-node apps/api/dist/src/main.js
+cd /app/apps/api
+node dist/src/main.js
