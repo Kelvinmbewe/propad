@@ -2,18 +2,29 @@ import { prisma } from '@/lib/prisma';
 import { Star } from 'lucide-react';
 import { ReviewForm } from '@/components/reviews/review-form';
 
-async function getUserReviews(userId: string) {
+interface ReviewWithReviewer {
+  id: string;
+  rating: number;
+  weight: number;
+  type: string;
+  comment: string | null;
+  createdAt: Date;
+  reviewer: { name: string | null };
+}
+
+async function getUserReviews(userId: string): Promise<{ reviews: ReviewWithReviewer[]; averageRating: number; count: number }> {
   const reviews = await prisma.userReview.findMany({
     where: { revieweeId: userId },
     include: { reviewer: { select: { name: true } } },
     orderBy: { createdAt: 'desc' }
   });
 
-  const totalWeight = reviews.reduce((sum, r) => sum + r.weight, 0);
-  const weightedSum = reviews.reduce((sum, r) => sum + (r.rating * r.weight), 0);
+  const typedReviews: ReviewWithReviewer[] = reviews;
+  const totalWeight = typedReviews.reduce((sum: number, r: ReviewWithReviewer) => sum + r.weight, 0);
+  const weightedSum = typedReviews.reduce((sum: number, r: ReviewWithReviewer) => sum + (r.rating * r.weight), 0);
   const averageRating = totalWeight > 0 ? weightedSum / totalWeight : 0;
 
-  return { reviews, averageRating, count: reviews.length };
+  return { reviews: typedReviews, averageRating, count: typedReviews.length };
 }
 
 export async function UserProfileReviews({ userId }: { userId: string }) {

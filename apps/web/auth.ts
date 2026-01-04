@@ -102,7 +102,7 @@ const config: NextAuthConfig = {
     },
     async session({ session, token }) {
       const tokenData = token as Record<string, unknown>;
-      const role = (tokenData.role as Role | undefined) ?? 'USER';
+      const role: Role = (tokenData.role as Role | undefined) ?? ('USER' as Role);
       const userId =
         (tokenData.sub as string | undefined) ?? (tokenData.userId as string | undefined) ?? '';
 

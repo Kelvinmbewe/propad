@@ -1,0 +1,57 @@
+﻿  Ôû▓ Next.js 14.2.3
+  - Environments: .env.local, .env
+  - Experiments (use with caution):
+    ┬À instrumentationHook
+
+   Creating an optimized production build ...
+ Ô£ô (pwa) Compiling for server...
+ Ô£ô (pwa) Compiling for server...
+ Ô£ô (pwa) Compiling for client (static)...
+ Ôùï (pwa) Service worker: C:\projects\propad\apps\web\public\sw.js
+ Ôùï (pwa)   URL: /sw.js
+ Ôùï (pwa)   Scope: /
+ Ô£ô Compiled successfully
+   Linting and checking validity of types ...
+node.exe : Failed to 
+compile.
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (Faile  
+  d to compile.:String) [   
+ ], RemoteException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+
+./lib/prisma.ts:1:10
+Type error: Module 
+'"@prisma/client"' has no 
+exported member 
+'PrismaClient'.
+
+[0m[31m[1m>[22m[39m[90
+m 1 |[39m [36mimport[39m 
+{ [33mPrismaClient[39m } 
+[36mfrom[39m [32m'@prisma
+/client'[39m[33m;[39m[0m
+[0m [90m   |[39m         
+ [31m[1m^[22m[39m[0m
+[0m [90m 2 |[39m 
+[36mimport[39m { 
+attachPrisma } 
+[36mfrom[39m [32m'@propad
+/sdk/server'[39m[33m;[39m
+[0m
+[0m [90m 3 |[39m[0m
+[0m [90m 4 |[39m type 
+[33mGlobalWithPrisma[39m 
+[33m=[39m 
+[36mtypeof[39m globalThis 
+[33m&[39m {[0m

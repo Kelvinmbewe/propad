@@ -4,7 +4,7 @@ import { LandingNav } from '@/components/landing-nav';
 
 export const dynamic = 'force-dynamic';
 
-async function getProperties() {
+async function getProperties(): Promise<LandingProperty[]> {
     const properties = await prisma.property.findMany({
         where: {
             status: 'VERIFIED'

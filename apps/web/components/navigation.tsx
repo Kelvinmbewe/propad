@@ -8,40 +8,40 @@ import type { Role } from '@propad/sdk';
 import type { ReactNode } from 'react';
 import { BarChart3, Compass, Globe2, LayoutDashboard, ShieldCheck, Wallet2, MapPin, Users, Building2 } from 'lucide-react';
 
-const links: Array<{ href: string; label: string; roles: Role[]; icon: ReactNode }> = [
-  { href: '/dashboard', label: 'Overview', roles: ['ADMIN', 'VERIFIER', 'AGENT', 'LANDLORD', 'USER', 'MODERATOR'], icon: <LayoutDashboard className="h-4 w-4" /> },
-  { href: '/dashboard/listings', label: 'Listings', roles: ['ADMIN', 'AGENT', 'LANDLORD'], icon: <Compass className="h-4 w-4" /> },
-  { href: '/dashboard/verifications', label: 'Verifications', roles: ['ADMIN', 'VERIFIER', 'MODERATOR', 'AGENT', 'LANDLORD'], icon: <ShieldCheck className="h-4 w-4" /> },
-  { href: '/dashboard/site-visits', label: 'Site Visits', roles: ['ADMIN', 'MODERATOR'], icon: <MapPin className="h-4 w-4" /> },
-  { href: '/dashboard/admin/users', label: 'Users', roles: ['ADMIN'], icon: <Users className="h-4 w-4" /> },
-  { href: '/dashboard/admin/agencies', label: 'Companies', roles: ['ADMIN'], icon: <Building2 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/trust', label: 'Trust & Risk', roles: ['ADMIN'], icon: <ShieldCheck className="h-4 w-4" /> },
-  { href: '/dashboard/interests', label: 'Offer & Interest', roles: ['ADMIN', 'AGENT', 'LANDLORD'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/reward-pool', label: 'Reward pool', roles: ['ADMIN'], icon: <BarChart3 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/rewards', label: 'Rewards Admin', roles: ['ADMIN'], icon: <BarChart3 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/ads', label: 'Ads Admin', roles: ['ADMIN'], icon: <Globe2 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/ledger', label: 'System Ledger', roles: ['ADMIN'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/geo', label: 'Geo admin', roles: ['ADMIN'], icon: <Globe2 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/billing', label: 'Billing admin', roles: ['ADMIN'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/payment-providers', label: 'Payment Providers', roles: ['ADMIN'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/pricing', label: 'Pricing & Fees', roles: ['ADMIN'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/payouts', label: 'Payout Management', roles: ['ADMIN'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/wallet', label: 'Wallet', roles: ['USER', 'AGENT', 'LANDLORD'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/advertiser', label: 'Advertising', roles: ['ADMIN', 'ADVERTISER'], icon: <BarChart3 className="h-4 w-4" /> },
-  { href: '/dashboard/agent/rewards', label: 'My Rewards', roles: ['AGENT'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/wallet/payouts', label: 'Payouts', roles: ['AGENT', 'LANDLORD', 'INDEPENDENT_AGENT'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/payouts', label: 'Payout Mgmt', roles: ['ADMIN'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/admin/adsense', label: 'Google AdSense', roles: ['ADMIN'], icon: <BarChart3 className="h-4 w-4" /> },
-  { href: '/dashboard/user/rewards', label: 'My Rewards', roles: ['USER'], icon: <Wallet2 className="h-4 w-4" /> },
-  { href: '/dashboard/referrals', label: 'Referrals', roles: ['USER', 'AGENT'], icon: <Users className="h-4 w-4" /> },
-  { href: '/dashboard/earnings', label: 'Earnings', roles: ['AGENT'], icon: <BarChart3 className="h-4 w-4" /> },
-  { href: '/dashboard/profile', label: 'Profile', roles: ['AGENT', 'LANDLORD', 'USER', 'MODERATOR'], icon: <Users className="h-4 w-4" /> },
+const links = [
+  { href: '/dashboard', label: 'Overview', roles: ['ADMIN', 'VERIFIER', 'AGENT', 'LANDLORD', 'USER', 'MODERATOR'] as Role[], icon: <LayoutDashboard className="h-4 w-4" /> },
+  { href: '/dashboard/listings', label: 'Listings', roles: ['ADMIN', 'AGENT', 'LANDLORD'] as Role[], icon: <Compass className="h-4 w-4" /> },
+  { href: '/dashboard/verifications', label: 'Verifications', roles: ['ADMIN', 'VERIFIER', 'MODERATOR', 'AGENT', 'LANDLORD'] as Role[], icon: <ShieldCheck className="h-4 w-4" /> },
+  { href: '/dashboard/site-visits', label: 'Site Visits', roles: ['ADMIN', 'MODERATOR'] as Role[], icon: <MapPin className="h-4 w-4" /> },
+  { href: '/dashboard/admin/users', label: 'Users', roles: ['ADMIN'] as Role[], icon: <Users className="h-4 w-4" /> },
+  { href: '/dashboard/admin/agencies', label: 'Companies', roles: ['ADMIN'] as Role[], icon: <Building2 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/trust', label: 'Trust & Risk', roles: ['ADMIN'] as Role[], icon: <ShieldCheck className="h-4 w-4" /> },
+  { href: '/dashboard/interests', label: 'Offer & Interest', roles: ['ADMIN', 'AGENT', 'LANDLORD'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/reward-pool', label: 'Reward pool', roles: ['ADMIN'] as Role[], icon: <BarChart3 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/rewards', label: 'Rewards Admin', roles: ['ADMIN'] as Role[], icon: <BarChart3 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/ads', label: 'Ads Admin', roles: ['ADMIN'] as Role[], icon: <Globe2 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/ledger', label: 'System Ledger', roles: ['ADMIN'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/geo', label: 'Geo admin', roles: ['ADMIN'] as Role[], icon: <Globe2 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/billing', label: 'Billing admin', roles: ['ADMIN'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/payment-providers', label: 'Payment Providers', roles: ['ADMIN'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/pricing', label: 'Pricing & Fees', roles: ['ADMIN'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/payouts', label: 'Payout Management', roles: ['ADMIN'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/wallet', label: 'Wallet', roles: ['USER', 'AGENT', 'LANDLORD'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/advertiser', label: 'Advertising', roles: ['ADMIN', 'ADVERTISER'] as Role[], icon: <BarChart3 className="h-4 w-4" /> },
+  { href: '/dashboard/agent/rewards', label: 'My Rewards', roles: ['AGENT'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/wallet/payouts', label: 'Payouts', roles: ['AGENT', 'LANDLORD', 'INDEPENDENT_AGENT'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/payouts', label: 'Payout Mgmt', roles: ['ADMIN'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/admin/adsense', label: 'Google AdSense', roles: ['ADMIN'] as Role[], icon: <BarChart3 className="h-4 w-4" /> },
+  { href: '/dashboard/user/rewards', label: 'My Rewards', roles: ['USER'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
+  { href: '/dashboard/referrals', label: 'Referrals', roles: ['USER', 'AGENT'] as Role[], icon: <Users className="h-4 w-4" /> },
+  { href: '/dashboard/earnings', label: 'Earnings', roles: ['AGENT'] as Role[], icon: <BarChart3 className="h-4 w-4" /> },
+  { href: '/dashboard/profile', label: 'Profile', roles: ['AGENT', 'LANDLORD', 'USER', 'MODERATOR'] as Role[], icon: <Users className="h-4 w-4" /> },
 ];
 
 export function DashboardNav() {
   const pathname = usePathname();
   const { data } = useSession();
-  const role = (data?.user?.role ?? 'USER');
+  const role = (data?.user?.role ?? 'USER') as Role;
 
   return (
     <nav className="flex h-full flex-col gap-6">
