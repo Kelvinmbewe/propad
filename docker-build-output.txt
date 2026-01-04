@@ -1,0 +1,126 @@
+﻿#1 [internal] load local bake definitions
+#1 reading from stdin 930B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from web.Dockerfile
+#2 transferring dockerfile: 34B 0.1s
+#2 transferring dockerfile: 1.20kB 0.1s done
+#2 DONE 0.2s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 ...
+
+#4 [auth] library/node:pull token for registry-1.docker.io
+#4 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 DONE 4.1s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 2B 0.0s done
+#5 DONE 0.1s
+
+#6 [internal] load build context
+#6 DONE 0.0s
+
+#7 [builder  1/15] FROM docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520
+#7 resolve docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520
+#7 resolve docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520 0.2s done
+#7 DONE 0.2s
+
+#6 [internal] load build context
+#6 transferring context: 101.84kB 9.8s
+#6 transferring context: 121.41kB 10.0s done
+#6 DONE 10.3s
+
+#8 [builder  9/15] RUN npm install -g pnpm@10.19.0
+#8 CACHED
+
+#9 [runner 5/8] COPY --from=builder /app/package*.json ./
+#9 CACHED
+
+#10 [builder 13/15] RUN pnpm exec prisma generate --schema ./prisma/schema.prisma
+#10 CACHED
+
+#11 [builder  3/15] COPY package*.json ./
+#11 CACHED
+
+#12 [runner 4/8] RUN npm install -g pnpm@10.19.0
+#12 CACHED
+
+#13 [builder  7/15] COPY apps/web ./apps/web
+#13 CACHED
+
+#14 [builder  4/15] COPY pnpm-workspace.yaml ./
+#14 CACHED
+
+#15 [runner 6/8] COPY --from=builder /app/pnpm-workspace.yaml ./
+#15 CACHED
+
+#16 [builder 10/15] RUN pnpm config set fetch-retries 5     && pnpm config set fetch-retry-mintimeout 20000     && pnpm config set fetch-retry-maxtimeout 120000
+#16 CACHED
+
+#17 [runner 3/8] RUN apt-get update -y && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+#17 CACHED
+
+#18 [builder 11/15] RUN pnpm install --recursive --frozen-lockfile=false
+#18 CACHED
+
+#19 [builder 15/15] RUN pnpm --filter @propad/web... run build
+#19 CACHED
+
+#20 [builder  2/15] WORKDIR /app
+#20 CACHED
+
+#21 [builder 12/15] WORKDIR /app/apps/web
+#21 CACHED
+
+#22 [builder  6/15] COPY packages ./packages
+#22 CACHED
+
+#23 [builder  5/15] COPY tsconfig.json ./
+#23 CACHED
+
+#24 [builder 14/15] WORKDIR /app
+#24 CACHED
+
+#25 [runner 7/8] COPY --from=builder /app/node_modules ./node_modules
+#25 CACHED
+
+#26 [builder  8/15] COPY apps/api/prisma ./apps/web/prisma
+#26 CACHED
+
+#27 [runner 8/8] COPY --from=builder /app/apps ./apps
+#27 CACHED
+
+#28 exporting to image
+#28 exporting layers 0.0s done
+#28 exporting manifest sha256:c41f8945e6522a7467be9ba500743dc3b72eb802964fbfa6710b87708fcee21d done
+#28 exporting config sha256:6f27893e2bb25c2c25e5e21d25b270a124036a3eb71410c0a8ac0ce60471e0f9 done
+#28 exporting attestation manifest sha256:dc4d6d0bb2ae9ae6209baf27408d6a9f878e313bca10908ad12667c90c452db2
+#28 exporting attestation manifest sha256:dc4d6d0bb2ae9ae6209baf27408d6a9f878e313bca10908ad12667c90c452db2 0.1s done
+#28 exporting manifest list sha256:4fa661fc006adfa70b39f21c84ae7d6d15dc234d72b48915bb7d544c1da1c2cb 0.0s done
+#28 naming to docker.io/library/infrastructure-web:latest
+#28 naming to docker.io/library/infrastructure-web:latest done
+#28 unpacking to docker.io/library/infrastructure-web:latest 0.1s done
+#28 DONE 0.4s
+
+#29 resolving provenance for metadata file
+#29 DONE 0.1s
+docker :  
+infrastructure-web  Built
+At line:1 char:1
++ docker compose -f 
+docker-compose.yml build 
+web 2>&1 | Out-File -FileP 
+...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: ( infr  
+  astructure-web  Built:S   
+ tring) [], RemoteExcept    
+ion
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
