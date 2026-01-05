@@ -36,3 +36,13 @@ export const GeoLevelEnum = {
   SUBURB: 'SUBURB'
 };
 
+export const PropertyAvailabilityEnum = {
+  IMMEDIATE: 'IMMEDIATE',
+  DATE: 'DATE'
+};
+
+export const CurrencyEnum = {
+  USD: 'USD',
+  ZWG: 'ZWG'
+};
+

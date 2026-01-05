@@ -1,9 +1,15 @@
 import { GeoLevel, PendingGeoStatus } from '@prisma/client';
+import { GeoLevelEnum } from '../../common/runtime-enums';
 import { z } from 'zod';
 
 export const listPendingGeoSchema = z.object({
-  level: z.nativeEnum(GeoLevel).optional(),
-  status: z.nativeEnum(PendingGeoStatus).optional(),
+  level: z.enum([
+    GeoLevelEnum.COUNTRY,
+    GeoLevelEnum.PROVINCE,
+    GeoLevelEnum.CITY,
+    GeoLevelEnum.SUBURB
+  ] as [string, ...string[]]).optional(),
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED'] as [string, ...string[]]).optional(),
   search: z.string().trim().optional()
 });
 
