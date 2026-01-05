@@ -1,11 +1,12 @@
 import { PropertyFurnishing, PropertyType } from '@prisma/client';
 import { PowerPhase } from '../../common/enums';
+import { PropertyFurnishingEnum, PropertyTypeEnum } from '../../common/prisma-enums';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class SearchPropertiesDto {
   @IsOptional()
-  @IsEnum(PropertyType)
+  @IsEnum(PropertyTypeEnum)
   type?: PropertyType;
 
   @IsOptional()
@@ -73,7 +74,7 @@ export class SearchPropertiesDto {
   bathrooms?: number;
 
   @IsOptional()
-  @IsEnum(PropertyFurnishing)
+  @IsEnum(PropertyFurnishingEnum)
   furnished?: PropertyFurnishing;
 
   @IsOptional()

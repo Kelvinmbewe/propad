@@ -153,21 +153,21 @@ const SALE_CONFIRMED_POINTS = 150;
 const SALE_CONFIRMED_USD_CENTS = 0;
 
 const COMMERCIAL_TYPES: ReadonlySet<PropertyType> = new Set([
-  PropertyType.COMMERCIAL_OFFICE,
-  PropertyType.COMMERCIAL_RETAIL,
-  PropertyType.COMMERCIAL_INDUSTRIAL,
-  PropertyType.WAREHOUSE,
-  PropertyType.FARM,
-  PropertyType.MIXED_USE,
-  PropertyType.OTHER
+  'COMMERCIAL_OFFICE' as PropertyType,
+  'COMMERCIAL_RETAIL' as PropertyType,
+  'COMMERCIAL_INDUSTRIAL' as PropertyType,
+  'WAREHOUSE' as PropertyType,
+  'FARM' as PropertyType,
+  'MIXED_USE' as PropertyType,
+  'OTHER' as PropertyType
 ]);
 
 const RESIDENTIAL_TYPES: ReadonlySet<PropertyType> = new Set([
-  PropertyType.ROOM,
-  PropertyType.COTTAGE,
-  PropertyType.HOUSE,
-  PropertyType.APARTMENT,
-  PropertyType.TOWNHOUSE
+  'ROOM' as PropertyType,
+  'COTTAGE' as PropertyType,
+  'HOUSE' as PropertyType,
+  'APARTMENT' as PropertyType,
+  'TOWNHOUSE' as PropertyType
 ]);
 
 type NormalizedBounds = {

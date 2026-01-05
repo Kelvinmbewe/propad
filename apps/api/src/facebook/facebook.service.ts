@@ -101,33 +101,33 @@ export class FacebookService {
 
   private humanType(type: PropertyType) {
     switch (type) {
-      case PropertyType.ROOM:
+      case 'ROOM':
         return 'Room to rent';
-      case PropertyType.COTTAGE:
+      case 'COTTAGE':
         return 'Cottage available';
-      case PropertyType.HOUSE:
+      case 'HOUSE':
         return 'House listing';
-      case PropertyType.APARTMENT:
+      case 'APARTMENT':
         return 'Apartment listing';
-      case PropertyType.TOWNHOUSE:
+      case 'TOWNHOUSE':
         return 'Townhouse listing';
-      case PropertyType.PLOT:
+      case 'PLOT':
         return 'Plot / stand';
-      case PropertyType.LAND:
+      case 'LAND':
         return 'Land opportunity';
-      case PropertyType.COMMERCIAL_OFFICE:
+      case 'COMMERCIAL_OFFICE':
         return 'Office space available';
-      case PropertyType.COMMERCIAL_RETAIL:
+      case 'COMMERCIAL_RETAIL':
         return 'Retail space available';
-      case PropertyType.COMMERCIAL_INDUSTRIAL:
+      case 'COMMERCIAL_INDUSTRIAL':
         return 'Industrial property available';
-      case PropertyType.WAREHOUSE:
+      case 'WAREHOUSE':
         return 'Warehouse listing';
-      case PropertyType.FARM:
+      case 'FARM':
         return 'Farm property';
-      case PropertyType.MIXED_USE:
+      case 'MIXED_USE':
         return 'Mixed-use development';
-      case PropertyType.OTHER:
+      case 'OTHER':
         return 'Property listing';
       default:
         return 'Listing';

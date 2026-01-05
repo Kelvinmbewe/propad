@@ -1,5 +1,9 @@
-ARG NODE_IMAGE=node:20-slim
+ARG NODE_IMAGE=node:20-alpine
 FROM ${NODE_IMAGE} AS builder
+RUN apk add --no-cache \
+  libc6-compat \
+  openssl \
+  git
 WORKDIR /app
 ENV PRISMA_SKIP_AUTOINSTALL=true
 ENV NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
@@ -29,7 +33,11 @@ FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN apt-get update -y && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache \
+  curl \
+  libc6-compat \
+  openssl \
+  git
 RUN npm install -g pnpm@10.19.0
 
 COPY --from=builder /app/package*.json ./
