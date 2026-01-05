@@ -1,7 +1,7 @@
-// Safe enum objects for class-validator that work even when Prisma enums are undefined at runtime
-// These match the Prisma schema enums exactly
+// Runtime enum objects for class-validator that work even when Prisma enums are undefined
+// These are plain objects (NO as const, NO enum types) that class-validator can use
 
-export const PropertyTypeEnum: Record<string, string> = {
+export const PropertyTypeEnum = {
   ROOM: 'ROOM',
   COTTAGE: 'COTTAGE',
   HOUSE: 'HOUSE',
@@ -18,14 +18,21 @@ export const PropertyTypeEnum: Record<string, string> = {
   OTHER: 'OTHER'
 };
 
-export const PropertyFurnishingEnum: Record<string, string> = {
+export const PropertyFurnishingEnum = {
   NONE: 'NONE',
   PARTLY: 'PARTLY',
   FULLY: 'FULLY'
 };
 
-export const PowerPhaseEnum: Record<string, string> = {
+export const PowerPhaseEnum = {
   SINGLE: 'SINGLE',
   THREE: 'THREE'
+};
+
+export const GeoLevelEnum = {
+  COUNTRY: 'COUNTRY',
+  PROVINCE: 'PROVINCE',
+  CITY: 'CITY',
+  SUBURB: 'SUBURB'
 };
 

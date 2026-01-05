@@ -1,6 +1,6 @@
 import { PropertyFurnishing, PropertyType } from '@prisma/client';
 import { PowerPhase } from '../../common/enums';
-import { PropertyFurnishingEnum, PropertyTypeEnum } from '../../common/prisma-enums';
+import { PropertyFurnishingEnum, PropertyTypeEnum, PowerPhaseEnum } from '../../common/runtime-enums';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
@@ -112,7 +112,7 @@ export class SearchPropertiesDto {
   parking?: boolean;
 
   @IsOptional()
-  @IsEnum(PowerPhase)
+  @IsEnum(PowerPhaseEnum)
   powerPhase?: PowerPhase;
 
   // --- Smart Ranking Fields ---

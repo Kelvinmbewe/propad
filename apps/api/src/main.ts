@@ -50,6 +50,13 @@ async function bootstrap() {
     credentials: true
   });
 
+  // Hard fail if enum objects are undefined at runtime
+  const { PropertyTypeEnum, PropertyFurnishingEnum, PowerPhaseEnum, GeoLevelEnum } = await import('./common/runtime-enums');
+  if (!PropertyTypeEnum) throw new Error('PropertyTypeEnum missing at runtime');
+  if (!PropertyFurnishingEnum) throw new Error('PropertyFurnishingEnum missing at runtime');
+  if (!PowerPhaseEnum) throw new Error('PowerPhaseEnum missing at runtime');
+  if (!GeoLevelEnum) throw new Error('GeoLevelEnum missing at runtime');
+
   const port = env.PORT ?? 3001;
   await app.listen(port, '0.0.0.0');
   logger.log(`API listening on port ${port}`);
