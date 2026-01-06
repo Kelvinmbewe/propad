@@ -4,13 +4,13 @@ import {
   PropertyFurnishing,
   PropertyType
 } from '@prisma/client';
-import { PowerPhase } from '../../common/enums';
 import {
   PropertyTypeEnum,
   PropertyFurnishingEnum,
   PropertyAvailabilityEnum,
   CurrencyEnum,
-  PowerPhaseEnum
+  PowerPhaseEnum,
+  PowerPhase
 } from '@propad/sdk';
 import { z } from 'zod';
 

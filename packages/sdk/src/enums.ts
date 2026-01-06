@@ -25,6 +25,11 @@ export enum PayoutMethod {
     OTHER = 'OTHER',
 }
 
+export enum PowerPhase {
+    SINGLE = 'SINGLE',
+    THREE = 'THREE',
+}
+
 export const PropertyTypeEnum = {
     ROOM: 'ROOM',
     COTTAGE: 'COTTAGE',
