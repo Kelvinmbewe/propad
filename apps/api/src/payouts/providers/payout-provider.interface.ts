@@ -1,4 +1,4 @@
-import { PayoutMethod } from '@prisma/client';
+import { PayoutMethod } from '@propad/config';
 
 export interface IPayoutProvider {
     canHandle(method: PayoutMethod): boolean;

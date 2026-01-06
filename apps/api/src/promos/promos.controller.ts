@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role } from '@propad/config';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -11,7 +11,7 @@ import { PromoRebateDto, promoRebateSchema } from './dto/promo-rebate.dto';
 @Controller('promos')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PromosController {
-  constructor(private readonly promosService: PromosService) {}
+  constructor(private readonly promosService: PromosService) { }
 
   @Roles(Role.AGENT, Role.ADMIN)
   @Post()

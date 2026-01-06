@@ -12,9 +12,9 @@ import {
   PropertyFurnishing,
   PropertyStatus,
   PropertyType,
-  Role,
   RewardEventType,
 } from '@prisma/client';
+import { Role, PowerPhase } from '@propad/config';
 
 // Local Enum Definitions
 const InterestStatus = {
@@ -116,7 +116,6 @@ const ListingPaymentStatus = {
   CANCELLED: 'CANCELLED',
 } as const;
 type ListingPaymentStatus = string;
-import { PowerPhase } from '../common/enums';
 import { createHmac, randomUUID } from 'crypto';
 import { extname, join, resolve } from 'path';
 import { mkdir, writeFile, unlink, appendFile } from 'fs/promises';

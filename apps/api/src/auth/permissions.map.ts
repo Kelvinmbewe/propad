@@ -1,4 +1,4 @@
-import { Role } from './roles.enum';
+import { Role } from '@propad/config';
 
 export const PERMISSIONS = {
     PAYOUT_REQUEST: 'payout.request',

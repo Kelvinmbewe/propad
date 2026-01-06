@@ -25,23 +25,17 @@ COPY apps/api ./apps/api
 
 RUN npm install -g pnpm@10.19.0
 
-RUN pnpm config set fetch-retries 5 \
-    && pnpm config set fetch-retry-mintimeout 20000 \
-    && pnpm config set fetch-retry-maxtimeout 120000
-
 # Install ALL dependencies for building
 RUN pnpm install --frozen-lockfile=false
 
-# Build internal packages
+# Build all packages and apps
 RUN pnpm --filter @propad/config run build
 RUN pnpm --filter @propad/sdk run build
-
-# Generate Prisma Client and build API
 RUN pnpm --filter @propad/api run prisma:generate
 RUN pnpm --filter @propad/api run build
 
 ############################
-# Runtime stage
+# Production stage
 ############################
 FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
@@ -54,16 +48,29 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy EVERYTHING from builder to ensure exact same environment
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
-COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
-COPY --from=builder /app/apps/api/src ./apps/api/src
-COPY apps/api/start.sh ./apps/api/start.sh
+RUN npm install -g pnpm@10.19.0
 
+# Copy only what is needed for production installation
+COPY package*.json pnpm-workspace.yaml ./
+COPY packages/config/package.json ./packages/config/package.json
+COPY packages/sdk/package.json ./packages/sdk/package.json
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/api/prisma ./apps/api/prisma
+
+# Install production dependencies only
+# We use --no-frozen-lockfile because we are only copying some package.json files
+RUN pnpm install --prod --no-frozen-lockfile
+
+# Copy build artifacts from builder
+COPY --from=builder /app/packages/config/dist ./packages/config/dist
+COPY --from=builder /app/packages/sdk/dist ./packages/sdk/dist
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+
+# Generate Prisma Client in the final environment
+# This ensures it is placed correctly and matches the OS
+RUN pnpm --filter @propad/api run prisma:generate
+
+COPY apps/api/start.sh ./apps/api/start.sh
 RUN chmod +x ./apps/api/start.sh
 
 EXPOSE 3001

@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role } from '@propad/config';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -48,7 +48,7 @@ interface AuthenticatedRequest {
 
 @Controller('wallets')
 export class WalletsController {
-  constructor(private readonly walletsService: WalletsService) {}
+  constructor(private readonly walletsService: WalletsService) { }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.AGENT, Role.LANDLORD, Role.USER)

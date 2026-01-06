@@ -3,11 +3,11 @@ import { AdvertisersService } from './advertisers.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { Role } from '@prisma/client';
+import { Role } from '@propad/config';
 
 @Controller('advertisers')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADVERTISER' as any, Role.ADMIN)
+@Roles(Role.ADVERTISER, Role.ADMIN)
 export class AdvertisersController {
     constructor(private readonly advertisersService: AdvertisersService) { }
 

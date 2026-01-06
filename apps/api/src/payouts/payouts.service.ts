@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PayoutStatus, Prisma } from '@prisma/client';
-import { PayoutMethod } from './payout-method.enum';
+import { PayoutMethod } from '@propad/config';
 import { WalletLedgerType, WalletLedgerSourceType } from '../wallet/enums';
 import { PaynowProvider } from './providers/paynow.provider';
 import { BankProvider } from './providers/bank.provider';

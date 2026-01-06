@@ -1,6 +1,6 @@
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { Role } from '@propad/config';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -19,7 +19,7 @@ export class RolesService {
 
         // Check if user already has role
         const existing = await this.prisma.userRole.findFirst({
-            where: { userId, role, revokedAt: null }
+            where: { userId, role: role as any, revokedAt: null }
         });
 
         if (existing) {
@@ -29,7 +29,7 @@ export class RolesService {
         return this.prisma.userRole.create({
             data: {
                 userId,
-                role,
+                role: role as any,
                 assignedById,
                 // active defaults to implicit based on revokedAt
             },
@@ -38,7 +38,7 @@ export class RolesService {
 
     async revokeRole(userId: string, role: Role, revokedById: string) {
         const userRole = await this.prisma.userRole.findFirst({
-            where: { userId, role, revokedAt: null },
+            where: { userId, role: role as any, revokedAt: null },
         });
 
         if (!userRole) {

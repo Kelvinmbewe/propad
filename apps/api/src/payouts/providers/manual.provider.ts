@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PayoutMethod } from '../payout-method.enum';
+import { PayoutMethod } from '@propad/config';
 import { IPayoutProvider } from './payout-provider.interface';
 
 @Injectable()

@@ -1,7 +1,8 @@
 
 import { Body, Controller, Get, Logger, Param, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { VerificationsService } from './verifications.service';
-import { VerificationType, Role } from '@prisma/client';
+import { VerificationType } from '@prisma/client';
+import { Role } from '@propad/config';
 
 const VerificationItemStatus = {
   PENDING: 'PENDING',

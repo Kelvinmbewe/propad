@@ -1,7 +1,7 @@
 
 import { Body, Controller, Delete, Get, Param, Post, UseGuards, Request } from '@nestjs/common';
 import { RolesService } from './roles.service';
-import { Role } from '@prisma/client';
+import { Role } from '@propad/config';
 // import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // Assuming this exists or similar
 // import { RolesGuard } from '../auth/guards/roles.guard'; // Assuming
 
@@ -14,14 +14,14 @@ export class RolesController {
     async assignRole(@Body() body: { userId: string; role: Role }, @Request() req: any) {
         // const assignerId = req.user.userId;
         const assignerId = 'admin-id'; // Temporary for testing/verification without full auth setup context
-        return this.rolesService.assignRole(body.userId, body.role, assignerId);
+        return this.rolesService.assignRole(body.userId, body.role as any, assignerId);
     }
 
     // @UseGuards(JwtAuthGuard)
     @Post('revoke')
     async revokeRole(@Body() body: { userId: string; role: Role }, @Request() req: any) {
         const revokerId = 'admin-id';
-        return this.rolesService.revokeRole(body.userId, body.role, revokerId);
+        return this.rolesService.revokeRole(body.userId, body.role as any, revokerId);
     }
 
     @Get(':userId')
