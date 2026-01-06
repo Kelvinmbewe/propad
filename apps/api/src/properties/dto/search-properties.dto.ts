@@ -1,5 +1,5 @@
 import { PropertyFurnishing, PropertyType } from '@prisma/client';
-import { PropertyFurnishingEnum, PropertyTypeEnum, PowerPhaseEnum, PowerPhase } from '@propad/sdk';
+import { PropertyFurnishingEnum, PropertyTypeEnum, PowerPhaseEnum, PowerPhase } from '@propad/config';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 

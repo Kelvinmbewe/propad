@@ -11,7 +11,7 @@ import {
   CurrencyEnum,
   PowerPhaseEnum,
   PowerPhase
-} from '@propad/sdk';
+} from '@propad/config';
 import { z } from 'zod';
 
 const commercialFieldsSchema = z

@@ -92,20 +92,22 @@ export function getServerApiBaseUrl(): string {
   // Read directly from process.env at runtime to pick up Docker env vars
   const internalUrl = process.env.INTERNAL_API_BASE_URL;
   const publicUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  
+
   if (internalUrl) {
     return internalUrl;
   }
-  
+
   if (publicUrl) {
     return publicUrl;
   }
-  
+
   // Fallback for development
   if (process.env.NODE_ENV === 'development') {
     return 'http://localhost:3001';
   }
-  
+
   // In production, this should be configured
   throw new Error('API base URL is not configured. Please set INTERNAL_API_BASE_URL or NEXT_PUBLIC_API_BASE_URL');
 }
+
+export * from './enums';

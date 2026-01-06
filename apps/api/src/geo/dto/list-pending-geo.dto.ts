@@ -1,5 +1,5 @@
 import { GeoLevel, PendingGeoStatus } from '@prisma/client';
-import { GeoLevelEnum } from '@propad/sdk';
+import { GeoLevelEnum } from '@propad/config';
 import { z } from 'zod';
 
 export const listPendingGeoSchema = z.object({

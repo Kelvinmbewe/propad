@@ -51,7 +51,7 @@ async function bootstrap() {
   });
 
   // Hard fail if enum objects are undefined at runtime
-  const { PropertyTypeEnum, PropertyFurnishingEnum, PowerPhaseEnum, GeoLevelEnum, PropertyAvailabilityEnum, CurrencyEnum } = await import('@propad/sdk');
+  const { PropertyTypeEnum, PropertyFurnishingEnum, PowerPhaseEnum, GeoLevelEnum, PropertyAvailabilityEnum, CurrencyEnum } = await import('@propad/config');
   if (!PropertyTypeEnum) throw new Error('PropertyTypeEnum missing at runtime');
   if (!PropertyFurnishingEnum) throw new Error('PropertyFurnishingEnum missing at runtime');
   if (!PowerPhaseEnum) throw new Error('PowerPhaseEnum missing at runtime');
