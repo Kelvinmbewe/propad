@@ -1,4 +1,6 @@
-import { Currency, PayoutMethod, PaymentProvider } from '@prisma/client';
+import { Currency } from '@prisma/client';
+import { PayoutMethod, PaymentProvider } from '@propad/config';
+// import { Currency, PayoutMethod, PaymentProvider } from '@prisma/client';
 
 export enum PayoutExecutionResult {
   SUCCESS = 'SUCCESS',

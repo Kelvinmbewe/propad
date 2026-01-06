@@ -1,16 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
-  ChargeableItemType,
   Currency,
   OwnerType,
-  PayoutMethod,
   PayoutStatus,
   Prisma,
   WalletTransactionSource,
-  PaymentProvider,
   PayoutTransaction,
   Wallet
 } from '@prisma/client';
+import { ChargeableItemType, PaymentProvider, PayoutMethod } from '@propad/config';
 import { WalletLedgerSourceType } from '../wallet/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -89,7 +87,7 @@ export class PayoutsService {
       data: {
         walletId: wallet.id,
         amountCents,
-        method,
+        method: method as any,
         payoutAccountId,
         status: PayoutStatus.REQUESTED
       },
@@ -151,7 +149,7 @@ export class PayoutsService {
           payoutRequestId: payout.id,
           amountCents: payout.amountCents,
           currency: payout.wallet.currency,
-          method: payout.method,
+          method: payout.method as any,
           status: PayoutStatus.APPROVED
         }
       });
@@ -242,7 +240,7 @@ export class PayoutsService {
           payoutRequestId: payoutRequest.id,
           amountCents: payoutRequest.amountCents,
           currency: payoutRequest.wallet.currency,
-          method: payoutRequest.method,
+          method: payoutRequest.method as any,
           status: PayoutStatus.APPROVED,
           gatewayRef: gatewayRef || undefined
         }
@@ -458,7 +456,7 @@ export class PayoutsService {
 
     // Prepare recipient details from payout account
     const recipientDetails = this.prepareRecipientDetails(
-      payoutRequest.method,
+      payoutRequest.method as PayoutMethod,
       payoutRequest.payoutAccount.detailsJson as Record<string, unknown>,
       user.paymentProfile
     );
@@ -475,7 +473,7 @@ export class PayoutsService {
       payoutTransactionId: payoutTransaction.id,
       amountCents: payoutTransaction.amountCents,
       currency: payoutTransaction.currency,
-      method: payoutTransaction.method,
+      method: payoutTransaction.method as PayoutMethod,
       recipientDetails,
       reference
     });

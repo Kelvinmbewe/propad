@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { PaymentProvider, Prisma } from '@prisma/client';
+import { PaymentProvider } from '@propad/config';
+import { Prisma } from '@prisma/client';
+// import { PaymentProvider, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 
