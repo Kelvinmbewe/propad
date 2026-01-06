@@ -68,7 +68,9 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 # Generate Prisma Client in the final environment
 # This ensures it is placed correctly and matches the OS
-RUN pnpm --filter @propad/api run prisma:generate
+# Install Prisma globally to allow generation without devDependencies
+RUN npm install -g prisma@5.22.0
+RUN prisma generate --schema=apps/api/prisma/schema.prisma
 
 COPY apps/api/start.sh ./apps/api/start.sh
 RUN chmod +x ./apps/api/start.sh

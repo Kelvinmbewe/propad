@@ -9,11 +9,9 @@ import {
   Currency,
   KycStatus,
   OwnerType,
-  PayoutMethod,
   PayoutStatus,
   Prisma,
   PrismaClient,
-  Role,
   Wallet,
   WalletTransactionSource,
   WalletTransactionType
@@ -21,7 +19,7 @@ import {
 import { addDays, startOfDay } from 'date-fns';
 import { Buffer } from 'node:buffer';
 import PDFDocument from 'pdfkit';
-import { env } from '@propad/config';
+import { env, Role, PayoutMethod } from '@propad/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { RequestPayoutDto } from './dto/request-payout.dto';
@@ -91,11 +89,11 @@ export class WalletsService {
     private readonly audit: AuditService,
     private readonly mail: MailService,
     private readonly ledger: WalletLedgerService
-  ) {}
+  ) { }
 
   async getMyWallet(actor: AuthContext) {
     const owner = this.resolveOwner(actor);
-    
+
     // Only USER wallets support ledger system for now
     if (owner.ownerType !== OwnerType.USER) {
       return this.prisma.$transaction(async (tx: PrismaClientOrTx) => {
@@ -107,7 +105,7 @@ export class WalletsService {
 
     // Use ledger-based calculation for USER wallets
     const balance = await this.ledger.calculateBalance(owner.ownerId, DEFAULT_CURRENCY);
-    
+
     const wallet = await this.prisma.wallet.findUnique({
       where: {
         ownerType_ownerId_currency: {
@@ -140,10 +138,10 @@ export class WalletsService {
       withdrawableCents: balance.withdrawableCents,
       latestKyc: latestKyc
         ? {
-            id: latestKyc.id,
-            status: latestKyc.status,
-            updatedAt: latestKyc.updatedAt
-          }
+          id: latestKyc.id,
+          status: latestKyc.status,
+          updatedAt: latestKyc.updatedAt
+        }
         : null,
       payoutAccounts: wallet?.payoutAccounts ?? []
     };
@@ -174,7 +172,7 @@ export class WalletsService {
         data: {
           ownerType: owner.ownerType,
           ownerId: owner.ownerId,
-          type: dto.type,
+          type: dto.type as any,
           displayName: dto.displayName,
           detailsJson: dto.details,
           verifiedAt: null
@@ -330,7 +328,7 @@ export class WalletsService {
       if (!account.verifiedAt) {
         throw new BadRequestException('Payout account is not verified');
       }
-      if (account.type !== dto.method) {
+      if ((account.type as any) !== dto.method) {
         throw new BadRequestException('Payout method does not match payout account');
       }
 
@@ -357,7 +355,7 @@ export class WalletsService {
         data: {
           walletId: wallet.id,
           amountCents: dto.amountCents,
-          method: dto.method,
+          method: dto.method as any,
           payoutAccountId: dto.payoutAccountId,
           scheduledFor: dto.scheduledFor ?? null,
           status: PayoutStatus.REQUESTED
@@ -459,7 +457,7 @@ export class WalletsService {
           ownerId: updated.wallet.ownerId,
           amountCents: updated.amountCents,
           currency: updated.wallet.currency,
-          method: updated.method,
+          method: updated.method as unknown as PayoutMethod,
           txRef: updated.txRef ?? dto.txRef,
           paidAt: updated.updatedAt
         };

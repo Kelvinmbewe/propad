@@ -8,8 +8,7 @@
     "start:dev": "nest start --watch",
     "lint": "eslint .",
     "test": "vitest",
-    "prisma:generate": "prisma generate",
-    "postinstall": "pnpm run prisma:generate"
+    "prisma:generate": "prisma generate"
   },
   "dependencies": {
     "@nestjs/axios": "3.0.0",
