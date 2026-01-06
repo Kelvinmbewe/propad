@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { ChargeableItemType, PaymentStatus, Invoice, InvoiceLine } from '@prisma/client';
+import { Invoice, InvoiceLine } from '@prisma/client';
+import { ChargeableItemType, PaymentStatus } from '@propad/config';
+// import { ChargeableItemType, PaymentStatus, Invoice, InvoiceLine } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PricingService } from './pricing.service';
 
@@ -81,7 +83,7 @@ export class FeatureAccessService {
         },
         paymentTransactions: {
           where: {
-            status: PaymentStatus.PAID
+            status: PaymentStatus.PAID as any
           },
           orderBy: {
             createdAt: 'desc'

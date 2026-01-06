@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
-  ChargeableItemType,
   Currency,
   FxRate,
   Invoice,
@@ -9,11 +8,11 @@ import {
   InvoiceStatus,
   PaymentGateway,
   PaymentIntentStatus,
-  PaymentStatus,
   Prisma,
   PrismaClient,
   TransactionResult
 } from '@prisma/client';
+import { ChargeableItemType, PaymentStatus } from '@propad/config';
 import { startOfDay } from 'date-fns';
 import { Buffer } from 'node:buffer';
 import PDFDocument from 'pdfkit';
@@ -435,14 +434,14 @@ export class PaymentsService {
                 paymentIntentId: intent.id,
                 amountCents: result.amountCents,
                 currency: result.currency,
-                status: PaymentStatus.PAID,
+                status: PaymentStatus.PAID as any,
                 gateway: intent.gateway,
                 gatewayRef: result.externalRef,
                 transactionRef: result.externalRef || result.reference,
                 metadata: { webhook: true, webhookAt: new Date().toISOString() }
               },
               update: {
-                status: PaymentStatus.PAID,
+                status: PaymentStatus.PAID as any,
                 gatewayRef: result.externalRef
               }
             });
