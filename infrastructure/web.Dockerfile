@@ -1,9 +1,11 @@
-ARG NODE_IMAGE=node:20-alpine
+ARG NODE_IMAGE=node:20.11.1-slim
 FROM ${NODE_IMAGE} AS builder
-RUN apk add --no-cache \
-  libc6-compat \
+RUN apt-get update && apt-get install -y \
   openssl \
-  git
+  git \
+  ca-certificates \
+  curl \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV PRISMA_SKIP_AUTOINSTALL=true
 ENV NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
@@ -18,8 +20,8 @@ COPY apps/api/prisma ./apps/web/prisma
 RUN npm install -g pnpm@10.19.0
 
 RUN pnpm config set fetch-retries 5 \
-    && pnpm config set fetch-retry-mintimeout 20000 \
-    && pnpm config set fetch-retry-maxtimeout 120000
+  && pnpm config set fetch-retry-mintimeout 20000 \
+  && pnpm config set fetch-retry-maxtimeout 120000
 
 RUN pnpm install --recursive --frozen-lockfile=false
 
@@ -33,11 +35,11 @@ FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
   curl \
-  libc6-compat \
   openssl \
-  git
+  git \
+  && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm@10.19.0
 
 COPY --from=builder /app/package*.json ./

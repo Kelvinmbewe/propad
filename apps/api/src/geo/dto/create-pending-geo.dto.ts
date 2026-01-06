@@ -1,6 +1,6 @@
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { GeoLevel } from '@prisma/client';
-import { GeoLevelEnum } from '../../common/runtime-enums';
+import { GeoLevelEnum } from '@propad/sdk';
 
 export class CreatePendingGeoDto {
   @IsEnum(GeoLevelEnum)

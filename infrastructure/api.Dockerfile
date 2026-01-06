@@ -1,4 +1,4 @@
-ARG NODE_IMAGE=node:20-alpine
+ARG NODE_IMAGE=node:20.11.1-slim
 
 ############################
 # Builder stage
@@ -7,16 +7,15 @@ FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 
 # 🔑 REQUIRED FOR PRISMA (schema + query engine)
-# Using apk because node:20-alpine is Alpine-based
-RUN apk add --no-cache \
-    libc6-compat \
+RUN apt-get update && apt-get install -y \
     openssl \
     python3 \
     make \
     g++ \
     git \
     ca-certificates \
-    curl
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV PRISMA_SKIP_AUTOINSTALL=true
 
@@ -47,11 +46,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # 🔑 REQUIRED FOR PRISMA AT RUNTIME (migrations, queries)
-RUN apk add --no-cache \
-    libc6-compat \
+RUN apt-get update && apt-get install -y \
     openssl \
     ca-certificates \
-    curl
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g pnpm@10.19.0
 
@@ -60,6 +59,7 @@ COPY --from=builder /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+COPY --from=builder /app/apps/api/src ./apps/api/src
 
 RUN pnpm install --filter @propad/api... --frozen-lockfile=false
 RUN pnpm --filter @propad/api... run prisma:generate

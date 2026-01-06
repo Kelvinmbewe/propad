@@ -11,7 +11,7 @@ import {
   PropertyAvailabilityEnum,
   CurrencyEnum,
   PowerPhaseEnum
-} from '../../common/runtime-enums';
+} from '@propad/sdk';
 import { z } from 'zod';
 
 const commercialFieldsSchema = z
@@ -162,11 +162,11 @@ const withCreateRefinements = <T extends z.ZodTypeAny>(schema: T) =>
 const withUpdateRefinements = <T extends z.ZodTypeAny>(schema: T) =>
   schema.superRefine((data, ctx) => {
     // For update: only validate location hierarchy if location fields are being updated
-    const hasLocationUpdate = data.countryId !== undefined || 
-                               data.provinceId !== undefined || 
-                               data.cityId !== undefined || 
-                               data.suburbId !== undefined ||
-                               data.pendingGeoId !== undefined;
+    const hasLocationUpdate = data.countryId !== undefined ||
+      data.provinceId !== undefined ||
+      data.cityId !== undefined ||
+      data.suburbId !== undefined ||
+      data.pendingGeoId !== undefined;
 
     if (hasLocationUpdate) {
       // If updating location, validate hierarchy only for provided fields

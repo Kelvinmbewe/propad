@@ -1,5 +1,5 @@
 import { PropertyType } from '@prisma/client';
-import { PropertyTypeEnum } from '../../common/runtime-enums';
+import { PropertyTypeEnum } from '@propad/sdk';
 import { z } from 'zod';
 
 export const mapBoundsSchema = z.object({
