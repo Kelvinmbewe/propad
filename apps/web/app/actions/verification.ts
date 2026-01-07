@@ -3,31 +3,13 @@
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
+import { VerificationItemTypeEnum, type VerificationItemTypeValue } from '@/common/runtime-enums';
 // Local status/type constants matching Prisma schema
-const VerificationStatus = {
-    PENDING: 'PENDING',
-    APPROVED: 'APPROVED',
-    REJECTED: 'REJECTED',
-} as const;
-
 const VerificationType = {
     AUTO: 'AUTO',
     CALL: 'CALL',
     SITE: 'SITE',
     DOCS: 'DOCS',
-} as const;
-
-const VerificationItemStatus = {
-    PENDING: 'PENDING',
-    SUBMITTED: 'SUBMITTED',
-    APPROVED: 'APPROVED',
-    REJECTED: 'REJECTED',
-} as const;
-
-const VerificationItemType = {
-    PROOF_OF_OWNERSHIP: 'PROOF_OF_OWNERSHIP',
-    LOCATION_CONFIRMATION: 'LOCATION_CONFIRMATION',
-    PROPERTY_PHOTOS: 'PROPERTY_PHOTOS',
 } as const;
 
 export async function getPropertyVerification(propertyId: string) {
@@ -68,9 +50,9 @@ export async function requestPropertyVerification(propertyId: string, type: 'OWN
     try {
         // Enforce Canonical Model: VerificationRequest
         // Map legacy frontend types to Schema Enum
-        let schemaType: string = VerificationItemType.PROOF_OF_OWNERSHIP;
-        if (type === 'LOCATION_CHECK') schemaType = VerificationItemType.LOCATION_CONFIRMATION;
-        if (type === 'MEDIA_VALIDATION') schemaType = VerificationItemType.PROPERTY_PHOTOS;
+        let schemaType: VerificationItemTypeValue = VerificationItemTypeEnum.PROOF_OF_OWNERSHIP;
+        if (type === 'LOCATION_CHECK') schemaType = VerificationItemTypeEnum.LOCATION_CONFIRMATION;
+        if (type === 'MEDIA_VALIDATION') schemaType = VerificationItemTypeEnum.PROPERTY_PHOTOS;
 
         // Check for existing active request
         const existing = await prisma.verificationRequest.findFirst({
@@ -78,7 +60,7 @@ export async function requestPropertyVerification(propertyId: string, type: 'OWN
                 propertyId: propertyId,
                 status: {
                     // Filter only valid VerificationStatus Enum values that imply "Active"
-                    in: [VerificationStatus.PENDING]
+                    in: ['PENDING']
                 }
             },
             include: { items: true }
@@ -98,11 +80,11 @@ export async function requestPropertyVerification(propertyId: string, type: 'OWN
                 targetId: propertyId,
                 propertyId: propertyId,
                 requesterId: session.user.id,
-                status: VerificationStatus.PENDING,
+                status: 'PENDING',
                 items: {
                     create: {
-                        type: schemaType,
-                        status: VerificationItemStatus.SUBMITTED,
+                        type: schemaType as any,
+                        status: 'SUBMITTED',
                         notes: 'User requested verification'
                     }
                 }
