@@ -2,13 +2,10 @@ import NextAuth from 'next-auth';
 import type { NextAuthConfig } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import EmailProvider from 'next-auth/providers/email';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/lib/prisma';
-import { env } from '@propad/config';
-import { sign } from 'jsonwebtoken';
+import { env, getServerApiBaseUrl } from '@propad/config';
 import type { Role } from '@propad/sdk';
-import { compare } from 'bcryptjs';
 
 const config: NextAuthConfig = {
   debug: true,
@@ -37,31 +34,44 @@ const config: NextAuthConfig = {
             return null;
           }
 
-          const user = await prisma.user.findUnique({
-            where: {
-              email: credentials.email as string
-            }
+          // Call the API for login
+          const apiUrl = getServerApiBaseUrl();
+          console.log('[Auth] Calling API at:', `${apiUrl}/auth/login`);
+
+          const response = await fetch(`${apiUrl}/auth/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password
+            })
           });
 
-          console.log('[Auth] User found:', user ? 'yes' : 'no', user?.email);
+          console.log('[Auth] API response status:', response.status);
 
-          if (!user || !user.passwordHash) {
-            console.log('[Auth] No user or no password hash');
+          if (!response.ok) {
+            console.log('[Auth] API login failed:', response.status, response.statusText);
             return null;
           }
 
-          const isPasswordValid = await compare(credentials.password as string, user.passwordHash);
-          console.log('[Auth] Password valid:', isPasswordValid);
+          const data = await response.json();
+          console.log('[Auth] API login success, user id:', data.user?.id);
 
-          if (!isPasswordValid) {
+          if (!data.user) {
+            console.log('[Auth] No user in API response');
             return null;
           }
 
+          // Return user with tokens attached for JWT callback
           return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name,
+            role: data.user.role,
+            accessToken: data.accessToken,
+            refreshToken: data.refreshToken
           };
         } catch (error) {
           console.error('[Auth] Authorize error:', error);
@@ -81,19 +91,19 @@ const config: NextAuthConfig = {
         const mutableToken = token as Record<string, unknown>;
 
         if (user) {
-          const userData = user as { role?: Role; id?: string };
+          const userData = user as { role?: Role; id?: string; accessToken?: string; refreshToken?: string };
           mutableToken.role = userData.role ?? (mutableToken.role as Role | undefined) ?? 'USER';
           mutableToken.userId = userData.id ?? mutableToken.sub ?? mutableToken.userId;
+          // Map tokens from API response
+          if (userData.accessToken) {
+            mutableToken.apiAccessToken = userData.accessToken;
+          }
+          if (userData.refreshToken) {
+            mutableToken.apiRefreshToken = userData.refreshToken;
+          }
         }
 
-        const subject = (mutableToken.sub as string | undefined) ?? (mutableToken.userId as string | undefined);
-        const role = (mutableToken.role as Role | undefined) ?? 'USER';
-
-        if (subject) {
-          mutableToken.apiAccessToken = sign({ sub: subject, role }, env.JWT_SECRET, { expiresIn: '15m' });
-        }
-
-        console.log('[Auth] JWT callback success, subject:', subject);
+        console.log('[Auth] JWT callback success, userId:', mutableToken.userId);
         return mutableToken;
       } catch (error) {
         console.error('[Auth] JWT callback error:', error);
@@ -113,7 +123,7 @@ const config: NextAuthConfig = {
         name: session.user?.name ?? undefined
       };
       session.accessToken =
-        typeof tokenData.apiAccessToken === 'string' ? (tokenData.apiAccessToken) : undefined;
+        typeof tokenData.apiAccessToken === 'string' ? tokenData.apiAccessToken : undefined;
 
       return session;
     }
