@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { ChargeableItemType, Currency } from '@prisma/client';
+import { Currency } from '@prisma/client';
+import { ChargeableItemType } from '@propad/config';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PaymentsService } from './payments.service';
@@ -14,7 +15,7 @@ interface AuthenticatedRequest {
 
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(private readonly paymentsService: PaymentsService) { }
 
   @UseGuards(JwtAuthGuard)
   @Post('intents')

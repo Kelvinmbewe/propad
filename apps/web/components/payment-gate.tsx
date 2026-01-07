@@ -7,29 +7,17 @@ import { formatCurrency } from '@/lib/formatters';
 import { CheckCircle2, Lock, AlertCircle, Loader2, XCircle } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
-const getFeatureDisplayName = (featureType: string): string => {
-  const names: Record<string, string> = {
-    PROPERTY_VERIFICATION: 'Property Verification',
-    AGENT_ASSIGNMENT: 'Agent Assignment',
-    FEATURED_LISTING: 'Featured Listing',
-    TRUST_BOOST: 'Trust Boost',
-    IN_HOUSE_ADVERT_BUYING: 'In-House Ad (Buying)',
-    IN_HOUSE_ADVERT_SELLING: 'In-House Ad (Selling)',
-    PREMIUM_VERIFICATION: 'Premium Verification',
-    OTHER: 'Other Feature'
+import { ChargeableItemType } from '@propad/config';
+
+const getFeatureDisplayName = (featureType: ChargeableItemType): string => {
+  const names: Record<ChargeableItemType, string> = {
+    [ChargeableItemType.FEATURE]: 'Premium Feature',
+    [ChargeableItemType.BOOST]: 'Boost',
+    [ChargeableItemType.SUBSCRIPTION]: 'Subscription',
+    [ChargeableItemType.OTHER]: 'Other Feature'
   };
   return names[featureType] || featureType;
 };
-
-type ChargeableItemType =
-  | 'PROPERTY_VERIFICATION'
-  | 'AGENT_ASSIGNMENT'
-  | 'FEATURED_LISTING'
-  | 'TRUST_BOOST'
-  | 'IN_HOUSE_ADVERT_BUYING'
-  | 'IN_HOUSE_ADVERT_SELLING'
-  | 'PREMIUM_VERIFICATION'
-  | 'OTHER';
 
 interface PaymentGateProps {
   featureType: ChargeableItemType;
@@ -75,6 +63,7 @@ export function PaymentGate({
   const [processing, setProcessing] = useState(false);
   const onGrantedCalledRef = useRef(false);
 
+  // ... (Hooks remain same) ...
   const { data: access, isLoading: loadingAccess } = useQuery<FeatureAccess>({
     queryKey: ['feature-access', featureType, targetId],
     queryFn: async () => {
@@ -119,6 +108,7 @@ export function PaymentGate({
     enabled: !!session?.accessToken && (access?.status === 'REQUIRED' || access?.status === 'EXPIRED')
   });
 
+  // ... (handlePayment remains same) ...
   const handlePayment = async () => {
     if (!session?.accessToken || !pricing) return;
 
@@ -185,6 +175,7 @@ export function PaymentGate({
     }
   };
 
+  // ... (Loading/Error/Granted states remain same) ...
   if (loadingAccess) {
     return (
       <Card>
@@ -289,28 +280,28 @@ export function PaymentGate({
           <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
             <p>What you get:</p>
             <ul className="mt-1 list-disc list-inside space-y-1 text-blue-700">
-              {featureType === 'PROPERTY_VERIFICATION' && (
+              {(featureName === 'User Verification' || featureType === ChargeableItemType.FEATURE) && (
                 <>
                   <li>Property verification badge</li>
                   <li>Priority in search results</li>
                   <li>Increased trust score</li>
                 </>
               )}
-              {featureType === 'AGENT_ASSIGNMENT' && (
+              {featureName === 'Agent Assignment' && (
                 <>
                   <li>Verified agent assignment</li>
                   <li>Professional property management</li>
                   <li>Lead generation support</li>
                 </>
               )}
-              {featureType === 'FEATURED_LISTING' && (
+              {featureName === 'Featured Listing' && (
                 <>
                   <li>Featured placement in search</li>
                   <li>Increased visibility</li>
                   <li>More qualified leads</li>
                 </>
               )}
-              {featureType === 'TRUST_BOOST' && (
+              {featureName === 'Trust Boost' && (
                 <>
                   <li>Enhanced trust score</li>
                   <li>Verified badge display</li>

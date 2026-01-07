@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import { Button, Card, CardContent, CardHeader, CardTitle, notify, Skeleton, Input, Label, Textarea } from '@propad/ui';
+import { ChargeableItemType } from '@propad/config';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { formatCurrency } from '@/lib/formatters';
 import Link from 'next/link';
@@ -328,7 +329,7 @@ function ManagementTab({
                     </div>
 
                     <PaymentGate
-                        featureType="AGENT_ASSIGNMENT"
+                        featureType={ChargeableItemType.FEATURE}
                         targetId={property.id}
                         featureName="Agent Assignment"
                         featureDescription="Assign a verified agent to manage your property listing"
@@ -407,7 +408,7 @@ function FeaturedSection({ propertyId }: { propertyId: string }) {
                     </div>
                 ) : (
                     <PaymentGate
-                        featureType="FEATURED_LISTING"
+                        featureType={ChargeableItemType.BOOST}
                         targetId={propertyId}
                         featureName="Featured Listing"
                         featureDescription="Boost your listing visibility for 7 days"
@@ -1276,7 +1277,7 @@ function VerificationStep({
                         )}
                         {!item ? (
                             <PaymentGate
-                                featureType="PROPERTY_VERIFICATION"
+                                featureType={ChargeableItemType.FEATURE}
                                 targetId={propertyId}
                                 featureName="Property Verification"
                                 featureDescription="Complete payment to submit your property for verification"

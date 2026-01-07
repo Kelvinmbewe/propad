@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { CheckCircle, ShieldCheck } from 'lucide-react';
 import { PaymentGate } from '@/components/payment-gate';
 import { useQuery } from '@tanstack/react-query';
+import { ChargeableItemType } from '@propad/config';
 
 export default function VerificationPage() {
   const { data: session } = useSession();
@@ -45,7 +46,7 @@ export default function VerificationPage() {
       </div>
 
       <PaymentGate
-        featureType="TRUST_BOOST"
+        featureType={ChargeableItemType.BOOST}
         targetId={user?.id || ''}
         featureName="User Verification"
         featureDescription="Get verified to build trust with landlords and tenants"

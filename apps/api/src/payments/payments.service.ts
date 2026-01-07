@@ -177,32 +177,23 @@ export class PaymentsService {
 
   private getFeatureDisplayName(featureType: ChargeableItemType): string {
     const names: Record<ChargeableItemType, string> = {
-      [ChargeableItemType.PROPERTY_LISTING]: 'Property Listing',
-      [ChargeableItemType.PROPERTY_VERIFICATION]: 'Property Verification',
-      [ChargeableItemType.AGENT_ASSIGNMENT]: 'Agent Assignment',
-      [ChargeableItemType.PROMO_BOOST]: 'Promo Boost',
-      [ChargeableItemType.FEATURED_LISTING]: 'Featured Listing',
-      [ChargeableItemType.ADVERTISEMENT]: 'Advertisement',
-      [ChargeableItemType.TRUST_BOOST]: 'Trust Boost',
-      [ChargeableItemType.IN_HOUSE_ADVERT_BUYING]: 'In-House Ad (Buying)',
-      [ChargeableItemType.IN_HOUSE_ADVERT_SELLING]: 'In-House Ad (Selling)',
-      [ChargeableItemType.PREMIUM_VERIFICATION]: 'Premium Verification',
-      [ChargeableItemType.OTHER]: 'Other Feature'
+      [ChargeableItemType.FEATURE]: 'Feature',
+      [ChargeableItemType.BOOST]: 'Boost',
+      [ChargeableItemType.SUBSCRIPTION]: 'Subscription',
+      [ChargeableItemType.OTHER]: 'Other'
     };
     return names[featureType] || featureType;
   }
 
   private mapFeatureTypeToPurpose(featureType: ChargeableItemType): InvoicePurpose {
     switch (featureType) {
-      case ChargeableItemType.PROPERTY_VERIFICATION:
+      case ChargeableItemType.FEATURE:
         return InvoicePurpose.VERIFICATION;
-      case ChargeableItemType.FEATURED_LISTING:
+      case ChargeableItemType.BOOST:
         return InvoicePurpose.BOOST;
-      case ChargeableItemType.AGENT_ASSIGNMENT:
-      case ChargeableItemType.IN_HOUSE_ADVERT_BUYING:
-      case ChargeableItemType.IN_HOUSE_ADVERT_SELLING:
-      case ChargeableItemType.TRUST_BOOST:
-      case ChargeableItemType.PREMIUM_VERIFICATION:
+      case ChargeableItemType.SUBSCRIPTION:
+        return InvoicePurpose.OTHER;
+      case ChargeableItemType.OTHER:
         return InvoicePurpose.OTHER;
       default:
         return InvoicePurpose.OTHER;
