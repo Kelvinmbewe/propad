@@ -27,7 +27,12 @@ const config: NextAuthConfig = {
       },
       async authorize(credentials) {
         try {
-          console.log('[Auth] Authorize called with email:', credentials?.email);
+          // TEMP LOGS: for debugging (remove later)
+          console.log('===========================================');
+          console.log('NEXTAUTH CREDENTIALS:', {
+            email: credentials?.email,
+            passwordLength: credentials?.password?.length ?? 0
+          });
 
           if (!credentials?.email || !credentials?.password) {
             console.log('[Auth] Missing credentials');
@@ -49,14 +54,18 @@ const config: NextAuthConfig = {
             })
           });
 
-          console.log('[Auth] API response status:', response.status);
+          // TEMP LOGS: for debugging (remove later)
+          console.log('API LOGIN STATUS:', response.status);
+          const responseText = await response.clone().text();
+          console.log('API LOGIN BODY:', responseText);
+          console.log('===========================================');
 
           if (!response.ok) {
             console.log('[Auth] API login failed:', response.status, response.statusText);
             return null;
           }
 
-          const data = await response.json();
+          const data = JSON.parse(responseText);
           console.log('[Auth] API login success, user id:', data.user?.id);
 
           if (!data.user) {

@@ -27,11 +27,34 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() body: LoginDto) {
+    // TEMP LOG: for debugging (remove later)
+    console.log('LOGIN ATTEMPT:', body.email);
+
     const result = schema.safeParse(body);
     if (!result.success) {
       throw new BadRequestException(result.error.flatten().fieldErrors);
     }
     return this.authService.login(result.data.email, result.data.password);
+  }
+
+  // TEMP ENDPOINT: for curl testing independent of NextAuth (remove later)
+  @Post('login-test')
+  async loginTest(@Body() body: LoginDto) {
+    console.log('LOGIN-TEST ATTEMPT (no guards):', body.email);
+
+    const result = schema.safeParse(body);
+    if (!result.success) {
+      throw new BadRequestException(result.error.flatten().fieldErrors);
+    }
+
+    try {
+      const loginResult = await this.authService.login(result.data.email, result.data.password);
+      console.log('LOGIN-TEST SUCCESS:', result.data.email);
+      return loginResult;
+    } catch (error) {
+      console.log('LOGIN-TEST FAILED:', result.data.email, error);
+      throw error;
+    }
   }
 
   @Post('register')

@@ -99,12 +99,54 @@ async function upsertUser({
 }
 
 async function main() {
+  // ============================================================
+  // PHASE 1: HARD RESET - Delete existing users and related data
+  // ============================================================
+  console.log('🔄 HARD RESET: Cleaning existing seed data...');
+
+  // Delete in order respecting foreign key constraints
+  await prisma.rewardEvent.deleteMany({});
+  await prisma.policyStrike.deleteMany({});
+  await prisma.payoutRequest.deleteMany({});
+  await prisma.walletTransaction.deleteMany({});
+  await prisma.wallet.deleteMany({});
+  await prisma.kycRecord.deleteMany({});
+  await prisma.payoutAccount.deleteMany({});
+  await prisma.agentAssignment.deleteMany({});
+  await prisma.propertyMessage.deleteMany({});
+  await prisma.lead.deleteMany({});
+  await prisma.adImpression.deleteMany({});
+  await prisma.metricDailyAds.deleteMany({});
+  await prisma.metricDailyRevenue.deleteMany({});
+  await prisma.metricDailyTraffic.deleteMany({});
+  await prisma.agentProfile.deleteMany({});
+  await prisma.landlordProfile.deleteMany({});
+
+  // Delete users created by seed (but preserve any real users if needed)
+  await prisma.user.deleteMany({
+    where: {
+      email: {
+        endsWith: '@propad.local'
+      }
+    }
+  });
+
+  console.log('✅ Hard reset complete');
+
+  // ============================================================
+  // PHASE 2: Create password hashes with bcrypt
+  // ============================================================
+  console.log('🔑 Creating password hashes with bcrypt...');
   const adminPasswordHash = await hash('Admin123!', 10);
   const defaultPasswordHash = await hash('PropAd123!', 10);
   const verifierPasswordHash = await hash('Verifier123!', 10);
   const agentPasswordHash = await hash('Agent123!', 10);
   const userPasswordHash = await hash('User123!', 10);
 
+  // ============================================================
+  // PHASE 3: Create users with proper roles
+  // ============================================================
+  console.log('👤 Creating admin user...');
   const admin = await upsertUser({
     email: 'admin@propad.local',
     role: Role.ADMIN,
@@ -1257,6 +1299,18 @@ async function main() {
     walletThresholds: thresholds.length,
     demoUsers: demoUserRecords.length
   });
+
+  // ============================================================
+  // DEV LOGIN CREDENTIALS (TEMP - for development only)
+  // ============================================================
+  console.log('\n===========================================');
+  console.log('🔐 SEED LOGIN CREDENTIALS (DEV ONLY):');
+  console.log('===========================================');
+  console.log('SEED LOGIN => admin@propad.local / Admin123!');
+  console.log('SEED LOGIN => verifier1@propad.local / Verifier123!');
+  console.log('SEED LOGIN => agent1@propad.local / Agent123!');
+  console.log('SEED LOGIN => user1@propad.local / User123!');
+  console.log('===========================================\n');
 }
 
 main()
