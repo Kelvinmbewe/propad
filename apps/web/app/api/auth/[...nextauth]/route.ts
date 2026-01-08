@@ -1,5 +1,4 @@
 import NextAuth from 'next-auth';
-import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
 const API_URL =
@@ -8,7 +7,7 @@ const API_URL =
 const NEXTAUTH_SECRET =
     process.env.NEXTAUTH_SECRET ?? 'propad-dev-secret';
 
-const options: NextAuthOptions = {
+const options = {
     debug: true,
     secret: NEXTAUTH_SECRET,
     session: { strategy: 'jwt' },
