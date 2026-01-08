@@ -17,11 +17,20 @@ COPY apps/web ./apps/web
 
 RUN npm install -g pnpm@10.19.0
 
-RUN pnpm config set fetch-retries 5 \
-  && pnpm config set fetch-retry-mintimeout 20000 \
-  && pnpm config set fetch-retry-maxtimeout 120000
+# Environment variables for build stability
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
+ENV NODE_OPTIONS=--max-old-space-size=4096
 
-RUN pnpm install --recursive --frozen-lockfile=false
+# Configure pnpm for network stability (EOF fix)
+RUN pnpm config set store-dir /pnpm-store \
+  && pnpm config set network-concurrency 1 \
+  && pnpm config set fetch-retries 5 \
+  && pnpm config set fetch-timeout 60000 \
+  && pnpm config set fetch-retry-mintimeout 20000 \
+  && pnpm config set fetch-retry-maxtimeout 120000 \
+  && pnpm config set child-concurrency 1
+
+RUN pnpm install --recursive --frozen-lockfile=false --prefer-offline
 
 RUN pnpm --filter @propad/web... run build
 

@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PRISMA_SKIP_AUTOINSTALL=true
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
+ENV NODE_OPTIONS=--max-old-space-size=4096
 
 COPY package*.json pnpm-workspace.yaml tsconfig.json ./
 COPY packages ./packages
@@ -25,8 +27,15 @@ COPY apps/api ./apps/api
 
 RUN npm install -g pnpm@10.19.0
 
+# Configure pnpm for network stability (EOF fix)
+RUN pnpm config set store-dir /pnpm-store \
+    && pnpm config set network-concurrency 1 \
+    && pnpm config set fetch-retries 5 \
+    && pnpm config set fetch-timeout 60000 \
+    && pnpm config set child-concurrency 1
+
 # Install ALL dependencies for building
-RUN pnpm install --frozen-lockfile=false
+RUN pnpm install --frozen-lockfile=false --prefer-offline
 
 # Build all packages and apps
 RUN pnpm --filter @propad/config run build
@@ -50,6 +59,13 @@ RUN apt-get update && apt-get install -y \
 
 RUN npm install -g pnpm@10.19.0
 
+# Configure pnpm for network stability (EOF fix)
+RUN pnpm config set store-dir /pnpm-store \
+    && pnpm config set network-concurrency 1 \
+    && pnpm config set fetch-retries 5 \
+    && pnpm config set fetch-timeout 60000 \
+    && pnpm config set child-concurrency 1
+
 # Copy only what is needed for production installation
 COPY package*.json pnpm-workspace.yaml ./
 COPY packages/config/package.json ./packages/config/package.json
@@ -59,7 +75,7 @@ COPY apps/api/prisma ./apps/api/prisma
 
 # Install production dependencies only
 # We use --no-frozen-lockfile because we are only copying some package.json files
-RUN pnpm install --prod --no-frozen-lockfile
+RUN pnpm install --prod --no-frozen-lockfile --prefer-offline
 
 # Copy build artifacts from builder
 COPY --from=builder /app/packages/config/dist ./packages/config/dist

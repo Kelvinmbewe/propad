@@ -5,12 +5,24 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { env, getServerApiBaseUrl } from '@propad/config';
 import type { Role } from '@propad/sdk';
 
+// =================================================================
+// HARD DEFAULT ENV FALLBACKS - No .env required for local dev
+// =================================================================
+const NEXTAUTH_URL =
+  process.env.NEXTAUTH_URL ?? 'http://localhost:3000';
+
+const NEXTAUTH_SECRET =
+  process.env.NEXTAUTH_SECRET ?? 'propad-dev-secret-do-not-use-in-prod';
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? process.env.INTERNAL_API_BASE_URL ?? 'http://localhost:3001';
+
 // NOTE: PrismaAdapter REMOVED - we use JWT strategy and authenticate via API calls only.
 // The web app should NEVER touch the database directly.
 
 const config: NextAuthConfig = {
   debug: true,
-  secret: env.NEXTAUTH_SECRET,
+  secret: NEXTAUTH_SECRET,
   // NO adapter - using JWT strategy with API-based authentication
   pages: {
     signIn: '/auth/signin'
@@ -53,11 +65,10 @@ const config: NextAuthConfig = {
             return null;
           }
 
-          // Call the API for login
-          const apiUrl = getServerApiBaseUrl();
-          console.log('[Auth] Calling API at:', `${apiUrl}/auth/login`);
+          // Call the API for login - use hard fallback API_URL
+          console.log('[Auth] Calling API at:', `${API_URL}/auth/login`);
 
-          const response = await fetch(`${apiUrl}/auth/login`, {
+          const response = await fetch(`${API_URL}/auth/login`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -75,7 +86,9 @@ const config: NextAuthConfig = {
           console.log('===========================================');
 
           if (!response.ok) {
-            console.log('[Auth] API login failed:', response.status, response.statusText);
+            // FAIL LOUDLY IF API IS UNREACHABLE
+            console.error('AUTH API FAILED:', response.status, response.statusText);
+            console.error('AUTH API ERROR BODY:', responseText);
             return null;
           }
 
@@ -107,6 +120,18 @@ const config: NextAuthConfig = {
     strategy: 'jwt' as const
   },
   trustHost: true,
+  // Lock cookie mode for HTTP (local dev)
+  cookies: {
+    sessionToken: {
+      name: 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: false, // Required for localhost (HTTP, not HTTPS)
+      },
+    },
+  },
   callbacks: {
     async jwt({ token, user }) {
       try {
