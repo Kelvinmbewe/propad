@@ -25,21 +25,29 @@ const config: NextAuthConfig = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' }
       },
-      async authorize(credentials: {
-        email?: string;
-        password?: string;
-      } | undefined) {
+      async authorize(
+        credentials: Partial<Record<'email' | 'password', unknown>>
+      ) {
         try {
+          // Safely narrow types
+          const email =
+            typeof credentials?.email === 'string'
+              ? credentials.email
+              : null;
+
+          const password =
+            typeof credentials?.password === 'string'
+              ? credentials.password
+              : null;
+
           // TEMP LOGS: for debugging (remove later)
           console.log('===========================================');
           console.log('NEXTAUTH CREDENTIALS:', {
-            email: credentials?.email,
-            passwordLength: typeof credentials?.password === 'string'
-              ? credentials.password.length
-              : 0
+            email: email,
+            passwordLength: password ? password.length : 0
           });
 
-          if (!credentials?.email || !credentials?.password) {
+          if (!email || !password) {
             console.log('[Auth] Missing credentials');
             return null;
           }
@@ -54,8 +62,8 @@ const config: NextAuthConfig = {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              email: credentials.email,
-              password: credentials.password
+              email,
+              password
             })
           });
 
