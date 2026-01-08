@@ -1,4 +1,5 @@
-import NextAuth, { NextAuthOptions } from 'next-auth';
+import NextAuth from 'next-auth';
+import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
 const NEXTAUTH_URL =
@@ -10,7 +11,7 @@ const NEXTAUTH_SECRET =
 const API_URL =
     process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
-export const authOptions: NextAuthOptions = {
+const options: NextAuthOptions = {
     debug: true,
     secret: NEXTAUTH_SECRET,
     session: {
@@ -24,43 +25,37 @@ export const authOptions: NextAuthOptions = {
                 password: { label: 'Password', type: 'password' },
             },
             async authorize(credentials) {
-                try {
-                    if (!credentials?.email || !credentials?.password) {
-                        console.error('Missing credentials');
-                        return null;
-                    }
-
-                    const res = await fetch(`${API_URL}/auth/login`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            email: credentials.email,
-                            password: credentials.password,
-                        }),
-                    });
-
-                    if (!res.ok) {
-                        console.error('Auth API failed', await res.text());
-                        return null;
-                    }
-
-                    const data = await res.json();
-
-                    if (!data?.user?.id || !data?.user?.email) {
-                        console.error('Invalid API login payload', data);
-                        return null;
-                    }
-
-                    // 🔥 STRICT NextAuth User object (THIS FIXES IT)
-                    return {
-                        id: String(data.user.id),
-                        email: String(data.user.email),
-                        name: data.user.name ?? data.user.email,
-                    };
-                } catch (err) {
-                    console.error('Authorize exception', err);
+                if (!credentials?.email || !credentials?.password) {
                     return null;
                 }
+
+                const res = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: credentials.email,
+                        password: credentials.password,
+                    }),
+                });
+
+                if (!res.ok) {
+                    console.error('Auth API failed', await res.text());
+                    return null;
+                }
+
+                const data = await res.json();
+
+                if (!data?.user?.id || !data?.user?.email) {
+                    console.error('Invalid auth payload', data);
+                    return null;
+                }
+
+                // ✅ STRICT NextAuth User shape
+                return {
+                    id: String(data.user.id),
+                    email: String(data.user.email),
+                    name: data.user.name ?? data.user.email,
+                };
             },
         }),
     ],
@@ -96,5 +91,6 @@ export const authOptions: NextAuthOptions = {
     },
 };
 
-const handler = NextAuth(authOptions);
+const handler = NextAuth(options);
+
 export { handler as GET, handler as POST };
