@@ -25,13 +25,18 @@ const config: NextAuthConfig = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' }
       },
-      async authorize(credentials) {
+      async authorize(credentials: {
+        email?: string;
+        password?: string;
+      } | undefined) {
         try {
           // TEMP LOGS: for debugging (remove later)
           console.log('===========================================');
           console.log('NEXTAUTH CREDENTIALS:', {
             email: credentials?.email,
-            passwordLength: credentials?.password?.length ?? 0
+            passwordLength: typeof credentials?.password === 'string'
+              ? credentials.password.length
+              : 0
           });
 
           if (!credentials?.email || !credentials?.password) {
