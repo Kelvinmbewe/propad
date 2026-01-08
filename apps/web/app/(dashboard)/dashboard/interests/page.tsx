@@ -1,49 +1,43 @@
-import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { InterestActions } from '@/components/interest-actions';
+import { serverApiRequest } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 
-async function getLandlordInterests(userId: string) {
-  // Find properties owned by the user (as landlord or agent)
-  // And get all interests for those properties
-  const interests = await prisma.interest.findMany({
-    where: {
-      property: {
-        OR: [
-          { landlordId: userId },
-          { agentOwnerId: userId }
-        ]
-      }
-    },
-    include: {
-      property: {
-        select: {
-          id: true,
-          title: true,
-          price: true,
-          currency: true,
-          landlordId: true,
-          agentOwnerId: true
-        }
-      },
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          isVerified: true
-        }
-      }
-    },
-    orderBy: {
-      createdAt: 'desc'
-    }
-  });
+interface Interest {
+  id: string;
+  status: string;
+  createdAt: string;
+  message: string | null;
+  offerAmount: number | null;
+  property: {
+    id: string;
+    title: string;
+    price: number;
+    currency: string;
+    landlordId: string;
+    agentOwnerId: string | null;
+  };
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    isVerified: boolean;
+  };
+}
 
-  return interests;
+async function getLandlordInterests(userId: string): Promise<Interest[]> {
+  try {
+    // TODO: Implement API endpoint
+    // return await serverApiRequest<Interest[]>('/interests/landlord');
+    console.warn('[interests/page.tsx] getLandlordInterests - API endpoint not yet implemented');
+    return [];
+  } catch (error) {
+    console.error('Failed to fetch landlord interests:', error);
+    return [];
+  }
 }
 
 export default async function InterestsPage() {
@@ -68,7 +62,7 @@ export default async function InterestsPage() {
           </div>
         ) : (
           <ul role="list" className="divide-y divide-slate-100">
-            {interests.map((interest: Awaited<ReturnType<typeof getLandlordInterests>>[number]) => (
+            {interests.map((interest) => (
               <li key={interest.id} className="p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex-1">

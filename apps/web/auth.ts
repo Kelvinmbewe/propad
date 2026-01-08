@@ -2,15 +2,16 @@ import NextAuth from 'next-auth';
 import type { NextAuthConfig } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { PrismaAdapter } from '@auth/prisma-adapter';
-import { prisma } from '@/lib/prisma';
 import { env, getServerApiBaseUrl } from '@propad/config';
 import type { Role } from '@propad/sdk';
+
+// NOTE: PrismaAdapter REMOVED - we use JWT strategy and authenticate via API calls only.
+// The web app should NEVER touch the database directly.
 
 const config: NextAuthConfig = {
   debug: true,
   secret: env.NEXTAUTH_SECRET,
-  adapter: PrismaAdapter(prisma),
+  // NO adapter - using JWT strategy with API-based authentication
   pages: {
     signIn: '/auth/signin'
   },

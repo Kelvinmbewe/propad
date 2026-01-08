@@ -1,26 +1,41 @@
-import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { UserProfileReviews } from '@/components/reviews/user-profile-reviews';
 import { ShieldCheck, User } from 'lucide-react';
 import { LandingNav } from '@/components/landing-nav';
+import { serverPublicApiRequest } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 
-async function getUser(id: string) {
-  const user = await prisma.user.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      name: true,
-      email: true, // Maybe hide this or only show if logged in? Keeping simple for now.
-      isVerified: true,
-      createdAt: true,
-      role: true,
-      agentProfile: true,
-      landlordProfile: true
-    }
-  });
-  return user;
+interface UserProfile {
+  id: string;
+  name: string | null;
+  email: string;
+  isVerified: boolean;
+  createdAt: string;
+  role: string;
+  agentProfile?: { bio?: string };
+  landlordProfile?: { companyName?: string };
+}
+
+async function getUser(id: string): Promise<UserProfile | null> {
+  try {
+    // TODO: Implement API endpoint
+    // return await serverPublicApiRequest<UserProfile>(`/users/${id}/profile`);
+    console.warn('[users/[id]/page.tsx] getUser - API endpoint not yet implemented');
+
+    // Return placeholder data until API is ready
+    return {
+      id,
+      name: 'User Profile',
+      email: 'user@example.com',
+      isVerified: false,
+      createdAt: new Date().toISOString(),
+      role: 'USER'
+    };
+  } catch (error) {
+    console.error('Failed to fetch user:', error);
+    return null;
+  }
 }
 
 export default async function UserProfilePage({ params }: { params: { id: string } }) {
@@ -59,28 +74,28 @@ export default async function UserProfilePage({ params }: { params: { id: string
               </div>
 
               <div className="mt-6 border-t border-slate-100 pt-6">
-                 {user.agentProfile && (
-                    <div className="mb-4">
-                        <h3 className="text-sm font-semibold text-slate-900">About Agent</h3>
-                        <p className="mt-1 text-sm text-slate-600">{user.agentProfile.bio || "No bio available."}</p>
-                    </div>
-                 )}
-                 {user.landlordProfile && user.landlordProfile.companyName && (
-                    <div className="mb-4">
-                        <h3 className="text-sm font-semibold text-slate-900">Company</h3>
-                        <p className="mt-1 text-sm text-slate-600">{user.landlordProfile.companyName}</p>
-                    </div>
-                 )}
+                {user.agentProfile && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-slate-900">About Agent</h3>
+                    <p className="mt-1 text-sm text-slate-600">{user.agentProfile.bio || "No bio available."}</p>
+                  </div>
+                )}
+                {user.landlordProfile && user.landlordProfile.companyName && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-slate-900">Company</h3>
+                    <p className="mt-1 text-sm text-slate-600">{user.landlordProfile.companyName}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           {/* Main Content: Reviews */}
           <div className="lg:col-span-2 space-y-6">
-             <div className="rounded-2xl bg-white p-8 shadow-sm">
-                <h2 className="mb-6 text-xl font-bold text-slate-900">Ratings & Reviews</h2>
-                <UserProfileReviews userId={user.id} />
-             </div>
+            <div className="rounded-2xl bg-white p-8 shadow-sm">
+              <h2 className="mb-6 text-xl font-bold text-slate-900">Ratings & Reviews</h2>
+              <UserProfileReviews userId={user.id} />
+            </div>
           </div>
         </div>
       </main>

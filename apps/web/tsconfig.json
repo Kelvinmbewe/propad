@@ -11,6 +11,12 @@
     "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
+      "@prisma/client": [
+        "./__forbidden_prisma_in_web__"
+      ],
+      "@auth/prisma-adapter": [
+        "./__forbidden_prisma_in_web__"
+      ],
       "@/*": [
         "./*"
       ],

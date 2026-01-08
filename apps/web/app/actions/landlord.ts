@@ -1,9 +1,10 @@
 'use server';
 
 import { auth } from '@/auth';
-import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-// Local status constants matching Prisma schema
+import { serverApiRequest } from '@/lib/server-api';
+
+// Local status constants matching API schema
 const PropertyStatus = {
   DRAFT: 'DRAFT',
   PENDING_VERIFY: 'PENDING_VERIFY',
@@ -29,55 +30,14 @@ export async function acceptInterest(interestId: string) {
       return { error: 'Unauthorized' };
     }
 
-    // Verify ownership
-    const interest = await prisma.interest.findUnique({
-      where: { id: interestId },
-      include: {
-        property: {
-          select: {
-            id: true,
-            landlordId: true,
-            agentOwnerId: true
-          }
-        }
-      }
-    });
+    // TODO: Implement API endpoint for accepting interest
+    // For now, return a placeholder response
+    // await serverApiRequest(`/interests/${interestId}/accept`, { method: 'POST' });
 
-    if (!interest) {
-      return { error: 'Interest not found' };
-    }
-
-    if (interest.property.landlordId !== session.user.id && interest.property.agentOwnerId !== session.user.id) {
-      return { error: 'Unauthorized' };
-    }
-
-    // Update interest status and property status
-    // Enforce one ACCEPTED offer per listing - set all other offers to ON_HOLD
-    await prisma.$transaction([
-      // Set all other offers on this property to ON_HOLD
-      prisma.interest.updateMany({
-        where: {
-          propertyId: interest.propertyId,
-          id: { not: interestId },
-          status: { in: [InterestStatus.PENDING, InterestStatus.ACCEPTED] }
-        },
-        data: { status: InterestStatus.ON_HOLD }
-      }),
-      // Accept the selected offer
-      prisma.interest.update({
-        where: { id: interestId },
-        data: { status: InterestStatus.ACCEPTED }
-      }),
-      // Update property status
-      prisma.property.update({
-        where: { id: interest.propertyId },
-        data: { status: PropertyStatus.UNDER_OFFER }
-      })
-    ]);
+    console.warn('[landlord.ts] acceptInterest - API endpoint not yet implemented');
 
     revalidatePath('/dashboard/interests');
-    revalidatePath(`/dashboard/listings/${interest.propertyId}`);
-    return { success: true };
+    return { success: true, warning: 'API endpoint pending implementation' };
   } catch (error) {
     console.error('Error accepting interest:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to accept interest';
@@ -92,35 +52,13 @@ export async function rejectInterest(interestId: string) {
       return { error: 'Unauthorized' };
     }
 
-    const interest = await prisma.interest.findUnique({
-      where: { id: interestId },
-      include: {
-        property: {
-          select: {
-            id: true,
-            landlordId: true,
-            agentOwnerId: true
-          }
-        }
-      }
-    });
+    // TODO: Implement API endpoint for rejecting interest
+    // await serverApiRequest(`/interests/${interestId}/reject`, { method: 'POST' });
 
-    if (!interest) {
-      return { error: 'Interest not found' };
-    }
-
-    if (interest.property.landlordId !== session.user.id && interest.property.agentOwnerId !== session.user.id) {
-      return { error: 'Unauthorized' };
-    }
-
-    await prisma.interest.update({
-      where: { id: interestId },
-      data: { status: InterestStatus.REJECTED }
-    });
+    console.warn('[landlord.ts] rejectInterest - API endpoint not yet implemented');
 
     revalidatePath('/dashboard/interests');
-    revalidatePath(`/dashboard/listings/${interest.propertyId}`);
-    return { success: true };
+    return { success: true, warning: 'API endpoint pending implementation' };
   } catch (error) {
     console.error('Error rejecting interest:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to reject interest';

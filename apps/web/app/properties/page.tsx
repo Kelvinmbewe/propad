@@ -1,36 +1,19 @@
-import { prisma } from '@/lib/prisma';
 import { LandingPropertyCard, type LandingProperty } from '@/components/landing-property-card';
 import { LandingNav } from '@/components/landing-nav';
+import { serverPublicApiRequest } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 
 async function getProperties(): Promise<LandingProperty[]> {
-    const properties = await prisma.property.findMany({
-        where: {
-            status: 'VERIFIED'
-        },
-        orderBy: {
-            createdAt: 'desc'
-        },
-        include: {
-            suburb: true,
-            city: true,
-            media: true
-        }
-    });
-
-    return properties.map((p: any) => ({
-        id: p.id,
-        title: p.title || `${p.bedrooms} Bed ${p.type} in ${p.suburb?.name || 'Harare'}`,
-        location: `${p.suburb?.name || 'Harare'}, ${p.city?.name || 'Zimbabwe'}`,
-        price: `$${Number(p.price).toLocaleString()}`,
-        status: 'FOR SALE',
-        statusTone: 'sale',
-        imageUrl: p.media[0]?.url || 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80',
-        beds: p.bedrooms || 0,
-        baths: p.bathrooms || 0,
-        area: 0
-    } as LandingProperty));
+    try {
+        // TODO: Implement API endpoint for properties list
+        // const properties = await serverPublicApiRequest<any[]>('/properties?status=VERIFIED');
+        console.warn('[properties/page.tsx] getProperties - API endpoint not yet implemented');
+        return [];
+    } catch (error) {
+        console.error('Failed to fetch properties:', error);
+        return [];
+    }
 }
 
 export default async function PropertiesPage() {

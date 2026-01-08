@@ -1,46 +1,42 @@
 import { auth } from '@/auth';
-import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import { RentPaymentForm } from '@/components/rent-payment-form';
 import { CheckCircle, Clock } from 'lucide-react';
+import { serverApiRequest } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 
-async function getRentHistory(userId: string) {
-    const payments = await prisma.rentPayment.findMany({
-        where: { tenantId: userId },
-        include: {
-            property: {
-                select: { title: true }
-            }
-        },
-        orderBy: { paidAt: 'desc' }
-    });
-    return payments;
+interface RentPayment {
+    id: string;
+    paidAt: string;
+    amount: number;
+    currency: string;
+    isVerified: boolean;
+    property: { title: string };
 }
 
-async function getTenantProperties(userId: string) {
-    // In a real app, we'd query leases or active rentals.
-    // For now, we fetch all properties to let the user select (self-reporting)
-    // Or ideally, properties where they have an ACCEPTED interest?
-    // Let's filter properties where they have an accepted interest for better UX.
-    const interests = await prisma.interest.findMany({
-        where: { userId, status: 'ACCEPTED' },
-        include: { property: true }
-    });
-
-    // If no accepted interests, maybe they are renting outside the system or we just show all?
-    // Let's fallback to showing all active properties if list is empty to allow for "logging past rent" logic
-    // But logically, they should only pay for what they rent.
-    // For this task, I'll pass the properties they "connected" with.
-
-    if (interests.length > 0) {
-        return interests.map((i: { property: { id: string; title: string } }) => ({ id: i.property.id, title: i.property.title }));
+async function getRentHistory(userId: string): Promise<RentPayment[]> {
+    try {
+        // TODO: Implement API endpoint
+        // return await serverApiRequest<RentPayment[]>('/rent-payments');
+        console.warn('[rent-history/page.tsx] getRentHistory - API endpoint not yet implemented');
+        return [];
+    } catch (error) {
+        console.error('Failed to fetch rent history:', error);
+        return [];
     }
+}
 
-    // Fallback: Just return top 50 properties to pick from (for demo purposes if they haven't done the full flow)
-    const all = await prisma.property.findMany({ take: 50, select: { id: true, title: true } });
-    return all;
+async function getTenantProperties(userId: string): Promise<{ id: string; title: string }[]> {
+    try {
+        // TODO: Implement API endpoint
+        // return await serverApiRequest<any[]>('/properties/my-rentals');
+        console.warn('[rent-history/page.tsx] getTenantProperties - API endpoint not yet implemented');
+        return [];
+    } catch (error) {
+        console.error('Failed to fetch tenant properties:', error);
+        return [];
+    }
 }
 
 export default async function RentHistoryPage() {
@@ -77,7 +73,7 @@ export default async function RentHistoryPage() {
                             </div>
                         ) : (
                             <ul role="list" className="divide-y divide-slate-100">
-                                {payments.map((payment: Awaited<ReturnType<typeof getRentHistory>>[number]) => (
+                                {payments.map((payment) => (
                                     <li key={payment.id} className="flex items-center justify-between px-6 py-4">
                                         <div>
                                             <p className="font-medium text-slate-900">{payment.property.title}</p>

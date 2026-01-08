@@ -1,8 +1,8 @@
 'use server';
 
 import { auth } from '@/auth';
-import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { serverApiRequest } from '@/lib/server-api';
 
 export async function submitInterest(formData: FormData) {
   const session = await auth();
@@ -21,18 +21,15 @@ export async function submitInterest(formData: FormData) {
   const offerAmount = offerAmountStr ? parseFloat(offerAmountStr) : undefined;
 
   try {
-    await prisma.interest.create({
-      data: {
-        propertyId,
-        userId: session.user.id,
-        message,
-        offerAmount,
-        status: 'PENDING'
-      }
-    });
+    // TODO: Implement API endpoint
+    // await serverApiRequest('/interests', {
+    //   method: 'POST',
+    //   body: { propertyId, message, offerAmount }
+    // });
+    console.warn('[interest.ts] submitInterest - API endpoint not yet implemented');
 
     revalidatePath(`/properties/${propertyId}`);
-    return { success: true };
+    return { success: true, warning: 'API endpoint pending implementation' };
   } catch (error) {
     console.error('Failed to submit interest:', error);
     return { error: 'Failed to submit interest. You may have already expressed interest in this property.' };

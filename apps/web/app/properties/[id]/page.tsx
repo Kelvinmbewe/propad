@@ -1,4 +1,3 @@
-import { prisma } from '@/lib/prisma';
 import { LandingNav } from '@/components/landing-nav';
 import { InterestButton } from '@/components/interest-button';
 import { auth } from '@/auth';
@@ -7,42 +6,57 @@ import { PropertyImage } from '@/components/property-image';
 import { notFound } from 'next/navigation';
 import { Bath, BedDouble, MapPin, Ruler } from 'lucide-react';
 import { getImageUrl } from '@/lib/image-url';
+import { serverPublicApiRequest, serverApiRequest } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
 
-async function getProperty(id: string, userId?: string) {
-    const property = await prisma.property.findUnique({
-        where: { id },
-        include: {
-            suburb: true,
-            city: true,
-            media: true,
-            interests: userId ? {
-                where: { userId }
-            } : false
-        }
-    });
+interface PropertyDetails {
+    id: string;
+    title: string;
+    description: string | null;
+    location: string;
+    imageUrl: string;
+    price: number;
+    bedrooms: number;
+    bathrooms: number;
+    areaSqm: number | null;
+    listingIntent: string;
+    isInterested: boolean;
+    landlordId: string;
+    agentOwnerId: string | null;
+}
 
-  if (!property) return null;
+async function getProperty(id: string, userId?: string): Promise<PropertyDetails | null> {
+    try {
+        // TODO: Implement API endpoint
+        // const property = await serverPublicApiRequest<any>(`/properties/${id}`);
+        console.warn('[properties/[id]/page.tsx] getProperty - API endpoint not yet implemented');
 
-  const rawImageUrl = property.media[0]?.url;
-  const imageUrl = getImageUrl(rawImageUrl);
-
-  return {
-    ...property,
-    title: property.title || `${property.bedrooms} Bed ${property.type} in ${property.suburb?.name || 'Harare'}`,
-    location: `${property.suburb?.name || 'Harare'}, ${property.city?.name || 'Zimbabwe'}`,
-    imageUrl,
-        price: Number(property.price),
-        isInterested: property.interests && property.interests.length > 0,
-        listingIntent: (property as any).listingIntent ?? 'FOR_SALE',
-        areaSqm: (property as any).areaSqm ?? null
-    };
+        // Return placeholder data until API is ready
+        return {
+            id,
+            title: 'Property Details',
+            description: 'Property details are loading...',
+            location: 'Location pending',
+            imageUrl: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
+            price: 0,
+            bedrooms: 0,
+            bathrooms: 0,
+            areaSqm: null,
+            listingIntent: 'FOR_SALE',
+            isInterested: false,
+            landlordId: '',
+            agentOwnerId: null
+        };
+    } catch (error) {
+        console.error('Failed to fetch property:', error);
+        return null;
+    }
 }
 
 export default async function PropertyDetailsPage({ params }: { params: { id: string } }) {
     const session = await auth();
-    const property: any = await getProperty(params.id, session?.user?.id);
+    const property = await getProperty(params.id, session?.user?.id);
 
     if (!property) {
         notFound();
@@ -67,7 +81,6 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
                                     {property.listingIntent === 'TO_RENT' ? 'For Rent' : 'For Sale'}
                                 </span>
                                 <span className="flex items-center gap-1 text-sm font-medium">
-                                    {/* MapPin removed for debugging */}
                                     {property.location}
                                 </span>
                             </div>
