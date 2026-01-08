@@ -1,6 +1,6 @@
 // Remove PowerPhase enum import as it is missing in Prisma Client
+// NOTE: ChargeableItemType and PaymentProvider removed from imports - use string literals instead
 import {
-  ChargeableItemType,
   Currency,
   KycIdType,
   KycStatus,
@@ -9,7 +9,6 @@ import {
   ListingIntent,
   MediaKind,
   OwnerType,
-  PaymentProvider,
   PolicyStrikeReason,
   PayoutMethod,
   PayoutStatus,
@@ -893,7 +892,7 @@ async function main() {
   console.log('Seeding pricing rules...');
   const pricingRules = [
     {
-      itemType: ChargeableItemType.PROPERTY_VERIFICATION,
+      itemType: 'PROPERTY_VERIFICATION' as const,
       priceUsdCents: 2000, // $20 USD
       currency: Currency.USD,
       commissionPercent: new Prisma.Decimal(10.0), // 10%
@@ -904,7 +903,7 @@ async function main() {
       isActive: true
     },
     {
-      itemType: ChargeableItemType.AGENT_ASSIGNMENT,
+      itemType: 'AGENT_ASSIGNMENT' as const,
       priceUsdCents: 5000, // $50 USD
       currency: Currency.USD,
       commissionPercent: new Prisma.Decimal(15.0), // 15%
@@ -915,7 +914,7 @@ async function main() {
       isActive: true
     },
     {
-      itemType: ChargeableItemType.FEATURED_LISTING,
+      itemType: 'FEATURED_LISTING' as const,
       priceUsdCents: 2000, // $20 USD for 7 days
       currency: Currency.USD,
       commissionPercent: new Prisma.Decimal(10.0), // 10%
@@ -926,7 +925,7 @@ async function main() {
       isActive: true
     },
     {
-      itemType: ChargeableItemType.TRUST_BOOST,
+      itemType: 'TRUST_BOOST' as const,
       priceUsdCents: 1500, // $15 USD
       currency: Currency.USD,
       commissionPercent: new Prisma.Decimal(10.0), // 10%
@@ -937,7 +936,7 @@ async function main() {
       isActive: true
     },
     {
-      itemType: ChargeableItemType.PREMIUM_VERIFICATION,
+      itemType: 'PREMIUM_VERIFICATION' as const,
       priceUsdCents: 5000, // $50 USD
       currency: Currency.USD,
       commissionPercent: new Prisma.Decimal(10.0), // 10%
@@ -948,7 +947,7 @@ async function main() {
       isActive: true
     },
     {
-      itemType: ChargeableItemType.IN_HOUSE_ADVERT_BUYING,
+      itemType: 'IN_HOUSE_ADVERT_BUYING' as const,
       priceUsdCents: 1000, // $10 USD
       currency: Currency.USD,
       commissionPercent: new Prisma.Decimal(10.0), // 10%
@@ -959,7 +958,7 @@ async function main() {
       isActive: true
     },
     {
-      itemType: ChargeableItemType.IN_HOUSE_ADVERT_SELLING,
+      itemType: 'IN_HOUSE_ADVERT_SELLING' as const,
       priceUsdCents: 1000, // $10 USD
       currency: Currency.USD,
       commissionPercent: new Prisma.Decimal(10.0), // 10%
@@ -970,7 +969,7 @@ async function main() {
       isActive: true
     },
     {
-      itemType: ChargeableItemType.OTHER,
+      itemType: 'OTHER' as const,
       priceUsdCents: 1000, // $10 USD default
       currency: Currency.USD,
       commissionPercent: new Prisma.Decimal(10.0), // 10%
@@ -993,7 +992,7 @@ async function main() {
   // 2. Seed Payment Provider Settings (Paynow enabled)
   console.log('Seeding payment provider settings...');
   await prisma.paymentProviderSettings.upsert({
-    where: { provider: PaymentProvider.PAYNOW },
+    where: { provider: 'PAYNOW' },
     update: {
       enabled: true,
       isDefault: true,
@@ -1007,7 +1006,7 @@ async function main() {
       }
     },
     create: {
-      provider: PaymentProvider.PAYNOW,
+      provider: 'PAYNOW',
       enabled: true,
       isDefault: true,
       isTestMode: true,
@@ -1023,10 +1022,10 @@ async function main() {
 
   // Disable other providers by default
   await prisma.paymentProviderSettings.upsert({
-    where: { provider: PaymentProvider.STRIPE },
+    where: { provider: 'STRIPE' },
     update: { enabled: false, isDefault: false, isTestMode: true },
     create: {
-      provider: PaymentProvider.STRIPE,
+      provider: 'STRIPE',
       enabled: false,
       isDefault: false,
       isTestMode: true
@@ -1034,10 +1033,10 @@ async function main() {
   });
 
   await prisma.paymentProviderSettings.upsert({
-    where: { provider: PaymentProvider.PAYPAL },
+    where: { provider: 'PAYPAL' },
     update: { enabled: false, isDefault: false, isTestMode: true },
     create: {
-      provider: PaymentProvider.PAYPAL,
+      provider: 'PAYPAL',
       enabled: false,
       isDefault: false,
       isTestMode: true
@@ -1162,13 +1161,13 @@ async function main() {
         dueAt: new Date(),
         lines: {
           create: {
-            sku: `${ChargeableItemType.PROPERTY_VERIFICATION}-${paidProperty.id}`,
+            sku: `PROPERTY_VERIFICATION-${paidProperty.id}`,
             description: `Property Verification for ${paidProperty.id.substring(0, 8)}...`,
             qty: 1,
             unitPriceCents: 2000,
             totalCents: 2000,
             metaJson: {
-              featureType: ChargeableItemType.PROPERTY_VERIFICATION,
+              featureType: 'PROPERTY_VERIFICATION',
               featureId: paidProperty.id
             }
           }
@@ -1180,7 +1179,7 @@ async function main() {
       data: {
         userId: demoLandlord.id,
         featureId: paidProperty.id,
-        featureType: ChargeableItemType.PROPERTY_VERIFICATION,
+        featureType: 'PROPERTY_VERIFICATION',
         invoiceId: paidInvoice.id,
         amountCents: 2300, // Including VAT
         currency: Currency.USD,
@@ -1207,13 +1206,13 @@ async function main() {
           dueAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           lines: {
             create: {
-              sku: `${ChargeableItemType.PROPERTY_VERIFICATION}-${unpaidProperty.id}`,
+              sku: `PROPERTY_VERIFICATION-${unpaidProperty.id}`,
               description: `Property Verification for ${unpaidProperty.id.substring(0, 8)}...`,
               qty: 1,
               unitPriceCents: 2000,
               totalCents: 2000,
               metaJson: {
-                featureType: ChargeableItemType.PROPERTY_VERIFICATION,
+                featureType: 'PROPERTY_VERIFICATION',
                 featureId: unpaidProperty.id
               }
             }
@@ -1239,13 +1238,13 @@ async function main() {
           dueAt: new Date(),
           lines: {
             create: {
-              sku: `${ChargeableItemType.AGENT_ASSIGNMENT}-${agentProperty.id}`,
+              sku: `AGENT_ASSIGNMENT-${agentProperty.id}`,
               description: `Agent Assignment for ${agentProperty.id.substring(0, 8)}...`,
               qty: 1,
               unitPriceCents: 5000,
               totalCents: 5000,
               metaJson: {
-                featureType: ChargeableItemType.AGENT_ASSIGNMENT,
+                featureType: 'AGENT_ASSIGNMENT',
                 featureId: agentProperty.id
               }
             }
@@ -1257,7 +1256,7 @@ async function main() {
         data: {
           userId: demoLandlord.id,
           featureId: agentProperty.id,
-          featureType: ChargeableItemType.AGENT_ASSIGNMENT,
+          featureType: 'AGENT_ASSIGNMENT',
           invoiceId: agentInvoice.id,
           amountCents: 5750,
           currency: Currency.USD,
@@ -1268,22 +1267,24 @@ async function main() {
         }
       });
 
-      // Create actual agent assignment
-      await prisma.agentAssignment.upsert({
+      // Create actual agent assignment (safe idempotent logic - no composite key)
+      const existingAssignment = await prisma.agentAssignment.findFirst({
         where: {
-          propertyId_agentId: {
-            propertyId: agentProperty.id,
-            agentId: demoAgent.id
-          }
-        },
-        update: {},
-        create: {
           propertyId: agentProperty.id,
-          landlordId: demoLandlord.id,
-          agentId: demoAgent.id,
-          serviceFeeUsdCents: 5000
+          agentId: demoAgent.id
         }
       });
+
+      if (!existingAssignment) {
+        await prisma.agentAssignment.create({
+          data: {
+            propertyId: agentProperty.id,
+            landlordId: demoLandlord.id,
+            agentId: demoAgent.id,
+            serviceFeeUsdCents: 5000
+          }
+        });
+      }
     }
   }
 
