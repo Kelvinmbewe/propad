@@ -2,21 +2,16 @@ import NextAuth from 'next-auth';
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
-const NEXTAUTH_URL =
-    process.env.NEXTAUTH_URL ?? 'http://localhost:3000';
+const API_URL =
+    process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 const NEXTAUTH_SECRET =
     process.env.NEXTAUTH_SECRET ?? 'propad-dev-secret';
 
-const API_URL =
-    process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-
 const options: NextAuthOptions = {
     debug: true,
     secret: NEXTAUTH_SECRET,
-    session: {
-        strategy: 'jwt',
-    },
+    session: { strategy: 'jwt' },
     providers: [
         CredentialsProvider({
             name: 'Credentials',
@@ -50,7 +45,6 @@ const options: NextAuthOptions = {
                     return null;
                 }
 
-                // ✅ STRICT NextAuth User shape
                 return {
                     id: String(data.user.id),
                     email: String(data.user.email),
@@ -86,11 +80,15 @@ const options: NextAuthOptions = {
             },
         },
     },
-    pages: {
-        signIn: '/auth/signin',
-    },
+    pages: { signIn: '/auth/signin' },
 };
 
-const handler = NextAuth(options);
+const authHandler = NextAuth(options);
 
-export { handler as GET, handler as POST };
+export async function GET(req: Request) {
+    return authHandler(req);
+}
+
+export async function POST(req: Request) {
+    return authHandler(req);
+}
