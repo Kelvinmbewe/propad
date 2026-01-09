@@ -11,6 +11,7 @@ import { resolve } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { HttpAdapterHost } from '@nestjs/core';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
+import { LoggingInterceptor } from './common/logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -19,6 +20,7 @@ async function bootstrap() {
 
   const httpAdapter = app.get(HttpAdapterHost);
   app.useGlobalFilters(new AllExceptionsFilter(httpAdapter));
+  app.useGlobalInterceptors(new LoggingInterceptor());
 
   const logger = new Logger('HTTP');
   app.useLogger(logger);

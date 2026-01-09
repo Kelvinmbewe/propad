@@ -40,6 +40,7 @@ import { PayoutsModule } from './payouts/payouts.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AuditModule } from './audit/audit.module';
 import { ReconciliationModule } from './reconciliation/reconciliation.module';
+import { OpsModule } from './ops/ops.module';
 
 @Module({
   imports: [
@@ -80,8 +81,10 @@ import { ReconciliationModule } from './reconciliation/reconciliation.module';
     PayoutsModule,
     DashboardModule,
     AuthenticationModule, // Alias if needed, assuming AuthModule is correct
+    AuthenticationModule, // Alias if needed, assuming AuthModule is correct
     AuditModule,
     ReconciliationModule,
+    OpsModule,
     InterestsModule
   ],
   ],
