@@ -552,14 +552,14 @@ model User {
   viewingsAsLandlord       Viewing[]            @relation("ViewingLandlord")
 
   // New Profile Fields
-  profilePhoto      String?
-  bio               String?
-  location          String?
-  trustScore        Int     @default(0)
-  verificationScore Int     @default(0)
-  riskScore         Int     @default(0) // Internal only
-  failedLoginAttempts Int     @default(0)
-  lockedUntil       DateTime?
+  profilePhoto        String?
+  bio                 String?
+  location            String?
+  trustScore          Int       @default(0)
+  verificationScore   Int       @default(0)
+  riskScore           Int       @default(0) // Internal only
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
 
   // Role Management
   roles         UserRole[]
@@ -579,28 +579,30 @@ model User {
   adEvents            AdEvent[]            @relation("AdEventUser")
   rewardDistributions RewardDistribution[]
   riskEvents          RiskEvent[]
-  
+
   // Growth & Referrals
-  referralCodesOwned  ReferralCode[]       @relation("ReferralCodeOwner")
-  referredByCodeId    String?
-  referredByCode      ReferralCode?        @relation("ReferredByCode", fields: [referredByCodeId], references: [id])
-  promoUsages         PromoUsage[]
-  pushTokens          PushToken[]
-  applications        Application[]
+  referralCodesOwned ReferralCode[] @relation("ReferralCodeOwner")
+  referredByCodeId   String?
+  referredByCode     ReferralCode?  @relation("ReferredByCode", fields: [referredByCodeId], references: [id])
+  promoUsages        PromoUsage[]
+  pushTokens         PushToken[]
+  applications       Application[]
+  commissions        Commission[]   @relation("AgentCommissions")
 
   @@index([role])
 }
 
 model PushToken {
-  id        String   @id @default(cuid())
-  userId    String
-  deviceId  String   // Unique device ID
-  platform  String   // IOS, ANDROID, WEB
-  token     String
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  deviceId   String // Unique device ID
+  platform   String // IOS, ANDROID, WEB
+  token      String
+  createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
   @@unique([deviceId])
   @@index([userId])
 }
@@ -608,27 +610,28 @@ model PushToken {
 model RiskEvent {
   id        String   @id @default(cuid())
   userId    String?
-  type      String   // LOGIN_FAIL, PAYOUT_SPIKE, IP_VELOCITY
-  severity  String   // LOW, MEDIUM, HIGH, CRITICAL
+  type      String // LOGIN_FAIL, PAYOUT_SPIKE, IP_VELOCITY
+  severity  String // LOW, MEDIUM, HIGH, CRITICAL
   metadata  Json?
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())
 
-  user      User?    @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
+
   @@index([userId])
 }
 
 model ReferralCode {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  ownerId     String
-  expiresAt   DateTime?
-  usageLimit  Int?
-  usageCount  Int      @default(0)
-  createdAt   DateTime @default(now())
-  
-  owner       User     @relation("ReferralCodeOwner", fields: [ownerId], references: [id])
+  id         String    @id @default(cuid())
+  code       String    @unique
+  ownerId    String
+  expiresAt  DateTime?
+  usageLimit Int?
+  usageCount Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  owner         User   @relation("ReferralCodeOwner", fields: [ownerId], references: [id])
   usersReferred User[] @relation("ReferredByCode")
 
   @@index([code])
@@ -636,18 +639,18 @@ model ReferralCode {
 }
 
 model PromoCode {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  type        String   // CREDIT, DISCOUNT
-  value       Int      // amount in cents or percentage
-  appliesTo   String[] // [ADS, VERIFICATION]
-  expiresAt   DateTime?
-  maxUses     Int?
-  usedCount   Int      @default(0)
-  createdAt   DateTime @default(now())
-  active      Boolean  @default(true)
-  
-  usages      PromoUsage[]
+  id        String    @id @default(cuid())
+  code      String    @unique
+  type      String // CREDIT, DISCOUNT
+  value     Int // amount in cents or percentage
+  appliesTo String[] // [ADS, VERIFICATION]
+  expiresAt DateTime?
+  maxUses   Int?
+  usedCount Int       @default(0)
+  createdAt DateTime  @default(now())
+  active    Boolean   @default(true)
+
+  usages PromoUsage[]
 }
 
 model PromoUsage {
@@ -656,9 +659,9 @@ model PromoUsage {
   promoCodeId String
   usedAt      DateTime @default(now())
 
-  user        User      @relation(fields: [userId], references: [id])
-  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id])
-  
+  user      User      @relation(fields: [userId], references: [id])
+  promoCode PromoCode @relation(fields: [promoCodeId], references: [id])
+
   @@unique([userId, promoCodeId])
 }
 
@@ -841,6 +844,7 @@ model Property {
   metricsDaily    MetricListingDaily[]
   shortLinks      ShortLink[]
   reviews         UserReview[]
+  commissions     Commission[]
 
   // Role-Aware
   createdByRole String @default("LANDLORD")
@@ -1388,6 +1392,8 @@ model PayoutRequest {
   payoutAccount      PayoutAccount       @relation(fields: [payoutAccountId], references: [id])
   payoutTransactions PayoutTransaction[] @relation("PayoutTransactionRequest")
   referralEarnings   ReferralEarning[]   @relation("ReferralEarningPayout")
+  commissions        Commission[]        @relation("CommissionPayout")
+  PayoutExecution    PayoutExecution[]
 
   @@index([walletId, status, createdAt(sort: Desc)])
   @@index([txRef])
@@ -1411,13 +1417,15 @@ model Advertiser {
 }
 
 model Application {
-  id         String            @id @default(cuid())
+  id         String              @id @default(cuid())
   propertyId String
   userId     String
-  status     ApplicationStatus @default(SUBMITTED)
+  status     ApplicationStatus   @default(SUBMITTED)
   notes      String?
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  paymentId  String?             @unique
+  payment    PaymentTransaction? @relation(fields: [paymentId], references: [id])
 
   property Property @relation(fields: [propertyId], references: [id])
   user     User     @relation(fields: [userId], references: [id])
@@ -1967,20 +1975,24 @@ model SiteVisit {
   @@index([status])
 }
 
-model RiskEvent {
-  id         String   @id @default(cuid())
-  entityType String // USER, AGENCY, PROPERTY
-  entityId   String
-  signalType String // BURST_LISTING, GPS_MISMATCH, etc.
-  scoreDelta Int
-  notes      String?
-  timestamp  DateTime @default(now())
-  resolvedBy String? // Admin User ID
 
-  @@index([entityType, entityId])
-  @@index([signalType])
-  @@index([timestamp])
-}
+
+// model RiskEvent {
+//   id         String   @id @default(cuid())
+//   entityType String
+//   entityId   String
+//   signalType String
+//   scoreDelta Int
+//   notes      String?
+//   timestamp  DateTime @default(now())
+//   resolvedBy String?
+//
+//   @@index([entityType, entityId])
+//   @@index([signalType])
+//   @@index([timestamp])
+// }
+
+
 
 enum BoostType {
   LISTING_BOOST
@@ -2105,6 +2117,8 @@ model PaymentTransaction {
   user          User           @relation("PaymentTransactionUser", fields: [userId], references: [id])
   invoice       Invoice?       @relation("PaymentTransactionInvoice", fields: [invoiceId], references: [id])
   paymentIntent PaymentIntent? @relation("PaymentTransactionIntent", fields: [paymentIntentId], references: [id])
+  commissions   Commission[]
+  application   Application?
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([featureType, featureId])
@@ -2175,13 +2189,12 @@ model AdSenseDailyStat {
   revenueMicros BigInt
   currencyCode  String   @default("USD")
   createdAt     DateTime @default(now())
-  createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
 
 model PricingConfig {
   key         String   @id
-  value       Json     // e.g. { "percent": 10 } or { "amount": 5000 }
+  value       Json // e.g. { "percent": 10 } or { "amount": 5000 }
   scope       String   @default("GLOBAL")
   description String?
   enabled     Boolean  @default(true)
@@ -2192,26 +2205,53 @@ model PricingConfig {
 model PayoutExecution {
   id              String   @id @default(cuid())
   payoutRequestId String
-  provider        String   // paynow, bank
+  provider        String // paynow, bank
   providerRef     String?
   amountCents     Int
   currency        String
-  status          String   // PENDING, SUCCESS, FAILED
+  status          String // PENDING, SUCCESS, FAILED
   responseJson    Json?
   createdAt       DateTime @default(now())
 
-  payoutRequest   PayoutRequest @relation(fields: [payoutRequestId], references: [id])
+  payoutRequest PayoutRequest @relation(fields: [payoutRequestId], references: [id])
 
   @@index([payoutRequestId])
 }
 
 model PaymentWebhookEvent {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   provider    String
   payload     Json
-  processed   Boolean  @default(false)
+  processed   Boolean   @default(false)
   processedAt DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 }
 
+model Commission {
+  id              String           @id @default(cuid())
+  agentId         String
+  propertyId      String?
+  transactionId   String?
+  amountCents     Int
+  currency        Currency
+  ratePercent     Decimal          @db.Decimal(5, 2)
+  status          CommissionStatus @default(PENDING) // PENDING, PAID, CANCELLED
+  payoutRequestId String?
+  createdAt       DateTime         @default(now())
+  paidAt          DateTime?
 
+  agent         User                @relation("AgentCommissions", fields: [agentId], references: [id])
+  property      Property?           @relation(fields: [propertyId], references: [id])
+  transaction   PaymentTransaction? @relation(fields: [transactionId], references: [id])
+  payoutRequest PayoutRequest?      @relation("CommissionPayout", fields: [payoutRequestId], references: [id])
+
+  @@index([agentId])
+  @@index([propertyId])
+  @@index([status])
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
+  CANCELLED
+}

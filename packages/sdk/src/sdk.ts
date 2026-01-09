@@ -140,6 +140,21 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
       my: async () => client.get('rewards/my').json<any[]>(),
       pools: async () => client.get('rewards/pools').json<any[]>(),
     },
+    wallets: {
+      me: async () => client.get('wallets/me').json<any>(),
+      transactions: async (id: string) => client.get(`wallets/${id}/transactions`).json<any[]>(),
+    },
+    payouts: {
+      request: async (payload: {
+        amountCents: number;
+        method: 'ECOCASH' | 'BANK' | 'WALLET';
+        payoutAccountId: string;
+        currency?: 'USD' | 'ZWG';
+        ownerType: 'USER' | 'AGENCY';
+        ownerId?: string;
+      }) => client.post('payouts/request', { json: payload }).json<PayoutRequest>(),
+      my: async () => client.get('payouts/my').json<PayoutRequest[]>(),
+    },
     properties: {
       listOwned: async () =>
         client

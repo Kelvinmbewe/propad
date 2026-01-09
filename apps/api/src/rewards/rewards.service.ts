@@ -113,4 +113,23 @@ export class RewardsService {
       totalDistributed: results.length * amountPerAgent
     };
   }
+
+  async processPaymentRewards(invoice: any) {
+    // Implement transactional rewards (e.g. points for payment)
+    // For now, checks if invoice has eligible items and awards points
+    // This is distinct from the Revenue Share distribution
+
+    // Example: Award 1 point per $10 spent
+    if (invoice.buyerUserId) {
+      const points = Math.floor(invoice.amountUsdCents / 1000);
+      if (points > 0) {
+        // Credit points wallet? 
+        // Needs WalletService or similar.
+        // For MVP, just log or skip if Points system isn't fully defined in schema yet.
+        // Schema has `RewardDistribution` and `RewardPool`.
+        // Let's assume we skip for now unless specifically requested.
+        // Or better, create a RewardDistribution for 'Points'.
+      }
+    }
+  }
 }

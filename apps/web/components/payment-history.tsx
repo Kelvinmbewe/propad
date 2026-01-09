@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Skele
 import { formatCurrency } from '@/lib/formatters';
 import { Receipt, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 
 interface Invoice {
   id: string;
@@ -71,25 +72,16 @@ const getStatusBadge = (status: string) => {
 };
 
 export function PaymentHistory() {
+  const sdk = useAuthenticatedSDK();
   const { data: session } = useSession();
 
   const { data: invoices, isLoading } = useQuery<Invoice[]>({
     queryKey: ['invoices-my'],
     queryFn: async () => {
-      const token = session?.accessToken;
-      if (!token) throw new Error('Not authenticated');
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/payments/invoices/my`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to load invoices');
-      }
-      return response.json();
+      if (!sdk) throw new Error('SDK not initialized');
+      return sdk.invoices.my();
     },
-    enabled: !!session?.accessToken
+    enabled: !!sdk
   });
 
   if (isLoading) {

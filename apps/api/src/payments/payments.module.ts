@@ -21,6 +21,8 @@ import { ReferralsController } from './referrals.controller';
 import { PaymentPollingService } from './payment-polling.service';
 import { PaymentRequiredGuard } from './guards/payment-required.guard';
 import { WalletsModule } from '../wallets/wallets.module';
+import { CommissionsModule } from '../commissions/commissions.module';
+import { RewardsModule } from '../rewards/rewards.module';
 import { FeatureAccessService } from './feature-access.service';
 import { FeatureAccessController } from './feature-access.controller';
 import { PaynowPayoutGateway } from './gateways/paynow-payout.gateway';
@@ -30,7 +32,7 @@ import { PAYOUT_GATEWAYS } from './payments.constants';
 import { PayoutGatewayRegistry } from './payout-gateway.registry';
 
 @Module({
-  imports: [PrismaModule, AuditModule, HttpModule, MailModule, WalletsModule],
+  imports: [PrismaModule, AuditModule, HttpModule, MailModule, WalletsModule, CommissionsModule, RewardsModule],
   controllers: [
     PaymentsController,
     PaymentMethodsController,
@@ -73,4 +75,4 @@ import { PayoutGatewayRegistry } from './payout-gateway.registry';
   ],
   exports: [PaymentsService, PricingService, PayoutsService, ReferralsService, PaymentRequiredGuard, FeatureAccessService]
 })
-export class PaymentsModule {}
+export class PaymentsModule { }

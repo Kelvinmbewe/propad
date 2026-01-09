@@ -58,13 +58,16 @@ export default function WalletPage() {
     if (!amount) return;
 
     try {
-      await sdk.payouts.requestPayout({
+      if (!sdk) return;
+      await sdk.payouts.request({
         amountCents: Math.floor(parseFloat(amount) * 100),
-        method: 'BANK_TRANSFER', // Hardcoded for Demo
-        accountId: 'demo-account-id'
+        method: 'BANK', // Default for now
+        payoutAccountId: 'demo-account-id', // TODO: User needs to select account
+        ownerType: 'USER',
+        currency: 'USD'
       });
       alert("Payout requested successfully!");
-      window.location.reload(); // Simple refresh to see new state
+      window.location.reload();
     } catch (e) {
       console.error(e);
       alert("Failed to request payout. Ensure you have balance and valid account.");
@@ -74,15 +77,8 @@ export default function WalletPage() {
   const { data: payouts, isLoading: loadingPayouts } = useQuery<PayoutRequest[]>({
     queryKey: ['payouts-my'],
     queryFn: async () => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/payouts/my`, {
-        headers: {
-          Authorization: `Bearer ${session?.accessToken}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to load payouts');
-      }
-      return response.json();
+      if (!sdk) throw new Error('SDK not initialized');
+      return sdk.payouts.my();
     },
     enabled: !!sdk
   });
