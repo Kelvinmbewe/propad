@@ -7,10 +7,12 @@ const API_URL =
 const NEXTAUTH_SECRET =
     process.env.NEXTAUTH_SECRET ?? 'propad-dev-secret';
 
-const options = {
+const config = {
     debug: true,
     secret: NEXTAUTH_SECRET,
-    session: { strategy: 'jwt' },
+    session: {
+        strategy: 'jwt' as const,
+    },
     providers: [
         CredentialsProvider({
             name: 'Credentials',
@@ -81,15 +83,12 @@ const options = {
             },
         },
     },
-    pages: { signIn: '/auth/signin' },
+    pages: {
+        signIn: '/auth/signin',
+    },
 };
 
-const authHandler = NextAuth(options);
+const { handlers } = NextAuth(config);
 
-export async function GET(req: Request) {
-    return authHandler(req);
-}
-
-export async function POST(req: Request) {
-    return authHandler(req);
-}
+export const GET = handlers.GET;
+export const POST = handlers.POST;
