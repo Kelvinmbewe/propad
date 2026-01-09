@@ -18,7 +18,14 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   }, [status, params, router]);
 
   if (status !== 'authenticated') {
-    return <p className="p-8 text-sm text-neutral-500">Checking session…</p>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[color:var(--aurora-color-background)]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[color:var(--aurora-color-accent)] border-t-transparent" />
+          <p className="text-sm font-medium text-[color:var(--aurora-color-text-subtle)]">Verifying access rights...</p>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

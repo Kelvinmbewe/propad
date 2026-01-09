@@ -12,7 +12,7 @@ interface AuthContext {
 
 @Injectable()
 export class LeadsService {
-  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
+  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) { }
 
   async create(dto: CreateLeadDto) {
     const lead = await this.prisma.lead.create({
@@ -58,12 +58,30 @@ export class LeadsService {
     return updated;
   }
 
-  async analytics() {
+  async analytics(actor?: AuthContext & { role: string }) {
+    const where: any = {};
+    if (actor && actor.role === 'AGENT') {
+      where.property = { agentOwnerId: actor.userId };
+    } else if (actor && actor.role === 'LANDLORD') {
+      where.property = { landlordId: actor.userId };
+    }
+
     const [statusCounts, sourceCounts, recentLeads] = await Promise.all([
-      this.prisma.lead.groupBy({ by: ['status'], _count: { _all: true } }),
-      this.prisma.lead.groupBy({ by: ['source'], _count: { _all: true } }),
+      this.prisma.lead.groupBy({
+        by: ['status'],
+        _count: { _all: true },
+        where
+      }),
+      this.prisma.lead.groupBy({
+        by: ['source'],
+        _count: { _all: true },
+        where
+      }),
       this.prisma.lead.findMany({
-        where: { createdAt: { gte: subDays(new Date(), 30) } },
+        where: {
+          ...where,
+          createdAt: { gte: subDays(new Date(), 30) }
+        },
         select: { id: true, createdAt: true, source: true }
       })
     ]);

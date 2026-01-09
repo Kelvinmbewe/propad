@@ -2,8 +2,10 @@ import { Controller, Get, UseGuards, Request } from '@nestjs/common';
 import { RewardsService } from './rewards.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
+import { RolesGuard } from '../auth/roles.guard';
+
 @Controller('rewards')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class RewardsController {
   constructor(private readonly rewardsService: RewardsService) { }
 

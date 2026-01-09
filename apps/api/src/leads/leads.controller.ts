@@ -35,9 +35,11 @@ export class LeadsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.ADMIN)
+  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN) // Added LANDLORD
   @Get('analytics/summary')
-  analytics() {
-    return this.leadsService.analytics();
+  analytics(@Req() req: AuthenticatedRequest) {
+    // Cast to include role since AuthenticatedRequest in this file might be minimal
+    // But we should improve the interface definition ideally.
+    return this.leadsService.analytics(req.user as any);
   }
 }
