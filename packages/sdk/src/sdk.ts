@@ -120,6 +120,9 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .json<GeoListingsResponse>()
           .then((data) => GeoListingsResponseSchema.parse(data)),
     },
+    dashboard: {
+      overview: async () => client.get('dashboard/overview').json<any>(),
+    },
     properties: {
       listOwned: async () =>
         client

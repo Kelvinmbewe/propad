@@ -34,6 +34,7 @@ import { MonetizationModule } from './monetization/monetization.module';
 import { AdvertisersModule } from './advertisers/advertisers.module';
 import { WalletModule } from './wallet/wallet.module';
 import { PayoutsModule } from './payouts/payouts.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -69,7 +70,8 @@ import { PayoutsModule } from './payouts/payouts.module';
     MonetizationModule,
     AdvertisersModule,
     WalletModule,
-    PayoutsModule
+    PayoutsModule,
+    DashboardModule
   ],
   providers: [
     {

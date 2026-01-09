@@ -16,7 +16,7 @@ import {
   YAxis
 } from 'recharts';
 import { io } from 'socket.io-client';
-import { Building2, MapPin, MousePointerClick, TrendingUp, Users, X } from 'lucide-react';
+import { Building2, MapPin, MousePointerClick, TrendingUp, Users, X, LayoutDashboard, Wallet2, MessageSquare } from 'lucide-react';
 import { env } from '@propad/config';
 import {
   Button,
@@ -28,7 +28,8 @@ import {
   Skeleton
 } from '@propad/ui';
 import { useOverviewMetrics, useDailyAds, useTopAgents, useGeoListings } from '@/hooks/use-admin-metrics';
-import type { AdminOverviewMetrics, DailyAdsPoint, TopAgentPerformance } from '@propad/sdk';
+import { useDashboardMetrics } from '@/hooks/use-dashboard-metrics';
+import type { AdminOverviewMetrics, DailyAdsPoint, TopAgentPerformance, Role } from '@propad/sdk';
 
 const RANGE_OPTIONS = [7, 30, 90] as const;
 const CITY_CHOICES = ['Harare', 'Bulawayo', 'Mutare'];
@@ -91,7 +92,9 @@ export function DashboardOverview() {
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
+  const role = (session?.user?.role || 'USER') as Role;
 
+  // --- Admin Specific State ---
   const toParam = searchParams.get('to');
   const fromParam = searchParams.get('from');
   const cityParam = searchParams.get('city');
@@ -112,7 +115,12 @@ export function DashboardOverview() {
     ? (rangeDays as RangeOption)
     : null;
 
-  const overviewQuery = useOverviewMetrics();
+  // --- Hooks ---
+  const dashboardQuery = useDashboardMetrics();
+
+  // Conditionally fetch admin metrics
+  const isAdmin = role === 'ADMIN';
+  const overviewQuery = useOverviewMetrics(); // Ideally conditionally enabled, but keep simple for now
   const dailyAdsQuery = useDailyAds(fromIso, toIso);
   const [agentsLimit, setAgentsLimit] = useState(5);
   const topAgentsQuery = useTopAgents(agentsLimit);
@@ -148,14 +156,17 @@ export function DashboardOverview() {
     [updateQuery]
   );
 
+  // --- Data Preparation ---
   const dailyAds = dailyAdsQuery.data ?? [];
   const overview = overviewQuery.data;
   const topAgents = topAgentsQuery.data?.items ?? [];
   const totalAgents = topAgentsQuery.data?.totalAgents ?? 0;
   const geoData = geoQuery.data;
+  const scopedMetrics = dashboardQuery.data;
 
+  // --- Socket.IO for Admin ---
   useEffect(() => {
-    if (!env.NEXT_PUBLIC_WS_ENABLED || !session?.accessToken) {
+    if (!env.NEXT_PUBLIC_WS_ENABLED || !session?.accessToken || !isAdmin) {
       return;
     }
 
@@ -210,7 +221,7 @@ export function DashboardOverview() {
     return () => {
       socket.disconnect();
     };
-  }, [fromIso, queryClient, session?.accessToken, toIso]);
+  }, [fromIso, queryClient, session?.accessToken, toIso, isAdmin]);
 
   useEffect(() => {
     if (agentsLimit > totalAgents && totalAgents > 0) {
@@ -221,9 +232,7 @@ export function DashboardOverview() {
   const [selectedAgent, setSelectedAgent] = useState<TopAgentPerformance | null>(null);
 
   const overviewCards = useMemo(() => {
-    if (!overview) {
-      return [];
-    }
+    if (!overview) return [];
     return [
       {
         key: 'listings',
@@ -284,6 +293,142 @@ export function DashboardOverview() {
 
   const handleCloseDrawer = useCallback(() => setSelectedAgent(null), []);
 
+  // --- Shared Loading State ---
+  if (dashboardQuery.isLoading && !isAdmin) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-32 w-full rounded-xl" />
+        ))}
+      </div>
+    );
+  }
+
+  // --- Render Non-Admin Roles ---
+  if (!isAdmin) {
+    if (!scopedMetrics) return <p className="text-neutral-500">No dashboard data available.</p>;
+
+    if (scopedMetrics.type === 'AGENT') {
+      return (
+        <div className="space-y-6">
+          <h1 className="text-2xl font-semibold">Agent Dashboard</h1>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-neutral-500">Active Listings</CardTitle>
+                <Building2 className="h-4 w-4 text-neutral-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{scopedMetrics.activeListings}</div>
+                <p className="text-xs text-neutral-500">Properties verified & live</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-neutral-500">Total Interests</CardTitle>
+                <Users className="h-4 w-4 text-neutral-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{scopedMetrics.totalInterests}</div>
+                <p className="text-xs text-neutral-500">Total leads/interests</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-neutral-500">New Leads (7d)</CardTitle>
+                <TrendingUp className="h-4 w-4 text-neutral-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{scopedMetrics.newLeads7d}</div>
+                <p className="text-xs text-neutral-500">Recent potential clients</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-neutral-500">Pending Commission</CardTitle>
+                <Wallet2 className="h-4 w-4 text-neutral-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{currencyFormatter.format(scopedMetrics.pendingCommissionUsd)}</div>
+                <p className="text-xs text-neutral-500">Rewards to be paid out</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    if (scopedMetrics.type === 'LANDLORD') {
+      return (
+        <div className="space-y-6">
+          <h1 className="text-2xl font-semibold">Landlord Dashboard</h1>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-neutral-500">Owned Properties</CardTitle>
+                <Building2 className="h-4 w-4 text-neutral-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{scopedMetrics.ownedProperties}</div>
+                <p className="text-xs text-neutral-500">Total portfolio size</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-neutral-500">Active Tenants</CardTitle>
+                <Users className="h-4 w-4 text-neutral-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{scopedMetrics.activeTenants}</div>
+                <p className="text-xs text-neutral-500">Currently renting</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-neutral-500">Occupancy Rate</CardTitle>
+                <TrendingUp className="h-4 w-4 text-neutral-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{scopedMetrics.occupancyRate.toFixed(1)}%</div>
+                <p className="text-xs text-neutral-500">Portfolio utilization</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    // Default / User View
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-semibold">My Activity</h1>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-neutral-500">Active Applications</CardTitle>
+              <LayoutDashboard className="h-4 w-4 text-neutral-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{scopedMetrics?.activeApplications || 0}</div>
+              <p className="text-xs text-neutral-500">Ongoing property applications</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-neutral-500">Saved Properties</CardTitle>
+              <Users className="h-4 w-4 text-neutral-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{scopedMetrics?.savedProperties || 0}</div>
+              <p className="text-xs text-neutral-500">Favorites & Watchlist</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Admin Render (Previous Implementation) ---
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
@@ -607,3 +752,4 @@ export function DashboardOverview() {
     </div>
   );
 }
+
