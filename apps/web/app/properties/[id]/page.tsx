@@ -1,5 +1,5 @@
 import { LandingNav } from '@/components/landing-nav';
-import { InterestButton } from '@/components/interest-button';
+import { ApplicationModal } from '@/components/application-modal';
 import { auth } from '@/auth';
 import { PropertyMessenger } from '@/components/property-messenger';
 import { PropertyImage } from '@/components/property-image';
@@ -177,9 +177,9 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
                                 </div>
                             ) : (
                                 <>
-                                    <InterestButton
+                                    <ApplicationModal
                                         propertyId={property.id}
-                                    // isInterested={property.isInterested} // API didn't return this yet for public, assuming false or handle in component
+                                        propertyTitle={property.title}
                                     />
 
                                     {session?.user ? (

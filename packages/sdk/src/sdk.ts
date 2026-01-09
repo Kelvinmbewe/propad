@@ -29,6 +29,8 @@ import {
   SiteVisitSchema,
   RiskEventSchema,
   RiskEntitySummarySchema,
+  ApplicationStatusSchema,
+  ApplicationSchema,
   type AdImpression,
   type AgentAssignment,
   type AgentSummary,
@@ -63,6 +65,7 @@ import {
   type AdminUser,
   type AdminAgency
 } from './schemas';
+import { createApplicationsResource } from './applications';
 
 interface SDKOptions {
   baseUrl: string;
@@ -127,6 +130,7 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
       toggle: async (propertyId: string) => client.post('interests/toggle', { json: { propertyId } }).json<{ isSaved: boolean }>(),
       my: async () => client.get('interests/my').json<any[]>(),
     },
+    applications: createApplicationsResource(client),
     leads: {
       create: async (payload: any) => client.post('leads', { json: payload }).json<any>(),
       findAll: async () => client.get('leads').json<any[]>(),

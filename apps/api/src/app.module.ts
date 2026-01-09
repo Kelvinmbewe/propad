@@ -95,7 +95,8 @@ import { GrowthModule } from './growth/growth.module';
     PricingModule,
     SecurityModule,
     GrowthModule,
-    InterestsModule
+    InterestsModule,
+    ApplicationsModule
   ],
   providers: [
     {

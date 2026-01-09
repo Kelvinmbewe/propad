@@ -683,3 +683,32 @@ export const AdminAgencySchema = z.object({
 
 export type AdminUser = z.infer<typeof AdminUserSchema>;
 export type AdminAgency = z.infer<typeof AdminAgencySchema>;
+
+export const ApplicationStatusSchema = z.enum([
+  'SUBMITTED',
+  'REVIEWING',
+  'APPROVED',
+  'REJECTED',
+  'CANCELLED'
+]);
+
+export const ApplicationSchema = z.object({
+  id: z.string(),
+  propertyId: z.string(),
+  userId: z.string(),
+  status: ApplicationStatusSchema,
+  notes: z.string().optional().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  property: PropertySchema.optional(),
+  user: z.object({
+    id: z.string(),
+    name: z.string().nullable(),
+    email: z.string().nullable(),
+    phone: z.string().nullable(),
+    profilePhoto: z.string().nullable(),
+  }).optional()
+});
+
+export type ApplicationStatus = z.infer<typeof ApplicationStatusSchema>;
+export type Application = z.infer<typeof ApplicationSchema>;

@@ -586,6 +586,7 @@ model User {
   referredByCode      ReferralCode?        @relation("ReferredByCode", fields: [referredByCodeId], references: [id])
   promoUsages         PromoUsage[]
   pushTokens          PushToken[]
+  applications        Application[]
 
   @@index([role])
 }
@@ -860,6 +861,7 @@ model Property {
   propertyRatings      PropertyRating[]
   activityLogs         ListingActivityLog[]
   siteVisits           SiteVisit[]
+  applications         Application[]
 
   @@index([status])
   @@index([countryId])
@@ -1406,6 +1408,31 @@ model Advertiser {
   impressions AdImpression[]
 
   @@index([status])
+}
+
+model Application {
+  id         String            @id @default(cuid())
+  propertyId String
+  userId     String
+  status     ApplicationStatus @default(SUBMITTED)
+  notes      String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@unique([propertyId, userId])
+  @@index([userId])
+  @@index([propertyId])
+}
+
+enum ApplicationStatus {
+  SUBMITTED
+  REVIEWING
+  APPROVED
+  REJECTED
+  CANCELLED
 }
 
 model AdCreative {
@@ -2186,3 +2213,5 @@ model PaymentWebhookEvent {
   processedAt DateTime?
   createdAt   DateTime @default(now())
 }
+
+
