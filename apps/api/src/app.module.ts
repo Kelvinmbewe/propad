@@ -43,6 +43,7 @@ import { ReconciliationModule } from './reconciliation/reconciliation.module';
 import { OpsModule } from './ops/ops.module';
 import { PricingModule } from './pricing/pricing.module';
 import { SecurityModule } from './security/security.module';
+import { GrowthModule } from './growth/growth.module';
 
 @Module({
   imports: [
@@ -93,6 +94,7 @@ import { SecurityModule } from './security/security.module';
     OpsModule,
     PricingModule,
     SecurityModule,
+    GrowthModule,
     InterestsModule
   ],
   providers: [

@@ -152,16 +152,61 @@ export default function WalletPage() {
             <CardTitle>Minimum Payout Threshold</CardTitle>
             <CardDescription>Amount required to request a payout</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-gray-400" />
-              <div>
-                <p className="text-2xl font-bold">$10.00 USD</p>
-                <p className="text-xs text-gray-500">Minimum amount to withdraw</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          <div className="flex flex-col gap-6"> {/* Added a div to wrap the two cards in the second column */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Minimum Payout Threshold</CardTitle>
+                <CardDescription>Amount required to request a payout</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-2xl font-bold">$10.00 USD</p>
+                    <p className="text-xs text-gray-500">Minimum amount to withdraw</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg font-medium">Redeem Promo Code</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter code (e.g. WELCOME10)"
+                    id="promoCodeInput"
+                  />
+                  <Button onClick={async () => {
+                    const input = document.getElementById('promoCodeInput') as HTMLInputElement;
+                    if (!input.value) return;
+                    try {
+                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/growth/promos/redeem`, {
+                        method: 'POST',
+                        headers: {
+                          Authorization: `Bearer ${sdk?.accessToken}`,
+                          'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ code: input.value })
+                      });
+                      const json = await res.json();
+                      if (res.ok) {
+                        alert(json.message);
+                        queryClient.invalidateQueries({ queryKey: ['wallet'] });
+                        input.value = '';
+                      } else {
+                        alert(json.message || 'Failed to redeem');
+                      }
+                    } catch (e) {
+                      alert('Error redeeming code');
+                    }
+                  }}>Apply</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
       </div>
 
       <PaymentHistory />

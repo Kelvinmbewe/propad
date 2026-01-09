@@ -579,6 +579,12 @@ model User {
   adEvents            AdEvent[]            @relation("AdEventUser")
   rewardDistributions RewardDistribution[]
   riskEvents          RiskEvent[]
+  
+  // Growth & Referrals
+  referralCodesOwned  ReferralCode[]       @relation("ReferralCodeOwner")
+  referredByCodeId    String?
+  referredByCode      ReferralCode?        @relation("ReferredByCode", fields: [referredByCodeId], references: [id])
+  promoUsages         PromoUsage[]
 
   @@index([role])
 }
@@ -595,6 +601,49 @@ model RiskEvent {
 
   user      User?    @relation(fields: [userId], references: [id])
   @@index([userId])
+}
+
+model ReferralCode {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  ownerId     String
+  expiresAt   DateTime?
+  usageLimit  Int?
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  
+  owner       User     @relation("ReferralCodeOwner", fields: [ownerId], references: [id])
+  usersReferred User[] @relation("ReferredByCode")
+
+  @@index([code])
+  @@index([ownerId])
+}
+
+model PromoCode {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  type        String   // CREDIT, DISCOUNT
+  value       Int      // amount in cents or percentage
+  appliesTo   String[] // [ADS, VERIFICATION]
+  expiresAt   DateTime?
+  maxUses     Int?
+  usedCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  active      Boolean  @default(true)
+  
+  usages      PromoUsage[]
+}
+
+model PromoUsage {
+  id          String   @id @default(cuid())
+  userId      String
+  promoCodeId String
+  usedAt      DateTime @default(now())
+
+  user        User      @relation(fields: [userId], references: [id])
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id])
+  
+  @@unique([userId, promoCodeId])
 }
 
 model UserRole {
