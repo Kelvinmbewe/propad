@@ -21,15 +21,13 @@ export async function submitInterest(formData: FormData) {
   const offerAmount = offerAmountStr ? parseFloat(offerAmountStr) : undefined;
 
   try {
-    // TODO: Implement API endpoint
-    // await serverApiRequest('/interests', {
-    //   method: 'POST',
-    //   body: { propertyId, message, offerAmount }
-    // });
-    console.warn('[interest.ts] submitInterest - API endpoint not yet implemented');
+    await serverApiRequest(`/properties/${propertyId}/interest`, {
+      method: 'POST',
+      body: { message, offerAmount }
+    });
 
     revalidatePath(`/properties/${propertyId}`);
-    return { success: true, warning: 'API endpoint pending implementation' };
+    return { success: true };
   } catch (error) {
     console.error('Failed to submit interest:', error);
     return { error: 'Failed to submit interest. You may have already expressed interest in this property.' };

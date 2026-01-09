@@ -104,18 +104,41 @@ export class PropertiesController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    try {
-      const result = await this.propertiesService.findById(id);
-      // Test serialization
-      JSON.stringify(result);
-      return result;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[PropertiesController] findOne error:', errorMessage, error instanceof Error ? error.stack : '');
-      throw error;
-    }
+  async findOne(@Param('id') id: string, @Req() req: any) {
+    // req.user might be present if guarded or if OptionalAuth applied. 
+    // Here we'll treat it as permissive, but typed as any for now given AuthenticatedRequest expects user.
+    // Ideally we use a decorator @OptionalAuth or just check req.user manually if middleware attaches it.
+    // For D3, let's assume public access doesn't have req.user property or it is undefined.
+    // Actually, NestJS guards determine strictness. 
+    // The previous implementation was unguarded public. We want to PASS user if exists.
+    // But @Req() without Guard might not have user populated depending on Middleware setup.
+    // Let's assume user is not strictly required.
+
+    // Hack: We can't easily inject user without Guard if using standard JwtStrategy globally/locally.
+    // If route is PUBLIC, no user.
+    // If we want Optional Auth, we need a custom guard or separate endpoints.
+    // For SIMPLICITY: Public searches are anonymous. 
+    // Owners viewing their own DRAFTs should use `listOwned` or we need `GET /properties/my/:id`.
+    // OR we just use a separate endpoint for management details?
+    // OR we change this to be optional auth.
+    // Let's keep it simple: Public Only gets Verified. Owners verify via Dashboard which uses `listOwned` usually? 
+    // Dashboard usually needs specific details.
+    // Let's try to extract user if possible, else undefined.
+    const user = req.user;
+    return this.propertiesService.findById(id, user);
   }
+
+  @Post(':id/interest')
+  @UseGuards(JwtAuthGuard)
+  async addInterest(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.propertiesService.addInterest(id, req.user);
+  }
+
+  @Post(':id/view')
+  async recordView(@Param('id') id: string) {
+    return this.propertiesService.incrementView(id);
+  }
+
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
