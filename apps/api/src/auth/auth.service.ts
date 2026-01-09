@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Role } from '@propad/config';
 import { compare, hash } from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { RiskService } from '../security/risk.service';
 
 export interface SanitizedUser {
   id: string;
@@ -22,7 +23,11 @@ export interface SanitizedUser {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService, private readonly jwtService: JwtService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+    private readonly riskService: RiskService
+  ) { }
 
   async validateUser(email: string, pass: string) {
     const user = await this.prisma.user.findUnique({
@@ -37,13 +42,48 @@ export class AuthService {
       }
     });
 
+    // 1. Check Lock Protocol
+    if (user && user.lockedUntil && user.lockedUntil > new Date()) {
+      await this.riskService.logEvent(user.id, 'LOGIN_LOCKED', 'MEDIUM', { email });
+      throw new UnauthorizedException(`Account locked. Try again after ${user.lockedUntil.toISOString()}`);
+    }
+
     if (!user || !user.passwordHash) {
+      // Don't leak user existence too easily, but log generic fail
+      // await this.riskService.logEvent(null, 'LOGIN_FAIL_UNKNOWN', 'LOW', { email });
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const isValid = await compare(pass, user.passwordHash);
     if (!isValid) {
+      // 2. Handle Failure logic
+      const failures = (user.failedLoginAttempts || 0) + 1;
+      let lockedUntil: Date | null = null;
+
+      if (failures >= 5) {
+        lockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+        await this.riskService.logEvent(user.id, 'ACCOUNT_LOCKED', 'HIGH', { failures });
+      } else {
+        await this.riskService.logEvent(user.id, 'LOGIN_FAIL', 'LOW', { failures });
+      }
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: failures,
+          lockedUntil
+        }
+      });
+
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // 3. Reset on Success
+    if (user.failedLoginAttempts > 0) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: 0, lockedUntil: null }
+      });
     }
 
     return this.sanitizeUser(user);

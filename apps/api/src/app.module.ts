@@ -42,6 +42,7 @@ import { AuditModule } from './audit/audit.module';
 import { ReconciliationModule } from './reconciliation/reconciliation.module';
 import { OpsModule } from './ops/ops.module';
 import { PricingModule } from './pricing/pricing.module';
+import { SecurityModule } from './security/security.module';
 
 @Module({
   imports: [
@@ -49,6 +50,10 @@ import { PricingModule } from './pricing/pricing.module';
     CacheModule.register({ isGlobal: true, ttl: 300, max: 100 }),
     ThrottlerModule.forRoot([{ ttl: 60, limit: 120 }]),
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 100, // Global limit 100 req/min
+    }]),
     PrismaModule,
     QueueModule,
     AdsModule,
@@ -87,10 +92,14 @@ import { PricingModule } from './pricing/pricing.module';
     ReconciliationModule,
     OpsModule,
     PricingModule,
+    SecurityModule,
     InterestsModule
   ],
-  ],
   providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard
+    },
     {
       provide: APP_GUARD,
       useClass: RateLimitGuard

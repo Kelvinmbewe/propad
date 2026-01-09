@@ -558,6 +558,8 @@ model User {
   trustScore        Int     @default(0)
   verificationScore Int     @default(0)
   riskScore         Int     @default(0) // Internal only
+  failedLoginAttempts Int     @default(0)
+  lockedUntil       DateTime?
 
   // Role Management
   roles         UserRole[]
@@ -576,8 +578,23 @@ model User {
   walletLedgerEntries WalletLedger[]       @relation("WalletLedgerUser")
   adEvents            AdEvent[]            @relation("AdEventUser")
   rewardDistributions RewardDistribution[]
+  riskEvents          RiskEvent[]
 
   @@index([role])
+}
+
+model RiskEvent {
+  id        String   @id @default(cuid())
+  userId    String?
+  type      String   // LOGIN_FAIL, PAYOUT_SPIKE, IP_VELOCITY
+  severity  String   // LOW, MEDIUM, HIGH, CRITICAL
+  metadata  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+  @@index([userId])
 }
 
 model UserRole {
