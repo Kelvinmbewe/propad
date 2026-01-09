@@ -63,7 +63,9 @@ import {
   AdminUserSchema,
   AdminAgencySchema,
   type AdminUser,
-  type AdminAgency
+  type AdminAgency,
+  DealSchema,
+  type Deal
 } from './schemas';
 import { createApplicationsResource } from './applications';
 
@@ -135,6 +137,18 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
       create: async (payload: any) => client.post('leads', { json: payload }).json<any>(),
       findAll: async () => client.get('leads').json<any[]>(),
       updateStatus: async (id: string, status: string) => client.patch(`leads/${id}/status`, { json: { status } }).json<any>(),
+    },
+    deals: {
+      my: async () =>
+        client
+          .get('deals/my')
+          .json<Deal[]>()
+          .then((data) => DealSchema.array().parse(data)),
+      get: async (id: string) =>
+        client
+          .get(`deals/${id}`)
+          .json<Deal>()
+          .then((data) => DealSchema.parse(data)),
     },
     rewards: {
       my: async () => client.get('rewards/my').json<any[]>(),

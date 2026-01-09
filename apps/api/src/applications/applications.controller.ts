@@ -20,6 +20,11 @@ export class ApplicationsController {
         return this.applicationsService.findMyApplications(req.user.userId);
     }
 
+    @Get('received')
+    findReceivedApplications(@Req() req: AuthenticatedRequest) {
+        return this.applicationsService.findReceivedApplications(req.user.userId);
+    }
+
     @Get('property/:propertyId')
     findByProperty(@Param('propertyId') propertyId: string, @Req() req: AuthenticatedRequest) {
         return this.applicationsService.findByProperty(propertyId, req.user);

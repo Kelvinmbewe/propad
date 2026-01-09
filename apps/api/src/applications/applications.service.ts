@@ -5,12 +5,14 @@ import { UpdateApplicationStatusDto } from './dto/update-application-status.dto'
 import { ApplicationStatus, Prisma, Role, LeadSource, NotificationType } from '@prisma/client';
 import { AuthContext } from '../auth/interfaces/auth-context.interface';
 import { NotificationsService } from '../notifications/notifications.service';
+import { DealsService } from '../deals/deals.service';
 
 @Injectable()
 export class ApplicationsService {
     constructor(
         private prisma: PrismaService,
-        private notificationsService: NotificationsService
+        private notificationsService: NotificationsService,
+        private dealsService: DealsService
     ) { }
 
     async apply(userId: string, dto: CreateApplicationDto) {
@@ -70,6 +72,28 @@ export class ApplicationsService {
         return application;
     }
 
+    async findReceivedApplications(userId: string) {
+        return this.prisma.application.findMany({
+            where: {
+                property: {
+                    OR: [
+                        { landlordId: userId },
+                        { agentOwnerId: userId }
+                    ]
+                }
+            },
+            include: {
+                property: {
+                    select: { id: true, title: true, type: true, price: true, currency: true, media: { take: 1 } }
+                },
+                user: {
+                    select: { id: true, name: true, email: true, phone: true, profilePhoto: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
     async findMyApplications(userId: string) {
         return this.prisma.application.findMany({
             where: { userId },
@@ -127,6 +151,11 @@ export class ApplicationsService {
             where: { id },
             data: { status: dto.status },
         });
+
+        // Loop into Deals
+        if (dto.status === ApplicationStatus.APPROVED) {
+            await this.dealsService.createFromApplication(updated);
+        }
 
         // Notify Applicant
         await this.notificationsService.notifyUser(

@@ -15,6 +15,12 @@ export const createApplicationsResource = (client: typeof ky) => ({
             .json<Application[]>()
             .then((data) => ApplicationSchema.array().parse(data)),
 
+    received: async () =>
+        client
+            .get('applications/received')
+            .json<Application[]>()
+            .then((data) => ApplicationSchema.array().parse(data)),
+
     findByProperty: async (propertyId: string) =>
         client
             .get(`applications/property/${propertyId}`)

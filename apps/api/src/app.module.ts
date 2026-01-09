@@ -44,6 +44,7 @@ import { OpsModule } from './ops/ops.module';
 import { PricingModule } from './pricing/pricing.module';
 import { SecurityModule } from './security/security.module';
 import { GrowthModule } from './growth/growth.module';
+import { DealsModule } from './deals/deals.module';
 
 @Module({
   imports: [
@@ -96,7 +97,8 @@ import { GrowthModule } from './growth/growth.module';
     SecurityModule,
     GrowthModule,
     InterestsModule,
-    ApplicationsModule
+    ApplicationsModule,
+    DealsModule
   ],
   providers: [
     {

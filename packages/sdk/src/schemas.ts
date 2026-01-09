@@ -712,3 +712,28 @@ export const ApplicationSchema = z.object({
 
 export type ApplicationStatus = z.infer<typeof ApplicationStatusSchema>;
 export type Application = z.infer<typeof ApplicationSchema>;
+export const DealSchema = z
+  .object({
+    id: z.string(),
+    propertyId: z.string(),
+    tenantId: z.string(),
+    landlordId: z.string(),
+    agentId: z.string().nullish(),
+    applicationId: z.string(),
+    status: z.string(),
+    startDate: z.string(),
+    endDate: z.string().nullish(),
+    rentAmount: z.number(),
+    depositAmount: z.number().nullish(),
+    currency: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    property: PropertySchema.nullish(),
+    tenant: UserSummarySchema.nullish(),
+    landlord: UserSummarySchema.nullish(),
+    agent: UserSummarySchema.nullish(),
+    application: ApplicationSchema.nullish()
+  })
+  .passthrough();
+
+export type Deal = z.infer<typeof DealSchema>;

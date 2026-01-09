@@ -579,6 +579,9 @@ model User {
   adEvents            AdEvent[]            @relation("AdEventUser")
   rewardDistributions RewardDistribution[]
   riskEvents          RiskEvent[]
+  tenantDeals         Deal[]        @relation("DealTenant")
+  landlordDeals       Deal[]        @relation("DealLandlord")
+  agentDeals          Deal[]        @relation("DealAgent")
 
   // Growth & Referrals
   referralCodesOwned ReferralCode[] @relation("ReferralCodeOwner")
@@ -866,6 +869,7 @@ model Property {
   activityLogs         ListingActivityLog[]
   siteVisits           SiteVisit[]
   applications         Application[]
+  deals                Deal[]
 
   @@index([status])
   @@index([countryId])
@@ -1429,6 +1433,7 @@ model Application {
 
   property Property @relation(fields: [propertyId], references: [id])
   user     User     @relation(fields: [userId], references: [id])
+  deal     Deal?
 
   @@unique([propertyId, userId])
   @@index([userId])
@@ -1437,10 +1442,51 @@ model Application {
 
 enum ApplicationStatus {
   SUBMITTED
+  SHORTLISTED
   REVIEWING
   APPROVED
   REJECTED
   CANCELLED
+}
+
+enum DealStatus {
+  ACTIVE
+  COMPLETED
+  TERMINATED
+  CANCELLED
+}
+
+model Deal {
+  id            String     @id @default(cuid())
+  propertyId    String
+  tenantId      String
+  landlordId    String
+  agentId       String?
+  applicationId String     @unique
+  
+  status        DealStatus @default(ACTIVE)
+  startDate     DateTime
+  endDate       DateTime?
+  rentAmount    Int // in cents
+  depositAmount Int? // in cents
+  currency      Currency   @default(USD)
+  
+  termsJson     Json?
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  property      Property    @relation(fields: [propertyId], references: [id])
+  tenant        User        @relation("DealTenant", fields: [tenantId], references: [id])
+  landlord      User        @relation("DealLandlord", fields: [landlordId], references: [id])
+  agent         User?       @relation("DealAgent", fields: [agentId], references: [id])
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  @@index([propertyId])
+  @@index([tenantId])
+  @@index([landlordId])
+  @@index([agentId])
+  @@index([status])
 }
 
 model AdCreative {
