@@ -23,6 +23,8 @@
     "@nestjs/schedule": "^6.1.0",
     "@nestjs/throttler": "5.1.0",
     "@nestjs/websockets": "10.3.2",
+    "@nestjs/cache-manager": "^2.2.1",
+    "cache-manager": "^5.4.0",
     "@prisma/client": "^5.22.0",
     "@propad/config": "file:../../packages/config",
     "@propad/sdk": "file:../../packages/sdk",

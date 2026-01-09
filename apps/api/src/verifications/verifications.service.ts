@@ -212,7 +212,11 @@ export class VerificationsService {
     }
   }
 
-  async findAllRequests(filters: { targetType?: VerificationType; status?: string }) {
+  async findAllRequests(filters: { targetType?: VerificationType; status?: string; page?: number; limit?: number }) {
+    const page = filters.page || 1;
+    const limit = filters.limit || 20;
+    const skip = (page - 1) * limit;
+
     return this.prisma.verificationRequest.findMany({
       where: {
         ...(filters.targetType ? { targetType: filters.targetType } : {}),
@@ -223,7 +227,9 @@ export class VerificationsService {
         property: { select: { id: true, title: true } },
         items: true
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit
     });
   }
 

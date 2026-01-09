@@ -3,6 +3,7 @@ import { Body, Controller, Get, Logger, Param, Patch, Query, Req, UseGuards } fr
 import { VerificationsService } from './verifications.service';
 import { VerificationType } from '@prisma/client';
 import { Role } from '@propad/config';
+import { PaginationDto } from '../common/pagination.dto';
 
 const VerificationItemStatus = {
   PENDING: 'PENDING',
@@ -39,11 +40,12 @@ export class VerificationsController {
   @Get()
   async listRequests(
     @Query('targetType') targetType?: VerificationType,
-    @Query('status') status?: string
+    @Query('status') status?: string,
+    @Query() pagination?: PaginationDto
   ) {
     // Basic filter implementation request
     // In real app, would use comprehensive filter DTO
-    return this.verificationsService.findAllRequests({ targetType, status });
+    return this.verificationsService.findAllRequests({ targetType, status, ...pagination });
   }
 
   @Get('requests/:id')

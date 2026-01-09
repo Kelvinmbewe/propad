@@ -576,6 +576,8 @@ model User {
   walletLedgerEntries WalletLedger[]       @relation("WalletLedgerUser")
   adEvents            AdEvent[]            @relation("AdEventUser")
   rewardDistributions RewardDistribution[]
+
+  @@index([role])
 }
 
 model UserRole {
@@ -899,6 +901,7 @@ model Notification {
   logs NotificationLog[]
 
   @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
 }
 
 model NotificationLog {
@@ -1018,6 +1021,7 @@ model VerificationRequest {
   @@index([requesterId])
   @@index([status])
   @@index([targetType, targetId]) // Generic lookup
+  @@index([createdAt])
 }
 
 enum VerificationType {

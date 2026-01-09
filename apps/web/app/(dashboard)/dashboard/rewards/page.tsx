@@ -1,7 +1,7 @@
 'use client';
 
 import { useRewards } from '@/hooks/use-rewards';
-import { Card, CardContent, CardHeader, CardTitle, Badge } from '@propad/ui';
+import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton } from '@propad/ui';
 import { formatCurrency } from '@/lib/formatters';
 import { Trophy, Gift, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
@@ -39,13 +39,18 @@ export default function RewardsPage() {
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
-                        <div className="space-y-2">
-                            {[1, 2, 3].map(i => <div key={i} className="h-12 bg-muted rounded animate-pulse" />)}
+                        <div className="space-y-3">
+                            {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
                         </div>
                     ) : !rewards || rewards.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                            <Gift className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                            No rewards earned yet.
+                        <div className="text-center py-12 text-muted-foreground flex flex-col items-center justify-center">
+                            <div className="bg-orange-50 p-4 rounded-full mb-3">
+                                <Gift className="h-8 w-8 text-orange-300" />
+                            </div>
+                            <h3 className="font-semibold text-neutral-900">No rewards yet</h3>
+                            <p className="text-sm max-w-xs mx-auto mt-1">
+                                Complete verifications and refer users to start earning rewards.
+                            </p>
                         </div>
                     ) : (
                         <div className="space-y-4">

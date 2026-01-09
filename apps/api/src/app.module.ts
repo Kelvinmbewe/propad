@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
+import { CacheModule } from '@nestjs/cache-manager';
 import { ScheduleModule } from '@nestjs/schedule';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
@@ -37,10 +38,13 @@ import { AdvertisersModule } from './advertisers/advertisers.module';
 import { WalletModule } from './wallet/wallet.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { AuditModule } from './audit/audit.module';
+import { ReconciliationModule } from './reconciliation/reconciliation.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    CacheModule.register({ isGlobal: true, ttl: 300, max: 100 }),
     ThrottlerModule.forRoot([{ ttl: 60, limit: 120 }]),
     ScheduleModule.forRoot(),
     PrismaModule,
@@ -75,6 +79,9 @@ import { DashboardModule } from './dashboard/dashboard.module';
     WalletModule,
     PayoutsModule,
     DashboardModule,
+    AuthenticationModule, // Alias if needed, assuming AuthModule is correct
+    AuditModule,
+    ReconciliationModule,
     InterestsModule
   ],
   ],

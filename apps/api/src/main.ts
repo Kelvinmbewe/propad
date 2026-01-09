@@ -9,11 +9,16 @@ import pinoHttp from 'pino-http';
 import { env } from '@propad/config';
 import { resolve } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { HttpAdapterHost } from '@nestjs/core';
+import { AllExceptionsFilter } from './common/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true
   });
+
+  const httpAdapter = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new AllExceptionsFilter(httpAdapter));
 
   const logger = new Logger('HTTP');
   app.useLogger(logger);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useNotifications } from '@/hooks/use-notifications';
-import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '@propad/ui';
+import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Skeleton } from '@propad/ui';
 import { format } from 'date-fns';
 import { CheckCheck } from 'lucide-react';
 
@@ -20,9 +20,21 @@ export default function NotificationsPage() {
 
             <div className="space-y-4">
                 {isLoading ? (
-                    <Card><CardContent className="p-8 text-center text-neutral-500">Loading...</CardContent></Card>
+                    <div className="space-y-4">
+                        {[1, 2, 3].map(i => (
+                            <Card key={i}><CardContent className="p-4"><Skeleton className="h-12 w-full" /></CardContent></Card>
+                        ))}
+                    </div>
                 ) : notifications?.length === 0 ? (
-                    <Card><CardContent className="p-8 text-center text-neutral-500">No notifications found.</CardContent></Card>
+                    <Card><CardContent className="p-12 text-center text-neutral-500 flex flex-col items-center gap-4">
+                        <div className="h-12 w-12 bg-neutral-100 rounded-full flex items-center justify-center">
+                            <CheckCheck className="h-6 w-6 text-neutral-400" />
+                        </div>
+                        <div>
+                            <p className="font-semibold text-neutral-900">All caught up!</p>
+                            <p className="text-sm">You have no new notifications.</p>
+                        </div>
+                    </CardContent></Card>
                 ) : (
                     notifications?.map((n: any) => (
                         <Card key={n.id} className={`${n.readAt ? 'opacity-80' : 'border-blue-200 bg-blue-50/20'}`}>

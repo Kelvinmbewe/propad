@@ -118,7 +118,12 @@ export default function WalletPage() {
                 ))}
               </div>
             ) : !payouts || payouts.length === 0 ? (
-              <div className="py-8 text-center text-sm text-gray-500">No payout requests yet</div>
+              <div className="py-12 text-center text-sm text-gray-500 flex flex-col items-center">
+                <div className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center mb-2">
+                  <Clock className="h-5 w-5 text-gray-300" />
+                </div>
+                No payout requests found
+              </div>
             ) : (
               <div className="space-y-4">
                 {payouts.map((payout) => (
