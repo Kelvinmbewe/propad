@@ -1,7 +1,7 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 
-export const authConfig = {
+const { handlers } = NextAuth({
     debug: true,
     secret: process.env.NEXTAUTH_SECRET,
     session: { strategy: "jwt" as const },
@@ -41,7 +41,7 @@ export const authConfig = {
     ],
 
     callbacks: {
-        async jwt({ token, user }: any) {
+        async jwt({ token, user }) {
             if (user) {
                 token.id = user.id
                 token.email = user.email
@@ -52,10 +52,10 @@ export const authConfig = {
             return token
         },
 
-        async session({ session, token }: any) {
-            session.user.id = token.id
-            session.user.role = token.role
-            session.accessToken = token.accessToken
+        async session({ session, token }) {
+            session.user.id = token.id as string
+            session.user.role = token.role as string
+            session.accessToken = token.accessToken as string
             return session
         },
     },
@@ -63,9 +63,7 @@ export const authConfig = {
     pages: {
         signIn: "/auth/signin",
     },
-}
-
-const { handlers } = NextAuth(authConfig)
+})
 
 export const GET = handlers.GET
 export const POST = handlers.POST
