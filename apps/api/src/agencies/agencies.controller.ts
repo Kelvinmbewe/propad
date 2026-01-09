@@ -1,28 +1,51 @@
-
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards, Req, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { AgenciesService } from './agencies.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { Role, AgencyStatus } from '@propad/config';
 
 @Controller('agencies')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AgenciesController {
     constructor(private readonly agenciesService: AgenciesService) { }
 
+    @Get('my')
+    async getMyAgency(@Req() req: any) {
+        return this.agenciesService.getMyAgency(req.user.id);
+    }
+
     @Get(':id')
-    @UseGuards(JwtAuthGuard) // Optional: allow public read? Plan said "No page... without role validation". But profiles are usually public. Let's keep JwtAuthGuard to be safe for now or Public if needed. Plan says "Wrap every API route with role guard".
     async getAgency(@Param('id') id: string) {
         return this.agenciesService.findOne(id);
     }
 
     @Patch(':id')
     @Roles(Role.ADMIN, Role.COMPANY_ADMIN)
-    async updateProfile(@Param('id') id: string, @Body() body: { bio?: string; registrationNumber?: string }, @Req() req: any) {
-        // TODO: Enforce ownership if not ADMIN
-        return this.agenciesService.updateProfile(id, body);
+    async updateProfile(@Param('id') id: string, @Body() body: any, @Req() req: any) {
+        // Enforce Ownership if not ADMIN
+        if (req.user.role !== Role.ADMIN) {
+            const myAgency = await this.agenciesService.getMyAgency(req.user.id);
+            if (myAgency?.id !== id) throw new ForbiddenException('Not your agency');
+        }
+        return this.agenciesService.updateProfile(id, body, req.user.id);
+    }
+
+    @Patch(':id/status')
+    @Roles(Role.ADMIN)
+    async updateStatus(@Param('id') id: string, @Body() body: { status: AgencyStatus }, @Req() req: any) {
+        return this.agenciesService.updateStatus(id, body.status, req.user.id);
+    }
+
+    @Post()
+    @Roles(Role.COMPANY_ADMIN) // Or maybe USER who wants to start one? Assuming COMPANY_ADMIN for now based on Plan.
+    async create(@Body() body: { name: string }, @Req() req: any) {
+        return this.agenciesService.create(body.name, req.user.id);
     }
 
     @Post(':id/reviews')
     @Roles(Role.USER, Role.AGENT, Role.LANDLORD)
     async addReview(@Param('id') id: string, @Body() body: { rating: number; comment?: string }, @Req() req: any) {
-        return this.agenciesService.addReview(id, req.user.userId, body.rating, body.comment);
+        return this.agenciesService.addReview(id, req.user.id, body.rating, body.comment);
     }
 }
