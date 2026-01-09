@@ -53,14 +53,16 @@ const options = {
         }),
     ],
     callbacks: {
-        async jwt({ token, user }) {
+        async jwt(params: any) {
+            const { token, user } = params;
             if (user) {
                 token.id = user.id;
                 token.email = user.email;
             }
             return token;
         },
-        async session({ session, token }) {
+        async session(params: any) {
+            const { session, token } = params;
             if (session.user) {
                 session.user.id = token.id as string;
                 session.user.email = token.email as string;
