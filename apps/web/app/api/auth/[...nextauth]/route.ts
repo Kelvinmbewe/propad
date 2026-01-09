@@ -1,94 +1,69 @@
-import NextAuth from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
+import NextAuth from "next-auth"
+import Credentials from "next-auth/providers/credentials"
 
-const API_URL =
-    process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-
-const NEXTAUTH_SECRET =
-    process.env.NEXTAUTH_SECRET ?? 'propad-dev-secret';
-
-const config = {
+export const {
+    handlers: { GET, POST },
+    auth,
+    signIn,
+    signOut,
+} = NextAuth({
     debug: true,
-    secret: NEXTAUTH_SECRET,
-    session: {
-        strategy: 'jwt' as const,
-    },
+    secret: process.env.NEXTAUTH_SECRET,
+    session: { strategy: "jwt" },
+
     providers: [
-        CredentialsProvider({
-            name: 'Credentials',
+        Credentials({
+            name: "Credentials",
             credentials: {
-                email: { label: 'Email', type: 'email' },
-                password: { label: 'Password', type: 'password' },
+                email: { label: "Email", type: "email" },
+                password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-                if (!credentials?.email || !credentials?.password) {
-                    return null;
-                }
+                if (!credentials?.email || !credentials?.password) return null
 
-                const res = await fetch(`${API_URL}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: credentials.email,
-                        password: credentials.password,
-                    }),
-                });
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(credentials),
+                })
 
-                if (!res.ok) {
-                    console.error('Auth API failed', await res.text());
-                    return null;
-                }
+                if (!res.ok) return null
 
-                const data = await res.json();
-
-                if (!data?.user?.id || !data?.user?.email) {
-                    console.error('Invalid auth payload', data);
-                    return null;
-                }
+                const data = await res.json()
 
                 return {
-                    id: String(data.user.id),
-                    email: String(data.user.email),
-                    name: data.user.name ?? data.user.email,
-                };
+                    id: data.user.id,
+                    email: data.user.email,
+                    name: data.user.name,
+                    role: data.user.role,
+                    accessToken: data.accessToken,
+                    refreshToken: data.refreshToken,
+                }
             },
         }),
     ],
+
     callbacks: {
-        async jwt(params: any) {
-            const { token, user } = params;
+        async jwt({ token, user }) {
             if (user) {
-                token.id = user.id;
-                token.email = user.email;
+                token.id = user.id
+                token.email = user.email
+                token.role = (user as any).role
+                token.accessToken = (user as any).accessToken
+                token.refreshToken = (user as any).refreshToken
             }
-            return token;
+            return token
         },
-        async session(params: any) {
-            const { session, token } = params;
-            if (session.user) {
-                session.user.id = token.id as string;
-                session.user.email = token.email as string;
-            }
-            return session;
+
+        async session({ session, token }) {
+            session.user.id = token.id as string
+            session.user.role = token.role as string
+            session.accessToken = token.accessToken as string
+            return session
         },
     },
-    cookies: {
-        sessionToken: {
-            name: 'next-auth.session-token',
-            options: {
-                httpOnly: true,
-                sameSite: 'lax',
-                path: '/',
-                secure: false,
-            },
-        },
-    },
+
     pages: {
-        signIn: '/auth/signin',
+        signIn: "/auth/signin",
     },
-};
-
-const { handlers } = NextAuth(config);
-
-export const GET = handlers.GET;
-export const POST = handlers.POST;
+})

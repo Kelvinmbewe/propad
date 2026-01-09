@@ -178,7 +178,9 @@ const config: NextAuthConfig = {
   }
 };
 
-const authResult = NextAuth(config);
-
-export const { handlers, auth } = authResult;
-export const { GET, POST } = handlers;
+export const {
+  handlers: { GET, POST },
+  auth,
+  signIn,
+  signOut,
+} = NextAuth(config);
