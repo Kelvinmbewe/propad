@@ -1,137 +1,109 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getServerApiBaseUrl } from '@propad/config';
-
-interface PricingRule {
-  id: string;
-  itemType: string;
-  priceUsdCents: number;
-  currency: 'USD' | 'ZWG';
-  commissionPercent: number;
-  platformFeePercent: number;
-  agentSharePercent: number | null;
-  referralSharePercent: number | null;
-  rewardPoolSharePercent: number | null;
-  isActive: boolean;
-}
+import { useState } from 'react';
+import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
+import { Card, CardContent, CardHeader, CardTitle, Button, Input, Textarea } from '@propad/ui';
+import { DollarSign, Save } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function PricingPage() {
-  const [rules, setRules] = useState<PricingRule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<string | null>(null);
+  const sdk = useAuthenticatedSDK();
+  const queryClient = useQueryClient();
+  const [editKey, setEditKey] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
 
-  useEffect(() => {
-    loadRules();
-  }, []);
-
-  const loadRules = async () => {
-    try {
-      const response = await fetch(`${getServerApiBaseUrl()}/pricing`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('apiToken')}`
-        }
+  const { data: configs, isLoading } = useQuery({
+    queryKey: ['admin', 'pricing'],
+    queryFn: async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/pricing`, {
+        headers: { Authorization: `Bearer ${sdk?.accessToken}` }
       });
-      if (response.ok) {
-        const data = await response.json();
-        setRules(data);
-      }
-    } catch (error) {
-      console.error('Failed to load pricing rules:', error);
-    } finally {
-      setLoading(false);
+      return res.json();
     }
-  };
+  });
 
-  const formatItemType = (type: string) => {
-    return type
-      .split('_')
-      .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
-      .join(' ');
-  };
-
-  if (loading) {
-    return <div>Loading pricing rules...</div>;
-  }
+  const saveConfig = useMutation({
+    mutationFn: async ({ key, value }: { key: string, value: any }) => {
+      await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/pricing`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${sdk?.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ key, value: JSON.parse(value) })
+      });
+    },
+    onSuccess: () => {
+      setEditKey(null);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'pricing'] });
+    },
+    onError: (e) => alert('Invalid JSON: ' + e)
+  });
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-bold">Pricing & Fees</h1>
-        <p className="text-sm text-gray-600">Configure pricing rules for chargeable items</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Pricing & Rules</h1>
+          <p className="text-sm text-neutral-500">Configure business logic dynamically.</p>
+        </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Item Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Price
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Commission
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Platform Fee
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Agent Share
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Referral Share
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Reward Pool
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
-            {rules.map((rule) => (
-              <tr key={rule.id}>
-                <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                  {formatItemType(rule.itemType)}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  ${(rule.priceUsdCents / 100).toFixed(2)}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {rule.commissionPercent}%
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {rule.platformFeePercent}%
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {rule.agentSharePercent ? `${rule.agentSharePercent}%` : '-'}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {rule.referralSharePercent ? `${rule.referralSharePercent}%` : '-'}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {rule.rewardPoolSharePercent ? `${rule.rewardPoolSharePercent}%` : '-'}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm">
-                  <span
-                    className={`rounded-full px-2 py-1 text-xs font-medium ${
-                      rule.isActive
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {rule.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="grid gap-4">
+        {isLoading ? <div>Loading...</div> : configs?.map((cfg: any) => (
+          <Card key={cfg.key}>
+            <CardHeader className="py-4">
+              <CardTitle className="text-base font-mono flex items-center justify-between">
+                {cfg.key}
+                {editKey !== cfg.key && (
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    setEditKey(cfg.key);
+                    setEditValue(JSON.stringify(cfg.value, null, 2));
+                  }}>Edit</Button>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {editKey === cfg.key ? (
+                <div className="space-y-4">
+                  <Textarea
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    className="font-mono text-xs"
+                    rows={5}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setEditKey(null)}>Cancel</Button>
+                    <Button onClick={() => saveConfig.mutate({ key: cfg.key, value: editValue })}>
+                      <Save className="mr-2 h-4 w-4" /> Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <pre className="text-xs bg-neutral-50 p-3 rounded overflow-auto">
+                  {JSON.stringify(cfg.value, null, 2)}
+                </pre>
+              )}
+              <div className="mt-2 text-xs text-neutral-400">
+                Updated: {new Date(cfg.updatedAt).toLocaleString()}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+
+        {configs?.length === 0 && (
+          <div className="text-center p-8 text-neutral-500 border rounded-lg border-dashed">
+            No configs found.
+            <div className="mt-4">
+              <Button onClick={() => {
+                setEditKey('NEW');
+                setEditValue('{}');
+                // In a real app, handle creation UI better
+              }}>Create Config</Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

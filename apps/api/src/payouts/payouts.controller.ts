@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { PayoutsService } from './payouts.service';
+import { PayoutExecutionService } from './payout-execution.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -8,7 +9,10 @@ import { Role, PayoutMethod } from '@propad/config';
 @Controller('payouts')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PayoutsController {
-    constructor(private readonly payoutsService: PayoutsService) { }
+    constructor(
+        private readonly payoutsService: PayoutsService,
+        private readonly executionService: PayoutExecutionService
+    ) { }
 
     @Post('request')
     @Roles(Role.AGENT, Role.LANDLORD) // Users who can request payouts
@@ -19,7 +23,7 @@ export class PayoutsController {
     @Post('approve/:id')
     @Roles(Role.ADMIN)
     async approvePayout(@Request() req: any, @Param('id') id: string) {
-        return this.payoutsService.approvePayout(id, req.user.id);
+        return this.executionService.executePayout(id, req.user.id);
     }
 
     @Get('my')

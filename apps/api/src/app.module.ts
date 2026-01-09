@@ -41,6 +41,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { AuditModule } from './audit/audit.module';
 import { ReconciliationModule } from './reconciliation/reconciliation.module';
 import { OpsModule } from './ops/ops.module';
+import { PricingModule } from './pricing/pricing.module';
 
 @Module({
   imports: [
@@ -85,6 +86,7 @@ import { OpsModule } from './ops/ops.module';
     AuditModule,
     ReconciliationModule,
     OpsModule,
+    PricingModule,
     InterestsModule
   ],
   ],

@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PricingService } from '../pricing/pricing.service';
 
 @Injectable()
 export class RewardsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private pricingService: PricingService
+  ) { }
 
   async getUserRewards(userId: string) {
     return this.prisma.rewardDistribution.findMany({
@@ -38,10 +42,14 @@ export class RewardsService {
       return { message: 'No new revenue to distribute', unallocated };
     }
 
-    // 2. Define Split Rules (Configurable ideally, hardcoded for B3)
-    // 10% to Agents, 5% to Verifiers, rest to Platform
-    const agentPoolShare = Math.floor(unallocated * 0.10);
-    const verifierPoolShare = Math.floor(unallocated * 0.05);
+    // 2. Define Split Rules (From Pricing Config)
+    const splitConfig = await this.pricingService.getConfig('REWARD_SPLIT', {
+      agentPct: 10,
+      verifierPct: 5
+    });
+
+    const agentPoolShare = Math.floor(unallocated * (splitConfig.agentPct / 100));
+    const verifierPoolShare = Math.floor(unallocated * (splitConfig.verifierPct / 100));
 
     // 3. Find eligible users
     // For MVP, distributing equally to active agents
