@@ -123,6 +123,15 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
     dashboard: {
       overview: async () => client.get('dashboard/overview').json<any>(),
     },
+    interests: {
+      toggle: async (propertyId: string) => client.post('interests/toggle', { json: { propertyId } }).json<{ isSaved: boolean }>(),
+      my: async () => client.get('interests/my').json<any[]>(),
+    },
+    leads: {
+      create: async (payload: any) => client.post('leads', { json: payload }).json<any>(),
+      findAll: async () => client.get('leads').json<any[]>(),
+      updateStatus: async (id: string, status: string) => client.patch(`leads/${id}/status`, { json: { status } }).json<any>(),
+    },
     properties: {
       listOwned: async () =>
         client
@@ -922,9 +931,20 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
     advertiser: {
       getProfile: async () => client.get('advertisers/profile').json<any>(),
       getCampaigns: async () => client.get('advertisers/campaigns').json<any[]>(),
+      getStats: async () => client.get('advertisers/stats').json<{
+        impressions: number;
+        clicks: number;
+        spend: number;
+        campaigns: number;
+      }>(),
     },
     wallet: {
-      getBalance: async () => client.get('wallet/balance').json<number>(),
+      getOverview: async () => client.get('wallet/me').json<{
+        balanceCents: number;
+        pendingCents: number;
+        withdrawableCents: number;
+        currency: string;
+      }>(),
     },
     payouts: {
       requestPayout: async (params: { amountCents: number; method: string; accountId: string }) =>

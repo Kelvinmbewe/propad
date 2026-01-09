@@ -29,6 +29,7 @@ import {
 } from '@propad/ui';
 import { useOverviewMetrics, useDailyAds, useTopAgents, useGeoListings } from '@/hooks/use-admin-metrics';
 import { useDashboardMetrics } from '@/hooks/use-dashboard-metrics';
+import { useAdvertiser } from '@/hooks/use-advertiser';
 import type { AdminOverviewMetrics, DailyAdsPoint, TopAgentPerformance, Role } from '@propad/sdk';
 
 const RANGE_OPTIONS = [7, 30, 90] as const;
@@ -306,6 +307,73 @@ export function DashboardOverview() {
 
   // --- Render Non-Admin Roles ---
   if (!isAdmin) {
+    // Hook must be called unconditionally or conditionally in a safe way if this component re-renders.
+    // But since we have early returns, we should move hooks up or ensure consistent order.
+    // React hooks rule: "Don't call hooks inside loops, conditions, or nested functions."
+    // Since isAdmin is constant for a render (derived from session), this is "technically" safe but bad practice.
+    // Better to hoist the hook.
+  }
+
+  // Hoisting hooks to top level
+  const advertiserQuery = useAdvertiser();
+
+  if (!isAdmin) {
+    if (role === 'ADVERTISER') {
+      const { stats, campaigns, isLoading } = advertiserQuery;
+
+      if (isLoading) return <Skeleton className="h-64 w-full" />;
+
+      if (!stats) return <p>No advertiser data.</p>;
+
+      return (
+        <div className="space-y-6">
+          <h1 className="text-2xl font-semibold">Advertiser Dashboard</h1>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-neutral-500">Impressions</CardTitle>
+                <Users className="h-4 w-4 text-neutral-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{numberFormatter.format(stats.impressions)}</div>
+                <p className="text-xs text-neutral-500">Total ad views</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-neutral-500">Clicks</CardTitle>
+                <MousePointerClick className="h-4 w-4 text-neutral-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{numberFormatter.format(stats.clicks)}</div>
+                <p className="text-xs text-neutral-500">Total clicks received</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-neutral-500">Spend</CardTitle>
+                <Wallet2 className="h-4 w-4 text-neutral-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{currencyFormatter.format(stats.spend)}</div>
+                <p className="text-xs text-neutral-500">Total campaign spend</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-neutral-500">Campaigns</CardTitle>
+                <LayoutDashboard className="h-4 w-4 text-neutral-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.campaigns}</div>
+                <p className="text-xs text-neutral-500">Active campaigns</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
     if (!scopedMetrics) return <p className="text-neutral-500">No dashboard data available.</p>;
 
     if (scopedMetrics.type === 'AGENT') {

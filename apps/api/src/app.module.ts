@@ -14,7 +14,9 @@ import { ShortLinksModule } from './shortlinks/shortlinks.module';
 import { WhatsAppModule } from './whatsapp/whatsapp.module';
 import { FacebookModule } from './facebook/facebook.module';
 import { VerificationsModule } from './verifications/verifications.module';
+import { InterestsModule } from './interests/interests.module';
 import { LeadsModule } from './leads/leads.module';
+
 import { RewardsModule } from './rewards/rewards.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { PromosModule } from './promos/promos.module';
@@ -71,7 +73,9 @@ import { DashboardModule } from './dashboard/dashboard.module';
     AdvertisersModule,
     WalletModule,
     PayoutsModule,
-    DashboardModule
+    DashboardModule,
+    InterestsModule
+  ],
   ],
   providers: [
     {

@@ -42,4 +42,11 @@ export class LeadsController {
     // But we should improve the interface definition ideally.
     return this.leadsService.analytics(req.user as any);
   }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @Get()
+  findAll(@Req() req: AuthenticatedRequest) {
+    return this.leadsService.findAll(req.user as any);
+  }
 }

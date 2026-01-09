@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useWallet } from '@/hooks/use-wallet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from '@propad/ui';
 import { formatCurrency } from '@/lib/formatters';
 import { Wallet, TrendingUp, Clock, DollarSign } from 'lucide-react';
@@ -14,26 +14,7 @@ interface WalletData {
 }
 
 export function WalletSummary() {
-  const { data: session } = useSession();
-
-  const { data: wallet, isLoading } = useQuery<WalletData>({
-    queryKey: ['wallet-me'],
-    queryFn: async () => {
-      const token = session?.accessToken;
-      if (!token) throw new Error('Not authenticated');
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/wallet/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to load wallet');
-      }
-      return response.json();
-    },
-    enabled: !!session?.accessToken
-  });
+  const { overview: wallet, isLoading } = useWallet();
 
   if (isLoading) {
     return (

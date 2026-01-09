@@ -109,4 +109,36 @@ export class LeadsService {
       daily
     };
   }
+
+  async findAll(actor: AuthContext & { role: string }) {
+    const where: any = {};
+    if (actor.role === 'AGENT') {
+      where.property = { agentOwnerId: actor.userId };
+    } else if (actor.role === 'LANDLORD') {
+      where.property = { landlordId: actor.userId };
+    } else if (actor.role === 'ADMIN') {
+      // No filter, show all
+    } else {
+      // Empty for others
+      return [];
+    }
+
+    return this.prisma.lead.findMany({
+      where,
+      include: {
+        property: {
+          select: {
+            id: true,
+            title: true,
+            address: false, // Don't expose private address unless needed
+            suburb: true,
+            city: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+  }
 }

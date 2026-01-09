@@ -18,6 +18,11 @@ export class AdvertisersController {
 
     @Get('campaigns')
     async getCampaigns(@Request() req: any) {
-        return this.advertisersService.getCampaigns(req.user.id);
+        return this.advertisersService.getCampaigns(req.user);
+    }
+
+    @Get('stats')
+    async getStats(@Request() req: any) {
+        return this.advertisersService.getStats(req.user);
     }
 }
