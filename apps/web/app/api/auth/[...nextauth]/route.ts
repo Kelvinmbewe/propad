@@ -14,27 +14,53 @@ const { handlers } = NextAuth({
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-                if (!credentials?.email || !credentials?.password) return null
-
-                const res = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
-                    {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(credentials),
+                try {
+                    if (!credentials?.email || !credentials?.password) {
+                        console.error("❌ Missing credentials")
+                        return null
                     }
-                )
 
-                if (!res.ok) return null
-                const data = await res.json()
+                    const res = await fetch(
+                        `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
+                        {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                email: credentials.email,
+                                password: credentials.password,
+                            }),
+                        }
+                    )
 
-                return {
-                    id: data.user.id,
-                    email: data.user.email,
-                    name: data.user.name,
-                    role: data.user.role,
-                    accessToken: data.accessToken,
-                    refreshToken: data.refreshToken,
+                    if (!res.ok) {
+                        console.error("❌ API login failed", res.status)
+                        return null
+                    }
+
+                    const data = await res.json()
+
+                    // HARD VALIDATION (prevents CallbackRouteError)
+                    if (
+                        !data ||
+                        !data.user ||
+                        !data.user.id ||
+                        !data.user.email
+                    ) {
+                        console.error("❌ Invalid API response shape", data)
+                        return null
+                    }
+
+                    return {
+                        id: String(data.user.id),       // MUST be string
+                        email: data.user.email,
+                        name: data.user.name ?? "",
+                        role: data.user.role ?? "USER",
+                        accessToken: data.accessToken ?? "",
+                        refreshToken: data.refreshToken ?? "",
+                    }
+                } catch (err) {
+                    console.error("❌ Authorize exception", err)
+                    return null
                 }
             },
         }),
