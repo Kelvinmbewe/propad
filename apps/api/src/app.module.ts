@@ -16,7 +16,7 @@ import { FacebookModule } from './facebook/facebook.module';
 import { VerificationsModule } from './verifications/verifications.module';
 import { InterestsModule } from './interests/interests.module';
 import { LeadsModule } from './leads/leads.module';
-
+import { NotificationsModule } from './notifications/notifications.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { PromosModule } from './promos/promos.module';
@@ -53,6 +53,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     FacebookModule,
     VerificationsModule,
     LeadsModule,
+    NotificationsModule,
     RewardsModule,
     WalletsModule,
     PromosModule,

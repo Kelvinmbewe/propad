@@ -7,9 +7,11 @@ import { BadgesHelper } from './badges.helper';
 import { RiskService } from './risk.service';
 import { RiskController } from './risk.controller';
 
+import { TrustController } from './trust.controller';
+
 @Module({
     imports: [PrismaModule],
-    controllers: [RiskController],
+    controllers: [RiskController, TrustController],
     providers: [TrustService, BadgesHelper, RiskService],
     exports: [TrustService, BadgesHelper, RiskService],
 })

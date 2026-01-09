@@ -38,19 +38,28 @@ const links = [
   { href: '/dashboard/profile', label: 'Profile', roles: ['AGENT', 'LANDLORD', 'USER', 'MODERATOR'] as Role[], icon: <Users className="h-4 w-4" /> },
 ];
 
+import { NotificationsBell } from './notifications-bell';
+import { useTrustScore } from '@/hooks/use-trust-score';
+import { Badge } from '@propad/ui';
+
 export function DashboardNav() {
   const pathname = usePathname();
   const { data } = useSession();
   const role = (data?.user?.role ?? 'USER') as Role;
+  const { data: trustData } = useTrustScore();
 
   return (
     <nav className="flex h-full flex-col gap-6">
       <div className="rounded-2xl border border-[color:var(--aurora-color-border)] bg-[color:var(--aurora-color-highest)] p-4 text-[color:var(--aurora-color-text)] shadow-aurora">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--aurora-color-text-subtle)]">Workspace</p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--aurora-color-text-subtle)]">Workspace</p>
+          <NotificationsBell />
+        </div>
         <p className="mt-2 text-lg font-semibold">Aurora Command</p>
         <p className="text-sm text-[color:var(--aurora-color-text-muted)]">Operations and admin consoles</p>
       </div>
-      <div className="flex flex-1 flex-col gap-1">
+
+      <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
         {links
           .filter((link) => link.roles.includes(role))
           .map((link) => (
@@ -69,6 +78,26 @@ export function DashboardNav() {
               {link.label}
             </Link>
           ))}
+      </div>
+
+      {/* User Profile Section */}
+      <div className="mt-auto rounded-xl border border-[color:var(--aurora-color-border)] bg-[color:var(--aurora-color-elevated)] p-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold">
+            {data?.user?.email?.[0]?.toUpperCase() || 'U'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm truncate">{data?.user?.name || 'User'}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-neutral-500 truncate">{role}</p>
+              {trustData?.score !== undefined && (
+                <Badge variant={trustData.score >= 80 ? 'default' : trustData.score >= 50 ? 'secondary' : 'outline'} className="text-[10px] h-4 px-1">
+                  Trust: {trustData.score}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </nav>
   );

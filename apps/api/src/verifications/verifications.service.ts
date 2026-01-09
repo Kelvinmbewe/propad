@@ -67,6 +67,9 @@ type AgencyLite = {
   name?: string | null;
 };
 
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '@prisma/client';
+
 @Injectable()
 export class VerificationsService {
   private readonly logger = new Logger(VerificationsService.name);
@@ -74,7 +77,8 @@ export class VerificationsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly trust: TrustService,
-    private readonly riskService: RiskService
+    private readonly riskService: RiskService,
+    private readonly notifications: NotificationsService
   ) { }
 
   async getVerificationQueue() {
@@ -394,6 +398,34 @@ export class VerificationsService {
           where: { id: requestId },
           data: { status: newRequestStatus }
         });
+
+        // NOTIFICATION LOGIC
+        // Ideally done via Event Bus, but direct call is fine for B4
+        // Must fetch requesterId to notify them
+        // Re-fetch request with requester info within transaction
+        const updatedRequest = await tx.verificationRequest.findUnique({
+          where: { id: requestId },
+          select: { requesterId: true, property: { select: { title: true } } }
+        });
+
+        if (updatedRequest?.requesterId) {
+          const title = updatedRequest.property?.title || 'Item';
+          if (dto.status === VerificationItemStatus.REJECTED) {
+            await this.notifications.notifyUser(
+              updatedRequest.requesterId,
+              NotificationType.VERIFICATION_UPDATE,
+              'Verification Item Rejected',
+              `An item for ${title} was rejected: ${dto.notes || 'No reason provided'}`
+            );
+          } else if (newRequestStatus === VerificationStatus.APPROVED) {
+            await this.notifications.notifyUser(
+              updatedRequest.requesterId,
+              NotificationType.VERIFICATION_UPDATE,
+              'Verification Approved',
+              `Your verification request for ${title} has been fully approved!`
+            );
+          }
+        }
 
         // Return the updated item
         return tx.verificationRequestItem.findUnique({ where: { id: itemId } });
