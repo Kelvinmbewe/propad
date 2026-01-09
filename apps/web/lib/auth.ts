@@ -1,4 +1,62 @@
 import NextAuth from "next-auth"
-import { authConfig } from "@/app/api/auth/[...nextauth]/route"
+import Credentials from "next-auth/providers/credentials"
 
-export const { auth, signIn, signOut } = NextAuth(authConfig)
+export const {
+  handlers: { GET, POST },
+  auth,
+  signIn,
+  signOut,
+} = NextAuth({
+  secret: process.env.NEXTAUTH_SECRET,
+  session: { strategy: "jwt" },
+
+  providers: [
+    Credentials({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null
+
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(credentials),
+          }
+        )
+
+        if (!res.ok) return null
+        const data = await res.json()
+
+        return {
+          id: String(data.user.id),
+          email: data.user.email,
+          name: data.user.name ?? "",
+          role: data.user.role,
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+        }
+      },
+    }),
+  ],
+
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) Object.assign(token, user)
+      return token
+    },
+
+    async session({ session, token }) {
+      session.user = token as any
+      return session
+    },
+  },
+
+  pages: {
+    signIn: "/auth/signin",
+  },
+})
