@@ -618,6 +618,85 @@ export class VerificationsService {
     return d;
   }
 
+  async createRequest(requesterId: string, data: { targetType: VerificationType; targetId: string; items: { type: any; evidenceUrls?: string[]; notes?: string }[] }) {
+    // Check for existing pending request
+    const existing = await this.prisma.verificationRequest.findFirst({
+      where: {
+        requesterId,
+        targetType: data.targetType,
+        // Depending on type, use targetUserId or propertyId or agencyId
+        ...(data.targetType === 'PROPERTY' ? { propertyId: data.targetId } : {}),
+        ...(data.targetType === 'USER' ? { targetUserId: data.targetId } : {}),
+        ...(data.targetType === 'COMPANY' ? { agencyId: data.targetId } : {}),
+        status: 'PENDING'
+      }
+    });
+
+    if (existing) {
+      // Ideally we'd allow updating items, but for now block duplicate
+      throw new BadRequestException('A pending verification request already exists for this target.');
+    }
+
+    // Prepare create data
+    const createData: any = {
+      requesterId,
+      targetType: data.targetType,
+      status: 'PENDING',
+      items: {
+        create: data.items.map(i => ({
+          type: i.type,
+          status: 'SUBMITTED', // Auto-submit on creation
+          evidenceUrls: i.evidenceUrls || [],
+          notes: i.notes
+        }))
+      }
+    };
+
+    if (data.targetType === 'PROPERTY') createData.propertyId = data.targetId;
+    else if (data.targetType === 'USER') createData.targetUserId = data.targetId;
+    else if (data.targetType === 'COMPANY') createData.agencyId = data.targetId;
+
+    const request = await this.prisma.verificationRequest.create({
+      data: createData,
+      include: { items: true }
+    });
+
+    // Log Audit
+    await this.audit.logAction(requesterId, request.id, 'VERIFICATION_SUBMIT', { targetType: data.targetType, targetId: data.targetId });
+
+    return request;
+  }
+
+  async getMyRequests(userId: string) {
+    return this.prisma.verificationRequest.findMany({
+      where: { requesterId: userId },
+      include: {
+        items: true,
+        property: { select: { title: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async assignVerifierToRequest(requestId: string, verifierId: string, actorId: string) {
+    const request = await this.prisma.verificationRequest.findUnique({ where: { id: requestId }, include: { items: true } });
+    if (!request) throw new NotFoundException('Request not found');
+
+    // Verify the verifier exists and has role?
+    // For now, trust the ID passed by Admin.
+
+    await this.prisma.$transaction(async (tx) => {
+      // Assign all items that are pending/submitted to this verifier
+      await tx.verificationRequestItem.updateMany({
+        where: { verificationRequestId: requestId },
+        data: { verifierId }
+      });
+    });
+
+    await this.audit.logAction(actorId, requestId, 'VERIFICATION_ASSIGN', { verifierId });
+    return this.getRequest(requestId);
+  }
+
   private deg2rad(deg: number): number {
     return deg * (Math.PI / 180);
   }

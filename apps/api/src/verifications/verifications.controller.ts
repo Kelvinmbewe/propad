@@ -4,6 +4,9 @@ import { VerificationsService } from './verifications.service';
 import { VerificationType } from '@prisma/client';
 import { Role } from '@propad/config';
 import { PaginationDto } from '../common/pagination.dto';
+import { Post } from '@nestjs/common'; // Added Post
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 
 const VerificationItemStatus = {
   PENDING: 'PENDING',
@@ -64,5 +67,23 @@ export class VerificationsController {
     // Extract verifierId strictly from req.user.id (guaranteed to exist in database via JWT strategy auto-sync)
     const actor = { userId: req.user.userId };
     return this.verificationsService.reviewItem(requestId, itemId, body, actor);
+  }
+  @Get('my')
+  @UseGuards(JwtAuthGuard)
+  async getMyRequests(@Req() req: AuthenticatedRequest) {
+    return this.verificationsService.getMyRequests(req.user.userId);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  async submitRequest(@Body() body: { targetType: VerificationType; targetId: string; items: any[] }, @Req() req: AuthenticatedRequest) {
+    return this.verificationsService.createRequest(req.user.userId, body);
+  }
+
+  @Patch('requests/:id/assign')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async assignVerifier(@Param('id') id: string, @Body() body: { verifierId: string }, @Req() req: AuthenticatedRequest) {
+    return this.verificationsService.assignVerifierToRequest(id, body.verifierId, req.user.userId);
   }
 }
