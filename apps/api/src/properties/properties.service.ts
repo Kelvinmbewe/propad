@@ -1128,7 +1128,7 @@ export class PropertiesService {
           availableFrom,
           commercialFields,
           description: dto.description,
-          status: PropertyStatus.DRAFT,
+          status: PropertyStatus.DRAFT, // FORCE DRAFT
           createdByRole
         },
         include: {
@@ -1179,11 +1179,46 @@ export class PropertiesService {
           }
         });
       }
+      return this.attachLocation(property);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to create property: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
       throw error;
     }
+  }
+
+  async publish(id: string, actor: AuthContext) {
+    const property = await this.prisma.property.findUnique({ where: { id } });
+    if (!property) throw new NotFoundException('Property not found');
+
+    // Check Ownership
+    if (property.landlordId !== actor.userId && property.agentOwnerId !== actor.userId && actor.role !== Role.ADMIN) {
+      throw new ForbiddenException('Not authorized to publish this property');
+    }
+
+    // Check Completeness
+    if (!property.title || !property.price || !property.type) {
+      throw new BadRequestException('Property is incomplete');
+    }
+
+    let newStatus: PropertyStatus = PropertyStatus.PENDING_VERIFICATION;
+
+    // Auto-publish if already Verified or Admin or has sufficient trust
+    if (property.status === PropertyStatus.VERIFIED || actor.role === Role.ADMIN) {
+      newStatus = PropertyStatus.PUBLISHED;
+    }
+
+    if (property.verificationLevel === 'VERIFIED' || property.verificationLevel === 'TRUSTED') {
+      newStatus = PropertyStatus.PUBLISHED;
+    }
+
+    const updated = await this.prisma.property.update({
+      where: { id },
+      data: { status: newStatus }
+    });
+
+    await this.audit.logAction(actor.userId, id, 'PROPERTY_PUBLISH', { status: newStatus });
+    return updated;
   }
 
   async update(id: string, dto: UpdatePropertyDto, actor: AuthContext) {

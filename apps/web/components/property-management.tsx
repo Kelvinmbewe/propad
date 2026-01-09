@@ -82,8 +82,8 @@ export function PropertyManagement() {
   }
 
   if (propertiesError) {
-    const errorMessage = propertiesErrorDetails instanceof Error 
-      ? propertiesErrorDetails.message 
+    const errorMessage = propertiesErrorDetails instanceof Error
+      ? propertiesErrorDetails.message
       : 'Unknown error';
     console.error('Properties error:', propertiesErrorDetails);
     return (
@@ -170,11 +170,33 @@ export function PropertyManagement() {
                       </div>
                     </CardContent>
                     <CardFooter className="pt-2 flex justify-between gap-2 border-t bg-neutral-50/50">
-                      <Link href={`/dashboard/listings/${property.id}`} className="flex-1">
-                        <Button variant="default" className="w-full" size="sm">
-                          Manage
-                        </Button>
-                      </Link>
+                      <div className="flex gap-2 flex-1">
+                        <Link href={`/dashboard/listings/${property.id}`} className="flex-1">
+                          <Button variant="default" className="w-full" size="sm">
+                            Manage
+                          </Button>
+                        </Link>
+                        {/* Publish Button for DRAFT */}
+                        {property.status === 'DRAFT' && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              if (confirm('Publish this listing?')) {
+                                try {
+                                  await sdk.request(`/properties/${property.id}/publish`, { method: 'PATCH' });
+                                  window.location.reload();
+                                } catch (err) {
+                                  alert('Failed to publish');
+                                }
+                              }
+                            }}
+                          >
+                            Publish
+                          </Button>
+                        )}
+                      </div>
                       <Link href={`/dashboard/listings/${property.id}/edit`}>
                         <Button variant="ghost" size="sm">Edit</Button>
                       </Link>

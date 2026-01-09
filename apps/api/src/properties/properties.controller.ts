@@ -162,6 +162,16 @@ export class PropertiesController {
     }
   }
 
+  @Patch(':id/publish')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  publish(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.propertiesService.publish(id, req.user);
+  }
+
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
