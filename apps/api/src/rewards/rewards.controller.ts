@@ -1,8 +1,9 @@
-import { Controller, Get, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards, Request } from '@nestjs/common';
 import { RewardsService } from './rewards.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-
 import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { Role } from '@propad/config';
 
 @Controller('rewards')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -17,5 +18,11 @@ export class RewardsController {
   @Get('pools')
   async getPools() {
     return this.rewardsService.getRewardPools();
+  }
+
+  @Post('distribute')
+  @Roles(Role.ADMIN)
+  async distributeRewards() {
+    return this.rewardsService.distributeRewards();
   }
 }

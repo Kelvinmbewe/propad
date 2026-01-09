@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Skeleton } from '@propad/ui';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Skeleton, Button } from '@propad/ui';
 import { WalletSummary } from '@/components/wallet-summary';
 import { PaymentHistory } from '@/components/payment-history';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
@@ -52,6 +52,25 @@ export default function WalletPage() {
   const sdk = useAuthenticatedSDK();
   const { data: session } = useSession();
 
+  const handleRequestPayout = async () => {
+    // In a real app, this would open a Dialog with form
+    const amount = prompt("Enter amount to withdraw (USD):");
+    if (!amount) return;
+
+    try {
+      await sdk.payouts.requestPayout({
+        amountCents: Math.floor(parseFloat(amount) * 100),
+        method: 'BANK_TRANSFER', // Hardcoded for Demo
+        accountId: 'demo-account-id'
+      });
+      alert("Payout requested successfully!");
+      window.location.reload(); // Simple refresh to see new state
+    } catch (e) {
+      console.error(e);
+      alert("Failed to request payout. Ensure you have balance and valid account.");
+    }
+  };
+
   const { data: payouts, isLoading: loadingPayouts } = useQuery<PayoutRequest[]>({
     queryKey: ['payouts-my'],
     queryFn: async () => {
@@ -75,7 +94,12 @@ export default function WalletPage() {
         <p className="text-sm text-gray-600">Manage your balance, payouts, and payment history</p>
       </div>
 
-      <WalletSummary />
+      <div className="flex items-center justify-between">
+        <WalletSummary />
+        <Button onClick={() => handleRequestPayout()}>Request Payout</Button>
+      </div>
+
+      {/* Payout Dialog Placeholder - Ideally a modal component */}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>

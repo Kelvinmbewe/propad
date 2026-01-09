@@ -132,6 +132,10 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
       findAll: async () => client.get('leads').json<any[]>(),
       updateStatus: async (id: string, status: string) => client.patch(`leads/${id}/status`, { json: { status } }).json<any>(),
     },
+    rewards: {
+      my: async () => client.get('rewards/my').json<any[]>(),
+      pools: async () => client.get('rewards/pools').json<any[]>(),
+    },
     properties: {
       listOwned: async () =>
         client

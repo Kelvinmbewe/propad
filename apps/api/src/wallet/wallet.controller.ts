@@ -18,7 +18,7 @@ export class WalletController {
   constructor(private readonly ledger: WalletLedgerService) { }
 
   @Get('me')
-  @Roles(Role.USER, Role.AGENT, Role.LANDLORD)
+  @Roles(Role.USER, Role.AGENT, Role.LANDLORD, Role.ADVERTISER)
   async getMyWallet(@Req() req: AuthenticatedRequest) {
     const balance = await this.ledger.calculateBalance(req.user.userId, Currency.USD);
 
@@ -28,6 +28,12 @@ export class WalletController {
       withdrawableCents: balance.withdrawableCents,
       currency: Currency.USD
     };
+  }
+
+  @Get('transactions')
+  @Roles(Role.USER, Role.AGENT, Role.LANDLORD, Role.ADVERTISER)
+  async getMyTransactions(@Req() req: AuthenticatedRequest) {
+    return this.ledger.getLedger(req.user.userId);
   }
 }
 
