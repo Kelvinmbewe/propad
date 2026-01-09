@@ -14,6 +14,11 @@ const { handlers } = NextAuth({
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
+                console.log("🟢 AUTHORIZE CALLED")
+                console.log("📨 Credentials:", {
+                    email: credentials?.email,
+                    hasPassword: Boolean(credentials?.password),
+                })
                 try {
                     if (!credentials?.email || !credentials?.password) {
                         console.error("❌ Missing credentials")
@@ -32,12 +37,16 @@ const { handlers } = NextAuth({
                         }
                     )
 
+                    console.log("🌐 API response status:", res.status)
+
                     if (!res.ok) {
                         console.error("❌ API login failed", res.status)
                         return null
                     }
 
                     const data = await res.json()
+
+                    console.log("📦 API response body:", data)
 
                     // HARD VALIDATION (prevents CallbackRouteError)
                     if (
