@@ -101,8 +101,9 @@ const config: NextAuthConfig = {
           }
 
           // Return user with tokens attached for JWT callback
+          // NextAuth requires id to be a string
           return {
-            id: data.user.id,
+            id: String(data.user.id),
             email: data.user.email,
             name: data.user.name,
             role: data.user.role,
@@ -178,9 +179,7 @@ const config: NextAuthConfig = {
   }
 };
 
-export const {
-  handlers: { GET, POST },
-  auth,
-  signIn,
-  signOut,
-} = NextAuth(config);
+const { handlers, auth, signIn, signOut } = NextAuth(config);
+
+export const { GET, POST } = handlers;
+export { auth, signIn, signOut };
