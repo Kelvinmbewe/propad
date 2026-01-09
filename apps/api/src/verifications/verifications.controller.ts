@@ -86,4 +86,15 @@ export class VerificationsController {
   async assignVerifier(@Param('id') id: string, @Body() body: { verifierId: string }, @Req() req: AuthenticatedRequest) {
     return this.verificationsService.assignVerifierToRequest(id, body.verifierId, req.user.userId);
   }
+
+  @Patch('requests/:id/decision')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.VERIFIER) // Assuming VERIFIER role exists, or just ADMIN
+  async decideRequest(
+    @Param('id') id: string,
+    @Body() body: { status: 'APPROVED' | 'REJECTED'; notes: string },
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.verificationsService.decideRequest(id, body.status, body.notes, req.user.userId);
+  }
 }
