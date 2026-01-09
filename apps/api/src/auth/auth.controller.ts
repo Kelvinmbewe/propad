@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Get, Post, Req, UseGuards } from
 import { z } from 'zod';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { JwtRefreshGuard } from './jwt-refresh.guard';
 
 const schema = z.object({
   email: z.string().email(),
@@ -72,9 +73,14 @@ export class AuthController {
     return this.authService.getSession(req.user.userId);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtRefreshGuard)
   @Post('refresh')
   refresh(@Req() req: AuthenticatedRequest) {
     return this.authService.refresh(req.user.userId);
+  }
+
+  @Post('mobile/login')
+  async mobileLogin(@Body() body: LoginDto) {
+    return this.authService.login(body.email, body.password);
   }
 }

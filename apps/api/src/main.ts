@@ -12,11 +12,19 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { HttpAdapterHost } from '@nestjs/core';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
 import { LoggingInterceptor } from './common/logging.interceptor';
+import { VersioningType } from '@nestjs/common';
+import compression from 'compression';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true
   });
+
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+  });
+  app.use(compression());
 
   const httpAdapter = app.get(HttpAdapterHost);
   app.useGlobalFilters(new AllExceptionsFilter(httpAdapter));
