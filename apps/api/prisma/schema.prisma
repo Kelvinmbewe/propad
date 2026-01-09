@@ -585,8 +585,23 @@ model User {
   referredByCodeId    String?
   referredByCode      ReferralCode?        @relation("ReferredByCode", fields: [referredByCodeId], references: [id])
   promoUsages         PromoUsage[]
+  pushTokens          PushToken[]
 
   @@index([role])
+}
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  deviceId  String   // Unique device ID
+  platform  String   // IOS, ANDROID, WEB
+  token     String
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  @@unique([deviceId])
+  @@index([userId])
 }
 
 model RiskEvent {
