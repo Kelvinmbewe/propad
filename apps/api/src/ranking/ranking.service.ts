@@ -174,4 +174,57 @@ export class RankingService {
     explainRanking(property: Property, params: RankingParams) {
         return this.calculateScoreBreakdown(property, params);
     }
+
+    /**
+     * Rank listings with promoted listings injected at top.
+     * Promoted listings (from PROPERTY_BOOST and SEARCH_SPONSOR campaigns)
+     * appear first, followed by organic results.
+     */
+    async rankWithPromotedListings(
+        properties: Property[],
+        params: RankingParams,
+        promotedListings: Array<Property & { isPromoted: boolean; campaignId: string }>,
+    ): Promise<{
+        property: Property;
+        score: number;
+        isPromoted: boolean;
+        campaignId?: string;
+        breakdown: any;
+    }[]> {
+        // 1. Get property IDs that are already in promoted listings
+        const promotedIds = new Set(promotedListings.map(p => p.id));
+
+        // 2. Filter promoted listings from organic to avoid duplicates
+        const organicProperties = properties.filter(p => !promotedIds.has(p.id));
+
+        // 3. Rank organic listings
+        const rankedOrganic = await this.rankListingsAsync(organicProperties, params);
+
+        // 4. Create promoted results (they skip normal ranking, get top placement)
+        const promotedResults = promotedListings.map((property) => ({
+            property,
+            score: 100 + 10, // Guaranteed above organic scores
+            isPromoted: true,
+            campaignId: property.campaignId,
+            breakdown: {
+                total: 100,
+                components: {
+                    trust: property.trustScore || 0,
+                    relevance: 100,
+                    freshness: 100,
+                    engagement: 100,
+                },
+                promotedPlacement: true,
+            },
+        }));
+
+        // 5. Combine: promoted first, then organic
+        const organicResults = rankedOrganic.map(r => ({
+            ...r,
+            isPromoted: false,
+            campaignId: undefined,
+        }));
+
+        return [...promotedResults, ...organicResults];
+    }
 }

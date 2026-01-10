@@ -386,6 +386,12 @@ enum AdCampaignStatus {
   ENDED
 }
 
+enum AdCampaignType {
+  PROPERTY_BOOST
+  BANNER
+  SEARCH_SPONSOR
+}
+
 enum ReviewerType {
   PREVIOUS_TENANT
   NEIGHBOR
@@ -576,6 +582,7 @@ model User {
   walletLedgerEntries WalletLedger[]       @relation("WalletLedgerUser")
   adEvents            AdEvent[]            @relation("AdEventUser")
   rewardDistributions RewardDistribution[]
+  adClicks            AdClick[]            @relation("AdClickUser")
 }
 
 model UserRole {
@@ -777,6 +784,8 @@ model Property {
   propertyRatings      PropertyRating[]
   activityLogs         ListingActivityLog[]
   siteVisits           SiteVisit[]
+  campaignTargets      AdCampaign[]          @relation("CampaignTargetProperty")
+  adClicks             AdClick[]
 
   @@index([status])
   @@index([countryId])
@@ -1311,7 +1320,9 @@ model Advertiser {
   name         String
   contactEmail String?
   phone        String?
+  companyName  String? // Optional company name
   billingInfo  Json?
+  balanceCents Int              @default(0) // Ad spend balance
   status       AdvertiserStatus @default(ACTIVE)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
@@ -1319,6 +1330,7 @@ model Advertiser {
   campaigns   AdCampaign[]
   creatives   AdCreative[]
   impressions AdImpression[]
+  balanceLogs AdvertiserBalanceLog[]
 
   @@index([status])
 }
@@ -1369,6 +1381,11 @@ model AdCampaign {
   advertiserId        String
   invoiceId           String?          @unique
   name                String
+  type                AdCampaignType? // Campaign type
+  targetPropertyId    String? // For PROPERTY_BOOST campaigns
+  budgetCents         Int? // Total budget limit
+  spentCents          Int              @default(0) // Track spent amount
+  dailyCapCents       Int? // Daily spending limit
   startAt             DateTime
   endAt               DateTime?
   targetingJson       Json?
@@ -1381,16 +1398,20 @@ model AdCampaign {
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
 
-  advertiser  Advertiser     @relation(fields: [advertiserId], references: [id])
-  invoice     Invoice?       @relation("AdCampaignInvoice", fields: [invoiceId], references: [id])
-  rewardPool  RewardPool?    @relation(fields: [rewardPoolId], references: [id])
-  flights     AdFlight[]
-  stats       AdStat[]
-  impressions AdImpression[]
-  adEvents    AdEvent[]
+  advertiser     Advertiser     @relation(fields: [advertiserId], references: [id])
+  invoice        Invoice?       @relation("AdCampaignInvoice", fields: [invoiceId], references: [id])
+  rewardPool     RewardPool?    @relation(fields: [rewardPoolId], references: [id])
+  targetProperty Property?      @relation("CampaignTargetProperty", fields: [targetPropertyId], references: [id])
+  flights        AdFlight[]
+  stats          AdStat[]
+  impressions    AdImpression[]
+  adEvents       AdEvent[]
+  adClicks       AdClick[]
 
   @@index([advertiserId, status])
   @@index([startAt, endAt])
+  @@index([type, status])
+  @@index([targetPropertyId])
 }
 
 model AdFlight {
@@ -2064,4 +2085,46 @@ model AdSenseDailyStat {
   currencyCode  String   @default("USD")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// Phase D8: Ads and Promotions
+
+model AdClick {
+  id          String   @id @default(cuid())
+  campaignId  String
+  flightId    String?
+  placementId String?
+  userId      String?
+  propertyId  String?
+  sessionId   String
+  clickUrl    String?
+  costMicros  Int      @default(0)
+  userAgent   String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  campaign AdCampaign @relation(fields: [campaignId], references: [id])
+  user     User?      @relation("AdClickUser", fields: [userId], references: [id])
+  property Property?  @relation(fields: [propertyId], references: [id])
+
+  @@index([campaignId, createdAt])
+  @@index([userId])
+  @@index([propertyId])
+  @@index([sessionId])
+}
+
+model AdvertiserBalanceLog {
+  id           String   @id @default(cuid())
+  advertiserId String
+  type         String // CREDIT, DEBIT
+  amountCents  Int
+  reason       String // TOPUP, IMPRESSION, CLICK, REFUND
+  referenceId  String? // Link to impression/click/topup
+  balanceAfter Int // Balance after transaction
+  createdAt    DateTime @default(now())
+
+  advertiser Advertiser @relation(fields: [advertiserId], references: [id])
+
+  @@index([advertiserId, createdAt(sort: Desc)])
+  @@index([reason])
 }

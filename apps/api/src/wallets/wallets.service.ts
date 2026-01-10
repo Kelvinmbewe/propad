@@ -362,7 +362,7 @@ export class WalletsService {
         }
       });
 
-      await this.audit.log({
+      await this.audit.logAction({
         action: 'wallet.payout.request',
         actorId: actor.userId,
         targetType: 'payoutRequest',
@@ -394,7 +394,7 @@ export class WalletsService {
         }
       });
 
-      await this.audit.log({
+      await this.audit.logAction({
         action: 'wallet.payout.approve',
         actorId: actor.userId,
         targetType: 'payoutRequest',
@@ -464,17 +464,17 @@ export class WalletsService {
       }
 
       if (dto.status === PayoutStatus.FAILED || dto.status === PayoutStatus.CANCELLED) {
-        await this.audit.log({
+        await this.audit.logAction({
           action: 'wallet.payout.failed',
-          actorId: null,
+          actorId: undefined,
           targetType: 'payoutRequest',
           targetId: payout.id,
           metadata: { reason: dto.failureReason }
         });
       } else {
-        await this.audit.log({
+        await this.audit.logAction({
           action: 'wallet.payout.webhook',
-          actorId: null,
+          actorId: undefined,
           targetType: 'payoutRequest',
           targetId: payout.id,
           metadata: { status: dto.status }
@@ -556,7 +556,7 @@ export class WalletsService {
       create: { key, description: JSON.stringify(payload), enabled: true }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'wallet.aml.add',
       actorId: actor.userId,
       targetType: 'amlBlocklist',
@@ -576,7 +576,7 @@ export class WalletsService {
 
     await this.prisma.featureFlag.delete({ where: { key } });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'wallet.aml.remove',
       actorId: actor.userId,
       targetType: 'amlBlocklist',
@@ -630,7 +630,7 @@ export class WalletsService {
       create: { key, description: JSON.stringify(payload), enabled: true }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'wallet.threshold.upsert',
       actorId: actor.userId,
       targetType: 'walletThreshold',
