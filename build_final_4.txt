@@ -1,0 +1,112 @@
+﻿
+> @propad/web@0.1.0 build C:\projects\propad\apps\web
+> next build
+
+  Ôû▓ Next.js 14.2.3
+  - Environments: .env.local, .env
+  - Experiments (use with caution):
+    ┬À instrumentationHook
+
+   Creating an optimized production build ...
+ Ô£ô (pwa) Compiling for server...
+ Ô£ô (pwa) Compiling for server...
+ Ô£ô (pwa) Compiling for client (static)...
+ Ôùï (pwa) Service worker: C:\projects\propad\apps\web\public\sw.js
+ Ôùï (pwa)   URL: /sw.js
+ Ôùï (pwa)   Scope: /
+node.exe : Failed to 
+compile.
+At C:\Program Files\node
+js\pnpm.ps1:16 char:5
++     & 
+"$basedir/node$exe"  "$b
+asedir/node_modules/core
+pack/dist/pnpm. ...
++     ~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo      
+        : NotSpecified  
+  : (Failed to compil   
+ e.:String) [], Remo    
+teException
+    + FullyQualifiedErr 
+   orId : NativeComman  
+  dError
+ 
+
+./app/(dashboard)/dashbo
+ard/wallet/page.tsx
+Error: 
+  [31mx[0m the name 
+`useSession` is defined 
+multiple times
+    ,-[[36;1;4mC:\proje
+cts\propad\apps\web\app\
+(dashboard)\dashboard\wa
+llet\page.tsx[0m:2:1]
+ [2m 2[0m | 
+ [2m 3[0m | import { 
+useQuery, 
+useQueryClient } from 
+'@tanstack/react-query';
+ [2m 4[0m | import { 
+Card, CardContent, 
+CardDescription, 
+CardHeader, CardTitle, 
+Badge, Skeleton, 
+Button, Input } from 
+'@propad/ui';
+ [2m 5[0m | import { 
+useSession } from 
+'next-auth/react';
+    : [31;1m         
+^^^^^|^^^^[0m
+    :               
+[31;1m`-- 
+[31;1mprevious 
+definition of 
+`useSession` 
+here[0m[0m
+ [2m 6[0m | import { 
+WalletSummary } from '@/
+components/wallet-summar
+y';
+ [2m 7[0m | import { 
+PaymentHistory } from '@
+/components/payment-hist
+ory';
+ [2m 8[0m | import { 
+useAuthenticatedSDK } 
+from '@/hooks/use-authen
+ticated-sdk';
+ [2m 9[0m | import { 
+useSession } from 
+'next-auth/react';
+    : [33;1m         
+^^^^^|^^^^[0m
+    :               
+[33;1m`-- 
+[33;1m`useSession` 
+redefined here[0m[0m
+ [2m10[0m | import { 
+formatCurrency } from 
+'@/lib/formatters';
+ [2m11[0m | import { 
+DollarSign, Clock, 
+CheckCircle2, XCircle } 
+from 'lucide-react';
+ [2m11[0m | 
+    `----
+
+Import trace for 
+requested module:
+./app/(dashboard)/dashbo
+ard/wallet/page.tsx
+
+
+> Build failed because 
+of webpack errors
+C:\projects\propad\apps\web:
+ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/web@0.1.0 build: `next build`
+Exit status 1

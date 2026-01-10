@@ -86,6 +86,7 @@ import { DealsModule } from './deals/deals.module';
     MonetizationModule,
     AdvertisersModule,
     WalletModule,
+    MessagingModule,
     PayoutsModule,
     DashboardModule,
     AuthenticationModule, // Alias if needed, assuming AuthModule is correct
@@ -96,6 +97,7 @@ import { DealsModule } from './deals/deals.module';
     PricingModule,
     SecurityModule,
     GrowthModule,
+    MessagingModule,
     InterestsModule,
     ApplicationsModule,
     DealsModule

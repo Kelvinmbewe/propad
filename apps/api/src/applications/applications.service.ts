@@ -6,13 +6,15 @@ import { ApplicationStatus, Prisma, Role, LeadSource, NotificationType } from '@
 import { AuthContext } from '../auth/interfaces/auth-context.interface';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DealsService } from '../deals/deals.service';
+import { ConversationsService } from '../messaging/conversations.service';
 
 @Injectable()
 export class ApplicationsService {
     constructor(
         private prisma: PrismaService,
         private notificationsService: NotificationsService,
-        private dealsService: DealsService
+        private dealsService: DealsService,
+        private conversationsService: ConversationsService
     ) { }
 
     async apply(userId: string, dto: CreateApplicationDto) {
@@ -67,6 +69,16 @@ export class ApplicationsService {
                 `A new application has been submitted for ${property.title ?? 'your property'}.`,
                 `/dashboard/listings/${property.id}/applications`
             );
+        }
+
+        // 6. Create Conversation
+        const ownerIdToContact = property.agentOwnerId || property.landlordId;
+        if (ownerIdToContact) {
+            await this.conversationsService.create(userId, {
+                propertyId: dto.propertyId,
+                applicationId: application.id,
+                participantIds: [ownerIdToContact]
+            });
         }
 
         return application;

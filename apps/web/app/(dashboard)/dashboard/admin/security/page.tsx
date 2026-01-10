@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '@propad/ui';
 import { ShieldAlert, Unlock } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -8,13 +9,14 @@ import { formatDistanceToNow } from 'date-fns';
 
 export default function SecurityPage() {
     const sdk = useAuthenticatedSDK();
+    const { data: session } = useSession();
     const queryClient = useQueryClient();
 
     const { data: events, isLoading } = useQuery({
         queryKey: ['admin', 'security', 'events'],
         queryFn: async () => {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/security/events`, {
-                headers: { Authorization: `Bearer ${sdk?.accessToken}` }
+                headers: { Authorization: `Bearer ${session?.accessToken}` }
             });
             return res.json();
         }
@@ -24,7 +26,7 @@ export default function SecurityPage() {
         mutationFn: async (userId: string) => {
             await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/security/unlock/${userId}`, {
                 method: 'POST',
-                headers: { Authorization: `Bearer ${sdk?.accessToken}` }
+                headers: { Authorization: `Bearer ${session?.accessToken}` }
             });
         },
         onSuccess: () => {
@@ -52,9 +54,11 @@ export default function SecurityPage() {
                                     <div className="flex flex-col gap-1">
                                         <div className="flex items-center gap-2">
                                             <Badge variant={
-                                                evt.severity === 'CRITICAL' ? 'destructive' :
-                                                    evt.severity === 'HIGH' ? 'destructive' :
+                                                evt.severity === 'CRITICAL' ? 'default' :
+                                                    evt.severity === 'HIGH' ? 'default' :
                                                         'secondary'
+                                            } className={
+                                                evt.severity === 'CRITICAL' || evt.severity === 'HIGH' ? 'bg-red-500 hover:bg-red-600 border-transparent text-white' : ''
                                             }>{evt.severity}</Badge>
                                             <span className="font-medium text-sm">{evt.type}</span>
                                         </div>

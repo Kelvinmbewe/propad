@@ -2,19 +2,21 @@
 
 import { useState } from 'react';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Switch, Badge } from '@propad/ui';
 import { Activity, ShieldAlert, Cpu, Settings, RefreshCw } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function OpsPage() {
     const sdk = useAuthenticatedSDK();
+    const { data: session } = useSession();
     const queryClient = useQueryClient();
 
     const { data: metrics, isLoading: metricsLoading } = useQuery({
         queryKey: ['metrics', 'system'],
         queryFn: async () => {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/metrics/system`, {
-                headers: { Authorization: `Bearer ${sdk?.accessToken}` }
+                headers: { Authorization: `Bearer ${session?.accessToken}` }
             });
             return res.json();
         }
@@ -24,7 +26,7 @@ export default function OpsPage() {
         queryKey: ['ops', 'flags'],
         queryFn: async () => {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ops/flags`, {
-                headers: { Authorization: `Bearer ${sdk?.accessToken}` }
+                headers: { Authorization: `Bearer ${session?.accessToken}` }
             });
             return res.json();
         }
@@ -35,7 +37,7 @@ export default function OpsPage() {
             await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ops/flags`, {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${sdk?.accessToken}`,
+                    Authorization: `Bearer ${session?.accessToken}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ key, enabled })
@@ -109,7 +111,7 @@ export default function OpsPage() {
                                         <div className="text-xs text-neutral-500">{flag.description || 'No description'}</div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Badge variant={flag.enabled ? 'success' : 'secondary'}>
+                                        <Badge variant={flag.enabled ? 'default' : 'secondary'} className={flag.enabled ? 'bg-green-600 hover:bg-green-700' : ''}>
                                             {flag.enabled ? 'ENABLED' : 'DISABLED'}
                                         </Badge>
                                         <Switch

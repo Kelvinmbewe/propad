@@ -579,18 +579,20 @@ model User {
   adEvents            AdEvent[]            @relation("AdEventUser")
   rewardDistributions RewardDistribution[]
   riskEvents          RiskEvent[]
-  tenantDeals         Deal[]        @relation("DealTenant")
-  landlordDeals       Deal[]        @relation("DealLandlord")
-  agentDeals          Deal[]        @relation("DealAgent")
+  tenantDeals         Deal[]               @relation("DealTenant")
+  landlordDeals       Deal[]               @relation("DealLandlord")
+  agentDeals          Deal[]               @relation("DealAgent")
 
   // Growth & Referrals
-  referralCodesOwned ReferralCode[] @relation("ReferralCodeOwner")
+  referralCodesOwned ReferralCode[]            @relation("ReferralCodeOwner")
   referredByCodeId   String?
-  referredByCode     ReferralCode?  @relation("ReferredByCode", fields: [referredByCodeId], references: [id])
+  referredByCode     ReferralCode?             @relation("ReferredByCode", fields: [referredByCodeId], references: [id])
   promoUsages        PromoUsage[]
   pushTokens         PushToken[]
   applications       Application[]
-  commissions        Commission[]   @relation("AgentCommissions")
+  commissions        Commission[]              @relation("AgentCommissions")
+  conversations      ConversationParticipant[]
+  messagesSent       Message[]
 
   @@index([role])
 }
@@ -848,6 +850,7 @@ model Property {
   shortLinks      ShortLink[]
   reviews         UserReview[]
   commissions     Commission[]
+  conversations   Conversation[]
 
   // Role-Aware
   createdByRole String @default("LANDLORD")
@@ -1431,9 +1434,10 @@ model Application {
   paymentId  String?             @unique
   payment    PaymentTransaction? @relation(fields: [paymentId], references: [id])
 
-  property Property @relation(fields: [propertyId], references: [id])
-  user     User     @relation(fields: [userId], references: [id])
-  deal     Deal?
+  property     Property       @relation(fields: [propertyId], references: [id])
+  user         User           @relation(fields: [userId], references: [id])
+  deal         Deal?
+  Conversation Conversation[]
 
   @@unique([propertyId, userId])
   @@index([userId])
@@ -1457,30 +1461,31 @@ enum DealStatus {
 }
 
 model Deal {
-  id            String     @id @default(cuid())
+  id            String  @id @default(cuid())
   propertyId    String
   tenantId      String
   landlordId    String
   agentId       String?
-  applicationId String     @unique
-  
+  applicationId String  @unique
+
   status        DealStatus @default(ACTIVE)
   startDate     DateTime
   endDate       DateTime?
   rentAmount    Int // in cents
   depositAmount Int? // in cents
   currency      Currency   @default(USD)
-  
-  termsJson     Json?
-  
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
 
-  property      Property    @relation(fields: [propertyId], references: [id])
-  tenant        User        @relation("DealTenant", fields: [tenantId], references: [id])
-  landlord      User        @relation("DealLandlord", fields: [landlordId], references: [id])
-  agent         User?       @relation("DealAgent", fields: [agentId], references: [id])
-  application   Application @relation(fields: [applicationId], references: [id])
+  termsJson Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  property     Property       @relation(fields: [propertyId], references: [id])
+  tenant       User           @relation("DealTenant", fields: [tenantId], references: [id])
+  landlord     User           @relation("DealLandlord", fields: [landlordId], references: [id])
+  agent        User?          @relation("DealAgent", fields: [agentId], references: [id])
+  application  Application    @relation(fields: [applicationId], references: [id])
+  Conversation Conversation[]
 
   @@index([propertyId])
   @@index([tenantId])
@@ -2021,8 +2026,6 @@ model SiteVisit {
   @@index([status])
 }
 
-
-
 // model RiskEvent {
 //   id         String   @id @default(cuid())
 //   entityType String
@@ -2037,8 +2040,6 @@ model SiteVisit {
 //   @@index([signalType])
 //   @@index([timestamp])
 // }
-
-
 
 enum BoostType {
   LISTING_BOOST
@@ -2300,4 +2301,55 @@ enum CommissionStatus {
   PENDING
   PAID
   CANCELLED
+}
+
+// Messaging & Negotiation Models
+
+model Conversation {
+  id            String   @id @default(cuid())
+  propertyId    String
+  dealId        String?
+  applicationId String?
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  property     Property                  @relation(fields: [propertyId], references: [id])
+  deal         Deal?                     @relation(fields: [dealId], references: [id])
+  application  Application?              @relation(fields: [applicationId], references: [id])
+  messages     Message[]
+  participants ConversationParticipant[]
+
+  @@index([propertyId])
+  @@index([dealId])
+  @@index([applicationId])
+  @@index([lastMessageAt(sort: Desc)])
+}
+
+model ConversationParticipant {
+  id             String    @id @default(cuid())
+  conversationId String
+  userId         String
+  lastReadAt     DateTime?
+  joinedAt       DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt])
 }

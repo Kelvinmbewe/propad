@@ -1,10 +1,7 @@
 'use client';
 
 import { useLeads } from '../../../hooks/use-leads';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@propad/ui/card';
-import { Skeleton } from '@propad/ui/skeleton';
-import { Badge } from '@propad/ui/badge';
-import { Button } from '@propad/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Skeleton, Badge, Button } from '@propad/ui';
 import { formatDistanceToNow } from 'date-fns';
 import { MessageSquare, Phone, ExternalLink } from 'lucide-react';
 import Link from 'next/link';

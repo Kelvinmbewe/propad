@@ -13,35 +13,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <aside className="rounded-[28px] border border-[color:var(--aurora-color-border)] bg-[color:var(--aurora-color-elevated)]/80 p-4 shadow-aurora backdrop-blur">
               <DashboardNav />
             </aside>
-            <main className="rounded-[32px] border border-[color:var(--aurora-color-border)] bg-[color:var(--aurora-color-elevated)]/90    {
-      name: 'Notifications',
-      href: '/dashboard/notifications',
-      icon: Bell,
-      active: pathname === '/dashboard/notifications'
-    },
-    {
-      name: 'Settings',
-      href: '/dashboard/settings',
-      icon: Settings,
-      active: pathname === '/dashboard/settings'
-    }
-  ];
-
-  // Add Agency Link if eligible
-  const isAgencyUser = session?.user?.role === 'COMPANY_ADMIN' || session?.user?.role === 'AGENT';
-  if (isAgencyUser) {
-    const agencyIndex = items.findIndex(i => i.name === 'Wallet'); // Insert before Wallet or somewhere appropriate
-    items.splice(agencyIndex, 0, {
-      name: 'My Agency',
-      href: '/dashboard/agency',
-      icon: Building2,
-      active: pathname.startsWith('/dashboard/agency')
-    });
-  }
-
-  // Admin Links
-  if (session?.user?.role === 'ADMIN') {;
-} p-4 shadow-aurora backdrop-blur md:p-8">
+            <main className="rounded-[32px] border border-[color:var(--aurora-color-border)] bg-[color:var(--aurora-color-elevated)]/90 p-4 shadow-aurora backdrop-blur md:p-8">
               {children}
             </main>
           </div>
@@ -50,4 +22,4 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     </Suspense>
   );
 }
-```
+

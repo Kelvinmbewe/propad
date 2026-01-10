@@ -687,6 +687,7 @@ export type AdminAgency = z.infer<typeof AdminAgencySchema>;
 export const ApplicationStatusSchema = z.enum([
   'SUBMITTED',
   'REVIEWING',
+  'SHORTLISTED',
   'APPROVED',
   'REJECTED',
   'CANCELLED'
@@ -736,4 +737,42 @@ export const DealSchema = z
   })
   .passthrough();
 
+
 export type Deal = z.infer<typeof DealSchema>;
+
+export const MessageSchema = z.object({
+  id: z.string(),
+  conversationId: z.string(),
+  senderId: z.string(),
+  body: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  sender: UserSummarySchema.optional()
+});
+
+export const ConversationParticipantSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  conversationId: z.string(),
+  lastReadAt: z.string().nullable(),
+  joinedAt: z.string(),
+  user: UserSummarySchema.optional()
+});
+
+export const ConversationSchema = z.object({
+  id: z.string(),
+  propertyId: z.string(),
+  dealId: z.string().nullable(),
+  applicationId: z.string().nullable(),
+  lastMessageAt: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  property: PropertySchema.optional(),
+  participants: z.array(ConversationParticipantSchema).optional(),
+  messages: z.array(MessageSchema).optional()
+});
+
+export type Message = z.infer<typeof MessageSchema>;
+export type ConversationParticipant = z.infer<typeof ConversationParticipantSchema>;
+export type Conversation = z.infer<typeof ConversationSchema>;
+

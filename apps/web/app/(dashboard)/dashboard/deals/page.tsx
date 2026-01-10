@@ -2,19 +2,18 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge } from '@propad/ui';
 import { format } from 'date-fns';
 import { Loader2, Calendar, DollarSign, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
-import { Deal } from '@/packages/sdk/src/schemas';
+import type { Deal } from '@propad/sdk';
 
 export default function DealsPage() {
     const sdk = useAuthenticatedSDK();
 
     const { data: deals, isLoading } = useQuery({
         queryKey: ['deals', 'my'],
-        queryFn: () => sdk.deals.my(),
+        queryFn: () => sdk!.deals.my(),
         enabled: !!sdk,
     });
 

@@ -2,12 +2,14 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { Application, DealStatus, PropertyStatus, NotificationType } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ConversationsService } from '../messaging/conversations.service';
 
 @Injectable()
 export class DealsService {
     constructor(
         private readonly prisma: PrismaService,
-        private readonly notificationsService: NotificationsService
+        private readonly notificationsService: NotificationsService,
+        private readonly conversationsService: ConversationsService
     ) { }
 
     async createFromApplication(application: Application) {
@@ -73,6 +75,20 @@ export class DealsService {
                 'Congratulations! Your application has been approved and the lease is now active.',
                 `/dashboard/deals/${deal.id}`
             );
+
+            // 6. Create Deal Conversation (or link existing?)
+            // If application conversation exists, we might want to continue it or create a new one contextually linked to the Deal.
+            // Requirement: "Auto-create Conversation on Deal creation"
+            // Participants: Tenant (userId), Landlord (landlordId), Agent (agentId)
+
+            const participants = [tenantId, landlordId];
+            if (agentId) participants.push(agentId);
+
+            await this.conversationsService.create(tenantId, {
+                propertyId: property.id,
+                dealId: deal.id,
+                participantIds: participants
+            });
 
             return deal;
         });

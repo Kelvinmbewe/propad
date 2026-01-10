@@ -2,37 +2,35 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@propad/ui';
 import { format } from 'date-fns';
-import { useUser } from '@/hooks/use-user';
+import { useSession } from 'next-auth/react';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { ApplicationStatus } from '@/packages/sdk/src/schemas'; // Or import from SDK directly if available
+import type { ApplicationStatus } from '@propad/sdk'; // Or import from SDK directly if available
 import { toast } from 'sonner';
 
 export default function ApplicationsPage() {
     const sdk = useAuthenticatedSDK();
-    const { user } = useUser();
+    const { data: session } = useSession();
+    const user = session?.user;
     const queryClient = useQueryClient();
 
     const { data: myApplications, isLoading: isLoadingMy } = useQuery({
         queryKey: ['applications', 'my'],
-        queryFn: () => sdk.applications.my(),
+        queryFn: () => sdk!.applications.my(),
         enabled: !!sdk,
     });
 
     const { data: receivedApplications, isLoading: isLoadingReceived } = useQuery({
         queryKey: ['applications', 'received'],
-        queryFn: () => sdk.applications.received(),
+        queryFn: () => sdk!.applications.received(),
         enabled: !!sdk && (user?.role === 'AGENT' || user?.role === 'LANDLORD' || user?.role === 'ADMIN'),
     });
 
     const updateStatusMutation = useMutation({
         mutationFn: ({ id, status }: { id: string; status: string }) =>
-            sdk.applications.updateStatus(id, status),
+            sdk!.applications.updateStatus(id, status),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['applications'] });
             toast.success('Application status updated');

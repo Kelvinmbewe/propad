@@ -65,7 +65,11 @@ import {
   type AdminUser,
   type AdminAgency,
   DealSchema,
-  type Deal
+  type Deal,
+  ConversationSchema,
+  MessageSchema,
+  type Conversation,
+  type Message
 } from './schemas';
 import { createApplicationsResource } from './applications';
 
@@ -150,14 +154,22 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .json<Deal>()
           .then((data) => DealSchema.parse(data)),
     },
-    rewards: {
-      my: async () => client.get('rewards/my').json<any[]>(),
-      pools: async () => client.get('rewards/pools').json<any[]>(),
+    messaging: {
+      conversations: {
+        create: async (payload: { propertyId: string; dealId?: string; applicationId?: string; participantIds: string[] }) =>
+          client.post('messaging/conversations', { json: payload }).json().then(data => ConversationSchema.parse(data)),
+        list: async () => client.get('messaging/conversations').json().then(data => ConversationSchema.array().parse(data)),
+        get: async (id: string) => client.get(`messaging/conversations/${id}`).json().then(data => ConversationSchema.parse(data))
+      },
+      messages: {
+        send: async (payload: { conversationId: string; body: string }) =>
+          client.post('messaging/messages', { json: payload }).json().then(data => MessageSchema.parse(data)),
+        list: async (conversationId: string, params: { limit?: number; cursor?: string } = {}) =>
+          client.get(`messaging/conversations/${conversationId}/messages`, { searchParams: createSearchParams(params) })
+            .json().then(data => MessageSchema.array().parse(data))
+      }
     },
-    wallets: {
-      me: async () => client.get('wallets/me').json<any>(),
-      transactions: async (id: string) => client.get(`wallets/${id}/transactions`).json<any[]>(),
-    },
+
     payouts: {
       request: async (payload: {
         amountCents: number;
@@ -168,6 +180,18 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         ownerId?: string;
       }) => client.post('payouts/request', { json: payload }).json<PayoutRequest>(),
       my: async () => client.get('payouts/my').json<PayoutRequest[]>(),
+      requestPayout: async (params: { amountCents: number; method: string; accountId: string }) =>
+        client.post('payouts/request', { json: params }).json<PayoutRequest>()
+          .then((data) => PayoutRequestSchema.parse(data)),
+      getMyPayouts: async () =>
+        client.get('payouts/my').json<PayoutRequest[]>()
+          .then((data) => PayoutRequestSchema.array().parse(data)),
+      getAllPayouts: async () =>
+        client.get('payouts/all').json<PayoutRequest[]>()
+          .then((data) => PayoutRequestSchema.array().parse(data)),
+      approvePayout: async (requestId: string) =>
+        client.post(`payouts/approve/${requestId}`).json<PayoutRequest>()
+          .then((data) => PayoutRequestSchema.parse(data)),
     },
     properties: {
       listOwned: async () =>
@@ -859,6 +883,8 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .then((data) => SiteVisitSchema.parse(data)),
     },
     wallets: {
+      me: async () => client.get('wallets/me').json<any>(),
+      transactions: async (id: string) => client.get(`wallets/${id}/transactions`).json<any[]>(),
       kyc: {
         list: async (params: { status?: string; ownerId?: string } = {}) =>
           client
@@ -983,20 +1009,7 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         currency: string;
       }>(),
     },
-    payouts: {
-      requestPayout: async (params: { amountCents: number; method: string; accountId: string }) =>
-        client.post('payouts/request', { json: params }).json<PayoutRequest>()
-          .then((data) => PayoutRequestSchema.parse(data)),
-      getMyPayouts: async () =>
-        client.get('payouts/my').json<PayoutRequest[]>()
-          .then((data) => PayoutRequestSchema.array().parse(data)),
-      getAllPayouts: async () =>
-        client.get('payouts/all').json<PayoutRequest[]>()
-          .then((data) => PayoutRequestSchema.array().parse(data)),
-      approvePayout: async (requestId: string) =>
-        client.post(`payouts/approve/${requestId}`).json<PayoutRequest>()
-          .then((data) => PayoutRequestSchema.parse(data)),
-    },
+
     adsense: {
       getStats: async () =>
         client.get('adsense/stats').json<Array<{

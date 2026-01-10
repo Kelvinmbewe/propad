@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Skeleton } from '@propad/ui';
 import { Users, Building, ShieldCheck, UserPlus } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -8,13 +9,14 @@ import { useRouter } from 'next/navigation';
 
 export default function AgencyDashboardPage() {
     const sdk = useAuthenticatedSDK();
+    const { data: session } = useSession();
     const router = useRouter();
 
     const { data: agency, isLoading } = useQuery({
         queryKey: ['agency', 'my'],
         queryFn: async () => {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/agencies/my`, {
-                headers: { Authorization: `Bearer ${sdk?.accessToken}` }
+                headers: { Authorization: `Bearer ${session?.accessToken}` }
             });
             if (res.status === 404) return null;
             return res.json();

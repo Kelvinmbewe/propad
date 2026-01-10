@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
-import { Card, CardContent, CardHeader, CardTitle, Button, Input, Textarea } from '@propad/ui';
-import { DollarSign, Save } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { Card, CardContent, CardHeader, CardTitle, Button, Input, Textarea, Badge } from '@propad/ui';
+import { DollarSign, Save, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function PricingPage() {
   const sdk = useAuthenticatedSDK();
+  const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [editKey, setEditKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>('');
@@ -16,7 +18,7 @@ export default function PricingPage() {
     queryKey: ['admin', 'pricing'],
     queryFn: async () => {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/pricing`, {
-        headers: { Authorization: `Bearer ${sdk?.accessToken}` }
+        headers: { Authorization: `Bearer ${session?.accessToken}` }
       });
       return res.json();
     }
@@ -27,7 +29,7 @@ export default function PricingPage() {
       await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/pricing`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${sdk?.accessToken}`,
+          Authorization: `Bearer ${session?.accessToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ key, value: JSON.parse(value) })
