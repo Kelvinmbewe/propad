@@ -1795,9 +1795,10 @@ model RewardDistribution {
   status      String          @default("PENDING")
   
   // Traceability
-  sourceType  RewardEventType @default(BONUS_TIER) // Default to generic or migration safe value
-  sourceId    String?         // ID of the triggering entity (Verification, Deal, etc.)
-  metadata    Json?
+  sourceType      RewardEventType   @default(BONUS_TIER) // Legacy field - use incentiveSource for new records
+  sourceId        String?           // ID of the triggering entity (Verification, Deal, etc.)
+  incentiveSource IncentiveSource?  // Canonical incentive source for governance
+  metadata        Json?
 
   processedAt DateTime?
   createdAt   DateTime        @default(now())
@@ -1810,6 +1811,7 @@ model RewardDistribution {
   @@index([poolId])
   @@index([userId])
   @@index([sourceType, sourceId])
+  @@index([incentiveSource])
 }
 
 model AdEvent {
@@ -2422,4 +2424,68 @@ model Message {
   sender       User         @relation(fields: [senderId], references: [id])
 
   @@index([conversationId, createdAt])
+}
+
+// =============================================================================
+// PHASE G3: GOVERNANCE & INCENTIVE FINALIZATION
+// =============================================================================
+
+// Canonical incentive sources - frozen enum, no ad-hoc types allowed
+enum IncentiveSource {
+  REWARD
+  COMMISSION
+  REFERRAL
+  AD_REVENUE_SHARE
+}
+
+// Versioned PricingConfig for audit trail and config locking
+model PricingConfigVersion {
+  id            String    @id @default(cuid())
+  key           String
+  value         Json
+  scope         String    @default("GLOBAL")
+  description   String?
+  enabled       Boolean   @default(true)
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+  version       Int
+  approvedById  String?
+  approvedAt    DateTime?
+  lockedAt      DateTime?
+  auditReason   String?
+  createdAt     DateTime  @default(now())
+
+  @@index([key, effectiveFrom])
+  @@index([key, version])
+}
+
+// Governance approval workflow for sensitive operations
+model GovernanceApproval {
+  id           String    @id @default(cuid())
+  action       String    // REWARD_GRANT, REWARD_RECALC, REFERRAL_OVERRIDE, PAYOUT_MANUAL
+  targetType   String    // Type of entity being acted on
+  targetId     String?   // ID of target entity
+  requesterId  String    // ADMIN who initiated
+  approverId   String?   // FINANCE/other who approved
+  status       String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  auditReason  String    // Required reason for the action
+  metadata     Json?
+  requestedAt  DateTime  @default(now())
+  resolvedAt   DateTime?
+
+  @@index([action, status])
+  @@index([requesterId])
+  @@index([status, requestedAt])
+}
+
+// Incentives manifest snapshot for audit reference
+model IncentivesManifest {
+  id           String   @id @default(cuid())
+  version      Int
+  manifestJson Json     // Full manifest of all reward sources, split rules, caps
+  generatedAt  DateTime @default(now())
+  generatedBy  String?
+
+  @@index([version])
+  @@index([generatedAt])
 }

@@ -48,6 +48,7 @@ import { DealsModule } from './deals/deals.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { ApplicationsModule } from './applications/applications.module';
 import { FinanceModule } from './finance/finance.module';
+import { GovernanceModule } from './governance/governance.module';
 
 @Module({
   imports: [
@@ -97,7 +98,8 @@ import { FinanceModule } from './finance/finance.module';
     InterestsModule,
     ApplicationsModule,
     DealsModule,
-    FinanceModule
+    FinanceModule,
+    GovernanceModule
   ],
   providers: [
     {
