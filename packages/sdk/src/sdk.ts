@@ -682,6 +682,16 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
                 client.post(`admin/payouts/${id}/mark-paid`).json<PayoutRequest>()
                   .then((data) => PayoutRequestSchema.parse(data)),
       },
+    reports: {
+      getLedger: async (params: { startDate?: string; endDate?: string } = {}) =>
+        client.get('admin/reports/ledger', { searchParams: params }).json<any[]>(),
+        getRevenue: async (params: { startDate?: string; endDate?: string } = {}) =>
+          client.get('admin/reports/revenue', { searchParams: params }).json<any>(),
+          getLiabilities: async () => client.get('admin/reports/liabilities').json<any>(),
+            checkIntegrity: async () => client.get('admin/reports/integrity').json<any>(),
+              downloadLedgerCsv: async (params: { startDate?: string; endDate?: string } = {}) =>
+                client.get('admin/reports/ledger', { searchParams: { ...params, format: 'csv' } }).blob(),
+    },
     invoices: {
       list: async (params: { status?: string } = {}) =>
         client

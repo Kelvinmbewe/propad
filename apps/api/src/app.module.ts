@@ -47,6 +47,7 @@ import { GrowthModule } from './growth/growth.module';
 import { DealsModule } from './deals/deals.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { ApplicationsModule } from './applications/applications.module';
+import { FinanceModule } from './finance/finance.module';
 
 @Module({
   imports: [
@@ -95,7 +96,8 @@ import { ApplicationsModule } from './applications/applications.module';
     GrowthModule,
     InterestsModule,
     ApplicationsModule,
-    DealsModule
+    DealsModule,
+    FinanceModule
   ],
   providers: [
     {
