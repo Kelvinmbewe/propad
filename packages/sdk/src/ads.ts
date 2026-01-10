@@ -231,16 +231,16 @@ export class AdsModule {
     }
     // ========== INVOICES ==========
 
-    async getMyInvoices(): Promise<Invoice[]> {
+    async getMyInvoices(): Promise<AdvertiserInvoice[]> {
         return this.client.get('/ads/invoices/my');
     }
 
-    async getInvoice(id: string): Promise<Invoice> {
+    async getInvoice(id: string): Promise<AdvertiserInvoice> {
         return this.client.get(`/ads/invoices/${id}`);
     }
 }
 
-export interface Invoice {
+export interface AdvertiserInvoice {
     id: string;
     advertiserId: string;
     purpose: string;

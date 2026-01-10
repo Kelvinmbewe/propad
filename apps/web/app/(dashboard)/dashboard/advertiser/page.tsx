@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@propad/ui';
 import { useRouter } from 'next/navigation';
-import { useSdk } from '../../../../hooks/use-sdk';
+import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import type { AdvertiserAnalyticsSummary } from '@propad/sdk';
 
 const TrendIndicator = ({ value }: { value: number }) => {
@@ -18,13 +18,14 @@ const TrendIndicator = ({ value }: { value: number }) => {
 
 export default function AdvertiserOverview() {
     const router = useRouter();
-    const { sdk } = useSdk();
+    const sdk = useAuthenticatedSDK();
     const [analytics, setAnalytics] = useState<AdvertiserAnalyticsSummary | null>(null);
     const [balance, setBalance] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function loadData() {
+            if (!sdk) return;
             try {
                 const [analyticsResponse, balanceResponse] = await Promise.all([
                     sdk.ads.getAnalyticsSummary(),

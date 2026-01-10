@@ -2,23 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { sdk } from '@propad/sdk';
-import { Invoice } from '@propad/sdk/dist/modules/ads';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@propad/ui/card';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@propad/ui/table';
-import { Badge } from '@propad/ui/badge';
-import { Button } from '@propad/ui/button';
+import { AdvertiserInvoice } from '@propad/sdk';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Badge, Button, Alert, AlertDescription, AlertTitle } from '@propad/ui';
 import { Loader2, Receipt, AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@propad/ui/alert';
 
 export default function AdvertiserBillingPage() {
-    const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [invoices, setInvoices] = useState<AdvertiserInvoice[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 

@@ -665,7 +665,6 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .json<FacebookPublishResponse>()
           .then((data) => FacebookPublishResponseSchema.parse(data)),
     },
-  },
     admin: {
     payouts: {
       list: async () =>

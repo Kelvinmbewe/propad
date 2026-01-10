@@ -1,3 +1,5 @@
+import type { KyInstance } from 'ky';
+
 export interface WalletLedgerEntry {
     id: string;
     userId: string;
@@ -11,7 +13,7 @@ export interface WalletLedgerEntry {
 }
 
 export class WalletModule {
-    constructor(private client: any) { }
+    constructor(private client: KyInstance) { }
 
     async getOverview() {
         return this.client.get('wallet/me').json<{

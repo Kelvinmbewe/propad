@@ -2,20 +2,23 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@propad/ui';
-import { useSdk } from '../../../../../hooks/use-sdk';
+import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import type { Campaign } from '@propad/sdk/ads';
 
 export default function AdvertiserCampaigns() {
-    const { sdk } = useSdk();
+    const sdk = useAuthenticatedSDK();
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
     useEffect(() => {
-        loadCampaigns();
+        if (sdk) {
+            loadCampaigns();
+        }
     }, [sdk]);
 
     async function loadCampaigns() {
+        if (!sdk) return;
         try {
             const data = await sdk.ads.getMyCampaigns();
             setCampaigns(data);
@@ -27,6 +30,7 @@ export default function AdvertiserCampaigns() {
     }
 
     async function handlePause(campaignId: string) {
+        if (!sdk) return;
         setActionLoading(campaignId);
         try {
             await sdk.ads.pauseCampaign(campaignId);
@@ -39,6 +43,7 @@ export default function AdvertiserCampaigns() {
     }
 
     async function handleResume(campaignId: string) {
+        if (!sdk) return;
         setActionLoading(campaignId);
         try {
             await sdk.ads.resumeCampaign(campaignId);

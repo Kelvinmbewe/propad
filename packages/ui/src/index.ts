@@ -14,5 +14,7 @@ export * from './primitives/select';
 export * from './primitives/dialog';
 export * from './primitives/use-toast';
 export * from './primitives/popover';
+export * from './primitives/table';
+export * from './primitives/alert';
 export * from './theme';
 export { cn } from './utils';

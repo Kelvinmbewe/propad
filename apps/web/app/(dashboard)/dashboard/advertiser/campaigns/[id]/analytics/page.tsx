@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@propad/ui';
-import { useSdk } from '../../../../../../hooks/use-sdk';
+import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import type { CampaignAnalytics } from '@propad/sdk';
 import {
     LineChart,
@@ -20,7 +20,7 @@ import {
 export default function CampaignAnalyticsPage() {
     const params = useParams();
     const router = useRouter();
-    const { sdk } = useSdk();
+    const sdk = useAuthenticatedSDK();
     const [data, setData] = useState<CampaignAnalytics | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -28,6 +28,7 @@ export default function CampaignAnalyticsPage() {
 
     useEffect(() => {
         async function loadData() {
+            if (!sdk) return;
             try {
                 const response = await sdk.ads.getCampaignAnalytics(id);
                 setData(response);
