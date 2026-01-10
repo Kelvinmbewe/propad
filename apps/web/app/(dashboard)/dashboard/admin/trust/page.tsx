@@ -66,6 +66,21 @@ export default function AdminTrustPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-sm font-medium uppercase tracking-wide text-neutral-500">
+                                Modules
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid gap-2">
+                            <Button variant="outline" className="w-full justify-start" asChild>
+                                <a href="/dashboard/admin/trust/ads">
+                                    <ShieldAlert className="mr-2 h-4 w-4 text-red-500" />
+                                    Ads Integrity
+                                </a>
+                            </Button>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm font-medium uppercase tracking-wide text-neutral-500">
                                 Signal Reference
                             </CardTitle>
                         </CardHeader>

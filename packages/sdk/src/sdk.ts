@@ -800,6 +800,14 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             })
             .json(),
       },
+      ads: {
+        fraud: {
+          getEvents: async (limit = 50) => client.get('admin/ads/fraud/events', { searchParams: { limit } }).json<any[]>(),
+          getCampaignStats: async (id: string) => client.get(`admin/ads/fraud/campaign/${id}`).json<{ events: any[], stats: any[] }>(),
+          resolve: async (eventId: string, resolution: string) => client.post(`admin/ads/fraud/${eventId}/resolve`, { json: { resolution } }).json<any>(),
+          pauseCampaign: async (id: string) => client.post(`admin/ads/fraud/campaign/${id}/pause`).json<any>()
+        }
+      },
       risk: {
         events: async (
           params: {

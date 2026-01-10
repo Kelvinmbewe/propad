@@ -5,11 +5,14 @@ import { AdEventsService } from './events/ad-events.service';
 import { AdvertiserBalanceService } from './advertiser-balance.service';
 import { AuditModule } from '../audit/audit.module';
 import { AdsInvoicesService } from './ads-invoices.service';
+import { FraudDetectionService } from './fraud/fraud-detection.service';
+
+import { AdsFraudController } from './ads-fraud.controller';
 
 @Module({
   imports: [AuditModule],
-  providers: [AdsService, AdEventsService, AdvertiserBalanceService, AdsInvoicesService],
-  controllers: [AdsController],
-  exports: [AdsService, AdEventsService, AdvertiserBalanceService, AdsInvoicesService],
+  providers: [AdsService, AdEventsService, AdvertiserBalanceService, AdsInvoicesService, FraudDetectionService],
+  controllers: [AdsController, AdsFraudController],
+  exports: [AdsService, AdEventsService, AdvertiserBalanceService, AdsInvoicesService, FraudDetectionService],
 })
 export class AdsModule { }

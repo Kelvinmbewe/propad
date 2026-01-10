@@ -1339,6 +1339,7 @@ model Advertiser {
   impressions AdImpression[]
   balanceLogs AdvertiserBalanceLog[]
   invoices    Invoice[]
+  fraudEvents FraudEvent[]
 
   @@index([status])
 }
@@ -1415,6 +1416,7 @@ model AdCampaign {
   impressions    AdImpression[]
   adEvents       AdEvent[]
   adClicks       AdClick[]
+  fraudEvents    FraudEvent[]
 
   @@index([advertiserId, status])
   @@index([startAt, endAt])
@@ -1474,6 +1476,10 @@ model AdImpression {
   route         String
   source        String?
   sessionId     String
+  ipAddress     String? // [Fraud]
+  userAgent     String? // [Fraud]
+  countryCode   String? // [Fraud]
+  fingerprint   String? // [Fraud]
   revenueMicros Int
   createdAt     DateTime @default(now())
 
@@ -2111,6 +2117,8 @@ model AdClick {
   costMicros  Int      @default(0)
   userAgent   String?
   ipAddress   String?
+  countryCode String? // [Fraud]
+  fingerprint String? // [Fraud]
   createdAt   DateTime @default(now())
 
   campaign AdCampaign @relation(fields: [campaignId], references: [id])
@@ -2137,4 +2145,38 @@ model AdvertiserBalanceLog {
 
   @@index([advertiserId, createdAt(sort: Desc)])
   @@index([reason])
+}
+
+model FraudEvent {
+  id                String          @id @default(cuid())
+  campaignId        String
+  advertiserId      String
+  severity          FraudSeverity
+  reason            FraudReason
+  score             Int // 0-100
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime        @default(now())
+  metadata          Json? // Detailed rule breakdown
+
+  campaign   AdCampaign @relation(fields: [campaignId], references: [id])
+  advertiser Advertiser @relation(fields: [advertiserId], references: [id])
+
+  @@index([advertiserId, createdAt])
+  @@index([ipAddress])
+}
+
+enum FraudSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum FraudReason {
+  RAPID_CLICK
+  SELF_CLICK
+  BOT_BEHAVIOR
+  GEO_MISMATCH
+  AGENT_CONFLICT
+  KNOWN_BAD_IP
 }

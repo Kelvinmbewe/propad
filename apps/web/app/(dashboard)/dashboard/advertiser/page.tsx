@@ -66,7 +66,7 @@ export default function AdvertiserOverview() {
                 </Button>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-5">
                 <Card className="bg-white/5 border-white/10">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium text-gray-400">Impressions (30d)</CardTitle>
@@ -147,6 +147,28 @@ export default function AdvertiserOverview() {
                                         Top Up →
                                     </a>
                                 </p>
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-emerald-900/10 border-emerald-500/20">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-emerald-400">Protected Spend</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {loading ? (
+                            <div className="h-8 bg-white/10 animate-pulse rounded" />
+                        ) : (
+                            <>
+                                <div className="text-2xl font-bold text-white">
+                                    {formatCurrency((analytics?.summary as any)?.fraud?.protectedSpendCents ?? 0)}
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <p className="text-xs text-emerald-500">
+                                        {(analytics?.summary as any)?.fraud?.blockedCount ?? 0} fraud attempts blocked
+                                    </p>
+                                </div>
                             </>
                         )}
                     </CardContent>
