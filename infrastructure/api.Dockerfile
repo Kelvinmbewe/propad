@@ -55,6 +55,7 @@ RUN apt-get update && apt-get install -y \
     openssl \
     ca-certificates \
     curl \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g pnpm@10.19.0

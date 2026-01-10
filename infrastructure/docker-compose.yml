@@ -6,8 +6,8 @@ services:
       dockerfile: infrastructure/web.Dockerfile
     command: >
       sh -c "
-        until curl -sf http://api:3001/health; do
-          echo 'Waiting for API...';
+        until curl -sf http://api:3001/health/ready; do
+          echo 'Waiting for API readiness...';
           sleep 3;
         done;
         pnpm --filter @propad/web run start

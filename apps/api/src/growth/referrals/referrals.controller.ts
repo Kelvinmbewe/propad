@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Body, UseGuards, Request } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ReferralsService } from './referrals.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
@@ -7,6 +8,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 export class ReferralsController {
     constructor(private referralsService: ReferralsService) { }
 
+    @Throttle({ default: { limit: 10, ttl: 60000 } })
     @Get('code')
     async getMyCode(@Request() req: any) {
         return this.referralsService.getOrCreateMyCode(req.user.id);
@@ -22,6 +24,7 @@ export class ReferralsController {
         return this.referralsService.getMyStats(req.user.id);
     }
 
+    @Throttle({ default: { limit: 5, ttl: 60000 } })
     @Post('claim')
     async claim(@Request() req: any, @Body() body: { code: string }) {
         return this.referralsService.trackSignup({

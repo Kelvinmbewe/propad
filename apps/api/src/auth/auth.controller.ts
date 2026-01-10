@@ -1,4 +1,5 @@
 import { BadRequestException, Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -27,6 +28,7 @@ interface AuthenticatedRequest {
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
   async login(@Body() body: LoginDto) {
     // TEMP LOG: for debugging (remove later)
@@ -59,6 +61,7 @@ export class AuthController {
     }
   }
 
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('register')
   async register(@Req() req: any, @Body() body: RegisterDto) {
     const result = registerSchema.safeParse(body);

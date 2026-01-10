@@ -58,6 +58,11 @@ export class AdminController {
     return this.adminService.updateFeatureFlag(dto, req.user.userId);
   }
 
+  @Post('backup')
+  triggerBackup(@Req() req: AuthenticatedRequest) {
+    return this.adminService.triggerManualBackup(req.user.userId);
+  }
+
   @Get('feature-flags')
   listFeatureFlags() {
     return this.adminService.listFeatureFlags();

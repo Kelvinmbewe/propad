@@ -12,6 +12,11 @@ export class FeatureFlagsService {
         @Inject(CACHE_MANAGER) private cacheManager: Cache
     ) { }
 
+    private readonly DEFAULT_FLAGS: Record<string, boolean> = {
+        'DISABLE_PAYOUTS': false,
+        'MAINTENANCE_MODE': false
+    };
+
     async getFlag(key: string, defaultValue = false): Promise<boolean> {
         const cached = await this.cacheManager.get<boolean>(`flag:${key}`);
         if (cached !== undefined) {
@@ -22,7 +27,9 @@ export class FeatureFlagsService {
             where: { key }
         });
 
-        const value = flag ? flag.enabled : defaultValue;
+        // Use centralized default if available, otherwise caller default
+        const effectiveDefault = this.DEFAULT_FLAGS[key] ?? defaultValue;
+        const value = flag ? flag.enabled : effectiveDefault;
         await this.cacheManager.set(`flag:${key}`, value, 300000); // Cache for 5 mins
         return value;
     }

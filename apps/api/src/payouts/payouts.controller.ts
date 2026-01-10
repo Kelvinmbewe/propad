@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { PayoutsService } from './payouts.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -13,6 +14,7 @@ export class PayoutsController {
         private readonly payoutsService: PayoutsService
     ) { }
 
+    @Throttle({ default: { limit: 10, ttl: 3600000 } }) // 10 per hour
     @Post('request')
     @Roles(Role.AGENT, Role.LANDLORD, Role.ADVERTISER, Role.SELLER, Role.VERIFIER)
     async requestPayout(

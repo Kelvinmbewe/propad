@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AdsService } from './ads.service';
+import { AdsCron } from './ads.cron';
 import { AdsController } from './ads.controller';
 import { AdEventsService } from './events/ad-events.service';
 import { AdvertiserBalanceService } from './advertiser-balance.service';
@@ -11,7 +12,7 @@ import { AdsFraudController } from './ads-fraud.controller';
 
 @Module({
   imports: [AuditModule],
-  providers: [AdsService, AdEventsService, AdvertiserBalanceService, AdsInvoicesService, FraudDetectionService],
+  providers: [AdsService, AdsCron, AdEventsService, AdvertiserBalanceService, AdsInvoicesService, FraudDetectionService],
   controllers: [AdsController, AdsFraudController],
   exports: [AdsService, AdEventsService, AdvertiserBalanceService, AdsInvoicesService, FraudDetectionService],
 })
