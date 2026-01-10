@@ -195,7 +195,7 @@ export class AdvertiserBalanceService {
                     data: {
                         userId: advertiser.ownerId,
                         type: 'DEBIT',
-                        sourceType: WalletLedgerSourceType.AD_SPEND,
+                        sourceType: 'AD_SPEND' as any,
                         sourceId: referenceId || campaignId || 'unknown',
                         amountCents,
                         currency: 'USD', // Assuming USD for now based on ads system

@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import { cn } from '@propad/ui';
 import type { Role } from '@propad/sdk';
 import type { ReactNode } from 'react';
-import { BarChart3, Compass, Globe2, LayoutDashboard, ShieldCheck, Wallet2, MapPin, Users, Building2 } from 'lucide-react';
+import { BarChart3, Compass, Globe2, LayoutDashboard, ShieldCheck, Wallet2, MapPin, Users, Building2, Receipt } from 'lucide-react';
 
 const links = [
   { href: '/dashboard', label: 'Overview', roles: ['ADMIN', 'VERIFIER', 'AGENT', 'LANDLORD', 'USER', 'MODERATOR'] as Role[], icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -28,6 +28,7 @@ const links = [
   { href: '/dashboard/admin/payouts', label: 'Payout Management', roles: ['ADMIN'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
   { href: '/dashboard/wallet', label: 'Wallet', roles: ['USER', 'AGENT', 'LANDLORD'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
   { href: '/dashboard/advertiser', label: 'Advertising', roles: ['ADMIN', 'ADVERTISER', 'LANDLORD'] as Role[], icon: <BarChart3 className="h-4 w-4" /> },
+  { href: '/dashboard/advertiser/billing', label: 'Billing', roles: ['ADMIN', 'ADVERTISER', 'LANDLORD'] as Role[], icon: <Receipt className="h-4 w-4" /> },
   { href: '/dashboard/agent/rewards', label: 'My Rewards', roles: ['AGENT'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
   { href: '/dashboard/wallet/payouts', label: 'Payouts', roles: ['AGENT', 'LANDLORD', 'INDEPENDENT_AGENT'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },
   { href: '/dashboard/admin/payouts', label: 'Payout Mgmt', roles: ['ADMIN'] as Role[], icon: <Wallet2 className="h-4 w-4" /> },

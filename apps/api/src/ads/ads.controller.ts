@@ -8,6 +8,7 @@ import {
   Query,
   Req,
   UseGuards,
+  NotFoundException,
 } from '@nestjs/common';
 import { AdsService } from './ads.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -141,6 +142,31 @@ export class AdsController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.adsService.pauseCampaign(id, req.user);
+  }
+
+  @Get('invoices/my')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADVERTISER, Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  async getMyInvoices(@Req() req: AuthenticatedRequest) {
+    const advertiserId = await this.adsService.getAdvertiserIdForUser(req.user);
+    if (!advertiserId && req.user.role !== Role.ADMIN) {
+      return [];
+    }
+    if (!advertiserId) return [];
+    return this.invoices.getMyInvoices(advertiserId);
+  }
+
+  @Get('invoices/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADVERTISER, Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  async getInvoice(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    const advertiserId = await this.adsService.getAdvertiserIdForUser(req.user);
+    const invoice = await this.invoices.getInvoice(id, advertiserId || '');
+    if (!invoice && req.user.role !== Role.ADMIN) {
+      throw new NotFoundException('Invoice not found');
+    }
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    return invoice;
   }
 
   @Post('campaigns/:id/resume')

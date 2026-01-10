@@ -229,4 +229,29 @@ export class AdsModule {
         const queryString = query.toString();
         return this.client.get(`/ads/promoted${queryString ? `?${queryString}` : ''}`);
     }
+    // ========== INVOICES ==========
+
+    async getMyInvoices(): Promise<Invoice[]> {
+        return this.client.get('/ads/invoices/my');
+    }
+
+    async getInvoice(id: string): Promise<Invoice> {
+        return this.client.get(`/ads/invoices/${id}`);
+    }
+}
+
+export interface Invoice {
+    id: string;
+    advertiserId: string;
+    purpose: string;
+    currency: string;
+    amountCents: number;
+    status: 'DRAFT' | 'OPEN' | 'PAID' | 'VOID';
+    issuedAt?: string;
+    createdAt: string;
+    lines?: Array<{
+        description: string;
+        amountCents: number;
+        quantity: number;
+    }>;
 }

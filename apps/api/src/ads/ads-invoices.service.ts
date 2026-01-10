@@ -26,7 +26,7 @@ export class AdsInvoicesService {
                         unitPriceCents: amountCents
                     }
                 }
-            }
+            } as any
         });
     }
 
@@ -35,7 +35,7 @@ export class AdsInvoicesService {
         return this.prisma.invoice.create({
             data: {
                 advertiserId: campaign.advertiserId,
-                purpose: InvoicePurpose.DIRECT_AD,
+                purpose: 'DIRECT_AD' as any,
                 currency: Currency.USD,
                 amountCents,
                 taxCents: 0,
@@ -52,7 +52,7 @@ export class AdsInvoicesService {
                         unitPriceCents: amountCents
                     }
                 }
-            }
+            } as any
         });
     }
 

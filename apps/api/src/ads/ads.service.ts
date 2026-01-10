@@ -278,7 +278,7 @@ export class AdsService {
         endAt: dto.endAt !== undefined ? (dto.endAt ? new Date(dto.endAt) : null) : undefined,
         cpmUsdCents: dto.cpmUsdCents,
         cpcUsdCents: dto.cpcUsdCents,
-        cpcUsdCents: dto.cpcUsdCents,
+
         targetingJson: dto.targetingJson ?? undefined,
         status: dto.status as any,
       },
