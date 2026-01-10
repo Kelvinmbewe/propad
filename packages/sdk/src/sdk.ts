@@ -798,7 +798,32 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
                     : payload.effectiveDate.toISOString(),
               },
             })
-            .json(),
+            .json<any>(),
+      },
+      ledger: {
+        search: async (
+          params: {
+            userId?: string;
+            type?: string;
+            sourceType?: string;
+            sourceId?: string;
+            limit?: number;
+            cursor?: string;
+          } = {},
+        ) =>
+          client
+            .get('admin/ledger', {
+              searchParams: createSearchParams({
+                userId: params.userId,
+                type: params.type,
+                sourceType: params.sourceType,
+                sourceId: params.sourceId,
+                limit: params.limit,
+                cursor: params.cursor,
+              }),
+            })
+            .json<any[]>(), // Should use WalletLedgerEntry[] but avoiding circular deps or type moves for now
+        getEntry: async (id: string) => client.get(`admin/ledger/${id}`).json<any>(),
       },
       ads: {
         fraud: {

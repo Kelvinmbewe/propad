@@ -50,8 +50,9 @@ export class CommissionsService {
                         agentId,
                         breakdown.agentShareCents,
                         invoice.currency,
-                        'AGENT_COMMISSION' as any,
-                        commission.id
+                        WalletLedgerSourceType.COMMISSION_EARNED,
+                        commission.id,
+                        'Agent Commission'
                     );
 
                     this.logger.log(`Credited agent ${agentId} with ${breakdown.agentShareCents} ${invoice.currency}`);

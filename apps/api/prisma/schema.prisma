@@ -328,6 +328,9 @@ enum WalletTransactionSource {
 enum WalletLedgerType {
   CREDIT
   DEBIT
+  HOLD
+  RELEASE
+  REFUND
 }
 
 enum WalletLedgerSourceType {
@@ -337,6 +340,10 @@ enum WalletLedgerSourceType {
   REWARD
   PAYOUT
   ADJUSTMENT
+  AD_SPEND
+  REWARD_EARNED
+  COMMISSION_EARNED
+  AD_REFUND
 }
 
 enum PromoTier {

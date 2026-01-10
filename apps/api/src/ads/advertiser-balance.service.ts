@@ -1,7 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { Prisma, PrismaClient, WalletLedgerSourceType } from '@prisma/client';
+import { Prisma, PrismaClient, WalletLedgerSourceType, Currency } from '@prisma/client';
+import { WalletLedgerService } from '../wallets/wallet-ledger.service';
 
 type PrismaClientOrTx = PrismaClient | Prisma.TransactionClient;
 
@@ -13,25 +15,35 @@ interface DeductResult {
 
 @Injectable()
 export class AdvertiserBalanceService {
+    private readonly logger = new Logger(AdvertiserBalanceService.name);
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly audit: AuditService,
+        private readonly ledger: WalletLedgerService
     ) { }
+
+    private async getOwnerId(advertiserId: string): Promise<string> {
+        const advertiser = await this.prisma.advertiser.findUnique({
+            where: { id: advertiserId },
+            select: { ownerId: true }
+        });
+        if (!advertiser || !advertiser.ownerId) {
+            // Log warning or throw? 
+            // For now throw as we require owner for ledger
+            throw new NotFoundException(`Advertiser ${advertiserId} has no linked owner`);
+        }
+        return advertiser.ownerId;
+    }
 
     /**
      * Get advertiser balance
      */
     async getBalance(advertiserId: string): Promise<{ balanceCents: number }> {
-        const advertiser = await this.prisma.advertiser.findUnique({
-            where: { id: advertiserId },
-            select: { balanceCents: true },
-        });
-
-        if (!advertiser) {
-            throw new NotFoundException('Advertiser not found');
-        }
-
-        return { balanceCents: advertiser.balanceCents };
+        const ownerId = await this.getOwnerId(advertiserId);
+        // Assuming USD for now
+        const balance = await this.ledger.calculateBalance(ownerId, Currency.USD);
+        return { balanceCents: balance.withdrawableCents };
     }
 
     /**
@@ -43,49 +55,28 @@ export class AdvertiserBalanceService {
         actorId?: string,
         referenceId?: string,
     ): Promise<{ balanceCents: number }> {
-        if (amountCents <= 0) {
-            throw new BadRequestException('Amount must be positive');
+        const ownerId = await this.getOwnerId(advertiserId);
+
+        await this.ledger.credit(
+            ownerId,
+            amountCents,
+            Currency.USD,
+            WalletLedgerSourceType.ADJUSTMENT, // Or new TOPUP type?
+            referenceId || `TOPUP-${Date.now()}`,
+            'Advertiser Top Up'
+        );
+
+        if (actorId) {
+            await this.audit.logAction({
+                action: 'advertiser.balance.topup',
+                actorId,
+                targetType: 'advertiser',
+                targetId: advertiserId,
+                metadata: { amountCents },
+            });
         }
 
-        return this.prisma.$transaction(async (tx: PrismaClientOrTx) => {
-            const advertiser = await tx.advertiser.findUnique({
-                where: { id: advertiserId },
-            });
-
-            if (!advertiser) {
-                throw new NotFoundException('Advertiser not found');
-            }
-
-            const newBalance = advertiser.balanceCents + amountCents;
-
-            await tx.advertiser.update({
-                where: { id: advertiserId },
-                data: { balanceCents: newBalance },
-            });
-
-            await (tx as any).advertiserBalanceLog.create({
-                data: {
-                    advertiserId,
-                    type: 'CREDIT',
-                    amountCents,
-                    reason: 'TOPUP',
-                    referenceId,
-                    balanceAfter: newBalance,
-                },
-            });
-
-            if (actorId) {
-                await this.audit.logAction({
-                    action: 'advertiser.balance.topup',
-                    actorId,
-                    targetType: 'advertiser',
-                    targetId: advertiserId,
-                    metadata: { amountCents, newBalance },
-                });
-            }
-
-            return { balanceCents: newBalance };
-        });
+        return this.getBalance(advertiserId);
     }
 
     /**
@@ -125,90 +116,43 @@ export class AdvertiserBalanceService {
         referenceId?: string,
     ): Promise<DeductResult> {
         if (amountCents <= 0) {
-            return { success: true, newBalance: 0, deductedAmount: 0 };
+            const current = await this.getBalance(advertiserId);
+            return { success: true, newBalance: current.balanceCents, deductedAmount: 0 };
         }
 
-        return this.prisma.$transaction(async (tx: PrismaClientOrTx) => {
-            const advertiser = await tx.advertiser.findUnique({
-                where: { id: advertiserId },
-                select: { balanceCents: true, ownerId: true },
-            });
+        const ownerId = await this.getOwnerId(advertiserId);
 
-            if (!advertiser) {
-                throw new NotFoundException('Advertiser not found');
-            }
+        try {
+            await this.ledger.debit(
+                ownerId,
+                amountCents,
+                Currency.USD,
+                WalletLedgerSourceType.AD_SPEND,
+                referenceId || campaignId || 'unknown',
+                `${reason} on Campaign ${campaignId}`
+            );
 
-            // Check sufficient balance
-            if (advertiser.balanceCents < amountCents) {
-                // Insufficient balance - trigger auto-pause
-                await this.autoPauseCampaigns(advertiserId, tx);
-                return {
-                    success: false,
-                    newBalance: advertiser.balanceCents,
-                    deductedAmount: 0,
-                };
-            }
-
-            const newBalance = advertiser.balanceCents - amountCents;
-
-            await tx.advertiser.update({
-                where: { id: advertiserId },
-                data: { balanceCents: newBalance },
-            });
-
-            // Update campaign spent amount if provided
+            // Update campaign spent amount if provided (Maintain for stats)
             if (campaignId) {
-                await tx.adCampaign.update({
+                await this.prisma.adCampaign.update({
                     where: { id: campaignId },
                     data: { spentCents: { increment: amountCents } },
                 });
             }
 
-            await (tx as any).advertiserBalanceLog.create({
-                data: {
-                    advertiserId,
-                    type: 'DEBIT',
-                    amountCents,
-                    reason,
-                    referenceId, // This is the campaignId passed from deductBalance
-                    balanceAfter: newBalance,
-                },
-            });
+            const current = await this.getBalance(advertiserId);
+            return { success: true, newBalance: current.balanceCents, deductedAmount: amountCents };
 
-            // [Hardening] Log detailed audit for spend
-            await this.audit.logAction({
-                action: `ads.${reason.toLowerCase()}.debit`,
-                actorId: undefined, // System action
-                targetType: 'adCampaign',
-                targetId: campaignId,
-                metadata: { amountCents, balanceAfter: newBalance, advertiserId },
-            });
-
-            // Check if we need to auto-pause after this deduction
-            if (newBalance <= 0) {
-                await this.autoPauseCampaigns(advertiserId, tx);
+        } catch (e) {
+            // Insufficient funds or other error
+            if (e instanceof BadRequestException) {
+                // Trigger auto-pause if funds low
+                await this.autoPauseCampaigns(advertiserId);
+                const current = await this.getBalance(advertiserId);
+                return { success: false, newBalance: current.balanceCents, deductedAmount: 0 };
             }
-
-            // Create WalletLedger entry if owner exists
-            if (advertiser.ownerId) {
-                await (tx as any).walletLedger.create({
-                    data: {
-                        userId: advertiser.ownerId,
-                        type: 'DEBIT',
-                        sourceType: 'AD_SPEND' as any,
-                        sourceId: referenceId || campaignId || 'unknown',
-                        amountCents,
-                        currency: 'USD', // Assuming USD for now based on ads system
-                    },
-                });
-            }
-
-            return {
-                success: true,
-                newBalance,
-                deductedAmount: amountCents,
-            };
-        });
+            throw e;
+        }
     }
 
     /**
@@ -253,16 +197,15 @@ export class AdvertiserBalanceService {
 
     /**
      * Get balance history/logs
+     * @deprecated Use LedgerService instead
      */
     async getBalanceLogs(
         advertiserId: string,
         limit: number = 50,
     ) {
-        return this.prisma.advertiserBalanceLog.findMany({
-            where: { advertiserId },
-            orderBy: { createdAt: 'desc' },
-            take: limit,
-        });
+        // Fallback or empty? Or map Ledger Entries?
+        // Let's return empty for now as we are moving away from this table.
+        return [];
     }
 
     /**
@@ -273,38 +216,17 @@ export class AdvertiserBalanceService {
         amountCents: number,
         referenceId?: string,
     ): Promise<{ balanceCents: number }> {
-        if (amountCents <= 0) {
-            throw new BadRequestException('Refund amount must be positive');
-        }
+        const ownerId = await this.getOwnerId(advertiserId);
 
-        return this.prisma.$transaction(async (tx: PrismaClientOrTx) => {
-            const advertiser = await tx.advertiser.findUnique({
-                where: { id: advertiserId },
-            });
+        await this.ledger.credit(
+            ownerId,
+            amountCents,
+            Currency.USD,
+            WalletLedgerSourceType.AD_REFUND,
+            referenceId || `REFUND-${Date.now()}`,
+            'Refund'
+        );
 
-            if (!advertiser) {
-                throw new NotFoundException('Advertiser not found');
-            }
-
-            const newBalance = advertiser.balanceCents + amountCents;
-
-            await tx.advertiser.update({
-                where: { id: advertiserId },
-                data: { balanceCents: newBalance },
-            });
-
-            await (tx as any).advertiserBalanceLog.create({
-                data: {
-                    advertiserId,
-                    type: 'CREDIT',
-                    amountCents,
-                    reason: 'REFUND',
-                    referenceId,
-                    balanceAfter: newBalance,
-                },
-            });
-
-            return { balanceCents: newBalance };
-        });
+        return this.getBalance(advertiserId);
     }
 }

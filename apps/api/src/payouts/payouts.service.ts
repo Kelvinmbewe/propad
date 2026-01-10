@@ -1,148 +1,642 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+    Currency,
+    OwnerType,
+    PayoutStatus,
+    Prisma,
+    WalletLedgerSourceType,
+    PayoutTransaction,
+    Wallet
+} from '@prisma/client';
+import { ChargeableItemType, PaymentProvider, PayoutMethod } from '@propad/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { PayoutStatus, Prisma } from '@prisma/client';
-import { PayoutMethod } from '@propad/config';
-import { WalletLedgerType, WalletLedgerSourceType } from '../wallet/enums';
-import { PaynowProvider } from './providers/paynow.provider';
-import { BankProvider } from './providers/bank.provider';
-import { ManualProvider } from './providers/manual.provider';
-import { LedgerService } from '../wallet/ledger.service';
-import { IPayoutProvider } from './providers/payout-provider.interface';
-import { MinThresholdRule } from './rules/min-threshold.rule';
-import { KycRule } from './rules/kyc.rule';
-import { FraudRule } from './rules/fraud.rule';
+import { AuditService } from '../audit/audit.service';
+import { PricingService } from './pricing.service';
+import { WalletLedgerService } from '../wallets/wallet-ledger.service';
+import { PayoutGatewayRegistry } from './payout-gateway.registry';
+import { PaymentProviderSettingsService } from './payment-provider-settings.service';
+import { PayoutExecutionResult } from './interfaces/payout-gateway';
 
 @Injectable()
 export class PayoutsService {
-    private readonly logger = new Logger(PayoutsService.name);
-    private providers: IPayoutProvider[];
-
     constructor(
-        private prisma: PrismaService,
-        private ledgerService: LedgerService,
-        private paynowProvider: PaynowProvider,
-        private bankProvider: BankProvider,
-        private manualProvider: ManualProvider,
-        private minThresholdRule: MinThresholdRule,
-        private kycRule: KycRule,
-        private fraudRule: FraudRule,
+        private readonly prisma: PrismaService,
+        private readonly audit: AuditService,
+        private readonly pricing: PricingService,
+        private readonly ledger: WalletLedgerService,
+        private readonly payoutGatewayRegistry: PayoutGatewayRegistry,
+        private readonly providerSettings: PaymentProviderSettingsService
+    ) { }
+
+    async createPayoutRequest(
+        ownerType: OwnerType,
+        ownerId: string,
+        amountCents: number,
+        method: PayoutMethod,
+        payoutAccountId: string,
+        currency: Currency = Currency.USD
     ) {
-        this.providers = [paynowProvider, bankProvider, manualProvider];
+        // Get or create wallet
+        const wallet = await this.prisma.wallet.upsert({
+            where: {
+                ownerType_ownerId_currency: {
+                    ownerType,
+                    ownerId,
+                    currency
+                }
+            },
+            create: {
+                ownerType,
+                ownerId,
+                currency,
+                balanceCents: 0,
+                pendingCents: 0
+            },
+            update: {}
+        });
+
+        // Check minimum payout amount (configurable per role)
+        const minPayout = await this.getMinimumPayout(ownerType);
+        if (amountCents < minPayout) {
+            throw new BadRequestException(
+                `Minimum payout amount is ${(minPayout / 100).toFixed(2)} ${currency}`
+            );
+        }
+
+        // Verify payout account
+        const payoutAccount = await this.prisma.payoutAccount.findUnique({
+            where: { id: payoutAccountId }
+        });
+        if (!payoutAccount || payoutAccount.ownerId !== ownerId || payoutAccount.ownerType !== ownerType) {
+            throw new NotFoundException('Payout account not found');
+        }
+
+        // Check available balance using ledger
+        if (ownerType !== OwnerType.USER) {
+            throw new BadRequestException('Only user wallets supported for ledger-based payouts');
+        }
+
+        // Create payout request first to get ID
+        const payoutRequest = await this.prisma.payoutRequest.create({
+            data: {
+                walletId: wallet.id,
+                amountCents,
+                method: method as any,
+                payoutAccountId,
+                status: PayoutStatus.REQUESTED
+            },
+            include: {
+                wallet: true,
+                payoutAccount: true
+            }
+        });
+
+        // HOLD funds via Ledger
+        try {
+            await this.ledger.hold(
+                ownerId,
+                amountCents,
+                currency,
+                WalletLedgerSourceType.PAYOUT,
+                payoutRequest.id, // Use Payout Requst ID as sourceId for Hold
+                'Payout Requested'
+            );
+        } catch (e) {
+            // If hold fails (insufficient funds), delete request and throw
+            await this.prisma.payoutRequest.delete({ where: { id: payoutRequest.id } });
+            throw e;
+        }
+
+        await this.audit.logAction({
+            action: 'payout.requested',
+            actorId: ownerId,
+            targetType: 'payoutRequest',
+            targetId: payoutRequest.id,
+            metadata: { amountCents, method }
+        });
+
+        return payoutRequest;
     }
 
-    async requestPayout(userId: string, amountCents: number, method: PayoutMethod, payoutAccountId: string) {
-        // Validation
-        const mockRequest = {
-            walletId: (await this.getWalletId(userId)),
-            amountCents,
-            method,
-            id: 'validation-check'
-        } as any;
-
-        await this.minThresholdRule.validate(mockRequest);
-        await this.kycRule.validate(mockRequest);
-        await this.fraudRule.validate(mockRequest);
-
-        // 1. Validate Balance
-        const wallet = await this.prisma.wallet.findFirst({
-            where: { ownerId: userId },
+    async approvePayout(payoutRequestId: string, actorId: string) {
+        const payoutRequest = await this.prisma.payoutRequest.findUnique({
+            where: { id: payoutRequestId },
+            include: { wallet: true, payoutAccount: true }
         });
-        if (!wallet || wallet.balanceCents < amountCents) {
-            throw new BadRequestException('Insufficient funds');
+
+        if (!payoutRequest) {
+            throw new NotFoundException('Payout request not found');
         }
 
-        // 2. Validate Payout Account
-        const account = await this.prisma.payoutAccount.findFirst({
-            where: { id: payoutAccountId, ownerId: userId },
-        });
-        if (!account) {
-            throw new BadRequestException('Invalid payout account');
+        if (payoutRequest.status !== PayoutStatus.REQUESTED && payoutRequest.status !== PayoutStatus.REVIEW) {
+            throw new BadRequestException('Payout request cannot be approved in current status');
         }
 
-        // 3. Create Request
-        const result = await this.prisma.$transaction(async (tx) => {
-            // Create Request
-            const request = await tx.payoutRequest.create({
-                data: {
-                    walletId: wallet.id,
-                    amountCents,
-                    method,
-                    payoutAccountId,
-                    status: PayoutStatus.REQUESTED,
-                },
+        // Funds are already HELD, so we don't need to check balance again,
+        // unless we want to ensure consistency.
+
+        const updated = await this.prisma.$transaction(async (tx) => {
+            // Update status to APPROVED
+            const payout = await tx.payoutRequest.update({
+                where: { id: payoutRequestId },
+                data: { status: PayoutStatus.APPROVED }
             });
 
-            // Debit Ledger (Hold Funds)
-            await this.ledgerService.recordTransaction(
-                userId,
-                amountCents,
-                WalletLedgerType.DEBIT,
+            // Create payout transaction record
+            await tx.payoutTransaction.create({
+                data: {
+                    payoutRequestId: payout.id,
+                    amountCents: payout.amountCents,
+                    currency: payout.wallet.currency,
+                    method: payout.method as any,
+                    status: PayoutStatus.APPROVED
+                }
+            });
+
+            return payout;
+        });
+
+        await this.audit.logAction({
+            action: 'payout.approved',
+            actorId,
+            targetType: 'payoutRequest',
+            targetId: payoutRequestId
+        });
+
+        return updated;
+    }
+
+    async rejectPayout(payoutRequestId: string, reason: string, actorId: string) {
+        const payoutRequest = await this.prisma.payoutRequest.findUnique({
+            where: { id: payoutRequestId },
+            include: { wallet: true }
+        });
+
+        if (!payoutRequest) {
+            throw new NotFoundException('Payout request not found');
+        }
+
+        // If already processed (has DEBIT/RELEASE), we can't reject simply
+        if (payoutRequest.status === PayoutStatus.SENT || payoutRequest.status === PayoutStatus.PAID) {
+            throw new BadRequestException('Cannot reject payout that is already processing or paid');
+        }
+
+        // RELEASE the held funds
+        await this.ledger.release(
+            payoutRequest.wallet.ownerId,
+            payoutRequest.amountCents,
+            payoutRequest.wallet.currency,
+            WalletLedgerSourceType.PAYOUT,
+            payoutRequestId,
+            `Payout Rejected: ${reason}`
+        );
+
+        const updated = await this.prisma.payoutRequest.update({
+            where: { id: payoutRequestId },
+            data: {
+                status: PayoutStatus.CANCELLED
+            }
+        });
+
+        await this.audit.logAction({
+            action: 'payout.rejected',
+            actorId,
+            targetType: 'payoutRequest',
+            targetId: payoutRequestId,
+            metadata: { reason }
+        });
+
+        return updated;
+    }
+
+    async processPayout(payoutRequestId: string, gatewayRef: string, actorId: string) {
+        const payoutRequest = await this.prisma.payoutRequest.findUnique({
+            where: { id: payoutRequestId },
+            include: { wallet: true, payoutAccount: true, payoutTransactions: true }
+        });
+
+        if (!payoutRequest) {
+            throw new NotFoundException('Payout request not found');
+        }
+
+        if (payoutRequest.status !== PayoutStatus.APPROVED) {
+            throw new BadRequestException('Payout must be approved before processing');
+        }
+
+        // Get or create payout transaction
+        let payoutTransaction = payoutRequest.payoutTransactions.find(
+            (t: PayoutTransaction) => t.status === PayoutStatus.APPROVED || t.status === PayoutStatus.SENT
+        );
+
+        if (!payoutTransaction) {
+            payoutTransaction = await this.prisma.payoutTransaction.create({
+                data: {
+                    payoutRequestId: payoutRequest.id,
+                    amountCents: payoutRequest.amountCents,
+                    currency: payoutRequest.wallet.currency,
+                    method: payoutRequest.method as any,
+                    status: PayoutStatus.APPROVED,
+                    gatewayRef: gatewayRef || undefined
+                }
+            });
+        }
+
+        const updated = await this.prisma.$transaction(async (tx) => {
+            // Update status to SENT
+            const payout = await tx.payoutRequest.update({
+                where: { id: payoutRequestId },
+                data: {
+                    status: PayoutStatus.SENT,
+                    txRef: gatewayRef
+                }
+            });
+
+            // RELEASE the Hold, then DEBIT (Spend)
+            // We do this to ensure we don't double count lock + spend
+            await this.ledger.release(
+                payoutRequest.wallet.ownerId,
+                payoutRequest.amountCents,
+                payoutRequest.wallet.currency,
                 WalletLedgerSourceType.PAYOUT,
-                request.id,
-                wallet.currency,
-                wallet.id
+                payoutRequestId,
+                'Payout Processing Started - Release Hold'
             );
 
-            return request;
-        });
+            await this.ledger.debit(
+                payoutRequest.wallet.ownerId,
+                payoutRequest.amountCents,
+                payoutRequest.wallet.currency,
+                WalletLedgerSourceType.PAYOUT,
+                payoutRequestId,
+                'Payout Processed'
+            );
 
-        return result;
-    }
-
-    private async getWalletId(userId: string): Promise<string> {
-        const w = await this.prisma.wallet.findFirst({ where: { ownerId: userId } });
-        return w?.id || '';
-    }
-
-    async approvePayout(requestId: string, adminId: string) {
-        const request = await this.prisma.payoutRequest.findUnique({
-            where: { id: requestId },
-            include: { payoutAccount: true },
-        });
-        if (!request || request.status !== PayoutStatus.REQUESTED) {
-            throw new NotFoundException('Payout request not found or not in requested state');
-        }
-
-        // Find Provider
-        const provider = this.providers.find((p) => p.canHandle(request.method));
-        if (!provider) {
-            throw new BadRequestException(`No provider found for method ${request.method}`);
-        }
-
-        // Process
-        try {
-            const result = await provider.processPayout(request, request.payoutAccount.detailsJson);
-
-            await this.prisma.payoutRequest.update({
-                where: { id: requestId },
+            // Update payout transaction to SENT
+            await tx.payoutTransaction.update({
+                where: { id: payoutTransaction.id },
                 data: {
-                    status: result.status === 'COMPLETED' ? PayoutStatus.PAID : PayoutStatus.SENT, // Use SENT or PAID
-                    txRef: result.transactionRef,
-                },
+                    status: PayoutStatus.SENT,
+                    gatewayRef: gatewayRef || undefined,
+                    processedAt: new Date(),
+                    processedBy: actorId
+                }
             });
 
-            return { success: true, result };
-        } catch (error: any) {
-            this.logger.error(`Payout failed: ${error.message}`);
-            await this.prisma.payoutRequest.update({
-                where: { id: requestId },
-                data: { status: PayoutStatus.FAILED },
-            });
+            return payout;
+        });
+
+        await this.audit.logAction({
+            action: 'payout.processed',
+            actorId,
+            targetType: 'payoutRequest',
+            targetId: payoutRequestId,
+            metadata: { gatewayRef }
+        });
+
+        // Automatically execute the payout
+        try {
+            await this.executePayout(payoutTransaction.id, actorId);
+        } catch (error) {
+            // Logic handled in executePayout
             throw error;
         }
+
+        return updated;
     }
 
-    async getMyPayouts(userId: string) {
+    async getUserPayoutRequests(userId: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            include: {
+                paymentProfile: true
+            }
+        });
+
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
+        // Get user's wallets
+        const wallets = await this.prisma.wallet.findMany({
+            where: {
+                ownerType: OwnerType.USER,
+                ownerId: userId
+            }
+        });
+
+        const walletIds = wallets.map((w: Wallet) => w.id);
+
         return this.prisma.payoutRequest.findMany({
-            where: { wallet: { ownerId: userId } },
-            orderBy: { createdAt: 'desc' },
+            where: {
+                walletId: { in: walletIds }
+            },
+            include: {
+                wallet: true,
+                payoutAccount: true,
+                payoutTransactions: true
+            },
+            orderBy: { createdAt: 'desc' }
         });
     }
 
-    async getAllPayouts() {
+    async getPendingPayouts() {
         return this.prisma.payoutRequest.findMany({
-            orderBy: { createdAt: 'desc' },
-            include: { wallet: { include: { user: true } } },
+            where: {
+                status: {
+                    in: [PayoutStatus.REQUESTED, PayoutStatus.REVIEW, PayoutStatus.APPROVED]
+                }
+            },
+            include: {
+                wallet: true,
+                payoutAccount: true,
+                payoutTransactions: true
+            },
+            orderBy: { createdAt: 'asc' }
         });
+    }
+
+    async markPayoutPaid(payoutRequestId: string, actorId: string) {
+        const payoutRequest = await this.prisma.payoutRequest.findUnique({
+            where: { id: payoutRequestId },
+            include: { wallet: true }
+        });
+
+        if (!payoutRequest) {
+            throw new NotFoundException('Payout request not found');
+        }
+
+        if (payoutRequest.status !== PayoutStatus.SENT) {
+            throw new BadRequestException('Payout must be in PROCESSING state to mark as paid');
+        }
+
+        const updated = await this.prisma.payoutRequest.update({
+            where: { id: payoutRequestId },
+            data: {
+                status: PayoutStatus.PAID
+            }
+        });
+
+        await this.prisma.payoutTransaction.updateMany({
+            where: { payoutRequestId },
+            data: {
+                status: PayoutStatus.PAID
+            }
+        });
+
+        await this.audit.logAction({
+            action: 'payout.paid',
+            actorId,
+            targetType: 'payoutRequest',
+            targetId: payoutRequestId
+        });
+
+        return updated;
+    }
+
+    /**
+     * Execute a payout transaction via the appropriate gateway
+     * Only executes when PayoutTransaction.status === PROCESSING
+     */
+    async executePayout(payoutTransactionId: string, actorId: string) {
+        const payoutTransaction = await this.prisma.payoutTransaction.findUnique({
+            where: { id: payoutTransactionId },
+            include: {
+                payoutRequest: {
+                    include: {
+                        wallet: true,
+                        payoutAccount: true
+                    }
+                }
+            }
+        });
+
+        if (!payoutTransaction) {
+            throw new NotFoundException('Payout transaction not found');
+        }
+
+        if (payoutTransaction.status !== PayoutStatus.SENT) {
+            throw new BadRequestException(
+                `Payout transaction must be in PROCESSING state to execute. Current status: ${payoutTransaction.status}`
+            );
+        }
+
+        const { payoutRequest } = payoutTransaction;
+
+        // Determine provider from method
+        const provider = this.determineProvider(payoutRequest.method);
+        if (!provider) {
+            throw new BadRequestException(`No provider available for payout method: ${payoutRequest.method}`);
+        }
+
+        // Check if provider is enabled
+        const providerSettings = await this.providerSettings.findOne(provider);
+        if (!providerSettings.enabled) {
+            throw new BadRequestException(`Payment provider ${provider} is not enabled`);
+        }
+
+        // Validate user payout profile
+        if (payoutRequest.wallet.ownerType !== OwnerType.USER) {
+            throw new BadRequestException('Only user wallets supported');
+        }
+
+        const user = await this.prisma.user.findUnique({
+            where: { id: payoutRequest.wallet.ownerId },
+            include: { paymentProfile: true }
+        });
+
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
+        // Get gateway handler
+        const gateway = this.payoutGatewayRegistry.get(provider);
+
+        // Prepare recipient details from payout account
+        const recipientDetails = this.prepareRecipientDetails(
+            payoutRequest.method as PayoutMethod,
+            payoutRequest.payoutAccount.detailsJson as Record<string, unknown>,
+            user.paymentProfile
+        );
+
+        // Validate recipient
+        const isValidRecipient = await gateway.validateRecipient(payoutRequest.method, recipientDetails);
+        if (!isValidRecipient) {
+            throw new BadRequestException('Invalid recipient details for payout');
+        }
+
+        // Execute payout
+        const reference = payoutTransaction.gatewayRef || `PAYOUT-${payoutTransaction.id}`;
+        let executionResult;
+        try {
+            executionResult = await gateway.executePayout({
+                payoutTransactionId: payoutTransaction.id,
+                amountCents: payoutTransaction.amountCents,
+                currency: payoutTransaction.currency,
+                method: payoutTransaction.method as PayoutMethod,
+                recipientDetails,
+                reference
+            });
+        } catch (e) {
+            // Synthesize a failure result if executePayout throws
+            executionResult = {
+                result: PayoutExecutionResult.FAILED,
+                failureReason: e instanceof Error ? e.message : 'Unknown error during execution',
+                gatewayRef: reference
+            };
+        }
+
+        // Handle execution result
+        return await this.prisma.$transaction(async (tx) => {
+            if (executionResult.result === PayoutExecutionResult.SUCCESS) {
+                // Mark as PAID
+                await tx.payoutRequest.update({
+                    where: { id: payoutRequest.id },
+                    data: { status: PayoutStatus.PAID }
+                });
+
+                await tx.payoutTransaction.update({
+                    where: { id: payoutTransaction.id },
+                    data: {
+                        status: PayoutStatus.PAID,
+                        gatewayRef: executionResult.gatewayRef || reference,
+                        metadata: executionResult.metadata || undefined
+                    }
+                });
+
+                await this.audit.logAction({
+                    action: 'payout.executed',
+                    actorId,
+                    targetType: 'payoutTransaction',
+                    targetId: payoutTransaction.id,
+                    metadata: {
+                        provider,
+                        gatewayRef: executionResult.gatewayRef,
+                        result: 'SUCCESS'
+                    }
+                });
+
+                return { success: true, gatewayRef: executionResult.gatewayRef };
+            } else {
+                // FAILED
+                // We need to revert the DEBIT directly? 
+                // Logic: Request(Hold) -> Process(Release+Debit) -> Failed(Should be CREDIT/REFUND to restore balance? Or just Release?)
+                // Since we did Release+Debit, the Hold is gone. Debit happened.
+                // So we must REFUND (Credit) to restore funds.
+
+                await this.ledger.refund(
+                    payoutRequest.wallet.ownerId,
+                    payoutTransaction.amountCents,
+                    payoutTransaction.currency,
+                    WalletLedgerSourceType.PAYOUT,
+                    payoutTransaction.id,
+                    `Payout Execution Failed: ${executionResult.failureReason}`
+                );
+
+                // Mark as FAILED
+                await tx.payoutRequest.update({
+                    where: { id: payoutRequest.id },
+                    data: { status: PayoutStatus.FAILED }
+                });
+
+                await tx.payoutTransaction.update({
+                    where: { id: payoutTransaction.id },
+                    data: {
+                        status: PayoutStatus.FAILED,
+                        failureReason: executionResult.failureReason || 'Payout execution failed',
+                        metadata: executionResult.metadata || undefined
+                    }
+                });
+
+                await this.audit.logAction({
+                    action: 'payout.failed',
+                    actorId,
+                    targetType: 'payoutTransaction',
+                    targetId: payoutTransaction.id,
+                    metadata: {
+                        provider,
+                        failureReason: executionResult.failureReason,
+                        result: executionResult.result
+                    }
+                });
+
+                // We don't throw here, just return failure status so caller knows it failed gracefully
+                return { success: false, failureReason: executionResult.failureReason };
+            }
+        });
+    }
+
+    /**
+     * Determine payment provider from payout method
+     */
+    private determineProvider(method: PayoutMethod): PaymentProvider | null {
+        // For Zimbabwe, ECOCASH and BANK use Paynow
+        if (method === PayoutMethod.ECOCASH || method === PayoutMethod.BANK) {
+            return PaymentProvider.PAYNOW;
+        }
+        // WALLET is internal, no provider needed
+        if (method === PayoutMethod.WALLET) {
+            return null;
+        }
+        return null;
+    }
+
+    /**
+     * Prepare recipient details from payout account and user payment profile
+     */
+    private prepareRecipientDetails(
+        method: PayoutMethod,
+        payoutAccountDetails: Record<string, unknown>,
+        paymentProfile?: { paypalEmail?: string | null } | null
+    ): Record<string, unknown> {
+        const details: Record<string, unknown> = { ...(payoutAccountDetails as Prisma.JsonObject) };
+
+        // Add PayPal email if available
+        if (paymentProfile?.paypalEmail) {
+            details.paypalEmail = paymentProfile.paypalEmail;
+        }
+
+        return details;
+    }
+
+    private async getMinimumPayout(ownerType: OwnerType): Promise<number> {
+        // In production, this would be configurable per role
+        const config = await this.prisma.appConfig.findUnique({
+            where: { key: `minPayout_${ownerType}` }
+        });
+
+        if (config) {
+            const value = config.jsonValue as { amountCents?: number };
+            return value.amountCents ?? 1000; // Default $10.00
+        }
+
+        return 1000; // Default minimum $10.00
+    }
+
+    async calculateRevenueSplit(
+        amountCents: number,
+        itemType: string
+    ): Promise<{
+        platformCents: number;
+        agentCents?: number;
+        referralCents?: number;
+        rewardPoolCents?: number;
+    }> {
+        try {
+            const pricing = await this.pricing.calculatePrice(itemType as ChargeableItemType);
+            return {
+                platformCents: pricing.commissionCents + pricing.platformFeeCents,
+                agentCents: pricing.agentShareCents,
+                referralCents: pricing.referralShareCents,
+                rewardPoolCents: pricing.rewardPoolShareCents
+            };
+        } catch {
+            // Default split if no pricing rule
+            return {
+                platformCents: Math.round(amountCents * 0.1), // 10% platform
+                agentCents: Math.round(amountCents * 0.7), // 70% agent
+                referralCents: Math.round(amountCents * 0.1), // 10% referral
+                rewardPoolCents: Math.round(amountCents * 0.1) // 10% reward pool
+            };
+        }
     }
 }

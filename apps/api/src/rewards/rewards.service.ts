@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PricingService } from '../pricing/pricing.service';
+import { WalletLedgerService } from '../wallets/wallet-ledger.service';
+import { WalletLedgerSourceType, Currency } from '@prisma/client';
 
 @Injectable()
 export class RewardsService {
   constructor(
     private prisma: PrismaService,
-    private pricingService: PricingService
+    private pricingService: PricingService,
+    private ledger: WalletLedgerService
   ) { }
 
   async getUserRewards(userId: string) {
@@ -92,16 +95,14 @@ export class RewardsService {
         });
 
         // Credit Wallet Ledger
-        await this.prisma.walletLedger.create({
-          data: {
-            userId: agent.id,
-            type: 'CREDIT',
-            sourceType: 'REWARD',
-            amountCents: amountPerAgent,
-            currency: 'USD',
-            rewardDistributionId: dist.id
-          }
-        });
+        await this.ledger.credit(
+          agent.id,
+          amountPerAgent,
+          Currency.USD,
+          WalletLedgerSourceType.REWARD_EARNED,
+          dist.id,
+          'Weekly Agent Pool Share'
+        );
 
         results.push({ agentId: agent.id, amount: amountPerAgent });
       }

@@ -1,10 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Currency, OwnerType } from '@prisma/client';
+import { Currency, OwnerType, WalletLedgerSourceType, WalletLedgerType } from '@prisma/client';
+import { WalletLedgerService } from '../wallets/wallet-ledger.service';
 
 @Injectable()
 export class WalletService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private ledger: WalletLedgerService
+    ) { }
 
     async processTransaction(
         userId: string,
@@ -15,54 +19,48 @@ export class WalletService {
         description: string,
         currency: Currency = Currency.USD
     ) {
-        if (amountCents <= 0) throw new Error('Amount must be positive');
+        if (amountCents <= 0) throw new BadRequestException('Amount must be positive');
 
-        return this.prisma.$transaction(async (tx) => {
-            // 1. Get Wallet (Locked for Update ideally, but simple select first)
-            const wallet = await this.getOrCreateWallet(userId, 'USER', currency);
-
-            // 2. Check Balance for DEBIT
-            if (type === 'DEBIT' && wallet.balanceCents < amountCents) {
-                throw new Error('Insufficient funds');
+        // Check if transaction already exists (Idempotency)
+        // We can check ledger directly
+        const existingEntries = await this.ledger.getLedgerEntries(userId, currency, 1);
+        // This is a weak check, ideally we search by sourceId.
+        // Let's use prisma directly for check or add findBySource to LedgerService?
+        // Check manually for now
+        const existing = await this.prisma.walletLedger.findFirst({
+            where: {
+                userId,
+                sourceType: sourceType as any,
+                sourceId
             }
-
-            // 3. Create Ledger Entry
-            // Idempotency check: Ensure same source doesn't process twice
-            const existingEntry = await tx.walletLedger.findFirst({
-                where: { sourceType: sourceType as any, sourceId }
-            });
-
-            if (existingEntry) {
-                // Idempotent return if already processed
-                return wallet;
-            }
-
-            const ledgerEntry = await tx.walletLedger.create({
-                data: {
-                    userId,
-                    walletId: wallet.id,
-                    type: type as any,
-                    sourceType: sourceType as any,
-                    sourceId,
-                    amountCents,
-                    currency,
-                }
-            });
-
-            // 4. Update Balance
-            const newBalance = type === 'CREDIT'
-                ? wallet.balanceCents + amountCents
-                : wallet.balanceCents - amountCents;
-
-            const updatedWallet = await tx.wallet.update({
-                where: { id: wallet.id },
-                data: {
-                    balanceCents: newBalance
-                }
-            });
-
-            return updatedWallet;
         });
+
+        if (existing) {
+            // Return current wallet state if idempotent
+            return this.getOrCreateWallet(userId, OwnerType.USER, currency);
+        }
+
+        if (type === 'DEBIT') {
+            await this.ledger.debit(
+                userId,
+                amountCents,
+                currency,
+                sourceType as WalletLedgerSourceType,
+                sourceId,
+                description
+            );
+        } else {
+            await this.ledger.credit(
+                userId,
+                amountCents,
+                currency,
+                sourceType as WalletLedgerSourceType,
+                sourceId,
+                description
+            );
+        }
+
+        return this.getOrCreateWallet(userId, OwnerType.USER, currency);
     }
 
     async getOrCreateWallet(ownerId: string, ownerType: OwnerType, currency: Currency = Currency.USD) {
@@ -82,16 +80,31 @@ export class WalletService {
                     ownerId,
                     ownerType,
                     currency,
-                    balanceCents: 0,
+                    balanceCents: 0, // Legacy field, will be ignored
                     pendingCents: 0,
                 },
             });
+        }
+
+        // Calculate real balance
+        if (ownerType === OwnerType.USER) {
+            const balance = await this.ledger.calculateBalance(ownerId, currency);
+            return {
+                ...wallet,
+                balanceCents: balance.balanceCents,
+                pendingCents: balance.pendingCents
+            };
         }
 
         return wallet;
     }
 
     async getBalance(ownerId: string, ownerType: OwnerType, currency: Currency = Currency.USD) {
+        if (ownerType === OwnerType.USER) {
+            const balance = await this.ledger.calculateBalance(ownerId, currency);
+            return balance.balanceCents;
+        }
+        // Fallback or Error for other types?
         const wallet = await this.getOrCreateWallet(ownerId, ownerType, currency);
         return wallet.balanceCents;
     }

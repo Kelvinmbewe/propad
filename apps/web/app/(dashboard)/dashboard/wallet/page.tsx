@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Skele
 import { useSession } from 'next-auth/react';
 import { WalletSummary } from '@/components/wallet-summary';
 import { PaymentHistory } from '@/components/payment-history';
+import { LedgerTable } from '@/components/ledger-table';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { formatCurrency } from '@/lib/formatters';
 import { DollarSign, Clock, CheckCircle2, XCircle } from 'lucide-react';
@@ -188,6 +189,7 @@ export default function WalletPage() {
         </Card>
       </div>
 
+      <LedgerTable />
       <PaymentHistory />
     </div>
   );

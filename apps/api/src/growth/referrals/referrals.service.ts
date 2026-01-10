@@ -2,8 +2,8 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { customAlphabet } from 'nanoid';
 import { PricingService } from '../../pricing/pricing.service';
-import { LedgerService } from '../../wallet/ledger.service';
-import { WalletLedgerType, WalletLedgerSourceType } from '../../wallet/enums';
+import { WalletLedgerService } from '../../wallets/wallet-ledger.service';
+import { WalletLedgerSourceType, Currency } from '@prisma/client';
 
 @Injectable()
 export class ReferralsService {
@@ -12,7 +12,7 @@ export class ReferralsService {
     constructor(
         private prisma: PrismaService,
         private pricingService: PricingService,
-        private ledgerService: LedgerService
+        private ledgerService: WalletLedgerService
     ) { }
 
     async createMyCode(userId: string, prefix?: string) {
@@ -74,19 +74,17 @@ export class ReferralsService {
             // Check if already rewarded for this specific action type if generic?
             // Simplified: Just credit the referrer.
             const referrerId = user.referredByCode.ownerId;
-            const referrerWallet = await this.prisma.wallet.findFirst({ where: { ownerId: referrerId } });
 
-            if (referrerWallet) {
-                await this.ledgerService.recordTransaction(
-                    referrerId,
-                    rewardAmount,
-                    WalletLedgerType.CREDIT,
-                    WalletLedgerSourceType.REWARD,
-                    `REF-ACT-${user.id}-${action}`, // Idempotency Key
-                    referrerWallet.currency,
-                    referrerWallet.id
-                );
-            }
+            // We don't need to fetch wallet manually, ledger service handles it or we assume it exists
+            // But good to ensure user exists
+            await this.ledgerService.credit(
+                referrerId,
+                rewardAmount,
+                Currency.USD, // Assumption: standard currency
+                WalletLedgerSourceType.REFERRAL,
+                `REF-ACT-${user.id}-${action}`, // Idempotency Key
+                `Referral Reward for ${action}`
+            );
         }
     }
 }
