@@ -7,6 +7,7 @@ import { WalletSummary } from '@/components/wallet-summary';
 import { PaymentHistory } from '@/components/payment-history';
 import { LedgerTable } from '@/components/ledger-table';
 import { RewardsHistory } from '@/components/rewards-history';
+import { ReferralDashboard } from '@/components/referral-dashboard';
 import { WithdrawDialog } from '@/components/withdraw-dialog';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { formatCurrency } from '@/lib/formatters';
@@ -96,6 +97,7 @@ export default function WalletPage() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="rewards">Rewards</TabsTrigger>
+          <TabsTrigger value="referrals">Referrals</TabsTrigger>
           <TabsTrigger value="ledger">Ledger / Transactions</TabsTrigger>
           <TabsTrigger value="history">Payment History</TabsTrigger>
         </TabsList>
@@ -204,6 +206,10 @@ export default function WalletPage() {
 
         <TabsContent value="rewards">
           <RewardsHistory />
+        </TabsContent>
+
+        <TabsContent value="referrals">
+          <ReferralDashboard />
         </TabsContent>
 
         <TabsContent value="ledger">

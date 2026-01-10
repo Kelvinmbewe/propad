@@ -10,6 +10,7 @@ datasource db {
 
 enum Role {
   ADMIN
+  FINANCE
   VERIFIER
   AGENT
   LANDLORD
@@ -349,6 +350,7 @@ enum WalletLedgerSourceType {
   REWARD_EARNED
   COMMISSION_EARNED
   AD_REFUND
+  DEPOSIT
 }
 
 enum PromoTier {
@@ -599,6 +601,10 @@ model User {
   referralCodesOwned ReferralCode[]            @relation("ReferralCodeOwner")
   referredByCodeId   String?
   referredByCode     ReferralCode?             @relation("ReferredByCode", fields: [referredByCodeId], references: [id])
+  
+  referralsMade      Referral[]                @relation("Referrer")
+  referralReceived   Referral?                 @relation("Referee")
+
   promoUsages        PromoUsage[]
   pushTokens         PushToken[]
   applications       Application[]
@@ -668,6 +674,47 @@ model PromoCode {
   active    Boolean   @default(true)
 
   usages PromoUsage[]
+}
+
+enum ReferralStatus {
+  PENDING
+  QUALIFIED
+  REWARDED
+  CANCELLED
+}
+
+enum ReferralSource {
+  USER_SIGNUP
+  AGENT_SIGNUP
+  ADVERTISER_SIGNUP
+}
+
+model Referral {
+  id          String         @id @default(cuid())
+  referrerId  String
+  refereeId   String         @unique
+  source      ReferralSource
+  status      ReferralStatus @default(PENDING)
+  rewardCents Int            @default(0)
+  rewardId    String? // Link to RewardDistribution
+  
+  // Anti-Fraud
+  ipAddress   String?
+  deviceId    String?
+  metadata    Json?
+
+  triggeredAt DateTime?
+  qualifiedAt DateTime?
+  rewardedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  referrer           User                @relation("Referrer", fields: [referrerId], references: [id])
+  referee            User                @relation("Referee", fields: [refereeId], references: [id])
+  rewardDistribution RewardDistribution? @relation("ReferralReward", fields: [rewardId], references: [id])
+
+  @@index([referrerId])
+  @@index([status])
 }
 
 model PromoUsage {
@@ -1758,6 +1805,7 @@ model RewardDistribution {
   pool          RewardPool     @relation(fields: [poolId], references: [id])
   user          User           @relation(fields: [userId], references: [id])
   ledgerEntries WalletLedger[]
+  referral      Referral[]     @relation("ReferralReward")
   
   @@index([poolId])
   @@index([userId])

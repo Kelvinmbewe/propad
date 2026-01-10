@@ -4,12 +4,15 @@ import { Application, DealStatus, PropertyStatus, NotificationType } from '@pris
 import { NotificationsService } from '../notifications/notifications.service';
 import { ConversationsService } from '../messaging/conversations.service';
 
+import { ReferralsService } from '../growth/referrals/referrals.service';
+
 @Injectable()
 export class DealsService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly notificationsService: NotificationsService,
-        private readonly conversationsService: ConversationsService
+        private readonly conversationsService: ConversationsService,
+        private readonly referralsService: ReferralsService
     ) { }
 
     async createFromApplication(application: Application) {
@@ -89,6 +92,18 @@ export class DealsService {
                 dealId: deal.id,
                 participantIds: participants
             });
+
+            // Growth: Qualify Referral for Agent (First Deal)
+            if (agentId) {
+                try {
+                    await this.referralsService.qualifyReferral(agentId, 'AGENT_SIGNUP' as any);
+                } catch (e) { /* ignore */ }
+            }
+
+            // Growth: Qualify Referral for Tenant (First Deal is also a success)
+            try {
+                await this.referralsService.qualifyReferral(tenantId, 'USER_SIGNUP' as any);
+            } catch (e) { /* ignore */ }
 
             return deal;
         });

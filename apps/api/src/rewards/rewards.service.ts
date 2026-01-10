@@ -103,6 +103,28 @@ export class RewardsService {
   }
 
   /**
+   * Trigger: Successful Referral
+   */
+  async triggerReferralReward(referralId: string, referrerId: string) {
+    const rewardAmount = await this.pricingService.getConfig<number>(
+      'REWARD_REFERRAL_CENTS',
+      1000 // $10.00 default
+    );
+
+    if (rewardAmount <= 0) return;
+
+    return this.distributeReward({
+      userId: referrerId,
+      amountCents: rewardAmount,
+      currency: Currency.USD,
+      sourceType: RewardEventType.REFERRAL_BONUS,
+      sourceId: referralId,
+      detail: 'Referral signup reward',
+      poolName: 'Growth Rewards'
+    });
+  }
+
+  /**
    * Core Private Distribution Method
    * Atomic Transaction: Pool Deduct + Distribution Record + Ledger Credit
    */

@@ -10,7 +10,8 @@ const schema = z.object({
 });
 
 const registerSchema = schema.extend({
-  name: z.string().optional()
+  name: z.string().optional(),
+  referralCode: z.string().optional()
 });
 
 type LoginDto = z.infer<typeof schema>;
@@ -59,12 +60,21 @@ export class AuthController {
   }
 
   @Post('register')
-  async register(@Body() body: RegisterDto) {
+  async register(@Req() req: any, @Body() body: RegisterDto) {
     const result = registerSchema.safeParse(body);
     if (!result.success) {
       throw new BadRequestException(result.error.flatten().fieldErrors);
     }
-    return this.authService.register(result.data.email, result.data.password, result.data.name);
+
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
+    return this.authService.register(
+      result.data.email,
+      result.data.password,
+      result.data.name,
+      result.data.referralCode,
+      { ip }
+    );
   }
 
   @UseGuards(JwtAuthGuard)

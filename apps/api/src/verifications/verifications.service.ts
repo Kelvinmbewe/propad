@@ -71,6 +71,8 @@ type AgencyLite = {
 import { NotificationsService } from '../notifications/notifications.service';
 
 
+import { ReferralsService } from '../growth/referrals/referrals.service';
+
 @Injectable()
 export class VerificationsService {
   private readonly logger = new Logger(VerificationsService.name);
@@ -79,7 +81,8 @@ export class VerificationsService {
     private readonly audit: AuditService,
     private readonly trust: TrustService,
     private readonly riskService: RiskService,
-    private readonly notifications: NotificationsService
+    private readonly notifications: NotificationsService,
+    private readonly referralsService: ReferralsService
   ) { }
 
   async getVerificationQueue() {
@@ -613,6 +616,14 @@ export class VerificationsService {
       where: { id: userId },
       data: { verificationScore: score, isVerified: isVerified }
     });
+
+    if (isVerified) {
+      try {
+        await this.referralsService.qualifyReferral(userId, 'USER_SIGNUP' as any);
+      } catch (e) {
+        this.logger.error(`Referral qualification failed for user ${userId}`, e);
+      }
+    }
   }
 
   async recalculateAgencyScore(agencyId: string) {

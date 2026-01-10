@@ -87,6 +87,8 @@ type OfflinePaymentOptions = {
   paidAt?: Date;
 };
 
+import { ReferralsService } from '../growth/referrals/referrals.service';
+
 @Injectable()
 export class PaymentsService {
   private readonly vatRate = env.VAT_RATE ?? (env.VAT_PERCENT ?? 15) / VAT_SCALE;
@@ -99,7 +101,8 @@ export class PaymentsService {
     private readonly polling: PaymentPollingService,
     private readonly pricing: PricingService,
     private readonly commissions: CommissionsService,
-    private readonly rewards: RewardsService
+    private readonly rewards: RewardsService,
+    private readonly referrals: ReferralsService
   ) { }
 
   // Property injection to avoid constructor overload if preferred, but standard is constructor.
@@ -595,6 +598,13 @@ export class PaymentsService {
 
     if (invoice.campaign) {
       await this.activateCampaign(tx, invoice.campaign, issuedAt);
+    }
+
+    // Growth: Qualify Referral for Advertiser (First Paid Invoice)
+    if (updated.buyerUserId) {
+      try {
+        await this.referrals.qualifyReferral(updated.buyerUserId, 'ADVERTISER_SIGNUP' as any);
+      } catch (e) { /* ignore */ }
     }
 
     return { ...updated, promoBoost: invoice.promoBoost, campaign: invoice.campaign } as InvoiceWithRelations;

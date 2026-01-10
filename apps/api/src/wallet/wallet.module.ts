@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { WalletService } from './wallet.service';
-import { LedgerService } from './ledger.service';
+import { WalletsModule } from '../wallets/wallets.module';
 
 @Module({
-    providers: [WalletService, LedgerService],
-    exports: [WalletService, LedgerService],
+    imports: [forwardRef(() => WalletsModule)],
+    providers: [WalletService],
+    exports: [WalletService],
 })
 export class WalletModule { }

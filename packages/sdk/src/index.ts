@@ -8,3 +8,4 @@ export * from './enums';
 export * from './ads';
 export * from './rewards';
 export * from './wallet';
+export * from './referrals';

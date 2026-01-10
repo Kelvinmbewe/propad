@@ -6,6 +6,7 @@ declare module '@prisma/client' {
 
   export const Role: LiteralEnum<
     | 'ADMIN'
+    | 'FINANCE'
     | 'VERIFIER'
     | 'AGENT'
     | 'LANDLORD'
@@ -17,6 +18,7 @@ declare module '@prisma/client' {
     | 'SELLER'
     | 'TENANT'
     | 'BUYER'
+    | 'ADVERTISER'
   >;
   export type Role = EnumValues<typeof Role>;
 
@@ -82,6 +84,7 @@ declare module '@prisma/client' {
     | 'SOLD'
     | 'ARCHIVED'
     | 'OCCUPIED'
+    | 'PUBLISHED'
   >;
   export type PropertyStatus = EnumValues<typeof PropertyStatus>;
 
@@ -99,6 +102,12 @@ declare module '@prisma/client' {
 
   export const LeadStatus: LiteralEnum<'NEW' | 'CONTACTED' | 'QUALIFIED' | 'CLOSED'>;
   export type LeadStatus = EnumValues<typeof LeadStatus>;
+
+  export const ReferralStatus: LiteralEnum<'PENDING' | 'QUALIFIED' | 'REWARDED' | 'CANCELLED'>;
+  export type ReferralStatus = EnumValues<typeof ReferralStatus>;
+
+  export const ReferralSource: LiteralEnum<'USER_SIGNUP' | 'AGENT_SIGNUP' | 'ADVERTISER_SIGNUP'>;
+  export type ReferralSource = EnumValues<typeof ReferralSource>;
 
   export const AgencyMemberRole: LiteralEnum<'OWNER' | 'MANAGER' | 'AGENT'>;
   export type AgencyMemberRole = EnumValues<typeof AgencyMemberRole>;
@@ -122,12 +131,19 @@ declare module '@prisma/client' {
   export type PendingGeoStatus = EnumValues<typeof PendingGeoStatus>;
 
   export const RewardEventType: LiteralEnum<
+    | 'VERIFICATION_APPROVAL'
+    | 'DEAL_COMPLETION'
+    | 'AD_REVENUE_SHARE'
+    | 'REFERRAL_BONUS'
     | 'LISTING_VERIFIED'
     | 'LEAD_VALID'
     | 'SALE_CONFIRMED'
     | 'BONUS_TIER'
     | 'PROMO_REBATE'
     | 'BOOST_PURCHASE'
+    | 'USER_SIGNUP'
+    | 'AGENT_SIGNUP'
+    | 'ADVERTISER_SIGNUP'
   >;
   export type RewardEventType = EnumValues<typeof RewardEventType>;
 
@@ -143,7 +159,7 @@ declare module '@prisma/client' {
   export const ListingEventType: LiteralEnum<'RENTED' | 'SOLD' | 'REOPENED' | 'DISCOUNT' | 'UNDER_OFFER'>;
   export type ListingEventType = EnumValues<typeof ListingEventType>;
 
-  export const NotificationType: LiteralEnum<'RENTED' | 'SOLD' | 'DISCOUNT' | 'REOPENED' | 'REWARD' | 'CHAT' | 'SYSTEM'>;
+  export const NotificationType: LiteralEnum<'RENTED' | 'SOLD' | 'DISCOUNT' | 'REOPENED' | 'REWARD' | 'CHAT' | 'SYSTEM' | 'VERIFICATION_UPDATE'>;
   export type NotificationType = EnumValues<typeof NotificationType>;
 
   export const NotificationStatus: LiteralEnum<'SENT' | 'READ' | 'FAILED'>;
@@ -219,10 +235,10 @@ declare module '@prisma/client' {
   export const PaymentProvider: LiteralEnum<'PAYNOW' | 'STRIPE' | 'PAYPAL' | 'MANUAL'>;
   export type PaymentProvider = EnumValues<typeof PaymentProvider>;
 
-  export const WalletLedgerType: LiteralEnum<'CREDIT' | 'DEBIT'>;
+  export const WalletLedgerType: LiteralEnum<'CREDIT' | 'DEBIT' | 'HOLD' | 'RELEASE' | 'REFUND'>;
   export type WalletLedgerType = EnumValues<typeof WalletLedgerType>;
 
-  export const WalletLedgerSourceType: LiteralEnum<'VERIFICATION' | 'AGENT_COMMISSION' | 'REFERRAL' | 'REWARD' | 'PAYOUT' | 'ADJUSTMENT'>;
+  export const WalletLedgerSourceType: LiteralEnum<'VERIFICATION' | 'AGENT_COMMISSION' | 'REFERRAL' | 'REWARD' | 'PAYOUT' | 'ADJUSTMENT' | 'AD_SPEND' | 'REWARD_EARNED' | 'COMMISSION_EARNED' | 'AD_REFUND' | 'DEPOSIT'>;
   export type WalletLedgerSourceType = EnumValues<typeof WalletLedgerSourceType>;
 
   export type PrismaPromise<T = any> = Promise<T>;
@@ -261,7 +277,7 @@ declare module '@prisma/client' {
     export type PropertyInclude = Record<string, any>;
     export type PropertyWhereInput = Record<string, any>;
     export type WalletUpdateInput = Record<string, any>;
-    export type TransactionClient = PrismaClient;
+    export type TransactionClient = any;
   }
 
   export type Country = Record<string, any>;
@@ -290,4 +306,7 @@ declare module '@prisma/client' {
   export type PayoutTransaction = Record<string, any>;
   export type ReferralEarning = Record<string, any>;
   export type User = Record<string, any>;
+  export type WalletLedger = Record<string, any>;
+  export type RewardDistribution = Record<string, any>;
+  export type Referral = Record<string, any>;
 }

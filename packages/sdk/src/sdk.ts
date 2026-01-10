@@ -72,6 +72,7 @@ import {
   type Message
 } from './schemas';
 import { createApplicationsResource } from './applications';
+import { createReferralsResource } from './referrals';
 
 interface SDKOptions {
   baseUrl: string;
@@ -605,6 +606,7 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
       my: async () => client.get('rewards/my').json<any[]>(),
       pools: async () => client.get('rewards/pools').json<any[]>(),
     },
+    referrals: createReferralsResource(client),
     shortlinks: {
       create: async (payload: {
         targetUrl: string;

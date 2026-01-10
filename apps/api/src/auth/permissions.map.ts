@@ -28,4 +28,8 @@ export const ROLE_PERMISSIONS: Record<Role, string[]> = {
     [Role.TENANT]: [],
     [Role.BUYER]: [],
     [Role.ADVERTISER]: [],
+    [Role.FINANCE]: [
+        PERMISSIONS.PAYOUT_APPROVE,
+        PERMISSIONS.ADSENSE_VIEW,
+    ],
 };

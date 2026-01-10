@@ -7,6 +7,7 @@ import { AuthContext } from '../auth/interfaces/auth-context.interface';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DealsService } from '../deals/deals.service';
 import { ConversationsService } from '../messaging/conversations.service';
+import { ReferralsService } from '../growth/referrals/referrals.service';
 
 @Injectable()
 export class ApplicationsService {
@@ -14,7 +15,8 @@ export class ApplicationsService {
         private prisma: PrismaService,
         private notificationsService: NotificationsService,
         private dealsService: DealsService,
-        private conversationsService: ConversationsService
+        private conversationsService: ConversationsService,
+        private referralsService: ReferralsService
     ) { }
 
     async apply(userId: string, dto: CreateApplicationDto) {
@@ -79,6 +81,13 @@ export class ApplicationsService {
                 applicationId: application.id,
                 participantIds: [ownerIdToContact]
             });
+        }
+
+        // Growth: Qualify Referral for first application
+        try {
+            await this.referralsService.qualifyReferral(userId, 'USER_SIGNUP' as any);
+        } catch (e) {
+            // Log but don't fail registration/application
         }
 
         return application;

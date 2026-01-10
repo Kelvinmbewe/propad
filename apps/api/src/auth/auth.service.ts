@@ -4,6 +4,7 @@ import { Role } from '@propad/config';
 import { compare, hash } from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { RiskService } from '../security/risk.service';
+import { ReferralsService } from '../growth/referrals/referrals.service';
 
 export interface SanitizedUser {
   id: string;
@@ -26,7 +27,8 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-    private readonly riskService: RiskService
+    private readonly riskService: RiskService,
+    private readonly referralsService: ReferralsService
   ) { }
 
   async validateUser(email: string, pass: string) {
@@ -94,7 +96,13 @@ export class AuthService {
     return this.issueTokens(user);
   }
 
-  async register(email: string, password: string, name?: string) {
+  async register(
+    email: string,
+    password: string,
+    name?: string,
+    referralCode?: string,
+    meta?: { ip?: string; deviceId?: string }
+  ) {
     const existingUser = await this.prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       throw new UnauthorizedException('User already exists');
@@ -115,6 +123,16 @@ export class AuthService {
         agencyMemberships: true
       }
     });
+
+    // Growth: Track Referral if code provided
+    if (referralCode) {
+      await this.referralsService.trackSignup({
+        userId: user.id,
+        referralCode,
+        ipAddress: meta?.ip,
+        deviceId: meta?.deviceId
+      });
+    }
 
     return this.issueTokens(this.sanitizeUser(user));
   }

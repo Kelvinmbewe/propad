@@ -243,7 +243,7 @@ export class WalletLedgerService {
     let holds = 0;
     let releases = 0;
 
-    aggregates.forEach(agg => {
+    aggregates.forEach((agg: any) => {
       const amount = agg._sum.amountCents || 0;
       switch (agg.type) {
         case WalletLedgerType.CREDIT: credits = amount; break;

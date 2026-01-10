@@ -32,7 +32,7 @@ export class FinanceReportService {
         // And maybe a daily chart data?
 
         // Let's provide "Daily Totals"
-        const entries = await this.prisma.walletLedger.findMany({
+        const entries = await (this.prisma.walletLedger as any).findMany({
             where: {
                 createdAt: { gte: startDate, lte: endDate },
                 currency
@@ -99,7 +99,7 @@ export class FinanceReportService {
             // Assuming we have a way to track platform fees
         ];
 
-        const entries = await this.prisma.walletLedger.findMany({
+        const entries = await (this.prisma.walletLedger as any).findMany({
             where: {
                 createdAt: { gte: params.startDate, lte: params.endDate },
                 type: WalletLedgerType.DEBIT,
@@ -129,7 +129,7 @@ export class FinanceReportService {
         // Faster: Sum ALL credits - Sum ALL debits globally? 
         // Yes, if System is closed loop.
 
-        const aggs = await this.prisma.walletLedger.groupBy({
+        const aggs = await (this.prisma.walletLedger as any).groupBy({
             by: ['type'],
             _sum: { amountCents: true }
         });
