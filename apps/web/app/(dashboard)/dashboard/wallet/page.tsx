@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import { WalletSummary } from '@/components/wallet-summary';
 import { PaymentHistory } from '@/components/payment-history';
 import { LedgerTable } from '@/components/ledger-table';
+import { WithdrawDialog } from '@/components/withdraw-dialog';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { formatCurrency } from '@/lib/formatters';
 import { DollarSign, Clock, CheckCircle2, XCircle } from 'lucide-react';
@@ -80,8 +81,11 @@ export default function WalletPage() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-bold">Wallet</h1>
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold tracking-tight">Wallet</h1>
+          <WithdrawDialog />
+        </div>
         <p className="text-sm text-gray-600">Manage your balance, payouts, and payment history</p>
       </div>
 
