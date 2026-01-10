@@ -10,9 +10,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AdsService } from './ads.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { Role } from '@propad/config';
 import { CreateCampaignDto, createCampaignSchema } from './dto/create-campaign.dto';
@@ -29,9 +29,14 @@ interface AuthenticatedRequest {
   };
 }
 
+import { AdsInvoicesService } from './ads-invoices.service';
+
 @Controller('ads')
 export class AdsController {
-  constructor(private readonly adsService: AdsService) { }
+  constructor(
+    private readonly adsService: AdsService,
+    private readonly invoices: AdsInvoicesService,
+  ) { }
 
   // ========== PUBLIC ENDPOINTS ==========
 

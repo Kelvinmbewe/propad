@@ -94,7 +94,7 @@ export class ConversationsService {
         if (!conversation) throw new NotFoundException('Conversation not found');
 
         // Security Guard
-        const isParticipant = conversation.participants.some(p => p.userId === userId);
+        const isParticipant = conversation.participants.some((p: any) => p.userId === userId);
         if (!isParticipant) throw new NotFoundException('Conversation not found');
 
         return conversation;

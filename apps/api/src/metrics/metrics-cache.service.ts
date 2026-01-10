@@ -8,7 +8,7 @@ const TTL = Math.max(10, Math.min(env.CACHE_TTL_METRICS_SECONDS ?? 120, 3600));
 
 @Injectable()
 export class MetricsCacheService {
-  constructor(private readonly cache: CacheService) {}
+  constructor(private readonly cache: CacheService) { }
 
   private overviewKey() {
     return this.cache.buildKey('metrics', 'overview');
@@ -127,5 +127,17 @@ export class MetricsCacheService {
       cursor.setDate(cursor.getDate() + 1);
     }
     return dates;
+  }
+  async get<T>(key: string, loader: () => Promise<T>, ttl: number = TTL, refresh = false): Promise<T> {
+    if (!refresh) {
+      const cached = await this.cache.get<T>(key);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    const data = await loader();
+    await this.cache.set(key, data, ttl);
+    return data;
   }
 }

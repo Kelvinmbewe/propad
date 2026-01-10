@@ -4,7 +4,7 @@ import { IsString, IsNotEmpty, IsArray, IsOptional } from 'class-validator';
 export class CreateConversationDto {
     @IsString()
     @IsNotEmpty()
-    propertyId: string;
+    propertyId!: string;
 
     @IsString()
     @IsOptional()
@@ -16,5 +16,5 @@ export class CreateConversationDto {
 
     @IsArray()
     @IsNotEmpty()
-    participantIds: string[];
+    participantIds!: string[];
 }

@@ -3,7 +3,7 @@ import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 export class CreateApplicationDto {
     @IsString()
     @IsNotEmpty()
-    propertyId: string;
+    propertyId!: string;
 
     @IsString()
     @IsOptional()

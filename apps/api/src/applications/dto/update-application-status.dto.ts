@@ -4,5 +4,5 @@ import { ApplicationStatus } from '@prisma/client';
 export class UpdateApplicationStatusDto {
     @IsEnum(ApplicationStatus)
     @IsNotEmpty()
-    status: ApplicationStatus;
+    status!: ApplicationStatus;
 }

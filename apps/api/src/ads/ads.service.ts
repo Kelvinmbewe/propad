@@ -13,12 +13,15 @@ interface AuthContext {
   email?: string | null;
 }
 
+import { AdsInvoicesService } from './ads-invoices.service';
+
 @Injectable()
 export class AdsService {
   constructor(
     private prisma: PrismaService,
     private balanceService: AdvertiserBalanceService,
     private audit: AuditService,
+    private invoices: AdsInvoicesService,
   ) { }
 
   // ========== EXISTING METHODS ==========
@@ -95,6 +98,15 @@ export class AdsService {
     const advertiser = await this.prisma.advertiser.findFirst({
       where: { contactEmail: user.email },
     });
+
+    // Backfill ownerId if missing (migration support)
+    if (advertiser && !advertiser.ownerId) {
+      await this.prisma.advertiser.update({
+        where: { id: advertiser.id },
+        data: { ownerId: user.userId }
+      });
+    }
+
     return advertiser?.id ?? null;
   }
 
@@ -108,6 +120,7 @@ export class AdsService {
         data: {
           name: user.email || 'Unknown',
           contactEmail: user.email,
+          ownerId: user.userId,
           status: 'ACTIVE',
         },
       });
@@ -265,11 +278,17 @@ export class AdsService {
         endAt: dto.endAt !== undefined ? (dto.endAt ? new Date(dto.endAt) : null) : undefined,
         cpmUsdCents: dto.cpmUsdCents,
         cpcUsdCents: dto.cpcUsdCents,
+        cpcUsdCents: dto.cpcUsdCents,
         targetingJson: dto.targetingJson ?? undefined,
         status: dto.status as any,
       },
       include: { advertiser: true, targetProperty: true },
     });
+
+    // [Billing] Generate Invoice if activating and not linked
+    if (updated.status === 'ACTIVE' && !updated.invoiceId) {
+      await this.invoices.createCampaignInvoice(updated);
+    }
 
     await this.audit.logAction({
       action: 'ads.campaign.update',
@@ -330,6 +349,9 @@ export class AdsService {
     if (userAdvertiserId !== advertiserId && user.role !== Role.ADMIN) {
       throw new ForbiddenException('Cannot top up this advertiser account');
     }
+
+    // Create Invoice for transparency
+    await this.invoices.createTopUpInvoice(advertiserId, amountCents);
 
     return this.balanceService.topUp(advertiserId, amountCents, user.userId);
   }

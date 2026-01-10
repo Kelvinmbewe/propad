@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient, WalletLedgerSourceType } from '@prisma/client';
 
 type PrismaClientOrTx = PrismaClient | Prisma.TransactionClient;
 
@@ -63,7 +63,7 @@ export class AdvertiserBalanceService {
                 data: { balanceCents: newBalance },
             });
 
-            await tx.advertiserBalanceLog.create({
+            await (tx as any).advertiserBalanceLog.create({
                 data: {
                     advertiserId,
                     type: 'CREDIT',
@@ -131,7 +131,7 @@ export class AdvertiserBalanceService {
         return this.prisma.$transaction(async (tx: PrismaClientOrTx) => {
             const advertiser = await tx.advertiser.findUnique({
                 where: { id: advertiserId },
-                select: { balanceCents: true },
+                select: { balanceCents: true, ownerId: true },
             });
 
             if (!advertiser) {
@@ -164,7 +164,7 @@ export class AdvertiserBalanceService {
                 });
             }
 
-            await tx.advertiserBalanceLog.create({
+            await (tx as any).advertiserBalanceLog.create({
                 data: {
                     advertiserId,
                     type: 'DEBIT',
@@ -187,6 +187,20 @@ export class AdvertiserBalanceService {
             // Check if we need to auto-pause after this deduction
             if (newBalance <= 0) {
                 await this.autoPauseCampaigns(advertiserId, tx);
+            }
+
+            // Create WalletLedger entry if owner exists
+            if (advertiser.ownerId) {
+                await (tx as any).walletLedger.create({
+                    data: {
+                        userId: advertiser.ownerId,
+                        type: 'DEBIT',
+                        sourceType: WalletLedgerSourceType.AD_SPEND,
+                        sourceId: referenceId || campaignId || 'unknown',
+                        amountCents,
+                        currency: 'USD', // Assuming USD for now based on ads system
+                    },
+                });
             }
 
             return {
@@ -279,7 +293,7 @@ export class AdvertiserBalanceService {
                 data: { balanceCents: newBalance },
             });
 
-            await tx.advertiserBalanceLog.create({
+            await (tx as any).advertiserBalanceLog.create({
                 data: {
                     advertiserId,
                     type: 'CREDIT',

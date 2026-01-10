@@ -1,8 +1,8 @@
 import { Controller, Post, Delete, Body, Param, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { AgenciesService } from './agencies.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { Role, AgencyMemberRole } from '@propad/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -40,7 +40,13 @@ export class AgencyMembersController {
             }
         });
 
-        await this.audit.logAction(req.user.id, agencyId, 'AGENCY_MEMBER_ADD', { memberId: member.id, userId: user.id, role: body.role });
+        await this.audit.logAction({
+            action: 'AGENCY_MEMBER_ADD',
+            actorId: req.user.id,
+            targetType: 'agency',
+            targetId: agencyId,
+            metadata: { memberId: member.id, userId: user.id, role: body.role }
+        });
 
         return member;
     }
@@ -56,7 +62,13 @@ export class AgencyMembersController {
             where: { agencyId, userId: userIdToRemove }
         });
 
-        await this.audit.logAction(req.user.id, agencyId, 'AGENCY_MEMBER_REMOVE', { removedUserId: userIdToRemove });
+        await this.audit.logAction({
+            action: 'AGENCY_MEMBER_REMOVE',
+            actorId: req.user.id,
+            targetType: 'agency',
+            targetId: agencyId,
+            metadata: { removedUserId: userIdToRemove }
+        });
         return { success: true };
     }
 }

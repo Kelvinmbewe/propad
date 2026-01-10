@@ -1,0 +1,9 @@
+﻿src/commissions/commissions.service.ts(53,25): error TS2345: Argument of type '"AGENT_COMMISSION"' is not assignable to parameter of type 'WalletLedgerSourceType'.
+src/dashboard/dashboard.service.ts(18,23): error TS2339: Property 'ADVERTISER' does not exist on type 'LiteralEnum<"ADMIN" | "VERIFIER" | "AGENT" | "LANDLORD" | "USER" | "MODERATOR" | "COMPANY_ADMIN" | "COMPANY_AGENT" | "INDEPENDENT_AGENT" | "SELLER" | "TENANT" | "BUYER">'.
+src/metrics/metrics.service.ts(44,23): error TS2339: Property 'get' does not exist on type 'MetricsCacheService'.
+src/properties/properties.service.ts(997,46): error TS2339: Property 'PUBLISHED' does not exist on type 'LiteralEnum<"DRAFT" | "PENDING_VERIFY" | "VERIFIED" | "UNDER_OFFER" | "RENTED" | "SOLD" | "ARCHIVED" | "OCCUPIED">'.
+src/properties/properties.service.ts(1248,34): error TS2339: Property 'PUBLISHED' does not exist on type 'LiteralEnum<"DRAFT" | "PENDING_VERIFY" | "VERIFIED" | "UNDER_OFFER" | "RENTED" | "SOLD" | "ARCHIVED" | "OCCUPIED">'.
+src/properties/properties.service.ts(1252,34): error TS2339: Property 'PUBLISHED' does not exist on type 'LiteralEnum<"DRAFT" | "PENDING_VERIFY" | "VERIFIED" | "UNDER_OFFER" | "RENTED" | "SOLD" | "ARCHIVED" | "OCCUPIED">'.
+src/verifications/verifications.service.ts(423,32): error TS2339: Property 'VERIFICATION_UPDATE' does not exist on type 'LiteralEnum<"RENTED" | "SOLD" | "DISCOUNT" | "REOPENED" | "REWARD" | "CHAT" | "SYSTEM">'.
+src/verifications/verifications.service.ts(430,32): error TS2339: Property 'VERIFICATION_UPDATE' does not exist on type 'LiteralEnum<"RENTED" | "SOLD" | "DISCOUNT" | "REOPENED" | "REWARD" | "CHAT" | "SYSTEM">'.
+src/verifications/verifications.service.ts(521,26): error TS2339: Property 'VERIFICATION_UPDATE' does not exist on type 'LiteralEnum<"RENTED" | "SOLD" | "DISCOUNT" | "REOPENED" | "REWARD" | "CHAT" | "SYSTEM">'.

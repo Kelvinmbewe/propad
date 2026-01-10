@@ -59,7 +59,13 @@ export class AgenciesService {
         });
 
         // Also update User role potentially? Or Trust score.
-        await this.audit.logAction(userId, userId, 'AGENCY_CREATE', { agencyId: agency.id, name });
+        await this.audit.logAction({
+            action: 'AGENCY_CREATE',
+            actorId: userId,
+            targetType: 'agency',
+            targetId: userId,
+            metadata: { agencyId: agency.id, name }
+        });
         return agency;
     }
 
@@ -67,7 +73,13 @@ export class AgenciesService {
     async updateProfile(id: string, data: { bio?: string; registrationNumber?: string; logoUrl?: string; slug?: string; name?: string }, userId: string) {
         const agency = await this.findOne(id);
 
-        await this.audit.logAction(userId, id, 'AGENCY_UPDATE', { before: agency, changes: data });
+        await this.audit.logAction({
+            action: 'AGENCY_UPDATE',
+            actorId: userId,
+            targetType: 'agency',
+            targetId: id,
+            metadata: { before: agency, changes: data }
+        });
 
         return this.prisma.agency.update({
             where: { id },
@@ -84,7 +96,13 @@ export class AgenciesService {
             data: { status }
         });
 
-        await this.audit.logAction(adminId, id, 'AGENCY_STATUS_CHANGE', { from: agency.status, to: status });
+        await this.audit.logAction({
+            action: 'AGENCY_STATUS_CHANGE',
+            actorId: adminId,
+            targetType: 'agency',
+            targetId: id,
+            metadata: { from: agency.status, to: status }
+        });
 
         // If ACTIVATED, maybe send notification
         return this.findOne(id);

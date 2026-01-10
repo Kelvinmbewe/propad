@@ -1,8 +1,8 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { customAlphabet } from 'nanoid';
-import { PricingService } from '../pricing/pricing.service';
-import { LedgerService } from '../wallet/ledger.service';
+import { PricingService } from '../../pricing/pricing.service';
+import { LedgerService } from '../../wallet/ledger.service';
 import { WalletLedgerType, WalletLedgerSourceType } from '../../wallet/enums';
 
 @Injectable()

@@ -50,7 +50,7 @@ export class CommissionsService {
                         agentId,
                         breakdown.agentShareCents,
                         invoice.currency,
-                        WalletLedgerSourceType.COMMISSION,
+                        'AGENT_COMMISSION' as any,
                         commission.id
                     );
 

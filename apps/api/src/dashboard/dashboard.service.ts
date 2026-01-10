@@ -15,7 +15,7 @@ export class DashboardService {
                 return this.getLandlordOverview(userId);
             case Role.USER:
                 return this.getUserOverview(userId);
-            case Role.ADVERTISER:
+            case 'ADVERTISER':
                 return this.getAdvertiserOverview(userId);
             case Role.ADMIN:
                 // Admin uses the existing MetricsService global overview, 

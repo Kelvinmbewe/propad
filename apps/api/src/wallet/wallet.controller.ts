@@ -1,7 +1,7 @@
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { WalletLedgerService } from '../wallets/wallet-ledger.service';
 import { Currency } from '@prisma/client';
 import { Role } from '@propad/config';
@@ -33,7 +33,7 @@ export class WalletController {
   @Get('transactions')
   @Roles(Role.USER, Role.AGENT, Role.LANDLORD, Role.ADVERTISER)
   async getMyTransactions(@Req() req: AuthenticatedRequest) {
-    return this.ledger.getLedger(req.user.userId);
+    return this.ledger.getLedgerEntries(req.user.userId);
   }
 }
 

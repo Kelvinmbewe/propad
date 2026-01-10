@@ -120,6 +120,7 @@ enum PropertyStatus {
   SOLD
   ARCHIVED
   OCCUPIED
+  PUBLISHED
 }
 
 enum MediaKind {
@@ -338,6 +339,7 @@ enum WalletLedgerSourceType {
   REWARD
   PAYOUT
   ADJUSTMENT
+  AD_SPEND
 }
 
 enum PromoTier {
@@ -545,6 +547,7 @@ model User {
   buyerInvoices               Invoice[]                 @relation("InvoiceBuyerUser")
   paymentMethodStatusLogs     PaymentMethodStatusLog[]  @relation("PaymentMethodStatusActor")
   auditLogs                   AuditLog[]                @relation("AuditLogActor")
+  ownedAdvertisers            Advertiser[]              @relation("AdvertiserOwner")
 
   // New relations
   interestsCreated         Interest[]           @relation("UserInterests")
@@ -1325,13 +1328,17 @@ model Advertiser {
   billingInfo  Json?
   balanceCents Int              @default(0) // Ad spend balance
   status       AdvertiserStatus @default(ACTIVE)
+  ownerId      String?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
+
+  owner       User?        @relation("AdvertiserOwner", fields: [ownerId], references: [id])
 
   campaigns   AdCampaign[]
   creatives   AdCreative[]
   impressions AdImpression[]
   balanceLogs AdvertiserBalanceLog[]
+  invoices    Invoice[]
 
   @@index([status])
 }
@@ -1532,6 +1539,7 @@ model Invoice {
   id             String         @id @default(cuid())
   buyerUserId    String?
   buyerAgencyId  String?
+  advertiserId   String?
   purpose        InvoicePurpose
   currency       Currency
   amountCents    Int
@@ -1549,6 +1557,7 @@ model Invoice {
 
   buyerUser           User?                @relation("InvoiceBuyerUser", fields: [buyerUserId], references: [id])
   buyerAgency         Agency?              @relation("InvoiceBuyerAgency", fields: [buyerAgencyId], references: [id])
+  advertiser          Advertiser?          @relation(fields: [advertiserId], references: [id])
   lines               InvoiceLine[]
   paymentIntents      PaymentIntent[]
   transactions        Transaction[]

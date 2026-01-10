@@ -19,7 +19,7 @@ export class MessagesService {
         });
         if (!conversation) throw new ForbiddenException('Access denied');
 
-        const isParticipant = conversation.participants.some(p => p.userId === userId);
+        const isParticipant = conversation.participants.some((p: any) => p.userId === userId);
         if (!isParticipant) throw new ForbiddenException('Access denied');
 
         // 2. Create Message
@@ -50,7 +50,7 @@ export class MessagesService {
             where: { id: conversationId },
             include: { participants: true }
         });
-        if (!conversation || !conversation.participants.some(p => p.userId === userId)) {
+        if (!conversation || !conversation.participants.some((p: any) => p.userId === userId)) {
             throw new ForbiddenException();
         }
 

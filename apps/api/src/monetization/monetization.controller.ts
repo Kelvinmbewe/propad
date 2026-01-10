@@ -1,8 +1,8 @@
 import { Controller, Get, Post, Body, UseGuards, Query, Param, Req } from '@nestjs/common';
 import { MonetizationService } from './monetization.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { Role, BoostType } from '@prisma/client';
 
 @Controller('monetization')

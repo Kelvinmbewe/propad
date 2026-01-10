@@ -6,7 +6,8 @@ import {
   VerificationType,
   Property,
   VerificationRequest,
-  Prisma
+  Prisma,
+  NotificationType
 } from '@prisma/client';
 
 const VerificationStatus = {
@@ -68,7 +69,7 @@ type AgencyLite = {
 };
 
 import { NotificationsService } from '../notifications/notifications.service';
-import { NotificationType } from '@prisma/client';
+
 
 @Injectable()
 export class VerificationsService {
@@ -419,14 +420,14 @@ export class VerificationsService {
           if (dto.status === VerificationItemStatus.REJECTED) {
             await this.notifications.notifyUser(
               updatedRequest.requesterId,
-              NotificationType.VERIFICATION_UPDATE,
+              'VERIFICATION_UPDATE' as any,
               'Verification Item Rejected',
               `An item for ${title} was rejected: ${dto.notes || 'No reason provided'}`
             );
           } else if (newRequestStatus === VerificationStatus.APPROVED) {
             await this.notifications.notifyUser(
               updatedRequest.requesterId,
-              NotificationType.VERIFICATION_UPDATE,
+              'VERIFICATION_UPDATE' as any,
               'Verification Approved',
               `Your verification request for ${title} has been fully approved!`
             );
@@ -443,7 +444,7 @@ export class VerificationsService {
 
         // Re-check updated counts
         const finalAllItems = await tx.verificationRequestItem.findMany({ where: { verificationRequestId: requestId } });
-        const allApproved = finalAllItems.every(i => i.status === 'APPROVED');
+        const allApproved = finalAllItems.every((i: any) => i.status === 'APPROVED');
 
         if (allApproved) {
           // Trigger Side Effects for Full Approval
@@ -517,7 +518,7 @@ export class VerificationsService {
     if (request.requesterId) {
       await this.notifications.notifyUser(
         request.requesterId,
-        NotificationType.VERIFICATION_UPDATE,
+        'VERIFICATION_UPDATE' as any,
         `Verification ${status}`,
         `Your verification request was ${status.toLowerCase()}. ${notes || ''}`
       );

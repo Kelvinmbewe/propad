@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { AuthController } from './auth.controller';
 import { env } from '@propad/config';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [
@@ -14,12 +15,12 @@ import { env } from '@propad/config';
     JwtModule.register({
       secret: env.JWT_SECRET,
       signOptions: { expiresIn: '15m' }
-    })
+    }),
+    PrismaModule
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy,
     JwtRefreshStrategy,
-    PrismaService,
     RiskService
   ],
   exports: [AuthService, JwtModule]

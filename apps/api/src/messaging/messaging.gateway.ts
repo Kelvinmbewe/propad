@@ -12,7 +12,7 @@ import { Message } from '@prisma/client';
 })
 export class MessagingGateway implements OnModuleInit {
     @WebSocketServer()
-    server: Server;
+    server!: Server;
 
     onModuleInit() {
         // console.log('MessagingGateway initialized');

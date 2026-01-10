@@ -5,8 +5,8 @@ import { VerificationType } from '@prisma/client';
 import { Role } from '@propad/config';
 import { PaginationDto } from '../common/pagination.dto';
 import { Post } from '@nestjs/common'; // Added Post
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 const VerificationItemStatus = {
   PENDING: 'PENDING',
@@ -15,7 +15,7 @@ const VerificationItemStatus = {
   REJECTED: 'REJECTED',
 } as const;
 import { ReviewVerificationItemDto } from '../properties/dto/review-verification-item.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 interface AuthenticatedRequest {
   user: {
