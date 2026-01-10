@@ -1,11 +1,12 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Skeleton, Button, Input } from '@propad/ui';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Skeleton, Button, Input, Tabs, TabsContent, TabsList, TabsTrigger } from '@propad/ui';
 import { useSession } from 'next-auth/react';
 import { WalletSummary } from '@/components/wallet-summary';
 import { PaymentHistory } from '@/components/payment-history';
 import { LedgerTable } from '@/components/ledger-table';
+import { RewardsHistory } from '@/components/rewards-history';
 import { WithdrawDialog } from '@/components/withdraw-dialog';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { formatCurrency } from '@/lib/formatters';
@@ -89,112 +90,130 @@ export default function WalletPage() {
         <p className="text-sm text-gray-600">Manage your balance, payouts, and payment history</p>
       </div>
 
-      <div className="flex items-center justify-between">
-        <WalletSummary />
-        <Button onClick={() => handleRequestPayout()}>Request Payout</Button>
-      </div>
+      <WalletSummary />
 
-      {/* Payout Dialog Placeholder - Ideally a modal component */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="rewards">Rewards</TabsTrigger>
+          <TabsTrigger value="ledger">Ledger / Transactions</TabsTrigger>
+          <TabsTrigger value="history">Payment History</TabsTrigger>
+        </TabsList>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Payout Requests</CardTitle>
-            <CardDescription>Track your withdrawal requests</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingPayouts ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center justify-between border-b pb-4">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-4 w-20" />
+        <TabsContent value="overview" className="space-y-4">
+          <div className="flex items-center justify-end">
+            <Button onClick={() => handleRequestPayout()}>Request Payout</Button>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Payout Requests</CardTitle>
+                <CardDescription>Track your withdrawal requests</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingPayouts ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center justify-between border-b pb-4">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-4 w-20" />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : !payouts || payouts.length === 0 ? (
-              <div className="py-12 text-center text-sm text-gray-500 flex flex-col items-center">
-                <div className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center mb-2">
-                  <Clock className="h-5 w-5 text-gray-300" />
-                </div>
-                No payout requests found
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {payouts.map((payout) => (
-                  <div key={payout.id} className="flex items-center justify-between border-b pb-4 last:border-0">
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {formatCurrency(payout.amountCents / 100, 'USD')}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {payout.method} • {new Date(payout.createdAt).toLocaleDateString()}
-                      </p>
-                      {payout.txRef && (
-                        <p className="text-xs text-gray-400">Ref: {payout.txRef.substring(0, 12)}...</p>
-                      )}
+                ) : !payouts || payouts.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-gray-500 flex flex-col items-center">
+                    <div className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center mb-2">
+                      <Clock className="h-5 w-5 text-gray-300" />
                     </div>
-                    {getStatusBadge(payout.status)}
+                    No payout requests found
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {payouts.map((payout) => (
+                      <div key={payout.id} className="flex items-center justify-between border-b pb-4 last:border-0">
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {formatCurrency(payout.amountCents / 100, 'USD')}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {payout.method} • {new Date(payout.createdAt).toLocaleDateString()}
+                          </p>
+                          {payout.txRef && (
+                            <p className="text-xs text-gray-400">Ref: {payout.txRef.substring(0, 12)}...</p>
+                          )}
+                        </div>
+                        {getStatusBadge(payout.status)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Minimum Payout Threshold</CardTitle>
-            <CardDescription>Amount required to request a payout</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6">
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-gray-400" />
-              <div>
-                <p className="text-2xl font-bold">$10.00 USD</p>
-                <p className="text-xs text-gray-500">Minimum amount to withdraw</p>
-              </div>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Minimum Payout Threshold</CardTitle>
+                <CardDescription>Amount required to request a payout</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-6">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-2xl font-bold">$10.00 USD</p>
+                    <p className="text-xs text-gray-500">Minimum amount to withdraw</p>
+                  </div>
+                </div>
 
-            <div className="pt-6 border-t">
-              <h4 className="text-sm font-medium mb-4">Redeem Promo Code</h4>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter code (e.g. WELCOME10)"
-                  id="promoCodeInput"
-                />
-                <Button onClick={async () => {
-                  const input = document.getElementById('promoCodeInput') as HTMLInputElement;
-                  if (!input.value) return;
-                  try {
-                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/growth/promos/redeem`, {
-                      method: 'POST',
-                      headers: {
-                        Authorization: `Bearer ${session?.accessToken}`,
-                        'Content-Type': 'application/json'
-                      },
-                      body: JSON.stringify({ code: input.value })
-                    });
-                    const json = await res.json();
-                    if (res.ok) {
-                      alert(json.message);
-                      // queryClient.invalidateQueries({ queryKey: ['wallet'] }); // queryClient is not defined here
-                      input.value = '';
-                    } else {
-                      alert(json.message || 'Failed to redeem');
-                    }
-                  } catch (e) {
-                    alert('Error redeeming code');
-                  }
-                }}>Apply</Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                <div className="pt-6 border-t">
+                  <h4 className="text-sm font-medium mb-4">Redeem Promo Code</h4>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter code (e.g. WELCOME10)"
+                      id="promoCodeInput"
+                    />
+                    <Button onClick={async () => {
+                      const input = document.getElementById('promoCodeInput') as HTMLInputElement;
+                      if (!input.value) return;
+                      try {
+                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/growth/promos/redeem`, {
+                          method: 'POST',
+                          headers: {
+                            Authorization: `Bearer ${session?.accessToken}`,
+                            'Content-Type': 'application/json'
+                          },
+                          body: JSON.stringify({ code: input.value })
+                        });
+                        const json = await res.json();
+                        if (res.ok) {
+                          alert(json.message);
+                          input.value = '';
+                        } else {
+                          alert(json.message || 'Failed to redeem');
+                        }
+                      } catch (e) {
+                        alert('Error redeeming code');
+                      }
+                    }}>Apply</Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
-      <LedgerTable />
-      <PaymentHistory />
+        <TabsContent value="rewards">
+          <RewardsHistory />
+        </TabsContent>
+
+        <TabsContent value="ledger">
+          <LedgerTable />
+        </TabsContent>
+
+        <TabsContent value="history">
+          <PaymentHistory />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

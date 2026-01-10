@@ -1,23 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { DistributionEngine } from '../engine/distribution.engine';
-import { PrismaService } from '../../prisma/prisma.service';
+import { RewardsService } from '../rewards.service';
 
 @Injectable()
 export class RewardCron {
+    private readonly logger = new Logger(RewardCron.name);
+
     constructor(
-        private engine: DistributionEngine,
-        private prisma: PrismaService,
+        private rewardsService: RewardsService,
     ) { }
 
     @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
     async handleDailyRewards() {
-        const activePools = await this.prisma.rewardPool.findMany({
-            where: { isActive: true },
-        });
-
-        for (const pool of activePools) {
-            await this.engine.distributePool(pool.id);
+        this.logger.log('Starting daily revenue share distribution...');
+        try {
+            const result = await this.rewardsService.triggerRevenueShareDistribution();
+            this.logger.log('Daily revenue share completed', result);
+        } catch (error) {
+            this.logger.error('Failed to process daily revenue share', error);
         }
     }
 }

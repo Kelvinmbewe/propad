@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
 import { RewardsService } from './rewards.service';
 import { RewardsController } from './rewards.controller';
-import { DistributionEngine } from './engine/distribution.engine';
+import { AdminRewardsController } from './admin-rewards.controller';
 import { RewardCron } from './cron/reward.cron';
-import { WalletModule } from '../wallet/wallet.module';
+import { WalletsModule } from '../wallets/wallets.module';
 
 @Module({
-  imports: [WalletModule],
-  providers: [RewardsService, DistributionEngine, RewardCron],
-  controllers: [RewardsController],
-  exports: [RewardsService, DistributionEngine],
+  imports: [WalletsModule],
+  providers: [RewardsService, RewardCron],
+  controllers: [RewardsController, AdminRewardsController],
+  exports: [RewardsService],
 })
 export class RewardsModule { }

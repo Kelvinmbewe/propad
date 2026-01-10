@@ -196,6 +196,11 @@ enum PendingGeoStatus {
 }
 
 enum RewardEventType {
+  VERIFICATION_APPROVAL
+  DEAL_COMPLETION
+  AD_REVENUE_SHARE
+  REFERRAL_BONUS
+  // Legacy support if needed, otherwise we migrate
   LISTING_VERIFIED
   LEAD_VALID
   SALE_CONFIRMED
@@ -1734,19 +1739,29 @@ model RewardPool {
 }
 
 model RewardDistribution {
-  id          String    @id @default(cuid())
+  id          String          @id @default(cuid())
   poolId      String
   userId      String
   amountCents Int
   currency    Currency
   reason      String?
-  status      String    @default("PENDING")
+  status      String          @default("PENDING")
+  
+  // Traceability
+  sourceType  RewardEventType @default(BONUS_TIER) // Default to generic or migration safe value
+  sourceId    String?         // ID of the triggering entity (Verification, Deal, etc.)
+  metadata    Json?
+
   processedAt DateTime?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime        @default(now())
 
   pool          RewardPool     @relation(fields: [poolId], references: [id])
   user          User           @relation(fields: [userId], references: [id])
   ledgerEntries WalletLedger[]
+  
+  @@index([poolId])
+  @@index([userId])
+  @@index([sourceType, sourceId])
 }
 
 model AdEvent {

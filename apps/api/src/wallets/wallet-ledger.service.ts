@@ -23,13 +23,16 @@ export class WalletLedgerService {
     currency: Currency,
     sourceType: WalletLedgerSourceType,
     sourceId?: string,
-    description?: string
+    description?: string,
+    tx?: Prisma.TransactionClient
   ) {
     if (amountCents <= 0) {
       throw new BadRequestException('Credit amount must be positive');
     }
 
-    return this.prisma.walletLedger.create({
+    const db = tx || this.prisma;
+
+    return db.walletLedger.create({
       data: {
         userId,
         type: WalletLedgerType.CREDIT,
@@ -51,19 +54,29 @@ export class WalletLedgerService {
     currency: Currency,
     sourceType: WalletLedgerSourceType,
     sourceId?: string,
-    description?: string
+    description?: string,
+    tx?: Prisma.TransactionClient
   ) {
     if (amountCents <= 0) {
       throw new BadRequestException('Debit amount must be positive');
     }
 
+    const db = tx || this.prisma;
+
     // Verify sufficient balance before debiting (considering holds)
-    const { withdrawableCents } = await this.calculateBalance(userId, currency);
+    // Note: If inside a transaction, calculateBalance might not see uncommitted changes 
+    // depending on isolation level, but we pass tx to it if we want it to.
+    // For now, calculateBalance doesn't take tx.
+    // TODO: Update calculateBalance to take tx if strict consistency within tx is needed.
+
+    // For safety in high concurrency, we usually rely on DB constraints or atomic updates, 
+    // but here we check logically.
+    const { withdrawableCents } = await this.calculateBalance(userId, currency, tx);
     if (withdrawableCents < amountCents) {
       throw new BadRequestException('Insufficient funds');
     }
 
-    return this.prisma.walletLedger.create({
+    return db.walletLedger.create({
       data: {
         userId,
         type: WalletLedgerType.DEBIT,
@@ -78,8 +91,6 @@ export class WalletLedgerService {
 
   /**
    * Create a HOLD ledger entry (e.g. payout request initiated)
-   * This reserves funds but doesn't remove them from the total balance yet,
-   * just reduces "withdrawable" balance.
    */
   async hold(
     userId: string,
@@ -87,18 +98,21 @@ export class WalletLedgerService {
     currency: Currency,
     sourceType: WalletLedgerSourceType,
     sourceId: string,
-    description?: string
+    description?: string,
+    tx?: Prisma.TransactionClient
   ) {
     if (amountCents <= 0) {
       throw new BadRequestException('Hold amount must be positive');
     }
 
-    const { withdrawableCents } = await this.calculateBalance(userId, currency);
+    const db = tx || this.prisma;
+
+    const { withdrawableCents } = await this.calculateBalance(userId, currency, tx);
     if (withdrawableCents < amountCents) {
       throw new BadRequestException('Insufficient funds to hold');
     }
 
-    return this.prisma.walletLedger.create({
+    return db.walletLedger.create({
       data: {
         userId,
         type: WalletLedgerType.HOLD,
@@ -113,7 +127,6 @@ export class WalletLedgerService {
 
   /**
    * RELEASE a hold (e.g. payout failed/cancelled)
-   * This restores the funds to "withdrawable".
    */
   async release(
     userId: string,
@@ -121,16 +134,16 @@ export class WalletLedgerService {
     currency: Currency,
     sourceType: WalletLedgerSourceType,
     sourceId: string,
-    description?: string
+    description?: string,
+    tx?: Prisma.TransactionClient
   ) {
     if (amountCents <= 0) {
       throw new BadRequestException('Release amount must be positive');
     }
 
-    // Optional: Verify there is a matching HOLD? 
-    // For now we assume the caller ensures this logic.
+    const db = tx || this.prisma;
 
-    return this.prisma.walletLedger.create({
+    return db.walletLedger.create({
       data: {
         userId,
         type: WalletLedgerType.RELEASE,
@@ -145,7 +158,6 @@ export class WalletLedgerService {
 
   /**
    * REFUND a debit (reversed transaction)
-   * Behaves like a CREDIT.
    */
   async refund(
     userId: string,
@@ -153,13 +165,16 @@ export class WalletLedgerService {
     currency: Currency,
     sourceType: WalletLedgerSourceType,
     sourceId: string,
-    description?: string
+    description?: string,
+    tx?: Prisma.TransactionClient
   ) {
     if (amountCents <= 0) {
       throw new BadRequestException('Refund amount must be positive');
     }
 
-    return this.prisma.walletLedger.create({
+    const db = tx || this.prisma;
+
+    return db.walletLedger.create({
       data: {
         userId,
         type: WalletLedgerType.REFUND,
@@ -201,12 +216,17 @@ export class WalletLedgerService {
    * So "Payout Success" should trigger: RELEASE(amount) AND DEBIT(amount).
    * "Payout Failure" should trigger: RELEASE(amount).
    */
-  async calculateBalance(userId: string, currency: Currency): Promise<{
+  async calculateBalance(
+    userId: string,
+    currency: Currency,
+    tx?: Prisma.TransactionClient
+  ): Promise<{
     balanceCents: number;
     pendingCents: number;
     withdrawableCents: number;
   }> {
-    const aggregates = await this.prisma.walletLedger.groupBy({
+    const db = tx || this.prisma;
+    const aggregates = await db.walletLedger.groupBy({
       by: ['type'],
       where: {
         userId,
