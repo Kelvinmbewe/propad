@@ -108,7 +108,7 @@ export class FinanceReportService {
         });
 
         // Group by Source
-        const stats = entries.reduce((acc, entry) => {
+        const stats = entries.reduce((acc: Record<string, number>, entry: any) => {
             acc[entry.sourceType] = (acc[entry.sourceType] || 0) + entry.amountCents;
             acc.total += entry.amountCents;
             return acc;
@@ -135,7 +135,7 @@ export class FinanceReportService {
         });
 
         let totalLiability = 0;
-        aggs.forEach(a => {
+        aggs.forEach((a: any) => {
             if ([WalletLedgerType.CREDIT, WalletLedgerType.REFUND].includes(a.type)) {
                 totalLiability += (a._sum.amountCents || 0);
             } else if (a.type === WalletLedgerType.DEBIT) {

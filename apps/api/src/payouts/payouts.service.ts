@@ -11,11 +11,11 @@ import {
 import { ChargeableItemType, PaymentProvider, PayoutMethod } from '@propad/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { PricingService } from './pricing.service';
+import { PricingService } from '../payments/pricing.service';
 import { WalletLedgerService } from '../wallets/wallet-ledger.service';
-import { PayoutGatewayRegistry } from './payout-gateway.registry';
-import { PaymentProviderSettingsService } from './payment-provider-settings.service';
-import { PayoutExecutionResult } from './interfaces/payout-gateway';
+import { PayoutGatewayRegistry } from '../payments/payout-gateway.registry';
+import { PaymentProviderSettingsService } from '../payments/payment-provider-settings.service';
+import { PayoutExecutionResult } from '../payments/interfaces/payout-gateway';
 
 @Injectable()
 export class PayoutsService {
@@ -46,7 +46,7 @@ export class PayoutsService {
             if (!details.bankName || !details.accountNumber || !details.accountName) {
                 throw new BadRequestException('Bank name, account number, and account name are required for BANK payouts');
             }
-        } else if (method === PayoutMethod.ECOCASH || method === PayoutMethod.MOBILE_MONEY) {
+        } else if (method === PayoutMethod.ECOCASH || method === PayoutMethod.ONEMONEY) {
             if (!details.mobileNumber) {
                 throw new BadRequestException('Mobile number is required for Mobile Money payouts');
             }
@@ -456,7 +456,7 @@ export class PayoutsService {
             where: { ownerType: OwnerType.USER, ownerId: userId }, select: { id: true }
         });
         return this.prisma.payoutRequest.findMany({
-            where: { walletId: { in: wallets.map(w => w.id) } },
+            where: { walletId: { in: wallets.map((w: any) => w.id) } },
             include: { wallet: true, payoutTransactions: true },
             orderBy: { createdAt: 'desc' }
         });
@@ -467,5 +467,48 @@ export class PayoutsService {
             include: { wallet: true, payoutAccount: true },
             orderBy: { createdAt: 'asc' }
         });
+    }
+    async markPayoutPaid(payoutRequestId: string, actorId: string) {
+        const payoutRequest = await this.prisma.payoutRequest.findUnique({
+            where: { id: payoutRequestId },
+            include: { wallet: true }
+        });
+
+        if (!payoutRequest) throw new NotFoundException('Payout request not found');
+        if (payoutRequest.status !== PayoutStatus.SENT) {
+            throw new BadRequestException('Payout can only be marked paid when in SENT status');
+        }
+
+        // Release hold and debit
+        await this.ledger.release(
+            payoutRequest.wallet.ownerId,
+            payoutRequest.amountCents,
+            payoutRequest.wallet.currency,
+            WalletLedgerSourceType.PAYOUT,
+            payoutRequestId,
+            'Manual Mark Paid - Releasing Hold'
+        );
+        await this.ledger.debit(
+            payoutRequest.wallet.ownerId,
+            payoutRequest.amountCents,
+            payoutRequest.wallet.currency,
+            WalletLedgerSourceType.PAYOUT,
+            payoutRequestId,
+            'Manual Mark Paid - Final Debit'
+        );
+
+        const updated = await this.prisma.payoutRequest.update({
+            where: { id: payoutRequestId },
+            data: { status: PayoutStatus.PAID }
+        });
+
+        await this.audit.logAction({
+            action: 'payout.manual_paid',
+            actorId,
+            targetType: 'payoutRequest',
+            targetId: payoutRequestId
+        });
+
+        return updated;
     }
 }

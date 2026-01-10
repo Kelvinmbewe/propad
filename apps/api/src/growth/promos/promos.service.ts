@@ -1,13 +1,13 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { LedgerService } from '../../wallet/ledger.service';
+import { WalletLedgerService } from '../../wallets/wallet-ledger.service';
 import { WalletLedgerType, WalletLedgerSourceType } from '../../wallet/enums';
 
 @Injectable()
 export class PromosService {
     constructor(
         private prisma: PrismaService,
-        private ledgerService: LedgerService
+        private ledgerService: WalletLedgerService
     ) { }
 
     async redeemCode(userId: string, code: string) {

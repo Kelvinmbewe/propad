@@ -470,7 +470,8 @@ export class PaymentsService {
         // Distribute Commissions and Rewards
         try {
           await this.commissions.distribute(transaction as any, intent.invoice as any);
-          await this.rewards.processPaymentRewards(intent.invoice as any);
+          // TODO: Implement rewards processing when method is available
+          // await this.rewards.processPaymentRewards(intent.invoice as any);
         } catch (error) {
           console.error('Failed to distribute commissions/rewards:', error);
         }

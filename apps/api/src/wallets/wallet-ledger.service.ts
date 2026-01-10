@@ -327,5 +327,28 @@ export class WalletLedgerService {
   async getEntry(id: string) {
     return this.prisma.walletLedger.findUnique({ where: { id } });
   }
+
+  /**
+   * Generic record transaction method for backward compatibility
+   * Delegates to credit/debit based on type
+   */
+  async recordTransaction(
+    userId: string,
+    amountCents: number,
+    type: WalletLedgerType,
+    sourceType: WalletLedgerSourceType,
+    sourceId: string,
+    currency: Currency,
+    walletId?: string,
+    description?: string
+  ) {
+    if (type === WalletLedgerType.CREDIT) {
+      return this.credit(userId, amountCents, currency, sourceType, sourceId, description);
+    } else if (type === WalletLedgerType.DEBIT) {
+      return this.debit(userId, amountCents, currency, sourceType, sourceId, description);
+    } else {
+      throw new BadRequestException('recordTransaction only supports CREDIT or DEBIT');
+    }
+  }
 }
 

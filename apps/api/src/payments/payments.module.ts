@@ -14,7 +14,7 @@ import { PaymentProviderSettingsService } from './payment-provider-settings.serv
 import { PaymentProviderSettingsController } from './payment-provider-settings.controller';
 import { PricingService } from './pricing.service';
 import { PricingController } from './pricing.controller';
-import { PayoutsService } from './payouts.service';
+import { PayoutsService } from '../payouts/payouts.service';
 import { PayoutsController } from './payouts.controller';
 import { ReferralsService } from './referrals.service';
 import { ReferralsController } from './referrals.controller';

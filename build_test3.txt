@@ -1,0 +1,21 @@
+﻿src/finance/finance-report.service.ts(111,39): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+src/finance/finance-report.service.ts(111,44): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/finance/finance-report.service.ts(138,22): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/growth/promos/promos.service.ts(3,31): error TS2307: Cannot find module '../../wallet/ledger.service' or its corresponding type declarations.
+src/growth/referrals/referrals.service.ts(84,48): error TS2322: Type '"AGENT_SIGNUP"' is not assignable to type '"USER_SIGNUP"'.
+src/growth/referrals/referrals.service.ts(85,53): error TS2322: Type '"ADVERTISER_SIGNUP"' is not assignable to type '"USER_SIGNUP"'.
+src/payments/payments.module.ts(17,32): error TS2307: Cannot find module './payouts.service' or its corresponding type declarations.
+src/payments/payments.service.ts(473,30): error TS2339: Property 'processPaymentRewards' does not exist on type 'RewardsService'.
+src/payments/payouts.controller.ts(8,32): error TS2307: Cannot find module './payouts.service' or its corresponding type declarations.
+src/payouts/admin-payouts.controller.ts(36,36): error TS2339: Property 'markPayoutPaid' does not exist on type 'PayoutsService'.
+src/payouts/payouts.module.ts(11,39): error TS2307: Cannot find module './payout-gateway.registry' or its corresponding type declarations.
+src/payouts/payouts.module.ts(12,48): error TS2307: Cannot find module './payment-provider-settings.service' or its corresponding type declarations.
+src/payouts/payouts.module.ts(13,32): error TS2307: Cannot find module './pricing.service' or its corresponding type declarations.
+src/payouts/payouts.service.ts(14,32): error TS2307: Cannot find module './pricing.service' or its corresponding type declarations.
+src/payouts/payouts.service.ts(16,39): error TS2307: Cannot find module './payout-gateway.registry' or its corresponding type declarations.
+src/payouts/payouts.service.ts(17,48): error TS2307: Cannot find module './payment-provider-settings.service' or its corresponding type declarations.
+src/payouts/payouts.service.ts(18,39): error TS2307: Cannot find module './interfaces/payout-gateway' or its corresponding type declarations.
+src/payouts/payouts.service.ts(49,79): error TS2339: Property 'MOBILE_MONEY' does not exist on type 'typeof PayoutMethod'.
+src/payouts/payouts.service.ts(459,50): error TS7006: Parameter 'w' implicitly has an 'any' type.
+src/rewards/admin-rewards.controller.ts(2,54): error TS2307: Cannot find module '@nestjs/swagger' or its corresponding type declarations.
+src/rewards/engine/distribution.engine.ts(3,31): error TS2307: Cannot find module '../../wallet/ledger.service' or its corresponding type declarations.

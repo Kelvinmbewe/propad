@@ -8,9 +8,9 @@ import { BankProvider } from './providers/bank.provider';
 import { ManualProvider } from './providers/manual.provider';
 import { WalletModule } from '../wallet/wallet.module';
 import { PrismaModule } from '../prisma/prisma.module';
-import { PayoutGatewayRegistry } from './payout-gateway.registry';
-import { PaymentProviderSettingsService } from './payment-provider-settings.service';
-import { PricingService } from './pricing.service';
+import { PayoutGatewayRegistry } from '../payments/payout-gateway.registry';
+import { PaymentProviderSettingsService } from '../payments/payment-provider-settings.service';
+import { PricingService } from '../payments/pricing.service';
 import { WebhookController } from './webhook.controller';
 import { AuditService } from '../audit/audit.service';
 

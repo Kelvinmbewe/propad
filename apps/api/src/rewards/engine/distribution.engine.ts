@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { LedgerService } from '../../wallet/ledger.service';
+import { WalletLedgerService } from '../../wallets/wallet-ledger.service';
 import { WalletService } from '../../wallet/wallet.service';
 import { Currency, OwnerType } from '@prisma/client';
 import { WalletLedgerType, WalletLedgerSourceType } from '../../wallet/enums';
@@ -11,7 +11,7 @@ export class DistributionEngine {
 
     constructor(
         private prisma: PrismaService,
-        private ledger: LedgerService,
+        private ledger: WalletLedgerService,
         private wallet: WalletService,
     ) { }
 

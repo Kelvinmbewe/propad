@@ -5,7 +5,7 @@ import { PayoutMethod } from '@propad/config';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { PayoutsService } from './payouts.service';
+import { PayoutsService } from '../payouts/payouts.service';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { z } from 'zod';
 

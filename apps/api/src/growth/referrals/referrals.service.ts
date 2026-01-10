@@ -80,7 +80,7 @@ export class ReferralsService {
             return await this.prisma.$transaction(async (tx) => {
                 // Determine Source based on User Role (Defaulting to USER if not loaded yet)
                 const user = await tx.user.findUnique({ where: { id: userId } });
-                let source = ReferralSource.USER_SIGNUP;
+                let source: ReferralSource = ReferralSource.USER_SIGNUP;
                 if (user?.role === Role.AGENT) source = ReferralSource.AGENT_SIGNUP;
                 if (user?.role === Role.ADVERTISER) source = ReferralSource.ADVERTISER_SIGNUP;
 
