@@ -1180,7 +1180,7 @@ export class PropertiesService {
         }
       });
 
-      await this.audit.log({
+      await this.audit.logAction({
         action: 'property.create',
         actorId: actor.userId,
         targetType: 'property',
@@ -1359,7 +1359,7 @@ export class PropertiesService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'property.update',
       actorId: actor.userId,
       targetType: 'property',
@@ -1376,7 +1376,7 @@ export class PropertiesService {
 
     await this.prisma.property.delete({ where: { id } });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'property.delete',
       actorId: actor.userId,
       targetType: 'property',
@@ -1463,7 +1463,7 @@ export class PropertiesService {
       });
     }
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'property.assignAgent',
       actorId: actor.userId,
       targetType: 'property',
@@ -1516,7 +1516,7 @@ export class PropertiesService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'property.updateServiceFee',
       actorId: actor.userId,
       targetType: 'property',
@@ -1625,7 +1625,7 @@ export class PropertiesService {
       return propertyUpdate;
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'property.dealConfirmation',
       actorId: actor.userId,
       targetType: 'property',
@@ -2290,7 +2290,7 @@ export class PropertiesService {
     // Do not update property status. Verification state is derived from VerificationRequest.
     // const updated = await this.prisma.property.update({ ... });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'property.submitForVerification',
       actorId: actor.userId,
       targetType: 'property',
@@ -2451,7 +2451,7 @@ export class PropertiesService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'verification.item.update',
       actorId: actor.userId,
       targetType: 'verificationRequestItem',
@@ -2530,7 +2530,7 @@ export class PropertiesService {
       });
     }
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'verification.item.review',
       actorId: actor.userId,
       targetType: 'verificationRequestItem',
@@ -2657,7 +2657,7 @@ export class PropertiesService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'property.uploadMedia',
       actorId: actor.userId,
       targetType: 'property',
@@ -2764,7 +2764,7 @@ export class PropertiesService {
 
     await this.prisma.propertyMedia.delete({ where: { id: mediaId } });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'property.deleteMedia',
       actorId: actor.userId,
       targetType: 'property',
@@ -2813,7 +2813,7 @@ export class PropertiesService {
     // TODO: Trigger email notification
     // TODO: Trigger WhatsApp/SMS notification
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'viewing.schedule',
       actorId: actor.userId,
       targetType: 'viewing',
@@ -2870,7 +2870,7 @@ export class PropertiesService {
     // TODO: Trigger email notification
     // TODO: Trigger WhatsApp/SMS notification
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'viewing.respond',
       actorId: actor.userId,
       targetType: 'viewing',
@@ -3063,7 +3063,7 @@ export class PropertiesService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'property.rating.submit',
       actorId: actor.userId,
       targetType: 'property',

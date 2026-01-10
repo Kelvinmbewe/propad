@@ -97,7 +97,7 @@ export class PayoutsService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'payout.requested',
       actorId: ownerId,
       targetType: 'payoutRequest',
@@ -157,7 +157,7 @@ export class PayoutsService {
       return payout;
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'payout.approved',
       actorId,
       targetType: 'payoutRequest',
@@ -190,7 +190,7 @@ export class PayoutsService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'payout.rejected',
       actorId,
       targetType: 'payoutRequest',

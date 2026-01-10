@@ -554,7 +554,7 @@ if (receiptContext) {
     };
   });
 
-  await this.audit.log({
+  await this.audit.logAction({
     action: 'invoice.manualPaid',
     actorId: options.actorId,
     targetType: 'invoice',

@@ -1,14 +1,7 @@
-import { LandingNav } from '@/components/landing-nav';
-import { ApplicationModal } from '@/components/application-modal';
-import { auth } from '@/auth';
-import { PropertyMessenger } from '@/components/property-messenger';
-import { PropertyImage } from '@/components/property-image';
-import { notFound } from 'next/navigation';
-import { Bath, BedDouble, MapPin, Ruler } from 'lucide-react';
-import { getImageUrl } from '@/lib/image-url';
-import { serverPublicApiRequest, serverApiRequest } from '@/lib/server-api';
+
 
 import { LandingNav } from '@/components/landing-nav';
+import { ApplicationModal } from '@/components/application-modal';
 import { InterestButton } from '@/components/interest-button';
 import { auth } from '@/auth';
 import { PropertyMessenger } from '@/components/property-messenger';

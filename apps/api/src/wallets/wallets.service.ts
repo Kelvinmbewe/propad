@@ -179,7 +179,7 @@ export class WalletsService {
         }
       });
 
-      await this.audit.log({
+      await this.audit.logAction({
         action: 'wallet.payoutAccount.create',
         actorId: actor.userId,
         targetType: 'payoutAccount',
@@ -203,7 +203,7 @@ export class WalletsService {
       data: { verifiedAt }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'wallet.payoutAccount.verify',
       actorId: actor.userId,
       targetType: 'payoutAccount',
@@ -245,7 +245,7 @@ export class WalletsService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'wallet.kyc.submit',
       actorId: actor.userId,
       targetType: 'kycRecord',
@@ -278,7 +278,7 @@ export class WalletsService {
       data: { status: dto.status, notes: dto.notes ?? null }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'wallet.kyc.update',
       actorId: actor.userId,
       targetType: 'kycRecord',

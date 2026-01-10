@@ -77,7 +77,7 @@ export class AdminService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'admin.strike',
       actorId,
       targetType: 'agent',
@@ -103,7 +103,7 @@ export class AdminService {
       create: { key: dto.key, enabled: dto.enabled, description: dto.description }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'admin.featureFlag',
       actorId,
       targetType: 'featureFlag',
@@ -288,7 +288,7 @@ export class AdminService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'admin.fxRate.upsert',
       actorId,
       targetType: 'fxRate',

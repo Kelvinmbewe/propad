@@ -25,7 +25,7 @@ export class LeadsService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'lead.create',
       actorId: dto.userId,
       targetType: 'property',
@@ -47,7 +47,7 @@ export class LeadsService {
       data: { status: dto.status }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'lead.updateStatus',
       actorId: actor.userId,
       targetType: 'lead',

@@ -100,7 +100,7 @@ export class PaymentProviderSettingsService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'paymentProvider.updated',
       actorId,
       targetType: 'paymentProvider',
@@ -123,7 +123,7 @@ export class PaymentProviderSettingsService {
       data: { enabled }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: enabled ? 'paymentProvider.enabled' : 'paymentProvider.disabled',
       actorId,
       targetType: 'paymentProvider',
@@ -150,7 +150,7 @@ export class PaymentProviderSettingsService {
       });
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'paymentProvider.setDefault',
       actorId,
       targetType: 'paymentProvider',

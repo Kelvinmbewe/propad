@@ -77,7 +77,7 @@ export class ReferralsService {
       earning.id
     );
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'referralEarning.created',
       actorId: referrerId,
       targetType: 'referralEarning',

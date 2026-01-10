@@ -128,7 +128,7 @@ export class PricingService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'pricingRule.updated',
       actorId,
       targetType: 'pricingRule',
@@ -146,7 +146,7 @@ export class PricingService {
       data: { isActive }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: isActive ? 'pricingRule.activated' : 'pricingRule.deactivated',
       actorId,
       targetType: 'pricingRule',

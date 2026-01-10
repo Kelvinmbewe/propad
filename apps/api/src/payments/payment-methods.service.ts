@@ -84,7 +84,7 @@ export class PaymentMethodsService {
         }
       });
 
-      await this.audit.log({
+      await this.audit.logAction({
         action: 'payments.method.create',
         actorId: actor.userId,
         targetType: 'paymentMethod',
@@ -143,7 +143,7 @@ export class PaymentMethodsService {
         }
       });
 
-      await this.audit.log({
+      await this.audit.logAction({
         action: 'payments.method.status',
         actorId: actor.userId,
         targetType: 'paymentMethod',

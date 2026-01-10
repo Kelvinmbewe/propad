@@ -23,7 +23,7 @@ export class AppConfigService implements OnModuleInit, OnModuleDestroy {
   private cache: AppConfig = cloneConfig(defaultAppConfig);
   private hotReloadTimer?: NodeJS.Timeout;
 
-  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
+  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) { }
 
   async onModuleInit(): Promise<void> {
     await this.reloadFromStore();
@@ -56,7 +56,7 @@ export class AppConfigService implements OnModuleInit, OnModuleDestroy {
         create: { key: GLOBAL_CONFIG_KEY, jsonValue: parsed as unknown as Prisma.JsonObject },
         update: { jsonValue: parsed as unknown as Prisma.JsonObject }
       }),
-      this.audit.log({
+      this.audit.logAction({
         action: 'config.updated',
         actorId,
         targetType: 'app_config',
