@@ -242,6 +242,7 @@ enum NotificationType {
   REWARD
   CHAT
   SYSTEM
+  VERIFICATION_UPDATE
 }
 
 enum NotificationStatus {

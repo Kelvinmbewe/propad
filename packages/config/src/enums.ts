@@ -98,3 +98,16 @@ export enum ChargeableItemType {
     SUBSCRIPTION = 'SUBSCRIPTION',
     OTHER = 'OTHER',
 }
+
+export enum AgencyStatus {
+    PENDING = 'PENDING',
+    ACTIVE = 'ACTIVE',
+    SUSPENDED = 'SUSPENDED',
+}
+
+export enum AgencyMemberRole {
+    OWNER = 'OWNER',
+    MANAGER = 'MANAGER',
+    AGENT = 'AGENT',
+}
+

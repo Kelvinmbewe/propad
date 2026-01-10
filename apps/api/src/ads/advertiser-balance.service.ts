@@ -170,9 +170,18 @@ export class AdvertiserBalanceService {
                     type: 'DEBIT',
                     amountCents,
                     reason,
-                    referenceId,
+                    referenceId, // This is the campaignId passed from deductBalance
                     balanceAfter: newBalance,
                 },
+            });
+
+            // [Hardening] Log detailed audit for spend
+            await this.audit.logAction({
+                action: `ads.${reason.toLowerCase()}.debit`,
+                actorId: undefined, // System action
+                targetType: 'adCampaign',
+                targetId: campaignId,
+                metadata: { amountCents, balanceAfter: newBalance, advertiserId },
             });
 
             // Check if we need to auto-pause after this deduction

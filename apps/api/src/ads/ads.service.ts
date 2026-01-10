@@ -90,7 +90,7 @@ export class AdsService {
 
   // ========== CAMPAIGN CRUD ==========
 
-  private async getAdvertiserIdForUser(user: AuthContext): Promise<string | null> {
+  async getAdvertiserIdForUser(user: AuthContext): Promise<string | null> {
     if (!user.email) return null;
     const advertiser = await this.prisma.advertiser.findFirst({
       where: { contactEmail: user.email },
@@ -233,6 +233,17 @@ export class AdsService {
 
     await this.assertCampaignAccess(campaign, user);
 
+    // [Hardening] Restrict editing ACTIVE campaigns
+    if (campaign.status === 'ACTIVE') {
+      const allowedKeys = ['name', 'dailyCapCents', 'endAt', 'status'];
+      const attemptKeys = Object.keys(dto);
+      const invalidKeys = attemptKeys.filter(k => !allowedKeys.includes(k) && dto[k as keyof UpdateCampaignDto] !== undefined);
+
+      if (invalidKeys.length > 0 && user.role !== Role.ADMIN) {
+        throw new BadRequestException(`Cannot edit ${invalidKeys.join(', ')} on an ACTIVE campaign`);
+      }
+    }
+
     // Prevent activating with zero balance
     if (dto.status === 'ACTIVE' && campaign.status !== 'ACTIVE') {
       const canAfford = await this.balanceService.canAfford(
@@ -283,6 +294,11 @@ export class AdsService {
 
     if (!campaign) {
       throw new NotFoundException('Campaign not found');
+    }
+
+    // [Hardening] Prevent resume if expired
+    if (campaign.endAt && campaign.endAt < new Date()) {
+      throw new BadRequestException('Cannot resume an expired campaign');
     }
 
     // Check balance before allowing resume
@@ -460,8 +476,11 @@ export class AdsService {
       take: limit * 2, // Get extra to filter
     });
 
-    // Filter by location if specified
-    const filtered = campaigns.filter((c) => {
+    // Filter by budget and location
+    const filtered = campaigns.filter((c: any) => {
+      // [Hardening] Budget check
+      if (c.budgetCents > 0 && c.spentCents >= c.budgetCents) return false;
+
       if (!c.targetProperty) return false;
       if (params?.cityId && c.targetProperty.cityId !== params.cityId) return false;
       if (params?.suburbId && c.targetProperty.suburbId !== params.suburbId) return false;
@@ -472,8 +491,8 @@ export class AdsService {
     // Get unique properties with promoted flag
     const properties = filtered
       .slice(0, limit)
-      .filter((c) => c.targetProperty)
-      .map((c) => ({
+      .filter((c: any) => c.targetProperty)
+      .map((c: any) => ({
         ...c.targetProperty,
         isPromoted: true,
         campaignId: c.id,
@@ -484,39 +503,261 @@ export class AdsService {
 
   // ========== ANALYTICS ==========
 
-  async getCampaignAnalytics(campaignId: string, user: AuthContext) {
-    const campaign = await this.getCampaignById(campaignId, user);
+  async getGlobalAdsAnalytics(rangeDays: number = 30) {
+    const now = new Date();
+    const currentPeriodStart = new Date(now);
+    currentPeriodStart.setDate(now.getDate() - rangeDays);
 
-    // Get aggregated stats
-    const [impressions, clicks, stats] = await Promise.all([
-      this.prisma.adImpression.count({ where: { campaignId } }),
-      this.prisma.adClick.count({ where: { campaignId } }),
-      this.prisma.adStat.aggregate({
-        where: { campaignId },
-        _sum: {
-          impressions: true,
-          clicks: true,
-          revenueMicros: true,
-        },
-      }),
-    ]);
+    const previousPeriodStart = new Date(currentPeriodStart);
+    previousPeriodStart.setDate(currentPeriodStart.getDate() - rangeDays);
 
-    const totalClicks = clicks + (stats._sum.clicks ?? 0);
-    const totalImpressions = impressions + (stats._sum.impressions ?? 0);
-    const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+    // Aggregate everything
+    const currentStats = await this.aggregateMetrics(undefined, currentPeriodStart, now);
+    const previousStats = await this.aggregateMetrics(undefined, previousPeriodStart, currentPeriodStart);
+
+    // Aggregate by campaign type
+    const types = ['PROPERTY_BOOST', 'SEARCH_SPONSOR', 'DISPLAY_BANNER'];
+    const typeBreakdown = await Promise.all(types.map(async (type) => {
+      const stats = await this.aggregateMetrics(undefined, currentPeriodStart, now, type as any);
+      return { type, ...stats };
+    }));
 
     return {
-      campaign,
+      summary: {
+        current: currentStats,
+        previous: previousStats,
+        trends: this.calculateTrends(currentStats, previousStats),
+      },
+      byType: typeBreakdown,
+      timeSeries: await this.getDailyStats(undefined, currentPeriodStart, now),
+    };
+  }
+
+  async getAdvertiserAnalyticsSummary(advertiserId: string, rangeDays: number = 30) {
+    const now = new Date();
+    const currentPeriodStart = new Date(now);
+    currentPeriodStart.setDate(now.getDate() - rangeDays);
+
+    const previousPeriodStart = new Date(currentPeriodStart);
+    previousPeriodStart.setDate(currentPeriodStart.getDate() - rangeDays);
+
+    // 1. Get Campaign Counts
+    const campaignStats = await this.prisma.adCampaign.groupBy({
+      by: ['status'],
+      where: { advertiserId },
+      _count: true,
+    });
+
+    // 2. Aggregate Current Period
+    const currentStats = await this.aggregateMetrics(advertiserId, currentPeriodStart, now);
+
+    // 3. Aggregate Previous Period for Trends
+    const previousStats = await this.aggregateMetrics(advertiserId, previousPeriodStart, currentPeriodStart);
+
+    // 4. Group by Campaign for breakdown
+    const campaignBreakdown = await this.getCampaignBreakdown(advertiserId, currentPeriodStart, now);
+
+    // 5. Daily Time-series
+    const dailyStats = await this.getDailyStats(advertiserId, currentPeriodStart, now);
+
+    return {
+      summary: {
+        current: currentStats,
+        previous: previousStats,
+        trends: this.calculateTrends(currentStats, previousStats),
+      },
+      campaigns: {
+        active: campaignStats.find((s: any) => s.status === 'ACTIVE')?._count ?? 0,
+        paused: campaignStats.find((s: any) => s.status === 'PAUSED')?._count ?? 0,
+        ended: campaignStats.find((s: any) => s.status === 'ENDED')?._count ?? 0,
+      },
+      breakdown: campaignBreakdown,
+      timeSeries: dailyStats,
+    };
+  }
+
+  async getCampaignAnalytics(campaignId: string, user: AuthContext) {
+    const campaign = await this.getCampaignById(campaignId, user);
+    const now = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    const [impressions, clicks, spendData, dailyStats] = await Promise.all([
+      this.prisma.adImpression.count({ where: { campaignId } }),
+      this.prisma.adClick.count({ where: { campaignId } }),
+      this.prisma.advertiserBalanceLog.aggregate({
+        where: { referenceId: campaignId, type: 'DEBIT' },
+        _sum: { amountCents: true },
+      }),
+      this.getDailyStats(undefined, thirtyDaysAgo, now, campaignId),
+    ]);
+
+    const totalImpressions = impressions;
+    const totalClicks = clicks;
+    const totalSpendCents = spendData._sum.amountCents ?? 0;
+    const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) : 0;
+
+    return {
+      campaign: {
+        id: campaign.id,
+        name: campaign.name,
+        status: campaign.status,
+        type: campaign.type,
+      },
       analytics: {
         impressions: totalImpressions,
         clicks: totalClicks,
-        ctr: parseFloat(ctr.toFixed(2)),
-        spentCents: campaign.spentCents,
+        ctr: parseFloat(ctr.toFixed(4)),
+        totalSpendCents,
         budgetCents: campaign.budgetCents,
-        remainingBudget: campaign.budgetCents
-          ? campaign.budgetCents - campaign.spentCents
-          : null,
+        remainingBudget: campaign.budgetCents ? campaign.budgetCents - totalSpendCents : null,
       },
+      timeSeries: dailyStats,
+    };
+  }
+
+  private async aggregateMetrics(advertiserId: string | undefined, start: Date, end: Date, campaignType?: any) {
+    const where: any = { createdAt: { gte: start, lt: end } };
+    if (advertiserId) where.advertiserId = advertiserId;
+
+    const [impressions, clicks, spend] = await Promise.all([
+      this.prisma.adImpression.count({
+        where: { ...where, campaign: campaignType ? { type: campaignType } : undefined },
+      }),
+      this.prisma.adClick.count({
+        where: {
+          createdAt: { gte: start, lt: end },
+          campaign: {
+            advertiserId: advertiserId || undefined,
+            type: campaignType || undefined,
+          }
+        },
+      }),
+      this.prisma.advertiserBalanceLog.aggregate({
+        where: {
+          advertiserId: advertiserId || undefined,
+          type: 'DEBIT',
+          createdAt: { gte: start, lt: end },
+        },
+        _sum: { amountCents: true },
+      }),
+    ]);
+
+    const ctr = impressions > 0 ? clicks / impressions : 0;
+
+    return {
+      impressions,
+      clicks,
+      ctr: parseFloat(ctr.toFixed(4)),
+      spendCents: spend._sum.amountCents ?? 0,
+    };
+  }
+
+  private async getCampaignBreakdown(advertiserId: string, start: Date, end: Date) {
+    const campaigns = await this.prisma.adCampaign.findMany({
+      where: { advertiserId },
+      select: { id: true, name: true, type: true, status: true },
+    });
+
+    const breakdown = await Promise.all(campaigns.map(async (c: any) => {
+      const stats = await this.getCampaignStatsForPeriod(c.id, start, end);
+      return {
+        id: c.id,
+        name: c.name,
+        type: c.type,
+        status: c.status,
+        ...stats,
+      };
+    }));
+
+    return breakdown;
+  }
+
+  private async getCampaignStatsForPeriod(campaignId: string, start: Date, end: Date) {
+    const [impressions, clicks, spend] = await Promise.all([
+      this.prisma.adImpression.count({
+        where: { campaignId, createdAt: { gte: start, lt: end } },
+      }),
+      this.prisma.adClick.count({
+        where: { campaignId, createdAt: { gte: start, lt: end } },
+      }),
+      this.prisma.advertiserBalanceLog.aggregate({
+        where: { referenceId: campaignId, type: 'DEBIT', createdAt: { gte: start, lt: end } },
+        _sum: { amountCents: true },
+      }),
+    ]);
+
+    const ctr = impressions > 0 ? clicks / impressions : 0;
+
+    return {
+      impressions,
+      clicks,
+      ctr: parseFloat(ctr.toFixed(4)),
+      spendCents: spend._sum.amountCents ?? 0,
+    };
+  }
+
+  private async getDailyStats(advertiserId: string | undefined, start: Date, end: Date, campaignId?: string) {
+    const days: string[] = [];
+    const date = new Date(start);
+    while (date < end) {
+      days.push(date.toISOString().split('T')[0]);
+      date.setDate(date.getDate() + 1);
+    }
+
+    const dailyData = await Promise.all(days.map(async (day) => {
+      const dayStart = new Date(day);
+      const dayEnd = new Date(day);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+
+      const [impressions, clicks, spend] = await Promise.all([
+        this.prisma.adImpression.count({
+          where: {
+            advertiserId: advertiserId || undefined,
+            campaignId: campaignId || undefined,
+            createdAt: { gte: dayStart, lt: dayEnd }
+          },
+        }),
+        this.prisma.adClick.count({
+          where: {
+            campaignId: campaignId || undefined,
+            campaign: advertiserId ? { advertiserId } : undefined,
+            createdAt: { gte: dayStart, lt: dayEnd }
+          },
+        }),
+        this.prisma.advertiserBalanceLog.aggregate({
+          where: {
+            advertiserId: advertiserId || undefined,
+            referenceId: campaignId || undefined,
+            type: 'DEBIT',
+            createdAt: { gte: dayStart, lt: dayEnd }
+          },
+          _sum: { amountCents: true },
+        }),
+      ]);
+
+      return {
+        date: day,
+        impressions,
+        clicks,
+        spendCents: spend._sum.amountCents ?? 0,
+      };
+    }));
+
+    return dailyData;
+  }
+
+  private calculateTrends(current: any, previous: any) {
+    const calcTrend = (curr: number, prev: number) => {
+      if (prev === 0) return curr > 0 ? 100 : 0;
+      return parseFloat((((curr - prev) / prev) * 100).toFixed(2));
+    };
+
+    return {
+      impressions: calcTrend(current.impressions, previous.impressions),
+      clicks: calcTrend(current.clicks, previous.clicks),
+      ctr: calcTrend(current.ctr, previous.ctr),
+      spendCents: calcTrend(current.spendCents, previous.spendCents),
     };
   }
 

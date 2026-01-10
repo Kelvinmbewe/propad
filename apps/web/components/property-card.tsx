@@ -62,6 +62,7 @@ export function PropertyCard({ property, highlighted = false, appearanceOrder = 
                 className="object-cover transition-transform duration-[var(--motion-duration)] ease-[var(--motion-ease)] group-hover:scale-105"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
+              {(property as any).isPromoted && <Badge className="absolute right-3 top-3 bg-purple-600 text-white border-none shadow-md">Promoted</Badge>}
               <Badge className="absolute left-3 top-3 bg-black/70 text-white">Verified</Badge>
             </div>
           ) : (

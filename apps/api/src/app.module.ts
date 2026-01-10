@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -45,17 +45,15 @@ import { PricingModule } from './pricing/pricing.module';
 import { SecurityModule } from './security/security.module';
 import { GrowthModule } from './growth/growth.module';
 import { DealsModule } from './deals/deals.module';
+import { MessagingModule } from './messaging/messaging.module';
+import { ApplicationsModule } from './applications/applications.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     CacheModule.register({ isGlobal: true, ttl: 300, max: 100 }),
-    ThrottlerModule.forRoot([{ ttl: 60, limit: 120 }]),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100, // Global limit 100 req/min
-    }]),
     PrismaModule,
     QueueModule,
     AdsModule,
@@ -89,15 +87,12 @@ import { DealsModule } from './deals/deals.module';
     MessagingModule,
     PayoutsModule,
     DashboardModule,
-    AuthenticationModule, // Alias if needed, assuming AuthModule is correct
-    AuthenticationModule, // Alias if needed, assuming AuthModule is correct
     AuditModule,
     ReconciliationModule,
     OpsModule,
     PricingModule,
     SecurityModule,
     GrowthModule,
-    MessagingModule,
     InterestsModule,
     ApplicationsModule,
     DealsModule

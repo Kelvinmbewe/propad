@@ -213,7 +213,7 @@ export class ReferralsService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'referralConfig.updated',
       actorId,
       targetType: 'config',

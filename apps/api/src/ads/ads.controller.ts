@@ -94,6 +94,29 @@ export class AdsController {
     return this.adsService.getCampaignAnalytics(id, req.user);
   }
 
+  @Get('analytics/summary')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
+  async getAnalyticsSummary(@Req() req: AuthenticatedRequest) {
+    const advertiserId = await this.adsService.getAdvertiserIdForUser(req.user);
+    if (!advertiserId) {
+      // Create advertiser if not exists (lazy profile creation)
+      const campaign = await this.adsService.createCampaign({ name: req.user.email || 'Draft', type: 'PROPERTY_BOOST' } as any, req.user);
+      return this.adsService.getAdvertiserAnalyticsSummary(campaign.advertiserId);
+    }
+    return this.adsService.getAdvertiserAnalyticsSummary(advertiserId);
+  }
+
+  @Get('analytics/campaign/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
+  async getCampaignAnalyticsV2(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.adsService.getCampaignAnalytics(id, req.user);
+  }
+
   @Patch('campaigns/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)

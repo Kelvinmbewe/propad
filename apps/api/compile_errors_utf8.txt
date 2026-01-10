@@ -1,0 +1,146 @@
+﻿src/applications/applications.service_snippet.ts(1,5): error TS1434: Unexpected keyword or identifier.
+src/applications/applications.service_snippet.ts(1,42): error TS1005: ',' expected.
+src/applications/applications.service_snippet.ts(1,52): error TS1005: ';' expected.
+src/applications/applications.service_snippet.ts(23,5): error TS1434: Unexpected keyword or identifier.
+src/applications/applications.service_snippet.ts(23,36): error TS1005: ',' expected.
+src/applications/applications.service_snippet.ts(23,46): error TS1005: ';' expected.
+src/applications/applications.service_snippet.ts(24,1): error TS1005: '}' expected.
+src/payments/payments.service.ts(464,13): error TS1005: ',' expected.
+src/payments/payments.service.ts(464,14): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(480,7): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(480,8): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(485,16): error TS1005: ';' expected.
+src/payments/payments.service.ts(486,15): error TS1005: ';' expected.
+src/payments/payments.service.ts(487,20): error TS1005: ';' expected.
+src/payments/payments.service.ts(488,18): error TS1005: ';' expected.
+src/payments/payments.service.ts(489,22): error TS1005: ';' expected.
+src/payments/payments.service.ts(491,1): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(492,7): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(494,5): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(494,6): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(499,3): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(501,3): error TS1434: Unexpected keyword or identifier.
+src/payments/payments.service.ts(501,39): error TS1005: ',' expected.
+src/payments/payments.service.ts(501,64): error TS1005: ';' expected.
+src/payments/payments.service.ts(569,3): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(569,33): error TS1109: Expression expected.
+src/payments/payments.service.ts(569,60): error TS1005: ';' expected.
+src/payments/payments.service.ts(573,3): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(573,11): error TS1434: Unexpected keyword or identifier.
+src/payments/payments.service.ts(573,35): error TS1005: ',' expected.
+src/payments/payments.service.ts(573,54): error TS1005: ',' expected.
+src/payments/payments.service.ts(573,78): error TS1005: ';' expected.
+src/payments/payments.service.ts(608,3): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(608,11): error TS1434: Unexpected keyword or identifier.
+src/payments/payments.service.ts(609,5): error TS1005: ',' expected.
+src/payments/payments.service.ts(610,11): error TS1005: ',' expected.
+src/payments/payments.service.ts(610,25): error TS1005: ',' expected.
+src/payments/payments.service.ts(610,48): error TS1005: ',' expected.
+src/payments/payments.service.ts(610,72): error TS1011: An element access expression should take an argument.
+src/payments/payments.service.ts(611,14): error TS1005: ',' expected.
+src/payments/payments.service.ts(612,3): error TS1005: ';' expected.
+src/payments/payments.service.ts(645,3): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(645,11): error TS1434: Unexpected keyword or identifier.
+src/payments/payments.service.ts(646,5): error TS1005: ',' expected.
+src/payments/payments.service.ts(647,8): error TS1005: ',' expected.
+src/payments/payments.service.ts(647,22): error TS1005: ',' expected.
+src/payments/payments.service.ts(647,37): error TS1005: ',' expected.
+src/payments/payments.service.ts(648,14): error TS1005: ',' expected.
+src/payments/payments.service.ts(649,3): error TS1005: ';' expected.
+src/payments/payments.service.ts(661,3): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(661,35): error TS1005: ',' expected.
+src/payments/payments.service.ts(661,57): error TS1109: Expression expected.
+src/payments/payments.service.ts(661,67): error TS1005: ';' expected.
+src/payments/payments.service.ts(669,3): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(669,11): error TS1434: Unexpected keyword or identifier.
+src/payments/payments.service.ts(669,37): error TS1005: ',' expected.
+src/payments/payments.service.ts(669,61): error TS1005: ',' expected.
+src/payments/payments.service.ts(669,78): error TS1005: ',' expected.
+src/payments/payments.service.ts(669,92): error TS1005: ',' expected.
+src/payments/payments.service.ts(669,100): error TS1005: ';' expected.
+src/payments/payments.service.ts(687,3): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(687,28): error TS1005: ';' expected.
+src/payments/payments.service.ts(692,3): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(692,35): error TS1005: ',' expected.
+src/payments/payments.service.ts(692,45): error TS1005: ';' expected.
+src/payments/payments.service.ts(696,3): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(696,40): error TS1005: ',' expected.
+src/payments/payments.service.ts(696,59): error TS1005: ',' expected.
+src/payments/payments.service.ts(696,67): error TS1005: ';' expected.
+src/payments/payments.service.ts(702,3): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(702,11): error TS1434: Unexpected keyword or identifier.
+src/payments/payments.service.ts(702,46): error TS1005: ',' expected.
+src/payments/payments.service.ts(702,81): error TS1005: ',' expected.
+src/payments/payments.service.ts(702,103): error TS1005: ';' expected.
+src/payments/payments.service.ts(733,3): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(733,11): error TS1434: Unexpected keyword or identifier.
+src/payments/payments.service.ts(733,50): error TS1005: ',' expected.
+src/payments/payments.service.ts(733,85): error TS1005: ',' expected.
+src/payments/payments.service.ts(733,107): error TS1005: ';' expected.
+src/payments/payments.service.ts(789,3): error TS1128: Declaration or statement expected.
+src/payments/payments.service.ts(789,11): error TS1434: Unexpected keyword or identifier.
+src/payments/payments.service.ts(790,10): error TS1005: ',' expected.
+src/payments/payments.service.ts(790,43): error TS1011: An element access expression should take an argument.
+src/payments/payments.service.ts(790,44): error TS1005: ',' expected.
+src/payments/payments.service.ts(790,63): error TS1005: ',' expected.
+src/payments/payments.service.ts(790,79): error TS1005: ',' expected.
+src/payments/payments.service.ts(791,3): error TS1005: ';' expected.
+src/payments/payments.service.ts(845,3): error TS1434: Unexpected keyword or identifier.
+src/payments/payments.service.ts(845,30): error TS1005: ',' expected.
+src/payments/payments.service.ts(845,40): error TS1005: ';' expected.
+src/payments/payments.service.ts(871,1): error TS1128: Declaration or statement expected.
+src/verifications/verifications.service.ts(471,3): error TS1472: 'catch' or 'finally' expected.
+src/verifications/verifications.service.ts(471,32): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(471,48): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(471,80): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(471,97): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(471,107): error TS1005: ';' expected.
+src/verifications/verifications.service.ts(523,3): error TS1434: Unexpected keyword or identifier.
+src/verifications/verifications.service.ts(523,44): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(523,54): error TS1005: ';' expected.
+src/verifications/verifications.service.ts(581,3): error TS1434: Unexpected keyword or identifier.
+src/verifications/verifications.service.ts(581,36): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(581,46): error TS1005: ';' expected.
+src/verifications/verifications.service.ts(611,3): error TS1434: Unexpected keyword or identifier.
+src/verifications/verifications.service.ts(611,40): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(611,50): error TS1005: ';' expected.
+src/verifications/verifications.service.ts(647,3): error TS1434: Unexpected keyword or identifier.
+src/verifications/verifications.service.ts(647,29): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(647,45): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(647,65): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(647,80): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(647,95): error TS1005: ';' expected.
+src/verifications/verifications.service.ts(668,3): error TS1128: Declaration or statement expected.
+src/verifications/verifications.service.ts(668,11): error TS1434: Unexpected keyword or identifier.
+src/verifications/verifications.service.ts(668,41): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(668,51): error TS1005: ';' expected.
+src/verifications/verifications.service.ts(676,3): error TS1128: Declaration or statement expected.
+src/verifications/verifications.service.ts(676,33): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(676,47): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(676,61): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(676,75): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(676,84): error TS1005: ';' expected.
+src/verifications/verifications.service.ts(676,86): error TS1434: Unexpected keyword or identifier.
+src/verifications/verifications.service.ts(689,3): error TS1434: Unexpected keyword or identifier.
+src/verifications/verifications.service.ts(689,34): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(689,48): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(689,80): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(689,98): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(689,118): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(689,142): error TS1011: An element access expression should take an argument.
+src/verifications/verifications.service.ts(689,143): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(689,162): error TS1011: An element access expression should take an argument.
+src/verifications/verifications.service.ts(689,167): error TS1005: ';' expected.
+src/verifications/verifications.service.ts(738,3): error TS1434: Unexpected keyword or identifier.
+src/verifications/verifications.service.ts(738,29): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(738,39): error TS1005: ';' expected.
+src/verifications/verifications.service.ts(749,3): error TS1434: Unexpected keyword or identifier.
+src/verifications/verifications.service.ts(749,42): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(749,62): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(749,79): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(749,89): error TS1005: ';' expected.
+src/verifications/verifications.service.ts(768,3): error TS1128: Declaration or statement expected.
+src/verifications/verifications.service.ts(768,22): error TS1005: ',' expected.
+src/verifications/verifications.service.ts(768,31): error TS1005: ';' expected.
+src/verifications/verifications.service.ts(768,33): error TS1434: Unexpected keyword or identifier.
+src/verifications/verifications.service.ts(771,1): error TS1128: Declaration or statement expected.

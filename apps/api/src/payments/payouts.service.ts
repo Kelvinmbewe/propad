@@ -280,7 +280,7 @@ export class PayoutsService {
       return payout;
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'payout.processed',
       actorId,
       targetType: 'payoutRequest',
@@ -294,7 +294,7 @@ export class PayoutsService {
     } catch (error) {
       // Execution failure is already handled in executePayout (reverts debit)
       // Just log and rethrow
-      await this.audit.log({
+      await this.audit.logAction({
         action: 'payout.execution.failed',
         actorId,
         targetType: 'payoutTransaction',
@@ -386,7 +386,7 @@ export class PayoutsService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'payout.paid',
       actorId,
       targetType: 'payoutRequest',
@@ -496,7 +496,7 @@ export class PayoutsService {
           }
         });
 
-        await this.audit.log({
+        await this.audit.logAction({
           action: 'payout.executed',
           actorId,
           targetType: 'payoutTransaction',
@@ -534,7 +534,7 @@ export class PayoutsService {
           }
         });
 
-        await this.audit.log({
+        await this.audit.logAction({
           action: 'payout.failed',
           actorId,
           targetType: 'payoutTransaction',

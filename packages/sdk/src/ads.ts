@@ -76,15 +76,70 @@ export interface Campaign {
 }
 
 export interface CampaignAnalytics {
-    campaign: Campaign;
+    campaign: {
+        id: string;
+        name: string;
+        status: string;
+        type: string;
+    };
     analytics: {
         impressions: number;
         clicks: number;
         ctr: number;
-        spentCents: number;
+        totalSpendCents: number;
         budgetCents?: number;
-        remainingBudget?: number;
+        remainingBudget?: number | null;
     };
+    timeSeries: Array<{
+        date: string;
+        impressions: number;
+        clicks: number;
+        spendCents: number;
+    }>;
+}
+
+export interface AdvertiserAnalyticsSummary {
+    summary: {
+        current: {
+            impressions: number;
+            clicks: number;
+            ctr: number;
+            spendCents: number;
+        };
+        previous: {
+            impressions: number;
+            clicks: number;
+            ctr: number;
+            spendCents: number;
+        };
+        trends: {
+            impressions: number;
+            clicks: number;
+            ctr: number;
+            spendCents: number;
+        };
+    };
+    campaigns: {
+        active: number;
+        paused: number;
+        ended: number;
+    };
+    breakdown: Array<{
+        id: string;
+        name: string;
+        type: string;
+        status: string;
+        impressions: number;
+        clicks: number;
+        ctr: number;
+        spendCents: number;
+    }>;
+    timeSeries: Array<{
+        date: string;
+        impressions: number;
+        clicks: number;
+        spendCents: number;
+    }>;
 }
 
 export class AdsModule {
@@ -127,7 +182,15 @@ export class AdsModule {
     }
 
     async getCampaignAnalytics(id: string): Promise<CampaignAnalytics> {
-        return this.client.get(`/ads/campaigns/${id}/analytics`);
+        return this.client.get(`/ads/analytics/campaign/${id}`);
+    }
+
+    async getAnalyticsSummary(): Promise<AdvertiserAnalyticsSummary> {
+        return this.client.get('/ads/analytics/summary');
+    }
+
+    async getAdminAnalytics(): Promise<any> {
+        return this.client.get('/admin/ads/analytics');
     }
 
     // ========== BALANCE ==========

@@ -4,30 +4,33 @@ import { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@propad/ui';
 import { useRouter } from 'next/navigation';
 import { useSdk } from '../../../../hooks/use-sdk';
+import type { AdvertiserAnalyticsSummary } from '@propad/sdk';
 
-interface AdvertiserStats {
-    impressions: number;
-    clicks: number;
-    spend: number;
-    campaigns: number;
-}
+const TrendIndicator = ({ value }: { value: number }) => {
+    if (value === 0) return null;
+    const isPositive = value > 0;
+    return (
+        <span className={`inline-flex items-center text-xs font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+            {isPositive ? '↑' : '↓'} {Math.abs(value).toFixed(1)}%
+        </span>
+    );
+};
 
 export default function AdvertiserOverview() {
     const router = useRouter();
     const { sdk } = useSdk();
-    const [stats, setStats] = useState<AdvertiserStats | null>(null);
+    const [analytics, setAnalytics] = useState<AdvertiserAnalyticsSummary | null>(null);
     const [balance, setBalance] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function loadData() {
             try {
-                // Load stats and balance in parallel
-                const [statsResponse, balanceResponse] = await Promise.all([
-                    sdk.advertisers.getStats(),
+                const [analyticsResponse, balanceResponse] = await Promise.all([
+                    sdk.ads.getAnalyticsSummary(),
                     sdk.ads.getBalance(),
                 ]);
-                setStats(statsResponse);
+                setAnalytics(analyticsResponse);
                 setBalance(balanceResponse.balanceCents);
             } catch (error) {
                 console.error('Failed to load advertiser data:', error);
@@ -49,9 +52,7 @@ export default function AdvertiserOverview() {
         return new Intl.NumberFormat('en-US').format(num);
     };
 
-    const ctr = stats && stats.impressions > 0
-        ? ((stats.clicks / stats.impressions) * 100).toFixed(2)
-        : '0.00';
+    const summary = analytics?.summary;
 
     return (
         <div className="space-y-6">
@@ -67,8 +68,8 @@ export default function AdvertiserOverview() {
 
             <div className="grid gap-4 md:grid-cols-4">
                 <Card className="bg-white/5 border-white/10">
-                    <CardHeader>
-                        <CardTitle className="text-sm font-medium text-gray-400">Total Impressions</CardTitle>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-gray-400">Impressions (30d)</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {loading ? (
@@ -76,17 +77,20 @@ export default function AdvertiserOverview() {
                         ) : (
                             <>
                                 <div className="text-2xl font-bold text-white">
-                                    {formatNumber(stats?.impressions ?? 0)}
+                                    {formatNumber(summary?.current.impressions ?? 0)}
                                 </div>
-                                <p className="text-xs text-gray-400">Lifetime</p>
+                                <div className="flex items-center space-x-2">
+                                    <p className="text-xs text-gray-500">vs prev 30d</p>
+                                    <TrendIndicator value={summary?.trends.impressions ?? 0} />
+                                </div>
                             </>
                         )}
                     </CardContent>
                 </Card>
 
                 <Card className="bg-white/5 border-white/10">
-                    <CardHeader>
-                        <CardTitle className="text-sm font-medium text-gray-400">Total Clicks</CardTitle>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-gray-400">Clicks (30d)</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {loading ? (
@@ -94,17 +98,20 @@ export default function AdvertiserOverview() {
                         ) : (
                             <>
                                 <div className="text-2xl font-bold text-white">
-                                    {formatNumber(stats?.clicks ?? 0)}
+                                    {formatNumber(summary?.current.clicks ?? 0)}
                                 </div>
-                                <p className="text-xs text-gray-400">CTR: {ctr}%</p>
+                                <div className="flex items-center space-x-2">
+                                    <p className="text-xs text-gray-500">CTR: {(summary?.current.ctr || 0 * 100).toFixed(2)}%</p>
+                                    <TrendIndicator value={summary?.trends.clicks ?? 0} />
+                                </div>
                             </>
                         )}
                     </CardContent>
                 </Card>
 
                 <Card className="bg-white/5 border-white/10">
-                    <CardHeader>
-                        <CardTitle className="text-sm font-medium text-gray-400">Active Campaigns</CardTitle>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-gray-400">Spend (30d)</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {loading ? (
@@ -112,20 +119,19 @@ export default function AdvertiserOverview() {
                         ) : (
                             <>
                                 <div className="text-2xl font-bold text-white">
-                                    {stats?.campaigns ?? 0}
+                                    {formatCurrency(summary?.current.spendCents ?? 0)}
                                 </div>
-                                <p className="text-xs text-blue-400">
-                                    <a href="/dashboard/advertiser/campaigns" className="hover:underline">
-                                        Manage →
-                                    </a>
-                                </p>
+                                <div className="flex items-center space-x-2">
+                                    <p className="text-xs text-gray-500">vs prev 30d</p>
+                                    <TrendIndicator value={summary?.trends.spendCents ?? 0} />
+                                </div>
                             </>
                         )}
                     </CardContent>
                 </Card>
 
                 <Card className="bg-white/5 border-white/10">
-                    <CardHeader>
+                    <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium text-gray-400">Wallet Balance</CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -136,7 +142,11 @@ export default function AdvertiserOverview() {
                                 <div className="text-2xl font-bold text-white">
                                     {formatCurrency(balance ?? 0)}
                                 </div>
-                                <p className="text-xs text-green-400">Available for campaigns</p>
+                                <p className="text-xs text-blue-400">
+                                    <a href="/dashboard/wallet" className="hover:underline">
+                                        Top Up →
+                                    </a>
+                                </p>
                             </>
                         )}
                     </CardContent>
@@ -146,19 +156,25 @@ export default function AdvertiserOverview() {
             <div className="grid gap-4 md:grid-cols-2">
                 <Card className="bg-white/5 border-white/10">
                     <CardHeader>
-                        <CardTitle className="text-white">Total Spend</CardTitle>
+                        <CardTitle className="text-white">Campaign Summary</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {loading ? (
-                            <div className="h-16 bg-white/10 animate-pulse rounded" />
+                            <div className="h-24 bg-white/10 animate-pulse rounded" />
                         ) : (
-                            <div className="space-y-2">
-                                <div className="text-3xl font-bold text-white">
-                                    {formatCurrency((stats?.spend ?? 0) * 100)}
+                            <div className="grid grid-cols-3 gap-4 text-center">
+                                <div>
+                                    <p className="text-2xl font-bold text-green-400">{analytics?.campaigns.active ?? 0}</p>
+                                    <p className="text-xs text-gray-400 uppercase tracking-wider">Active</p>
                                 </div>
-                                <p className="text-sm text-gray-400">
-                                    Across all campaigns
-                                </p>
+                                <div>
+                                    <p className="text-2xl font-bold text-yellow-400">{analytics?.campaigns.paused ?? 0}</p>
+                                    <p className="text-xs text-gray-400 uppercase tracking-wider">Paused</p>
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-bold text-gray-400">{analytics?.campaigns.ended ?? 0}</p>
+                                    <p className="text-xs text-gray-400 uppercase tracking-wider">Ended</p>
+                                </div>
                             </div>
                         )}
                     </CardContent>

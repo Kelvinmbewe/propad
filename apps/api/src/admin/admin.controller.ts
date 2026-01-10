@@ -5,18 +5,21 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { AdminService } from './admin.service';
+import { AdsService } from '../ads/ads.service';
 import { CreateStrikeDto, createStrikeSchema } from './dto/create-strike.dto';
 import { UpdateFeatureFlagDto, updateFeatureFlagSchema } from './dto/update-feature-flag.dto';
 import { ListInvoicesDto, listInvoicesSchema } from './dto/list-invoices.dto';
-import { MarkInvoicePaidDto, markInvoicePaidSchema } from './dto/mark-invoice-paid.dto';
 import { ListPaymentIntentsDto, listPaymentIntentsSchema } from './dto/list-payment-intents.dto';
 import { ListTransactionsDto, listTransactionsSchema } from './dto/list-transactions.dto';
+import { MarkInvoicePaidDto, markInvoicePaidSchema } from './dto/mark-invoice-paid.dto';
 import { CreateFxRateDto, createFxRateSchema } from './dto/create-fx-rate.dto';
 import { UpdateAppConfigDto, updateAppConfigSchema } from './dto/update-app-config.dto';
 
 interface AuthenticatedRequest {
   user: {
     userId: string;
+    role: Role;
+    email?: string | null;
   };
 }
 
@@ -24,7 +27,15 @@ interface AuthenticatedRequest {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
 export class AdminController {
-  constructor(private readonly adminService: AdminService) { }
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly adsService: AdsService,
+  ) { }
+
+  @Get('ads/analytics')
+  async getGlobalAdsAnalytics() {
+    return this.adsService.getGlobalAdsAnalytics();
+  }
 
   @Post('strikes')
   createStrike(

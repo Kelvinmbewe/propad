@@ -466,306 +466,324 @@ export class VerificationsService {
 
         return updatedItem;
       });
+    } catch (error) {
+      // Ensure ALL thrown errors are proper HTTP exceptions
+      // If it's already a NestJS HTTP exception, re-throw it
+      if (error instanceof NotFoundException || error instanceof BadRequestException || error instanceof ForbiddenException || error instanceof UnauthorizedException) {
+        throw error;
+      }
+
+      // Wrap the method in try/catch and log the error message before rethrowing
+      console.error('[VERIFY ITEM ERROR]', error);
+      this.logger.error('[VERIFY ITEM ERROR]', error);
+
+      // Convert unknown errors to BadRequestException
+      throw new BadRequestException(error instanceof Error ? error.message : 'Failed to review verification item');
     }
+  }
 
   async decideRequest(requestId: string, status: 'APPROVED' | 'REJECTED', notes: string, actorId: string) {
-      const request = await this.prisma.verificationRequest.findUnique({ where: { id: requestId } });
-      if (!request) throw new NotFoundException('Request not found');
+    const request = await this.prisma.verificationRequest.findUnique({ where: { id: requestId } });
+    if (!request) throw new NotFoundException('Request not found');
 
-      // Update Request status
-      await this.prisma.$transaction(async (tx) => {
-        await tx.verificationRequest.update({
-          where: { id: requestId },
-          data: { status, reviewedAt: new Date(), notes } // Assuming 'notes' field exists on Request or added? Schema check: Request has notes.
-        });
-
-        // If Approved, mutate entity
-        if (status === 'APPROVED') {
-          if (request.targetType === 'PROPERTY' && request.propertyId) {
-            await tx.property.update({ where: { id: request.propertyId }, data: { status: 'VERIFIED', verifiedAt: new Date() } });
-          } else if (request.targetType === 'USER' && request.targetUserId) {
-            await tx.user.update({ where: { id: request.targetUserId }, data: { isVerified: true } });
-          } else if (request.targetType === 'COMPANY' && request.agencyId) {
-            await tx.agency.update({ where: { id: request.agencyId }, data: { verifiedAt: new Date() } });
-          }
-        }
+    // Update Request status
+    await this.prisma.$transaction(async (tx) => {
+      await tx.verificationRequest.update({
+        where: { id: requestId },
+        data: { status, reviewedAt: new Date(), notes } // Assuming 'notes' field exists on Request or added? Schema check: Request has notes.
       });
 
-      await this.audit.logAction(actorId, requestId, 'VERIFICATION_DECIDE', { status, notes });
-
-      // Notify
-      if (request.requesterId) {
-        await this.notifications.notifyUser(
-          request.requesterId,
-          NotificationType.VERIFICATION_UPDATE,
-          `Verification ${status}`,
-          `Your verification request was ${status.toLowerCase()}. ${notes || ''}`
-        );
+      // If Approved, mutate entity
+      if (status === 'APPROVED') {
+        if (request.targetType === 'PROPERTY' && request.propertyId) {
+          await tx.property.update({ where: { id: request.propertyId }, data: { status: 'VERIFIED', verifiedAt: new Date() } });
+        } else if (request.targetType === 'USER' && request.targetUserId) {
+          await tx.user.update({ where: { id: request.targetUserId }, data: { isVerified: true } });
+        } else if (request.targetType === 'COMPANY' && request.agencyId) {
+          await tx.agency.update({ where: { id: request.agencyId }, data: { verifiedAt: new Date() } });
+        }
       }
+    });
 
-      return this.getRequest(requestId);
+    await this.audit.logAction({
+      action: 'VERIFICATION_DECIDE',
+      actorId: actorId,
+      targetType: 'VERIFICATION_REQUEST',
+      targetId: requestId,
+      metadata: { status, notes }
+    });
+
+    // Notify
+    if (request.requesterId) {
+      await this.notifications.notifyUser(
+        request.requesterId,
+        NotificationType.VERIFICATION_UPDATE,
+        `Verification ${status}`,
+        `Your verification request was ${status.toLowerCase()}. ${notes || ''}`
+      );
     }
-    // Ensure ALL thrown errors are proper HTTP exceptions
-    // If it's already a NestJS HTTP exception, re-throw it
-    if (error instanceof NotFoundException || error instanceof BadRequestException || error instanceof ForbiddenException) {
-      throw error;
-    }
 
-    // Wrap the method in try/catch and log the error message before rethrowing
-    console.error('[VERIFY ITEM ERROR]', error);
-    this.logger.error('[VERIFY ITEM ERROR]', error);
-
-    // Convert unknown errors to BadRequestException
-    throw new BadRequestException(error instanceof Error ? error.message : 'Failed to review verification item');
+    return this.getRequest(requestId);
   }
-}
 
   async recalculatePropertyScore(propertyId: string) {
-  const property = await this.prisma.property.findUnique({
-    where: { id: propertyId },
-    include: {
-      verificationRequests: {
-        include: { items: true }
+    const property = await this.prisma.property.findUnique({
+      where: { id: propertyId },
+      include: {
+        verificationRequests: {
+          include: { items: true }
+        }
+      }
+    });
+
+    if (!property) return;
+
+    let totalScore = 0;
+    const approvedItems = property.verificationRequests
+      .flatMap((r: any) => r.items)
+      .filter((i: any) => i.status === 'APPROVED');
+
+    for (const item of approvedItems) {
+      if (item.type === 'PROOF_OF_OWNERSHIP') totalScore += 50;
+      else if (item.type === 'PROPERTY_PHOTOS') totalScore += 30;
+      else if (item.type === 'LOCATION_CONFIRMATION') {
+        if (item.notes?.includes('On-site visit requested') || item.notes?.includes('On-site visit confirmed')) {
+          totalScore += 50;
+        } else {
+          totalScore += 30;
+        }
       }
     }
-  });
 
-  if (!property) return;
+    totalScore = Math.max(0, totalScore);
 
-  let totalScore = 0;
-  const approvedItems = property.verificationRequests
-    .flatMap((r: any) => r.items)
-    .filter((i: any) => i.status === 'APPROVED');
+    let newLevel = 'NONE';
+    if (totalScore >= 80) newLevel = 'VERIFIED';
+    else if (totalScore >= 50) newLevel = 'TRUSTED';
+    else if (totalScore >= 1) newLevel = 'BASIC';
 
-  for (const item of approvedItems) {
-    if (item.type === 'PROOF_OF_OWNERSHIP') totalScore += 50;
-    else if (item.type === 'PROPERTY_PHOTOS') totalScore += 30;
-    else if (item.type === 'LOCATION_CONFIRMATION') {
-      if (item.notes?.includes('On-site visit requested') || item.notes?.includes('On-site visit confirmed')) {
-        totalScore += 50;
-      } else {
-        totalScore += 30;
+    const updateData: any = {
+      verificationScore: totalScore,
+      verificationLevel: newLevel as any
+    };
+
+    if (newLevel !== 'NONE') {
+      updateData.status = PropertyStatus.VERIFIED;
+      // Only set verifiedAt if not already verified
+      if (property.status !== PropertyStatus.VERIFIED) {
+        updateData.verifiedAt = new Date();
       }
     }
+
+    await this.prisma.property.update({
+      where: { id: propertyId },
+      data: updateData
+    });
+
+    // Sync Trust Score
+    await this.trust.calculatePropertyTrust(propertyId);
   }
-
-  totalScore = Math.max(0, totalScore);
-
-  let newLevel = 'NONE';
-  if (totalScore >= 80) newLevel = 'VERIFIED';
-  else if (totalScore >= 50) newLevel = 'TRUSTED';
-  else if (totalScore >= 1) newLevel = 'BASIC';
-
-  const updateData: any = {
-    verificationScore: totalScore,
-    verificationLevel: newLevel as any
-  };
-
-  if (newLevel !== 'NONE') {
-    updateData.status = PropertyStatus.VERIFIED;
-    // Only set verifiedAt if not already verified
-    if (property.status !== PropertyStatus.VERIFIED) {
-      updateData.verifiedAt = new Date();
-    }
-  }
-
-  await this.prisma.property.update({
-    where: { id: propertyId },
-    data: updateData
-  });
-
-  // Sync Trust Score
-  await this.trust.calculatePropertyTrust(propertyId);
-}
 
   async recalculateUserScore(userId: string) {
-  const requests = await this.prisma.verificationRequest.findMany({
-    where: { targetUserId: userId, status: 'APPROVED' },
-    include: { items: true }
-  });
-
-  let score = 0;
-  let hasId = false;
-  let hasSelfie = false;
-  let hasAddress = false;
-
-  (requests as (VerificationRequest & { items: any[] })[]).forEach((r) => {
-    r.items.forEach((i: any) => {
-      if (i.status === 'APPROVED') {
-        if (i.type === 'IDENTITY_DOC') { score += 40; hasId = true; }
-        if (i.type === 'SELFIE_VERIFICATION') { score += 30; hasSelfie = true; }
-        if (i.type === 'PROOF_OF_ADDRESS') { score += 30; hasAddress = true; }
-      }
+    const requests = await this.prisma.verificationRequest.findMany({
+      where: { targetUserId: userId, status: 'APPROVED' },
+      include: { items: true }
     });
-  });
 
-  score = Math.min(100, score);
-  const isVerified = hasId || (hasAddress && hasSelfie) || score >= 40;
+    let score = 0;
+    let hasId = false;
+    let hasSelfie = false;
+    let hasAddress = false;
 
-  await this.prisma.user.update({
-    where: { id: userId },
-    data: { verificationScore: score, isVerified: isVerified }
-  });
-}
+    (requests as (VerificationRequest & { items: any[] })[]).forEach((r) => {
+      r.items.forEach((i: any) => {
+        if (i.status === 'APPROVED') {
+          if (i.type === 'IDENTITY_DOC') { score += 40; hasId = true; }
+          if (i.type === 'SELFIE_VERIFICATION') { score += 30; hasSelfie = true; }
+          if (i.type === 'PROOF_OF_ADDRESS') { score += 30; hasAddress = true; }
+        }
+      });
+    });
+
+    score = Math.min(100, score);
+    const isVerified = hasId || (hasAddress && hasSelfie) || score >= 40;
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { verificationScore: score, isVerified: isVerified }
+    });
+  }
 
   async recalculateAgencyScore(agencyId: string) {
-  const requests = await this.prisma.verificationRequest.findMany({
-    where: { agencyId: agencyId, status: 'APPROVED' },
-    include: { items: true }
-  });
+    const requests = await this.prisma.verificationRequest.findMany({
+      where: { agencyId: agencyId, status: 'APPROVED' },
+      include: { items: true }
+    });
 
-  let score = 0;
-  let docsCount = 0;
+    let score = 0;
+    let docsCount = 0;
 
-  (requests as (VerificationRequest & { items: any[] })[]).forEach((r) => {
-    r.items.forEach((i: any) => {
-      if (i.status === 'APPROVED') {
-        if (i.type === 'COMPANY_REGS') score += 40;
-        if (i.type === 'TAX_CLEARANCE') score += 30;
-        if (i.type === 'DIRECTOR_ID') score += 20;
-        if (i.type === 'BUSINESS_ADDRESS') score += 10;
-        docsCount++;
+    (requests as (VerificationRequest & { items: any[] })[]).forEach((r) => {
+      r.items.forEach((i: any) => {
+        if (i.status === 'APPROVED') {
+          if (i.type === 'COMPANY_REGS') score += 40;
+          if (i.type === 'TAX_CLEARANCE') score += 30;
+          if (i.type === 'DIRECTOR_ID') score += 20;
+          if (i.type === 'BUSINESS_ADDRESS') score += 10;
+          docsCount++;
+        }
+      });
+    });
+
+    score = Math.min(100, score);
+    const isVerified = docsCount >= 2;
+
+    await this.prisma.agency.update({
+      where: { id: agencyId },
+      data: {
+        verificationScore: score,
+        verifiedAt: isVerified ? new Date() : null,
+        trustScore: score // Base trust score on verification score for now
       }
     });
-  });
-
-  score = Math.min(100, score);
-  const isVerified = docsCount >= 2;
-
-  await this.prisma.agency.update({
-    where: { id: agencyId },
-    data: {
-      verificationScore: score,
-      verifiedAt: isVerified ? new Date() : null,
-      trustScore: score // Base trust score on verification score for now
-    }
-  });
-}
+  }
 
 
 
   async assignItem(requestId: string, itemId: string, verifierId: string, actor: AuthContext) {
-  if (actor.userId !== verifierId) {
-    // Only admins can assign others? Or managers?
-    // Assuming strictly admin for now or self-assign.
-  }
-
-  const request = await this.prisma.verificationRequest.findUnique({
-    where: { id: requestId },
-    include: { items: true }
-  });
-
-  if (!request) throw new NotFoundException('Request not found');
-  const item = request.items.find((i: VerificationRequestItem) => i.id === itemId);
-  if (!item) throw new NotFoundException('Item not found');
-
-  return this.prisma.verificationRequestItem.update({
-    where: { id: itemId },
-    data: { verifierId }
-  });
-}
-
-  private async ensurePendingProperty(id: string) {
-  const property = await this.prisma.property.findUnique({ where: { id } });
-  if (!property || property.status !== PropertyStatus.PENDING_VERIFY) {
-    throw new NotFoundException('Property not awaiting verification');
-  }
-  return property;
-}
-
-  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Radius of the earth in km
-  const dLat = this.deg2rad(lat2 - lat1);
-  const dLon = this.deg2rad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const d = R * c; // Distance in km
-  return d;
-}
-
-  async createRequest(requesterId: string, data: { targetType: VerificationType; targetId: string; items: { type: any; evidenceUrls?: string[]; notes?: string }[] }) {
-  // Check for existing pending request
-  const existing = await this.prisma.verificationRequest.findFirst({
-    where: {
-      requesterId,
-      targetType: data.targetType,
-      // Depending on type, use targetUserId or propertyId or agencyId
-      ...(data.targetType === 'PROPERTY' ? { propertyId: data.targetId } : {}),
-      ...(data.targetType === 'USER' ? { targetUserId: data.targetId } : {}),
-      ...(data.targetType === 'COMPANY' ? { agencyId: data.targetId } : {}),
-      status: 'PENDING'
+    if (actor.userId !== verifierId) {
+      // Only admins can assign others? Or managers?
+      // Assuming strictly admin for now or self-assign.
     }
-  });
 
-  if (existing) {
-    // Ideally we'd allow updating items, but for now block duplicate
-    throw new BadRequestException('A pending verification request already exists for this target.');
-  }
+    const request = await this.prisma.verificationRequest.findUnique({
+      where: { id: requestId },
+      include: { items: true }
+    });
 
-  // Prepare create data
-  const createData: any = {
-    requesterId,
-    targetType: data.targetType,
-    status: 'PENDING',
-    items: {
-      create: data.items.map(i => ({
-        type: i.type,
-        status: 'SUBMITTED', // Auto-submit on creation
-        evidenceUrls: i.evidenceUrls || [],
-        notes: i.notes
-      }))
-    }
-  };
+    if (!request) throw new NotFoundException('Request not found');
+    const item = request.items.find((i: VerificationRequestItem) => i.id === itemId);
+    if (!item) throw new NotFoundException('Item not found');
 
-  if (data.targetType === 'PROPERTY') createData.propertyId = data.targetId;
-  else if (data.targetType === 'USER') createData.targetUserId = data.targetId;
-  else if (data.targetType === 'COMPANY') createData.agencyId = data.targetId;
-
-  const request = await this.prisma.verificationRequest.create({
-    data: createData,
-    include: { items: true }
-  });
-
-  // Log Audit
-  await this.audit.logAction(requesterId, request.id, 'VERIFICATION_SUBMIT', { targetType: data.targetType, targetId: data.targetId });
-
-  return request;
-}
-
-  async getMyRequests(userId: string) {
-  return this.prisma.verificationRequest.findMany({
-    where: { requesterId: userId },
-    include: {
-      items: true,
-      property: { select: { title: true } }
-    },
-    orderBy: { createdAt: 'desc' }
-  });
-}
-
-  async assignVerifierToRequest(requestId: string, verifierId: string, actorId: string) {
-  const request = await this.prisma.verificationRequest.findUnique({ where: { id: requestId }, include: { items: true } });
-  if (!request) throw new NotFoundException('Request not found');
-
-  // Verify the verifier exists and has role?
-  // For now, trust the ID passed by Admin.
-
-  await this.prisma.$transaction(async (tx) => {
-    // Assign all items that are pending/submitted to this verifier
-    await tx.verificationRequestItem.updateMany({
-      where: { verificationRequestId: requestId },
+    return this.prisma.verificationRequestItem.update({
+      where: { id: itemId },
       data: { verifierId }
     });
-  });
+  }
 
-  await this.audit.logAction(actorId, requestId, 'VERIFICATION_ASSIGN', { verifierId });
-  return this.getRequest(requestId);
-}
+  private async ensurePendingProperty(id: string) {
+    const property = await this.prisma.property.findUnique({ where: { id } });
+    if (!property || property.status !== PropertyStatus.PENDING_VERIFY) {
+      throw new NotFoundException('Property not awaiting verification');
+    }
+    return property;
+  }
+
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // Radius of the earth in km
+    const dLat = this.deg2rad(lat2 - lat1);
+    const dLon = this.deg2rad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c; // Distance in km
+    return d;
+  }
+
+  async createRequest(requesterId: string, data: { targetType: VerificationType; targetId: string; items: { type: any; evidenceUrls?: string[]; notes?: string }[] }) {
+    // Check for existing pending request
+    const existing = await this.prisma.verificationRequest.findFirst({
+      where: {
+        requesterId,
+        targetType: data.targetType,
+        // Depending on type, use targetUserId or propertyId or agencyId
+        ...(data.targetType === 'PROPERTY' ? { propertyId: data.targetId } : {}),
+        ...(data.targetType === 'USER' ? { targetUserId: data.targetId } : {}),
+        ...(data.targetType === 'COMPANY' ? { agencyId: data.targetId } : {}),
+        status: 'PENDING'
+      }
+    });
+
+    if (existing) {
+      // Ideally we'd allow updating items, but for now block duplicate
+      throw new BadRequestException('A pending verification request already exists for this target.');
+    }
+
+    // Prepare create data
+    const createData: any = {
+      requesterId,
+      targetType: data.targetType,
+      status: 'PENDING',
+      items: {
+        create: data.items.map(i => ({
+          type: i.type,
+          status: 'SUBMITTED', // Auto-submit on creation
+          evidenceUrls: i.evidenceUrls || [],
+          notes: i.notes
+        }))
+      }
+    };
+
+    if (data.targetType === 'PROPERTY') createData.propertyId = data.targetId;
+    else if (data.targetType === 'USER') createData.targetUserId = data.targetId;
+    else if (data.targetType === 'COMPANY') createData.agencyId = data.targetId;
+
+    const request = await this.prisma.verificationRequest.create({
+      data: createData,
+      include: { items: true }
+    });
+
+    // Log Audit
+    await this.audit.logAction({
+      action: 'VERIFICATION_SUBMIT',
+      actorId: requesterId,
+      targetType: 'VERIFICATION_REQUEST',
+      targetId: request.id,
+      metadata: { targetType: data.targetType, targetId: data.targetId }
+    });
+
+    return request;
+  }
+
+  async getMyRequests(userId: string) {
+    return this.prisma.verificationRequest.findMany({
+      where: { requesterId: userId },
+      include: {
+        items: true,
+        property: { select: { title: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async assignVerifierToRequest(requestId: string, verifierId: string, actorId: string) {
+    const request = await this.prisma.verificationRequest.findUnique({ where: { id: requestId }, include: { items: true } });
+    if (!request) throw new NotFoundException('Request not found');
+
+    // Verify the verifier exists and has role?
+    // For now, trust the ID passed by Admin.
+
+    await this.prisma.$transaction(async (tx) => {
+      // Assign all items that are pending/submitted to this verifier
+      await tx.verificationRequestItem.updateMany({
+        where: { verificationRequestId: requestId },
+        data: { verifierId }
+      });
+    });
+
+    await this.audit.logAction({
+      action: 'VERIFICATION_ASSIGN',
+      actorId,
+      targetType: 'VERIFICATION_REQUEST',
+      targetId: requestId,
+      metadata: { verifierId }
+    });
+    return this.getRequest(requestId);
+  }
 
   private deg2rad(deg: number): number {
-  return deg * (Math.PI / 180);
-}
+    return deg * (Math.PI / 180);
+  }
 }
