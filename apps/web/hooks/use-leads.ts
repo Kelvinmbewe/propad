@@ -7,13 +7,13 @@ export function useLeads() {
 
     const { data: leads, isLoading } = useQuery({
         queryKey: ['leads', 'list'],
-        queryFn: () => sdk.leads.findAll(),
+        queryFn: () => sdk!.leads.findAll(),
         enabled: !!sdk,
     });
 
     const updateStatus = useMutation({
         mutationFn: ({ id, status }: { id: string; status: string }) =>
-            sdk.leads.updateStatus(id, status),
+            sdk!.leads.updateStatus(id, status),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['leads', 'list'] });
         },

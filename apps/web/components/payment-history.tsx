@@ -6,27 +6,9 @@ import { formatCurrency } from '@/lib/formatters';
 import { Receipt, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
+import type { Invoice } from '@propad/sdk';
 
-interface Invoice {
-  id: string;
-  invoiceNo?: string;
-  status: 'DRAFT' | 'OPEN' | 'PAID' | 'VOID';
-  amountCents: number;
-  currency: string;
-  createdAt: string;
-  lines: Array<{
-    description: string;
-    metaJson?: {
-      featureType?: string;
-      featureId?: string;
-    };
-  }>;
-  paymentTransactions?: Array<{
-    id: string;
-    status: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
-    gatewayRef?: string;
-  }>;
-}
+
 
 const getFeatureName = (featureType?: string): string => {
   if (!featureType) return 'Unknown';
@@ -78,8 +60,7 @@ export function PaymentHistory() {
   const { data: invoices, isLoading } = useQuery<Invoice[]>({
     queryKey: ['invoices-my'],
     queryFn: async () => {
-      if (!sdk) throw new Error('SDK not initialized');
-      return sdk.invoices.my();
+      return sdk!.invoices.my();
     },
     enabled: !!sdk
   });
@@ -130,11 +111,11 @@ export function PaymentHistory() {
       <CardContent>
         <div className="space-y-4">
           {invoices.map((invoice) => {
-            const featureLine = invoice.lines.find((line) => line.metaJson?.featureType);
-            const featureType = featureLine?.metaJson?.featureType;
-            const featureId = featureLine?.metaJson?.featureId;
+            const featureLine = invoice.lines.find((line) => (line.metaJson as any)?.featureType);
+            const featureType = (featureLine?.metaJson as any)?.featureType;
+            const featureId = (featureLine?.metaJson as any)?.featureId;
             const paymentStatus =
-              invoice.paymentTransactions?.[0]?.status || (invoice.status === 'PAID' ? 'PAID' : 'PENDING');
+              (invoice as any).paymentTransactions?.[0]?.status || (invoice.status === 'PAID' ? 'PAID' : 'PENDING');
 
             return (
               <div
@@ -146,13 +127,13 @@ export function PaymentHistory() {
                     <Receipt className="h-4 w-4 text-gray-400" />
                     <div>
                       <p className="font-medium text-gray-900">
-                        {featureType ? getFeatureName(featureType) : invoice.lines[0]?.description || 'Payment'}
+                        {featureType ? getFeatureName(featureType) : (invoice.lines as any)[0]?.description || 'Payment'}
                       </p>
                       <p className="text-xs text-gray-500">
                         {invoice.invoiceNo || invoice.id} • {new Date(invoice.createdAt).toLocaleDateString()}
                       </p>
                       {featureId && (
-                        <p className="text-xs text-gray-400">Target ID: {featureId.substring(0, 8)}...</p>
+                        <p className="text-xs text-gray-400">Target ID: {(featureId as any).substring(0, 8)}...</p>
                       )}
                     </div>
                   </div>

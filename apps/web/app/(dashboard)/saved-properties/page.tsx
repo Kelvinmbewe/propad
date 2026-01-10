@@ -1,7 +1,7 @@
 'use client';
 
 import { useInterests } from '../../../hooks/use-interests';
-import { Card, CardContent, CardHeader, CardTitle, Skeleton, Badge, Button, Alert, AlertDescription, AlertTitle } from '@propad/ui';
+import { Card, CardContent, CardHeader, CardTitle, Skeleton, Badge, Button } from '@propad/ui';
 import { Home, Heart, MapPin, Bed, Bath, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 

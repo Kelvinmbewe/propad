@@ -6,13 +6,13 @@ export function useRewards() {
 
     const { data: rewards, isLoading: isLoadingRewards } = useQuery({
         queryKey: ['rewards', 'my'],
-        queryFn: () => sdk.rewards.my(),
+        queryFn: () => sdk!.rewards.my(),
         enabled: !!sdk,
     });
 
     const { data: pools, isLoading: isLoadingPools } = useQuery({
         queryKey: ['rewards', 'pools'],
-        queryFn: () => sdk.rewards.pools(),
+        queryFn: () => sdk!.rewards.pools(),
         enabled: !!sdk,
     });
 

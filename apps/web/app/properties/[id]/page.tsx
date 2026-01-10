@@ -8,7 +8,7 @@ import { PropertyMessenger } from '@/components/property-messenger';
 import { PropertyImage } from '@/components/property-image';
 import { notFound } from 'next/navigation';
 import { Bath, BedDouble, MapPin, Ruler, Star, CheckCircle2 } from 'lucide-react';
-import { Badge } from '@propad/ui';
+import { Badge, Button } from '@propad/ui';
 import { ViewTracker } from '@/components/view-tracker';
 import { serverPublicApiRequest } from '@/lib/server-api';
 

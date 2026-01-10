@@ -154,6 +154,13 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .json<Deal>()
           .then((data) => DealSchema.parse(data)),
     },
+    invoices: {
+      my: async () =>
+        client
+          .get('invoices/my')
+          .json<Invoice[]>()
+          .then((data) => InvoiceSchema.array().parse(data)),
+    },
     messaging: {
       conversations: {
         create: async (payload: { propertyId: string; dealId?: string; applicationId?: string; participantIds: string[] }) =>
@@ -1022,6 +1029,15 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
       triggerSync: async () => {
         await client.post('adsense/sync');
       },
+    },
+    request: async (path: string, options: any = {}) => {
+      const method = (options.method || 'GET').toUpperCase();
+      const response = await client(path.startsWith('/') ? path.substring(1) : path, {
+        method,
+        json: options.json,
+        searchParams: options.searchParams,
+      });
+      return response.json<any>();
     },
   };
 }

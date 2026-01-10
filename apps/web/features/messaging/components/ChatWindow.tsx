@@ -21,12 +21,12 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
 
     const { data: messages, isLoading } = useQuery({
         queryKey: ['messages', conversationId],
-        queryFn: () => sdk.messaging.messages.list(conversationId, { limit: 50 }),
+        queryFn: () => sdk!.messaging.messages.list(conversationId, { limit: 50 }),
         refetchInterval: 5000 // Polling fallback until socket is ready
     });
 
     const { mutate: sendMessage, isPending } = useMutation({
-        mutationFn: (text: string) => sdk.messaging.messages.send({ conversationId, body: text }),
+        mutationFn: (text: string) => sdk!.messaging.messages.send({ conversationId, body: text }),
         onSuccess: () => {
             setBody('');
             queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });

@@ -6,18 +6,11 @@ import { useSession } from 'next-auth/react';
 import { WalletSummary } from '@/components/wallet-summary';
 import { PaymentHistory } from '@/components/payment-history';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
-
 import { formatCurrency } from '@/lib/formatters';
 import { DollarSign, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import type { PayoutRequest } from '@propad/sdk';
 
-interface PayoutRequest {
-  id: string;
-  amountCents: number;
-  method: string;
-  status: string;
-  createdAt: string;
-  txRef?: string;
-}
+
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -79,8 +72,7 @@ export default function WalletPage() {
   const { data: payouts, isLoading: loadingPayouts } = useQuery<PayoutRequest[]>({
     queryKey: ['payouts-my'],
     queryFn: async () => {
-      if (!sdk) throw new Error('SDK not initialized');
-      return sdk.payouts.my();
+      return sdk!.payouts.my();
     },
     enabled: !!sdk
   });

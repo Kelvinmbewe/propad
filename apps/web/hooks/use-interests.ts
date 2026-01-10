@@ -7,12 +7,12 @@ export function useInterests() {
 
     const { data: savedProperties, isLoading } = useQuery({
         queryKey: ['interests', 'my'],
-        queryFn: () => sdk.interests.my(),
+        queryFn: () => sdk!.interests.my(),
         enabled: !!sdk,
     });
 
     const toggleInterest = useMutation({
-        mutationFn: (propertyId: string) => sdk.interests.toggle(propertyId),
+        mutationFn: (propertyId: string) => sdk!.interests.toggle(propertyId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['interests', 'my'] });
             // Invalidate specific property queries if needed

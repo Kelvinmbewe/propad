@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { keepPreviousData } from '@tanstack/react-query';
 import { LandingPropertyCard } from '@/components/landing-property-card';
 import { LandingNav } from '@/components/landing-nav';
 import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Card } from '@propad/ui';
@@ -22,7 +23,7 @@ export default function PropertiesPage() {
         verifiedOnly: true, // Default to strict safety
     });
 
-    const results = Array.isArray(properties) ? properties : properties?.data || [];
+    const results = Array.isArray(properties) ? properties : (properties as any)?.properties || [];
 
     return (
         <div className="min-h-screen bg-slate-50">

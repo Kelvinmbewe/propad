@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useAuthenticatedSDK } from './use-authenticated-sdk';
-import { PropertyType } from '@propad/sdk/dist/types';
+
 
 export interface PropertyFilters {
     type?: string;
@@ -40,10 +40,10 @@ export function usePropertySearch(filters: PropertyFilters) {
 
             // TODO: handle location search properly (cityId vs suburbId)
 
-            const response = await sdk.request(`/properties/search?${params.toString()}`, { method: 'GET' });
+            const response = await sdk!.request(`/properties/search?${params.toString()}`, { method: 'GET' });
             return response as any[]; // Expected to be array or { data: [], total: number } depending on backend pagination
         },
         enabled: !!sdk,
-        keepPreviousData: true
+        placeholderData: keepPreviousData
     });
 }

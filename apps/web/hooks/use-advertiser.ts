@@ -6,13 +6,13 @@ export function useAdvertiser() {
 
     const { data: campaigns, isLoading: isLoadingCampaigns } = useQuery({
         queryKey: ['advertiser', 'campaigns'],
-        queryFn: () => sdk.advertiser.getCampaigns(),
+        queryFn: () => sdk!.advertiser.getCampaigns(),
         enabled: !!sdk,
     });
 
     const { data: stats, isLoading: isLoadingStats } = useQuery({
         queryKey: ['advertiser', 'stats'],
-        queryFn: () => sdk.advertiser.getStats(),
+        queryFn: () => sdk!.advertiser.getStats(),
         enabled: !!sdk,
     });
 

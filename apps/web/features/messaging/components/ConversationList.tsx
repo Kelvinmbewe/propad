@@ -13,7 +13,7 @@ export function ConversationList() {
     const sdk = useAuthenticatedSDK();
     const { data: conversations, isLoading } = useQuery({
         queryKey: ['conversations'],
-        queryFn: () => sdk.messaging.conversations.list()
+        queryFn: () => sdk!.messaging.conversations.list()
     });
 
     if (isLoading) return <div className="p-4 text-center text-muted-foreground">Loading...</div>;

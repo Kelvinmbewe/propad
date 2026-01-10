@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton, Button } from '@propad/ui';
 import { ShieldCheck, MapPin, Plus } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -8,12 +9,13 @@ import Link from 'next/link';
 
 export default function MyVerificationsPage() {
     const sdk = useAuthenticatedSDK();
+    const { data: session } = useSession();
 
     const { data: requests, isLoading } = useQuery({
         queryKey: ['verifications', 'my'],
         queryFn: async () => {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/verifications/my`, {
-                headers: { Authorization: `Bearer ${sdk?.accessToken}` }
+                headers: { Authorization: `Bearer ${session?.accessToken}` }
             });
             return res.json();
         }
@@ -51,8 +53,8 @@ export default function MyVerificationsPage() {
                                         <h3 className="font-semibold">{req.property?.title || req.targetType}</h3>
                                         <Badge variant={
                                             req.status === 'APPROVED' ? 'default' :
-                                                req.status === 'REJECTED' ? 'destructive' : 'secondary'
-                                        }>{req.status}</Badge>
+                                                req.status === 'REJECTED' ? 'default' : 'secondary'
+                                        } className={req.status === 'REJECTED' ? 'bg-red-500 hover:bg-red-600 border-transparent text-white' : ''}>{req.status}</Badge>
                                     </div>
                                     <p className="text-sm text-gray-500">Submitted on {new Date(req.createdAt).toLocaleDateString()}</p>
                                 </div>

@@ -6,7 +6,7 @@ export function useWallet() {
 
     const { data: overview, isLoading } = useQuery({
         queryKey: ['wallet', 'overview'],
-        queryFn: () => sdk.wallet.getOverview(),
+        queryFn: () => sdk!.wallet.getOverview(),
         enabled: !!sdk,
     });
 
