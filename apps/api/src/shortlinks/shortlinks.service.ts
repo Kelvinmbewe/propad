@@ -8,7 +8,8 @@ let nanoidGenerator: (() => string) | null = null;
 
 async function getNanoid() {
   if (!nanoidGenerator) {
-    const { customAlphabet } = await import('nanoid');
+    // Use eval to bypass TypeScript transpiling import() to require() in CommonJS
+    const { customAlphabet } = await (eval('import')('nanoid'));
     nanoidGenerator = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 7);
   }
   return nanoidGenerator;
@@ -16,7 +17,7 @@ async function getNanoid() {
 
 @Injectable()
 export class ShortLinksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async create(dto: CreateShortLinkDto) {
     const code = await this.generateCode();

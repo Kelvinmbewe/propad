@@ -13,7 +13,8 @@ let nanoidGenerator: (() => string) | null = null;
 
 async function getNanoid() {
     if (!nanoidGenerator) {
-        const { customAlphabet } = await import('nanoid');
+        // Use eval to bypass TypeScript transpiling import() to require() in CommonJS
+        const { customAlphabet } = await (eval('import')('nanoid'));
         nanoidGenerator = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
     }
     return nanoidGenerator;
