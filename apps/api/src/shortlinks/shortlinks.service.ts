@@ -3,17 +3,9 @@ import { LeadSource } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateShortLinkDto } from './dto/create-shortlink.dto';
 import { TrackClickDto } from './dto/track-click.dto';
+import { customAlphabet } from 'nanoid';
 
-let nanoidGenerator: (() => string) | null = null;
-
-async function getNanoid() {
-  if (!nanoidGenerator) {
-    // Use eval to bypass TypeScript transpiling import() to require() in CommonJS
-    const { customAlphabet } = await (eval('import')('nanoid'));
-    nanoidGenerator = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 7);
-  }
-  return nanoidGenerator;
-}
+const nanoid = customAlphabet('23456789ABCDEFGHJKLMNPQRSTUVWXYZ', 7);
 
 @Injectable()
 export class ShortLinksService {
@@ -73,7 +65,6 @@ export class ShortLinksService {
   }
 
   private async generateCode(): Promise<string> {
-    const nanoid = await getNanoid();
     while (true) {
       const code = nanoid();
       const existing = await this.prisma.shortLink.findUnique({ where: { code } });
@@ -82,4 +73,3 @@ export class ShortLinksService {
       }
     }
   }
-}
