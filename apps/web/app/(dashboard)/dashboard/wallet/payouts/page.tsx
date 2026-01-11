@@ -19,7 +19,7 @@ export default function AgentPayoutsPage() {
     const fetchPayouts = async () => {
         if (!sdk) return;
         try {
-            const data = await sdk.payouts.getMyPayouts();
+            const data = await sdk.payouts.my();
             setPayouts(data);
         } catch (e) {
             console.error(e);
@@ -34,7 +34,7 @@ export default function AgentPayoutsPage() {
         if (!amount || !accountId || !sdk) return;
         setLoading(true);
         try {
-            await sdk.payouts.requestPayout({
+            await sdk.payouts.request({
                 amountCents: Number(amount) * 100,
                 method: method,
                 accountId: accountId,

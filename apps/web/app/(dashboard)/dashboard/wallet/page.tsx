@@ -61,9 +61,7 @@ export default function WalletPage() {
       await sdk.payouts.request({
         amountCents: Math.floor(parseFloat(amount) * 100),
         method: 'BANK', // Default for now
-        payoutAccountId: 'demo-account-id', // TODO: User needs to select account
-        ownerType: 'USER',
-        currency: 'USD'
+        accountId: 'demo-account-id', // TODO: User needs to select account
       });
       alert("Payout requested successfully!");
       window.location.reload();
