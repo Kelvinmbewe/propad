@@ -139,7 +139,7 @@ export default function CampaignAnalyticsPage() {
                             {analytics.budgetCents ? formatCurrency(analytics.budgetCents) : 'Unlimited'}
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
-                            {analytics.remainingBudget !== null ? `${formatCurrency(analytics.remainingBudget)} left` : 'No limit set'}
+                            {analytics.remainingBudget != null ? `${formatCurrency(analytics.remainingBudget ?? 0)} left` : 'No limit set'}
                         </p>
                     </CardContent>
                 </Card>

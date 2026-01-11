@@ -596,6 +596,36 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .then((data) => AdImpressionSchema.parse(data)),
       getActive: async () => client.get('ads/active').json<any[]>(),
       getStats: async (id: string) => client.get(`ads/stats/${id}`).json<any[]>(),
+      getMyInvoices: async () => client.get('ads/invoices/my').json<any[]>(),
+      getInvoice: async (id: string) => client.get(`ads/invoices/${id}`).json<any>(),
+      // Campaign methods
+      getMyCampaigns: async () => client.get('ads/campaigns/my').json<any[]>(),
+      getCampaignById: async (id: string) => client.get(`ads/campaigns/${id}`).json<any>(),
+      createCampaign: async (dto: any) => client.post('ads/campaigns', { json: dto }).json<any>(),
+      updateCampaign: async (id: string, dto: any) => client.patch(`ads/campaigns/${id}`, { json: dto }).json<any>(),
+      pauseCampaign: async (id: string) => client.post(`ads/campaigns/${id}/pause`).json<any>(),
+      resumeCampaign: async (id: string) => client.post(`ads/campaigns/${id}/resume`).json<any>(),
+      // Analytics methods
+      getCampaignAnalytics: async (id: string) => client.get(`ads/analytics/campaign/${id}`).json<any>(),
+      getAnalyticsSummary: async () => client.get('ads/analytics/summary').json<any>(),
+      getAdminAnalytics: async () => client.get('admin/ads/analytics').json<any>(),
+      // Balance methods
+      getBalance: async () => client.get('ads/balance').json<{ balanceCents: number }>(),
+      topUp: async (advertiserId: string, amountCents: number) =>
+        client.post(`ads/topup/${advertiserId}`, { json: { amountCents } }).json<{ balanceCents: number }>(),
+      // Tracking
+      trackImpression: async (dto: any) => client.post('ads/track/impression', { json: dto }).json<any>(),
+      trackClick: async (dto: any) => client.post('ads/track/click', { json: dto }).json<any>(),
+      // Promoted listings
+      getPromoted: async (params?: { cityId?: string; suburbId?: string; type?: string; limit?: number }) => {
+        const query = new URLSearchParams();
+        if (params?.cityId) query.set('cityId', params.cityId);
+        if (params?.suburbId) query.set('suburbId', params.suburbId);
+        if (params?.type) query.set('type', params.type);
+        if (params?.limit) query.set('limit', String(params.limit));
+        const queryString = query.toString();
+        return client.get(`ads/promoted${queryString ? `?${queryString}` : ''}`).json<any[]>();
+      },
     },
     rewards: {
       estimateMe: async () =>
@@ -666,47 +696,47 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .then((data) => FacebookPublishResponseSchema.parse(data)),
     },
     admin: {
-    payouts: {
-      list: async () =>
-        client.get('admin/payouts').json<PayoutRequest[]>()
-          .then((data) => PayoutRequestSchema.array().parse(data)),
+      payouts: {
+        list: async () =>
+          client.get('admin/payouts').json<PayoutRequest[]>()
+            .then((data) => PayoutRequestSchema.array().parse(data)),
         approve: async (id: string) =>
           client.post(`admin/payouts/${id}/approve`).json<PayoutRequest>()
             .then((data) => PayoutRequestSchema.parse(data)),
-          reject: async (id: string, reason: string) =>
-            client.post(`admin/payouts/${id}/reject`, { json: { reason } }).json<PayoutRequest>()
-              .then((data) => PayoutRequestSchema.parse(data)),
-            process: async (id: string, gatewayRef: string) =>
-              client.post(`admin/payouts/${id}/process`, { json: { gatewayRef } }).json<PayoutRequest>()
-                .then((data) => PayoutRequestSchema.parse(data)),
-              markPaid: async (id: string) =>
-                client.post(`admin/payouts/${id}/mark-paid`).json<PayoutRequest>()
-                  .then((data) => PayoutRequestSchema.parse(data)),
+        reject: async (id: string, reason: string) =>
+          client.post(`admin/payouts/${id}/reject`, { json: { reason } }).json<PayoutRequest>()
+            .then((data) => PayoutRequestSchema.parse(data)),
+        process: async (id: string, gatewayRef: string) =>
+          client.post(`admin/payouts/${id}/process`, { json: { gatewayRef } }).json<PayoutRequest>()
+            .then((data) => PayoutRequestSchema.parse(data)),
+        markPaid: async (id: string) =>
+          client.post(`admin/payouts/${id}/mark-paid`).json<PayoutRequest>()
+            .then((data) => PayoutRequestSchema.parse(data)),
       },
-    reports: {
-      getLedger: async (params: { startDate?: string; endDate?: string } = {}) =>
-        client.get('admin/reports/ledger', { searchParams: params }).json<any[]>(),
+      reports: {
+        getLedger: async (params: { startDate?: string; endDate?: string } = {}) =>
+          client.get('admin/reports/ledger', { searchParams: params }).json<any[]>(),
         getRevenue: async (params: { startDate?: string; endDate?: string } = {}) =>
           client.get('admin/reports/revenue', { searchParams: params }).json<any>(),
-          getLiabilities: async () => client.get('admin/reports/liabilities').json<any>(),
-            checkIntegrity: async () => client.get('admin/reports/integrity').json<any>(),
-              downloadLedgerCsv: async (params: { startDate?: string; endDate?: string } = {}) =>
-                client.get('admin/reports/ledger', { searchParams: { ...params, format: 'csv' } }).blob(),
-    },
-    invoices: {
-      list: async (params: { status?: string } = {}) =>
-        client
-          .get('admin/invoices', {
-            searchParams: createSearchParams({ status: params.status }),
-          })
-          .json<Invoice[]>()
-          .then((data) => InvoiceSchema.array().parse(data)),
+        getLiabilities: async () => client.get('admin/reports/liabilities').json<any>(),
+        checkIntegrity: async () => client.get('admin/reports/integrity').json<any>(),
+        downloadLedgerCsv: async (params: { startDate?: string; endDate?: string } = {}) =>
+          client.get('admin/reports/ledger', { searchParams: { ...params, format: 'csv' } }).blob(),
+      },
+      invoices: {
+        list: async (params: { status?: string } = {}) =>
+          client
+            .get('admin/invoices', {
+              searchParams: createSearchParams({ status: params.status }),
+            })
+            .json<Invoice[]>()
+            .then((data) => InvoiceSchema.array().parse(data)),
         export: async (params: { status?: string } = {}) =>
-        client
-          .get('admin/exports/invoices', {
-            searchParams: createSearchParams({ status: params.status }),
-          })
-          .text(),
+          client
+            .get('admin/exports/invoices', {
+              searchParams: createSearchParams({ status: params.status }),
+            })
+            .text(),
         markPaid: async (
           id: string,
           payload: {
@@ -730,233 +760,233 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             .then((data) => InvoiceSchema.parse(data));
         },
       },
-    paymentIntents: {
-      list: async (
-        params: {
-          status?: string;
-          gateway?: string;
-          invoiceId?: string;
-        } = {},
-      ) =>
-        client
-          .get('admin/payment-intents', {
-            searchParams: createSearchParams({
-              status: params.status,
-              gateway: params.gateway,
-              invoiceId: params.invoiceId,
-            }),
-          })
-          .json<PaymentIntent[]>()
-          .then((data) => PaymentIntentSchema.array().parse(data)),
+      paymentIntents: {
+        list: async (
+          params: {
+            status?: string;
+            gateway?: string;
+            invoiceId?: string;
+          } = {},
+        ) =>
+          client
+            .get('admin/payment-intents', {
+              searchParams: createSearchParams({
+                status: params.status,
+                gateway: params.gateway,
+                invoiceId: params.invoiceId,
+              }),
+            })
+            .json<PaymentIntent[]>()
+            .then((data) => PaymentIntentSchema.array().parse(data)),
         export: async (
-            params: {
-              status?: string;
-              gateway?: string;
-              invoiceId?: string;
-            } = {},
-          ) =>
-        client
-          .get('admin/exports/payment-intents', {
-            searchParams: createSearchParams({
-              status: params.status,
-              gateway: params.gateway,
-              invoiceId: params.invoiceId,
-            }),
-          })
-          .text(),
+          params: {
+            status?: string;
+            gateway?: string;
+            invoiceId?: string;
+          } = {},
+        ) =>
+          client
+            .get('admin/exports/payment-intents', {
+              searchParams: createSearchParams({
+                status: params.status,
+                gateway: params.gateway,
+                invoiceId: params.invoiceId,
+              }),
+            })
+            .text(),
       },
-    transactions: {
-      list: async (
-        params: {
-          result?: string;
-          gateway?: string;
-          invoiceId?: string;
-        } = {},
-      ) =>
-        client
-          .get('admin/transactions', {
-            searchParams: createSearchParams({
-              result: params.result,
-              gateway: params.gateway,
-              invoiceId: params.invoiceId,
-            }),
-          })
-          .json<Transaction[]>()
-          .then((data) => TransactionSchema.array().parse(data)),
+      transactions: {
+        list: async (
+          params: {
+            result?: string;
+            gateway?: string;
+            invoiceId?: string;
+          } = {},
+        ) =>
+          client
+            .get('admin/transactions', {
+              searchParams: createSearchParams({
+                result: params.result,
+                gateway: params.gateway,
+                invoiceId: params.invoiceId,
+              }),
+            })
+            .json<Transaction[]>()
+            .then((data) => TransactionSchema.array().parse(data)),
         export: async (
-            params: {
-              result?: string;
-              gateway?: string;
-              invoiceId?: string;
-            } = {},
-          ) =>
-        client
-          .get('admin/exports/transactions', {
-            searchParams: createSearchParams({
-              result: params.result,
-              gateway: params.gateway,
-              invoiceId: params.invoiceId,
-            }),
-          })
-          .text(),
+          params: {
+            result?: string;
+            gateway?: string;
+            invoiceId?: string;
+          } = {},
+        ) =>
+          client
+            .get('admin/exports/transactions', {
+              searchParams: createSearchParams({
+                result: params.result,
+                gateway: params.gateway,
+                invoiceId: params.invoiceId,
+              }),
+            })
+            .text(),
       },
-    fxRates: {
-      create: async (payload: {
-        base: string;
-        quote: string;
-        rate: number;
-        effectiveDate: string | Date;
-      }) =>
-        client
-          .post('admin/fx-rates', {
-            json: {
-              base: payload.base,
-              quote: payload.quote,
-              rate: payload.rate,
-              effectiveDate:
-                typeof payload.effectiveDate === 'string'
-                  ? payload.effectiveDate
-                  : payload.effectiveDate.toISOString(),
-            },
-          })
-          .json<any>(),
+      fxRates: {
+        create: async (payload: {
+          base: string;
+          quote: string;
+          rate: number;
+          effectiveDate: string | Date;
+        }) =>
+          client
+            .post('admin/fx-rates', {
+              json: {
+                base: payload.base,
+                quote: payload.quote,
+                rate: payload.rate,
+                effectiveDate:
+                  typeof payload.effectiveDate === 'string'
+                    ? payload.effectiveDate
+                    : payload.effectiveDate.toISOString(),
+              },
+            })
+            .json<any>(),
       },
-    ledger: {
-      search: async (
-        params: {
-          userId?: string;
-          type?: string;
-          sourceType?: string;
-          sourceId?: string;
-          limit?: number;
-          cursor?: string;
-        } = {},
-      ) =>
-        client
-          .get('admin/ledger', {
-            searchParams: createSearchParams({
-              userId: params.userId,
-              type: params.type,
-              sourceType: params.sourceType,
-              sourceId: params.sourceId,
-              limit: params.limit,
-              cursor: params.cursor,
-            }),
-          })
-          .json<any[]>(), // Should use WalletLedgerEntry[] but avoiding circular deps or type moves for now
+      ledger: {
+        search: async (
+          params: {
+            userId?: string;
+            type?: string;
+            sourceType?: string;
+            sourceId?: string;
+            limit?: number;
+            cursor?: string;
+          } = {},
+        ) =>
+          client
+            .get('admin/ledger', {
+              searchParams: createSearchParams({
+                userId: params.userId,
+                type: params.type,
+                sourceType: params.sourceType,
+                sourceId: params.sourceId,
+                limit: params.limit,
+                cursor: params.cursor,
+              }),
+            })
+            .json<any[]>(), // Should use WalletLedgerEntry[] but avoiding circular deps or type moves for now
         getEntry: async (id: string) => client.get(`admin/ledger/${id}`).json<any>(),
       },
-    ads: {
-      fraud: {
-        getEvents: async (limit = 50) => client.get('admin/ads/fraud/events', { searchParams: { limit } }).json<any[]>(),
+      ads: {
+        fraud: {
+          getEvents: async (limit = 50) => client.get('admin/ads/fraud/events', { searchParams: { limit } }).json<any[]>(),
           getCampaignStats: async (id: string) => client.get(`admin/ads/fraud/campaign/${id}`).json<{ events: any[], stats: any[] }>(),
-            resolve: async (eventId: string, resolution: string) => client.post(`admin/ads/fraud/${eventId}/resolve`, { json: { resolution } }).json<any>(),
-              pauseCampaign: async (id: string) => client.post(`admin/ads/fraud/campaign/${id}/pause`).json<any>()
-      }
-    },
-    risk: {
-      events: async (
-        params: {
-          entityType?: string;
-          entityId?: string;
-          signalType?: string;
-          limit?: number;
-        } = {},
-      ) =>
-        client
-          .get('admin/risk/events', {
-            searchParams: createSearchParams({
-              entityType: params.entityType,
-              entityId: params.entityId,
-              signalType: params.signalType,
-              limit: params.limit,
-            }),
-          })
-          .json<RiskEvent[]>()
-          .then((data) => RiskEventSchema.array().parse(data)),
+          resolve: async (eventId: string, resolution: string) => client.post(`admin/ads/fraud/${eventId}/resolve`, { json: { resolution } }).json<any>(),
+          pauseCampaign: async (id: string) => client.post(`admin/ads/fraud/campaign/${id}/pause`).json<any>()
+        }
+      },
+      risk: {
+        events: async (
+          params: {
+            entityType?: string;
+            entityId?: string;
+            signalType?: string;
+            limit?: number;
+          } = {},
+        ) =>
+          client
+            .get('admin/risk/events', {
+              searchParams: createSearchParams({
+                entityType: params.entityType,
+                entityId: params.entityId,
+                signalType: params.signalType,
+                limit: params.limit,
+              }),
+            })
+            .json<RiskEvent[]>()
+            .then((data) => RiskEventSchema.array().parse(data)),
         entitySummary: async (type: string, id: string) =>
           client
             .get(`admin/risk/summary/${type}/${id}`)
             .json<RiskEntitySummary>()
             .then((data) => RiskEntitySummarySchema.parse(data)),
       },
-    users: {
-      list: async (params: { role?: string } = {}) =>
-        client
-          .get('admin/users', {
-            searchParams: createSearchParams({ role: params.role }),
-          })
-          .json<AdminUser[]>()
-          .then((data) => AdminUserSchema.array().parse(data)),
+      users: {
+        list: async (params: { role?: string } = {}) =>
+          client
+            .get('admin/users', {
+              searchParams: createSearchParams({ role: params.role }),
+            })
+            .json<AdminUser[]>()
+            .then((data) => AdminUserSchema.array().parse(data)),
       },
-    agencies: {
-      list: async () =>
-        client
-          .get('admin/agencies')
-          .json<AdminAgency[]>()
-          .then((data) => AdminAgencySchema.array().parse(data)),
+      agencies: {
+        list: async () =>
+          client
+            .get('admin/agencies')
+            .json<AdminAgency[]>()
+            .then((data) => AdminAgencySchema.array().parse(data)),
       },
-    verifications: {
-      listQueue: async () =>
-        client
-          .get('verifications/queue')
-          .json<Array<{
-            id: string;
-            targetType: 'PROPERTY' | 'USER' | 'COMPANY';
-            targetId: string;
-            targetLabel: string;
-            status: string;
-            createdAt: string;
-            isPaid: boolean;
-            itemsCount: number;
-            requesterName: string;
-          }>>(),
+      verifications: {
+        listQueue: async () =>
+          client
+            .get('verifications/queue')
+            .json<Array<{
+              id: string;
+              targetType: 'PROPERTY' | 'USER' | 'COMPANY';
+              targetId: string;
+              targetLabel: string;
+              status: string;
+              createdAt: string;
+              isPaid: boolean;
+              itemsCount: number;
+              requesterName: string;
+            }>>(),
       },
-  },
-  siteVisits: {
-    request: async (propertyId: string) =>
-      client
-        .post('site-visits/request', { json: { propertyId } })
-        .json<SiteVisit>()
-        .then((data) => SiteVisitSchema.parse(data)),
+    },
+    siteVisits: {
+      request: async (propertyId: string) =>
+        client
+          .post('site-visits/request', { json: { propertyId } })
+          .json<SiteVisit>()
+          .then((data) => SiteVisitSchema.parse(data)),
       listPending: async () =>
         client
           .get('site-visits/pending')
           .json<SiteVisit[]>()
           .then((data) => SiteVisitSchema.array().parse(data)),
-        listMyAssignments: async () =>
-          client
-            .get('site-visits/my-assignments')
-            .json<SiteVisit[]>()
-            .then((data) => SiteVisitSchema.array().parse(data)),
-          assign: async (visitId: string, moderatorId: string) =>
-            client
-              .post(`site-visits/${visitId}/assign`, { json: { moderatorId } })
-              .json<SiteVisit>()
-              .then((data) => SiteVisitSchema.parse(data)),
-            complete: async (
-              visitId: string,
-              payload: { gpsLat: number; gpsLng: number; notes?: string },
-            ) =>
-              client
-                .post(`site-visits/${visitId}/complete`, { json: payload })
-                .json<SiteVisit>()
-                .then((data) => SiteVisitSchema.parse(data)),
-    },
-  wallets: {
-    me: async () => client.get('wallets/me').json<any>(),
-      transactions: async (id: string) => client.get(`wallets/${id}/transactions`).json<any[]>(),
-        kyc: {
-      list: async (params: { status?: string; ownerId?: string } = {}) =>
+      listMyAssignments: async () =>
         client
-          .get('wallets/kyc', {
-            searchParams: createSearchParams({
-              status: params.status,
-              ownerId: params.ownerId,
-            }),
-          })
-          .json<KycRecord[]>()
-          .then((data) => KycRecordSchema.array().parse(data)),
+          .get('site-visits/my-assignments')
+          .json<SiteVisit[]>()
+          .then((data) => SiteVisitSchema.array().parse(data)),
+      assign: async (visitId: string, moderatorId: string) =>
+        client
+          .post(`site-visits/${visitId}/assign`, { json: { moderatorId } })
+          .json<SiteVisit>()
+          .then((data) => SiteVisitSchema.parse(data)),
+      complete: async (
+        visitId: string,
+        payload: { gpsLat: number; gpsLng: number; notes?: string },
+      ) =>
+        client
+          .post(`site-visits/${visitId}/complete`, { json: payload })
+          .json<SiteVisit>()
+          .then((data) => SiteVisitSchema.parse(data)),
+    },
+    wallets: {
+      me: async () => client.get('wallets/me').json<any>(),
+      transactions: async (id: string) => client.get(`wallets/${id}/transactions`).json<any[]>(),
+      kyc: {
+        list: async (params: { status?: string; ownerId?: string } = {}) =>
+          client
+            .get('wallets/kyc', {
+              searchParams: createSearchParams({
+                status: params.status,
+                ownerId: params.ownerId,
+              }),
+            })
+            .json<KycRecord[]>()
+            .then((data) => KycRecordSchema.array().parse(data)),
         updateStatus: async (
           id: string,
           payload: { status: string; notes?: string },
@@ -966,17 +996,17 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             .json<KycRecord>()
             .then((data) => KycRecordSchema.parse(data)),
       },
-    payoutRequests: {
-      list: async (params: { status?: string; walletId?: string } = {}) =>
-        client
-          .get('wallets/payouts', {
-            searchParams: createSearchParams({
-              status: params.status,
-              walletId: params.walletId,
-            }),
-          })
-          .json<PayoutRequest[]>()
-          .then((data) => PayoutRequestSchema.array().parse(data)),
+      payoutRequests: {
+        list: async (params: { status?: string; walletId?: string } = {}) =>
+          client
+            .get('wallets/payouts', {
+              searchParams: createSearchParams({
+                status: params.status,
+                walletId: params.walletId,
+              }),
+            })
+            .json<PayoutRequest[]>()
+            .then((data) => PayoutRequestSchema.array().parse(data)),
         approve: async (
           id: string,
           payload: { txRef?: string; scheduledFor?: string | Date },
@@ -994,52 +1024,52 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             .json<PayoutRequest>()
             .then((data) => PayoutRequestSchema.parse(data)),
       },
-    payoutAccounts: {
-      list: async (
-        params: {
-          ownerId?: string;
-          ownerType?: string;
-          verified?: boolean;
-        } = {},
-      ) =>
-        client
-          .get('wallets/payout-accounts', {
-            searchParams: createSearchParams({
-              ownerId: params.ownerId,
-              ownerType: params.ownerType,
-              verified: params.verified,
-            }),
-          })
-          .json<PayoutAccount[]>()
-          .then((data) => PayoutAccountSchema.array().parse(data)),
+      payoutAccounts: {
+        list: async (
+          params: {
+            ownerId?: string;
+            ownerType?: string;
+            verified?: boolean;
+          } = {},
+        ) =>
+          client
+            .get('wallets/payout-accounts', {
+              searchParams: createSearchParams({
+                ownerId: params.ownerId,
+                ownerType: params.ownerType,
+                verified: params.verified,
+              }),
+            })
+            .json<PayoutAccount[]>()
+            .then((data) => PayoutAccountSchema.array().parse(data)),
         verify: async (id: string, payload: { verified: boolean }) =>
           client
             .post(`wallets/payout-accounts/${id}/verify`, { json: payload })
             .json<PayoutAccount>()
             .then((data) => PayoutAccountSchema.parse(data)),
       },
-    amlBlocklist: {
-      list: async () =>
-        client
-          .get('wallets/aml-blocklist')
-          .json<AmlBlocklistEntry[]>()
-          .then((data) => AmlBlocklistEntrySchema.array().parse(data)),
+      amlBlocklist: {
+        list: async () =>
+          client
+            .get('wallets/aml-blocklist')
+            .json<AmlBlocklistEntry[]>()
+            .then((data) => AmlBlocklistEntrySchema.array().parse(data)),
         add: async (payload: { value: string; reason?: string }) =>
           client
             .post('wallets/aml-blocklist', { json: payload })
             .json<AmlBlocklistEntry>()
             .then((data) => AmlBlocklistEntrySchema.parse(data)),
-          remove: async (id: string) =>
-            client
-              .delete(`wallets/aml-blocklist/${id}`)
-              .json<{ success: boolean }>(),
+        remove: async (id: string) =>
+          client
+            .delete(`wallets/aml-blocklist/${id}`)
+            .json<{ success: boolean }>(),
       },
-    thresholds: {
-      list: async () =>
-        client
-          .get('wallets/thresholds')
-          .json<WalletThreshold[]>()
-          .then((data) => WalletThresholdSchema.array().parse(data)),
+      thresholds: {
+        list: async () =>
+          client
+            .get('wallets/thresholds')
+            .json<WalletThreshold[]>()
+            .then((data) => WalletThresholdSchema.array().parse(data)),
         upsert: async (payload: {
           type: string;
           currency: string;
@@ -1051,48 +1081,48 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             .json<WalletThreshold>()
             .then((data) => WalletThresholdSchema.parse(data)),
       },
-  },
-  advertiser: {
-    getProfile: async () => client.get('advertisers/profile').json<any>(),
+    },
+    advertiser: {
+      getProfile: async () => client.get('advertisers/profile').json<any>(),
       getCampaigns: async () => client.get('advertisers/campaigns').json<any[]>(),
-        getStats: async () => client.get('advertisers/stats').json<{
-          impressions: number;
-          clicks: number;
-          spend: number;
-          campaigns: number;
-        }>(),
-    },
-  wallet: {
-    getOverview: async () => client.get('wallet/me').json<{
-      balanceCents: number;
-      pendingCents: number;
-      withdrawableCents: number;
-      currency: string;
-    }>(),
-    },
-
-  adsense: {
-    getStats: async () =>
-      client.get('adsense/stats').json<Array<{
-        id: string;
-        date: string;
+      getStats: async () => client.get('advertisers/stats').json<{
         impressions: number;
         clicks: number;
-        revenueMicros: string;
-      }>>(),
+        spend: number;
+        campaigns: number;
+      }>(),
+    },
+    wallet: {
+      getOverview: async () => client.get('wallet/me').json<{
+        balanceCents: number;
+        pendingCents: number;
+        withdrawableCents: number;
+        currency: string;
+      }>(),
+    },
+
+    adsense: {
+      getStats: async () =>
+        client.get('adsense/stats').json<Array<{
+          id: string;
+          date: string;
+          impressions: number;
+          clicks: number;
+          revenueMicros: string;
+        }>>(),
       triggerSync: async () => {
         await client.post('adsense/sync');
       },
     },
-  request: async (path: string, options: any = {}) => {
-    const method = (options.method || 'GET').toUpperCase();
-    const response = await client(path.startsWith('/') ? path.substring(1) : path, {
-      method,
-      json: options.json,
-      searchParams: options.searchParams,
-    });
-    return response.json<any>();
-  },
+    request: async (path: string, options: any = {}) => {
+      const method = (options.method || 'GET').toUpperCase();
+      const response = await client(path.startsWith('/') ? path.substring(1) : path, {
+        method,
+        json: options.json,
+        searchParams: options.searchParams,
+      });
+      return response.json<any>();
+    },
   };
 }
 

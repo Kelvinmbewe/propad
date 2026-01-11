@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { ShieldAlert, Activity, User, Home, Building2, AlertTriangle, CheckCircle, Smartphone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge } from '@propad/ui';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Button } from '@propad/ui';
 import type { RiskEvent } from '@propad/sdk';
 import { Loader2 } from 'lucide-react';
 

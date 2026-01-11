@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { sdk } from '@propad/sdk';
+import { api as sdk } from '@/lib/api-client';
 import {
     Tabs,
     TabsContent,

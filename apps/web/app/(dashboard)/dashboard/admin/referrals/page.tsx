@@ -12,12 +12,12 @@ export default function AdminReferralsPage() {
 
     const { data: referrals, isLoading } = useQuery({
         queryKey: ['admin-referrals'],
-        queryFn: () => sdk!.referrals.adminAll(),
+        queryFn: () => sdk!.referrals.admin.all(),
         enabled: !!sdk
     });
 
     const resolveMutation = useMutation({
-        mutationFn: (id: string) => sdk!.referrals.adminResolve(id),
+        mutationFn: (id: string) => sdk!.referrals.admin.resolve(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-referrals'] });
             alert('Referral resolved and reward triggered.');
