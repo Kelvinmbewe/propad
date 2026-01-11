@@ -1,6 +1,5 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { customAlphabet } from 'nanoid';
 import { PricingService } from '../../pricing/pricing.service';
 import { RewardsService } from '../../rewards/rewards.service';
 import {
@@ -10,10 +9,19 @@ import {
     Role
 } from '@prisma/client';
 
+let nanoidGenerator: (() => string) | null = null;
+
+async function getNanoid() {
+    if (!nanoidGenerator) {
+        const { customAlphabet } = await import('nanoid');
+        nanoidGenerator = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
+    }
+    return nanoidGenerator;
+}
+
 @Injectable()
 export class ReferralsService {
     private readonly logger = new Logger(ReferralsService.name);
-    private nanoid = customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
 
     constructor(
         private prisma: PrismaService,
@@ -28,7 +36,8 @@ export class ReferralsService {
         const existing = await this.prisma.referralCode.findFirst({ where: { ownerId: userId } });
         if (existing) return existing;
 
-        const suffix = this.nanoid();
+        const nanoid = await getNanoid();
+        const suffix = nanoid();
         const code = prefix ? `${prefix.toUpperCase().slice(0, 4)}-${suffix}` : `REF-${suffix}`;
 
         return this.prisma.referralCode.create({
