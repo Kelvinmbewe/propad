@@ -22,11 +22,12 @@ services:
     environment:
       DATABASE_URL: postgresql://kelvin:Kellzbiax95@postgres:5432/propad?schema=public
       JWT_SECRET: this-is-a-very-secure-secret-that-is-at-least-32-chars-long
-      NEXT_PUBLIC_API_URL: http://infrastructure-api-1:3001
+      API_URL: http://api:3001/v1
+      NEXT_PUBLIC_API_URL: http://api:3001/v1
       NEXTAUTH_SECRET: super-long-random-secret
       NEXTAUTH_URL: http://localhost:3000
       NODE_ENV: production
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001/v1
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

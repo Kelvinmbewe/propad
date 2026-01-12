@@ -20,8 +20,10 @@ export const {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
+        const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://api:3001/v1'
+        console.log('[AUTH] Attempting login with API URL:', apiUrl)
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
+          `${apiUrl}/auth/login`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
