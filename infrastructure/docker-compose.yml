@@ -6,7 +6,7 @@ services:
       dockerfile: infrastructure/web.Dockerfile
     command: >
       sh -c "
-        until curl -sf http://api:3001/health/ready; do
+        until curl -sf http://api:3001/v1/health/ready; do
           echo 'Waiting for API readiness...';
           sleep 3;
         done;
@@ -53,7 +53,7 @@ services:
     volumes:
       - ../uploads:/app/uploads
     healthcheck:
-      test: [ "CMD-SHELL", "curl -sf http://localhost:3001/health || exit 1" ]
+      test: [ "CMD-SHELL", "curl -sf http://localhost:3001/v1/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 10

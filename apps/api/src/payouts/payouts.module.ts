@@ -9,13 +9,16 @@ import { ManualProvider } from './providers/manual.provider';
 import { WalletModule } from '../wallet/wallet.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PayoutGatewayRegistry } from '../payments/payout-gateway.registry';
+import { PAYOUT_GATEWAYS } from '../payments/payments.constants';
 import { PaymentProviderSettingsService } from '../payments/payment-provider-settings.service';
 import { PricingService } from '../payments/pricing.service';
 import { WebhookController } from './webhook.controller';
 import { AuditService } from '../audit/audit.service';
 
+import { WalletsModule } from '../wallets/wallets.module';
+
 @Module({
-    imports: [PrismaModule, WalletModule],
+    imports: [PrismaModule, WalletModule, WalletsModule],
     controllers: [PayoutsController, AdminPayoutsController, WebhookController],
     providers: [
         PayoutsService,
@@ -27,6 +30,11 @@ import { AuditService } from '../audit/audit.service';
         PaynowProvider,
         BankProvider,
         ManualProvider,
+        {
+            provide: PAYOUT_GATEWAYS,
+            useFactory: (paynow: PaynowProvider, bank: BankProvider, manual: ManualProvider) => [paynow, bank, manual],
+            inject: [PaynowProvider, BankProvider, ManualProvider],
+        }
     ],
     exports: [PayoutsService]
 })

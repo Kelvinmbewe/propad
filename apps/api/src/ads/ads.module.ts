@@ -10,8 +10,10 @@ import { FraudDetectionService } from './fraud/fraud-detection.service';
 
 import { AdsFraudController } from './ads-fraud.controller';
 
+import { WalletsModule } from '../wallets/wallets.module';
+
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, WalletsModule],
   providers: [AdsService, AdsCron, AdEventsService, AdvertiserBalanceService, AdsInvoicesService, FraudDetectionService],
   controllers: [AdsController, AdsFraudController],
   exports: [AdsService, AdEventsService, AdvertiserBalanceService, AdsInvoicesService, FraudDetectionService],
