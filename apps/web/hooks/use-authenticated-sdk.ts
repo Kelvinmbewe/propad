@@ -19,4 +19,3 @@ export function useAuthenticatedSDK() {
     return createSDK({ baseUrl: API_BASE_URL, token });
   }, [token]);
 }
-

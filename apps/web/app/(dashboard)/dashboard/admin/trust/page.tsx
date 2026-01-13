@@ -1,30 +1,31 @@
 'use client';
-'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 
-import { ShieldAlert, Activity, User, Home, Building2, AlertTriangle, CheckCircle, Smartphone } from 'lucide-react';
+import { ShieldAlert, Activity, User, Home, Building2, AlertTriangle, Smartphone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Button } from '@propad/ui';
 import type { RiskEvent } from '@propad/sdk';
 import { Loader2 } from 'lucide-react';
+import { useSdkClient } from '@/hooks/use-sdk-client';
+import { ClientState } from '@/components/client-state';
 
 export default function AdminTrustPage() {
-    const sdk = useAuthenticatedSDK();
+    const { sdk, status, message } = useSdkClient();
 
-    const { data: events, isLoading } = useQuery({
+    const { data: events, isLoading, isError } = useQuery({
         queryKey: ['risk-events'],
-        enabled: !!sdk,
-        queryFn: async () => sdk!.admin.risk.events({ limit: 50 })
+        enabled: status === 'ready',
+        queryFn: async () => {
+            if (!sdk) {
+                return [];
+            }
+            return sdk.admin.risk.events({ limit: 50 });
+        }
     });
 
-    if (!sdk || isLoading) {
-        return (
-            <div className="flex h-96 items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
-            </div>
-        );
+    if (status !== 'ready') {
+        return <ClientState status={status} message={message} title="Trust & risk" />;
     }
 
     return (
@@ -49,7 +50,15 @@ export default function AdminTrustPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {!events?.length ? (
+                            {isLoading ? (
+                                <div className="flex h-40 items-center justify-center">
+                                    <Loader2 className="h-6 w-6 animate-spin text-neutral-400" />
+                                </div>
+                            ) : isError ? (
+                                <div className="text-center py-12 text-red-600 text-sm">
+                                    Unable to load risk events. Please try again.
+                                </div>
+                            ) : !events?.length ? (
                                 <div className="text-center py-12 text-neutral-500 text-sm">
                                     No risk events recorded recently.
                                 </div>

@@ -1,48 +1,90 @@
 'use client';
-'use client';
 
 import { useState } from 'react';
-import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
-
-import { useSession } from 'next-auth/react';
-import { Card, CardContent, CardHeader, CardTitle, Button, Input, Textarea, Badge } from '@propad/ui';
-import { DollarSign, Save, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle, Button, Textarea } from '@propad/ui';
+import { Save } from 'lucide-react';
+import { useSdkClient } from '@/hooks/use-sdk-client';
+import { ClientState } from '@/components/client-state';
+
+interface PricingConfig {
+  key: string;
+  value: unknown;
+  updatedAt: string;
+}
 
 export default function PricingPage() {
-  const sdk = useAuthenticatedSDK();
-  const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [editKey, setEditKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>('');
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const { status, message, apiBaseUrl, accessToken } = useSdkClient();
 
-  const { data: configs, isLoading } = useQuery({
+  const { data: configs, isLoading, isError } = useQuery<PricingConfig[]>({
     queryKey: ['admin', 'pricing'],
+    enabled: status === 'ready',
     queryFn: async () => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/pricing`, {
-        headers: { Authorization: `Bearer ${session?.accessToken}` }
+      if (!apiBaseUrl || !accessToken) {
+        return [];
+      }
+      const response = await fetch(`${apiBaseUrl}/admin/pricing`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
       });
-      return res.json();
+      if (!response.ok) {
+        throw new Error('Failed to load pricing configurations');
+      }
+      return response.json();
     }
   });
 
   const saveConfig = useMutation({
-    mutationFn: async ({ key, value }: { key: string, value: any }) => {
-      await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/pricing`, {
+    mutationFn: async ({ key, value }: { key: string; value: string }) => {
+      if (!apiBaseUrl || !accessToken) {
+        throw new Error('Pricing client not ready');
+      }
+
+      setJsonError(null);
+      let parsedValue: unknown;
+      try {
+        parsedValue = JSON.parse(value);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Invalid JSON payload';
+        setJsonError(message);
+        throw error;
+      }
+
+      const response = await fetch(`${apiBaseUrl}/admin/pricing`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${session?.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ key, value: JSON.parse(value) })
+        body: JSON.stringify({ key, value: parsedValue })
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to update pricing configuration');
+      }
+      return response.json();
     },
     onSuccess: () => {
       setEditKey(null);
+      setEditValue('');
+      setJsonError(null);
       queryClient.invalidateQueries({ queryKey: ['admin', 'pricing'] });
     },
-    onError: (e) => alert('Invalid JSON: ' + e)
+    onError: (error) => {
+      if (error instanceof Error && !jsonError) {
+        setJsonError(error.message);
+      }
+    }
   });
+
+  if (status !== 'ready') {
+    return <ClientState status={status} message={message} title="Pricing admin" />;
+  }
 
   return (
     <div className="space-y-6">
@@ -54,8 +96,17 @@ export default function PricingPage() {
       </div>
 
       <div className="grid gap-4">
-        {isLoading ? <div>Loading...</div> : configs?.map((cfg: any) => (
-          <Card key={cfg.key}>
+        {isLoading ? (
+          <div className="rounded-lg border border-neutral-200 bg-white p-6 text-sm text-neutral-500">
+            Loading pricing configurations…
+          </div>
+        ) : isError ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-600">
+            Unable to load pricing configurations. Please try again.
+          </div>
+        ) : (
+          configs?.map((cfg) => (
+            <Card key={cfg.key}>
             <CardHeader className="py-4">
               <CardTitle className="text-base font-mono flex items-center justify-between">
                 {cfg.key}
@@ -63,6 +114,7 @@ export default function PricingPage() {
                   <Button variant="ghost" size="sm" onClick={() => {
                     setEditKey(cfg.key);
                     setEditValue(JSON.stringify(cfg.value, null, 2));
+                    setJsonError(null);
                   }}>Edit</Button>
                 )}
               </CardTitle>
@@ -76,9 +128,18 @@ export default function PricingPage() {
                     className="font-mono text-xs"
                     rows={5}
                   />
+                  {jsonError && (
+                    <p className="text-xs text-red-600">{jsonError}</p>
+                  )}
                   <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setEditKey(null)}>Cancel</Button>
-                    <Button onClick={() => saveConfig.mutate({ key: cfg.key, value: editValue })}>
+                    <Button variant="outline" onClick={() => {
+                      setEditKey(null);
+                      setJsonError(null);
+                    }}>Cancel</Button>
+                    <Button
+                      onClick={() => saveConfig.mutate({ key: cfg.key, value: editValue })}
+                      disabled={saveConfig.isPending}
+                    >
                       <Save className="mr-2 h-4 w-4" /> Save
                     </Button>
                   </div>
@@ -92,17 +153,18 @@ export default function PricingPage() {
                 Updated: {new Date(cfg.updatedAt).toLocaleString()}
               </div>
             </CardContent>
-          </Card>
-        ))}
+            </Card>
+          ))
+        )}
 
-        {configs?.length === 0 && (
+        {configs?.length === 0 && !isLoading && !isError && (
           <div className="text-center p-8 text-neutral-500 border rounded-lg border-dashed">
             No configs found.
             <div className="mt-4">
               <Button onClick={() => {
                 setEditKey('NEW');
                 setEditValue('{}');
-                // In a real app, handle creation UI better
+                setJsonError(null);
               }}>Create Config</Button>
             </div>
           </div>

@@ -1,5 +1,4 @@
-"use client";
-"use client";
+'use client';
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -29,7 +28,6 @@ import {
   Wallet2,
   MessageSquare,
 } from "lucide-react";
-import { env } from "@propad/config";
 import {
   Button,
   Card,
@@ -203,11 +201,13 @@ export function DashboardOverview() {
 
   // --- Socket.IO for Admin ---
   useEffect(() => {
-    if (!env.NEXT_PUBLIC_WS_ENABLED || !session?.accessToken || !isAdmin) {
+    const wsEnabled = process.env.NEXT_PUBLIC_WS_ENABLED === "true";
+
+    if (!wsEnabled || !session?.accessToken || !isAdmin) {
       return;
     }
 
-    const apiBase = env.NEXT_PUBLIC_API_BASE_URL;
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
     if (!apiBase) {
       console.warn(
         "Dashboard metrics socket disabled: NEXT_PUBLIC_API_BASE_URL is not configured.",
