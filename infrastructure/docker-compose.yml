@@ -24,7 +24,8 @@ services:
       JWT_SECRET: this-is-a-very-secure-secret-that-is-at-least-32-chars-long
       API_URL: http://api:3001/v1
       NEXT_PUBLIC_API_URL: http://api:3001/v1
-      NEXTAUTH_SECRET: super-long-random-secret
+      NEXTAUTH_SECRET: this-is-a-very-secure-nextauth-secret-32chars-min
+
       NEXTAUTH_URL: http://localhost:3000
       NODE_ENV: production
       NEXT_PUBLIC_API_BASE_URL: http://localhost:3001/v1
@@ -54,7 +55,7 @@ services:
     volumes:
       - ../uploads:/app/uploads
     healthcheck:
-      test: [ "CMD-SHELL", "curl -sf http://localhost:3001/v1/health || exit 1" ]
+      test: ["CMD-SHELL", "curl -sf http://localhost:3001/v1/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -72,7 +73,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
