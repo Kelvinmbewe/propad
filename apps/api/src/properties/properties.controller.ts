@@ -41,6 +41,7 @@ import { RespondViewingDto, respondViewingSchema } from './dto/respond-viewing.d
 import { UpdateVerificationItemDto, updateVerificationItemSchema } from './dto/update-verification-item.dto';
 import { ReviewVerificationItemDto, reviewVerificationItemSchema } from './dto/review-verification-item.dto';
 import { SubmitPropertyRatingDto, submitPropertyRatingSchema } from './dto/submit-property-rating.dto';
+import { CreateRentPaymentDto, createRentPaymentSchema } from './dto/create-rent-payment.dto';
 import { PaymentRequired } from '../payments/decorators/payment-required.decorator';
 import { PaymentRequiredGuard } from '../payments/guards/payment-required.guard';
 
@@ -96,6 +97,11 @@ export class PropertiesController {
   @Get('search')
   search(@Query() dto: SearchPropertiesDto) {
     return this.propertiesService.search(dto);
+  }
+
+  @Get('featured')
+  listFeatured() {
+    return this.propertiesService.listFeatured();
   }
 
   @Get('map/bounds')
@@ -263,6 +269,16 @@ export class PropertiesController {
     return this.propertiesService.sendMessage(id, dto, req.user);
   }
 
+  @Get(':id/interests')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  listInterests(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.propertiesService.listInterests(id, req.user);
+  }
+
   @Post(':id/submit')
   @UseGuards(JwtAuthGuard, RolesGuard, PaymentRequiredGuard)
   @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
@@ -343,6 +359,16 @@ export class PropertiesController {
     @Body(new ZodValidationPipe(scheduleViewingSchema)) dto: ScheduleViewingDto
   ) {
     return this.propertiesService.scheduleViewing(id, dto, req.user);
+  }
+
+  @Post(':id/rent-payments')
+  @UseGuards(JwtAuthGuard)
+  createRentPayment(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(createRentPaymentSchema)) dto: CreateRentPaymentDto
+  ) {
+    return this.propertiesService.createRentPayment(id, dto, req.user);
   }
 
   @Post('viewings/:viewingId/respond')
