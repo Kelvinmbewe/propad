@@ -7,7 +7,7 @@ export default defineConfig({
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,
     env: {
-      NEXT_PUBLIC_API_BASE_URL: 'http://localhost:3000/api/mock'
+      NEXT_PUBLIC_API_BASE_URL: 'http://localhost:3001'
     }
   },
   use: {

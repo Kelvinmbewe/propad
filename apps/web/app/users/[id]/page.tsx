@@ -19,19 +19,7 @@ interface UserProfile {
 
 async function getUser(id: string): Promise<UserProfile | null> {
   try {
-    // TODO: Implement API endpoint
-    // return await serverPublicApiRequest<UserProfile>(`/users/${id}/profile`);
-    console.warn('[users/[id]/page.tsx] getUser - API endpoint not yet implemented');
-
-    // Return placeholder data until API is ready
-    return {
-      id,
-      name: 'User Profile',
-      email: 'user@example.com',
-      isVerified: false,
-      createdAt: new Date().toISOString(),
-      role: 'USER'
-    };
+    return await serverPublicApiRequest<UserProfile>(`/profiles/users/${id}`);
   } catch (error) {
     console.error('Failed to fetch user:', error);
     return null;

@@ -1717,6 +1717,19 @@ export class PropertiesService {
     return messages;
   }
 
+  async listInterests(id: string, actor: AuthContext) {
+    const property = await this.getPropertyOrThrow(id);
+    this.ensureCanMutate(property, actor);
+
+    return this.prisma.interest.findMany({
+      where: { propertyId: id },
+      include: {
+        user: { select: { id: true, name: true, email: true, isVerified: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
   async sendMessage(id: string, dto: CreateMessageDto, actor: AuthContext) {
     const property = await this.prisma.property.findUnique({
       where: { id },
@@ -2588,6 +2601,46 @@ export class PropertiesService {
     return this.attachLocationToMany(properties);
   }
 
+  async listFeatured() {
+    const now = new Date();
+    const properties = await this.prisma.property.findMany({
+      where: {
+        status: PropertyStatus.VERIFIED,
+        featuredListing: {
+          status: 'ACTIVE',
+          startsAt: { lte: now },
+          endsAt: { gte: now }
+        }
+      },
+      include: {
+        media: { take: 1 },
+        city: true,
+        suburb: true
+      },
+      orderBy: [
+        { featuredListing: { priorityLevel: 'desc' } },
+        { featuredListing: { startsAt: 'desc' } }
+      ],
+      take: 12
+    });
+
+    return properties.map((property) => ({
+      id: property.id,
+      title: property.title,
+      price: property.price,
+      currency: property.currency,
+      bedrooms: property.bedrooms,
+      bathrooms: property.bathrooms,
+      areaSqm: property.areaSqm,
+      lat: property.lat,
+      lng: property.lng,
+      listingIntent: property.listingIntent,
+      media: property.media,
+      city: property.city,
+      suburb: property.suburb
+    }));
+  }
+
 
 
   async createSignedUpload(dto: CreateSignedUploadDto, actor: AuthContext) {
@@ -2834,6 +2887,25 @@ export class PropertiesService {
     });
 
     return viewing;
+  }
+
+  async createRentPayment(
+    propertyId: string,
+    dto: { amount: number; currency: string; paidAt: Date; proofUrl?: string },
+    actor: AuthContext
+  ) {
+    await this.getPropertyOrThrow(propertyId);
+
+    return this.prisma.rentPayment.create({
+      data: {
+        propertyId,
+        tenantId: actor.userId,
+        amount: dto.amount,
+        currency: dto.currency as any,
+        paidAt: dto.paidAt,
+        proofUrl: dto.proofUrl || null
+      }
+    });
   }
 
   async respondToViewing(viewingId: string, dto: { status: string; notes?: string }, actor: AuthContext) {

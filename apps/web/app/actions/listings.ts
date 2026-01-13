@@ -9,10 +9,7 @@ export async function getInterestsForProperty(propertyId: string) {
     if (!session?.user?.id) throw new Error('Unauthorized');
 
     try {
-        // TODO: Implement API endpoint
-        // return await serverApiRequest(`/properties/${propertyId}/interests`);
-        console.warn('[listings.ts] getInterestsForProperty - API endpoint not yet implemented');
-        return [];
+        return await serverApiRequest(`/properties/${propertyId}/interests`);
     } catch (error) {
         console.error('getInterestsForProperty error:', error);
         return [];
@@ -24,10 +21,34 @@ export async function getChatThreads(propertyId: string) {
     if (!session?.user?.id) throw new Error('Unauthorized');
 
     try {
-        // TODO: Implement API endpoint
-        // return await serverApiRequest(`/properties/${propertyId}/chat-threads`);
-        console.warn('[listings.ts] getChatThreads - API endpoint not yet implemented');
-        return [];
+        const messages = await serverApiRequest<any[]>(`/properties/${propertyId}/messages`);
+        const threads = new Map<string, { user: any; lastMessage: any; unreadCount: number }>();
+
+        for (const message of messages) {
+            const isSender = message.senderId === session.user.id;
+            const counterparty = isSender ? message.recipient : message.sender;
+            if (!counterparty) continue;
+
+            const existing = threads.get(counterparty.id);
+            const unreadCount = !isSender && !message.readAt ? 1 : 0;
+
+            if (!existing || new Date(message.createdAt) > new Date(existing.lastMessage.createdAt)) {
+                threads.set(counterparty.id, {
+                    user: counterparty,
+                    lastMessage: message,
+                    unreadCount: (existing?.unreadCount ?? 0) + unreadCount
+                });
+            } else if (unreadCount) {
+                threads.set(counterparty.id, {
+                    ...existing,
+                    unreadCount: existing.unreadCount + unreadCount
+                });
+            }
+        }
+
+        return Array.from(threads.values()).sort((a, b) =>
+            new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime()
+        );
     } catch (error) {
         console.error('getChatThreads error:', error);
         return [];
@@ -39,10 +60,11 @@ export async function getThreadMessages(propertyId: string, counterpartyId: stri
     if (!session?.user?.id) throw new Error('Unauthorized');
 
     try {
-        // TODO: Implement API endpoint
-        // return await serverApiRequest(`/properties/${propertyId}/messages/${counterpartyId}`);
-        console.warn('[listings.ts] getThreadMessages - API endpoint not yet implemented');
-        return [];
+        const messages = await serverApiRequest<any[]>(`/properties/${propertyId}/messages`);
+        return messages.filter((message) =>
+            (message.senderId === session.user.id && message.recipientId === counterpartyId)
+            || (message.senderId === counterpartyId && message.recipientId === session.user.id)
+        );
     } catch (error) {
         console.error('getThreadMessages error:', error);
         return [];
@@ -54,15 +76,12 @@ export async function sendMessage(propertyId: string, recipientId: string, body:
     if (!session?.user?.id) throw new Error('Unauthorized');
 
     try {
-        // TODO: Implement API endpoint
-        // const msg = await serverApiRequest(`/properties/${propertyId}/messages`, {
-        //     method: 'POST',
-        //     body: { recipientId, body }
-        // });
-        console.warn('[listings.ts] sendMessage - API endpoint not yet implemented');
-
+        const msg = await serverApiRequest(`/properties/${propertyId}/messages`, {
+            method: 'POST',
+            body: { body }
+        });
         revalidatePath(`/dashboard/listings/${propertyId}`);
-        return { id: 'pending', body, propertyId, recipientId };
+        return msg;
     } catch (error) {
         console.error('sendMessage error:', error);
         throw error;
@@ -74,9 +93,7 @@ export async function updateInterestStatus(interestId: string, status: 'ACCEPTED
     if (!session?.user?.id) throw new Error('Unauthorized');
 
     try {
-        // TODO: Implement API endpoint
-        // await serverApiRequest(`/interests/${interestId}`, { method: 'PATCH', body: { status } });
-        console.warn('[listings.ts] updateInterestStatus - API endpoint not yet implemented');
+        await serverApiRequest(`/interests/${interestId}/status`, { method: 'PATCH', body: { status } });
 
         revalidatePath('/dashboard/listings');
     } catch (error) {
@@ -90,10 +107,7 @@ export async function getViewings(propertyId: string) {
     if (!session?.user?.id) throw new Error('Unauthorized');
 
     try {
-        // TODO: Implement API endpoint
-        // return await serverApiRequest(`/properties/${propertyId}/viewings`);
-        console.warn('[listings.ts] getViewings - API endpoint not yet implemented');
-        return [];
+        return await serverApiRequest(`/properties/${propertyId}/viewings`);
     } catch (error) {
         console.error('getViewings error:', error);
         return [];
