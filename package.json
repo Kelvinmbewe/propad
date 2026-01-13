@@ -46,5 +46,9 @@
   },
   "dependencies": {
     "postcss": "^8.4.38"
+  },
+  "prisma": {
+    "schema": "apps/api/prisma/schema.prisma",
+    "seed": "node apps/api/prisma/seed.js"
   }
 }
