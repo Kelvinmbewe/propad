@@ -1,7 +1,9 @@
 'use client';
+'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
 import { notify } from '@propad/ui';
 import type { GeoSearchResult, PendingGeo } from '@propad/sdk';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';

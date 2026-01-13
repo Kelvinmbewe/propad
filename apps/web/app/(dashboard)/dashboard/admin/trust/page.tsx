@@ -1,7 +1,9 @@
 'use client';
+'use client';
 
 import { useQuery } from '@tanstack/react-query';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
+
 import { ShieldAlert, Activity, User, Home, Building2, AlertTriangle, CheckCircle, Smartphone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Button } from '@propad/ui';

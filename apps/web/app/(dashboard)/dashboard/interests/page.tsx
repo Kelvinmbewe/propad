@@ -30,17 +30,15 @@ interface Interest {
   };
 }
 
-async function getLandlordInterests(userId: string): Promise<Interest[]> {
+async function getLandlordInterests(): Promise<Interest[]> {
   try {
-    // TODO: Implement API endpoint
-    // return await serverApiRequest<Interest[]>('/interests/landlord');
-    console.warn('[interests/page.tsx] getLandlordInterests - API endpoint not yet implemented');
-    return [];
+    return await serverApiRequest<Interest[]>('/interests/landlord');
   } catch (error) {
     console.error('Failed to fetch landlord interests:', error);
     return [];
   }
 }
+
 
 export default async function InterestsPage() {
   const session = await auth();
@@ -48,7 +46,8 @@ export default async function InterestsPage() {
     redirect('/auth/signin');
   }
 
-  const interests = await getLandlordInterests(session.user.id);
+  const interests = await getLandlordInterests();
+
 
   return (
     <div className="space-y-6">

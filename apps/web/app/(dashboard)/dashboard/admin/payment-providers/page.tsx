@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { getServerApiBaseUrl } from '@propad/config';
 
 
@@ -15,22 +16,25 @@ interface PaymentProvider {
 }
 
 export default function PaymentProvidersPage() {
+  const { data: session } = useSession();
+  const token = session?.accessToken;
   const [providers, setProviders] = useState<PaymentProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<PaymentProvider>>({});
 
   useEffect(() => {
-    loadProviders();
-  }, []);
+    if (token) loadProviders();
+  }, [token]);
 
   const loadProviders = async () => {
     try {
       const response = await fetch(`${getServerApiBaseUrl()}/payment-providers`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('apiToken')}`
+          Authorization: `Bearer ${token}`
         }
       });
+
       if (response.ok) {
         const data = await response.json();
         setProviders(data);
@@ -50,11 +54,12 @@ export default function PaymentProvidersPage() {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('apiToken')}`
+            Authorization: `Bearer ${token}`
           },
           body: JSON.stringify({ enabled: !provider.enabled })
         }
       );
+
       if (response.ok) {
         loadProviders();
       }
@@ -71,10 +76,11 @@ export default function PaymentProvidersPage() {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('apiToken')}`
+            Authorization: `Bearer ${token}`
           }
         }
       );
+
       if (response.ok) {
         loadProviders();
       }
@@ -83,11 +89,16 @@ export default function PaymentProvidersPage() {
     }
   };
 
+  if (!token) {
+    return <div>Loading session...</div>;
+  }
+
   if (loading) {
     return <div>Loading payment providers...</div>;
   }
 
   return (
+
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
       <div>
         <h1 className="text-2xl font-bold">Payment Providers</h1>

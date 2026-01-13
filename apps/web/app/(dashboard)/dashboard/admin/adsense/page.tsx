@@ -1,7 +1,9 @@
 'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@propad/ui';
+
 import { Button } from '@propad/ui';
 import { useAuthenticatedSDK } from '../../../../../hooks/use-authenticated-sdk';
 import { AdSenseDailyStat } from '@propad/sdk';
