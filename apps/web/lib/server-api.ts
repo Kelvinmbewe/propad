@@ -51,7 +51,13 @@ export async function serverApiRequest<T>(endpoint: string, options: FetchOption
 
     if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[ServerAPI] ${options.method || 'GET'} ${endpoint} failed:`, response.status, errorText);
+        console.error('[ServerAPI] Request failed', {
+            method: options.method || 'GET',
+            endpoint,
+            status: response.status,
+            userId: session?.user?.id ?? null,
+            message: errorText
+        });
         throw new Error(`API request failed: ${response.status}`);
     }
 
@@ -91,7 +97,12 @@ export async function serverPublicApiRequest<T>(endpoint: string, options: Fetch
 
     if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[ServerAPI] ${options.method || 'GET'} ${endpoint} failed:`, response.status, errorText);
+        console.error('[ServerAPI] Public request failed', {
+            method: options.method || 'GET',
+            endpoint,
+            status: response.status,
+            message: errorText
+        });
         throw new Error(`API request failed: ${response.status}`);
     }
 

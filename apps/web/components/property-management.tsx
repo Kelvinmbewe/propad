@@ -1,5 +1,4 @@
-"use client";
-"use client";
+'use client';
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -16,13 +15,14 @@ import {
   Badge,
 } from "@propad/ui";
 import type { PropertyManagement as PropertyManagementType } from "@propad/sdk";
-import { useAuthenticatedSDK } from "@/hooks/use-authenticated-sdk";
+import { useSdkClient } from "@/hooks/use-sdk-client";
 import { formatCurrency } from "@/lib/formatters";
 import Link from "next/link";
-import { MapPin, Home, DollarSign, CheckCircle2 } from "lucide-react";
+import { MapPin, Home } from "lucide-react";
+import { ClientState } from "@/components/client-state";
 
 export function PropertyManagement() {
-  const sdk = useAuthenticatedSDK();
+  const { sdk, status, message } = useSdkClient();
 
   const {
     data: properties,
@@ -33,14 +33,17 @@ export function PropertyManagement() {
     queryKey: ["properties:owned"],
     queryFn: async () => {
       try {
-        const result = await sdk!.properties.listOwned();
+        if (!sdk) {
+          return [];
+        }
+        const result = await sdk.properties.listOwned();
         return result;
       } catch (error) {
         console.error("Failed to load properties:", error);
         throw error;
       }
     },
-    enabled: !!sdk,
+    enabled: status === "ready",
     retry: 1,
   });
 
@@ -69,11 +72,15 @@ export function PropertyManagement() {
     return groups;
   }, [properties]);
 
-  if (!sdk) {
+  if (status !== "ready") {
     return (
-      <p className="text-sm text-neutral-500">
-        Sign in to manage your listings.
-      </p>
+      <ClientState
+        status={status}
+        message={message}
+        title="Listings access"
+        actionLabel="Back to dashboard"
+        actionHref="/dashboard"
+      />
     );
   }
 

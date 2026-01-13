@@ -1,24 +1,29 @@
 'use client';
-'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 
-import { Loader2, Shield, Search, UserCheck, AlertCircle } from 'lucide-react';
+import { Search, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Input } from '@propad/ui';
+import { Card, CardContent, CardHeader, CardTitle, Badge, Input } from '@propad/ui';
 import { useState } from 'react';
 import type { AdminUser } from '@propad/sdk';
+import { useSdkClient } from '@/hooks/use-sdk-client';
+import { ClientState } from '@/components/client-state';
 
 export default function AdminUsersPage() {
-    const sdk = useAuthenticatedSDK();
+    const { sdk, status, message } = useSdkClient();
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState<string>('');
 
-    const { data: users, isLoading } = useQuery({
+    const { data: users, isLoading, isError } = useQuery<AdminUser[]>({
         queryKey: ['admin-users', roleFilter],
-        enabled: !!sdk,
-        queryFn: async () => sdk!.admin.users.list({ role: roleFilter || undefined })
+        enabled: status === 'ready',
+        queryFn: async () => {
+            if (!sdk) {
+                return [];
+            }
+            return sdk.admin.users.list({ role: roleFilter || undefined });
+        }
     });
 
     const filteredUsers = users?.filter(user =>
@@ -26,12 +31,8 @@ export default function AdminUsersPage() {
         user.email?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (!sdk || isLoading) {
-        return (
-            <div className="flex h-96 items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
-            </div>
-        );
+    if (status !== 'ready') {
+        return <ClientState status={status} message={message} title="User management" />;
     }
 
     return (
@@ -89,7 +90,19 @@ export default function AdminUsersPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-100">
-                                {filteredUsers?.length === 0 ? (
+                                {isLoading ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-8 text-center text-neutral-500">
+                                            Loading users…
+                                        </td>
+                                    </tr>
+                                ) : isError ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-8 text-center text-red-600">
+                                            Unable to load users right now.
+                                        </td>
+                                    </tr>
+                                ) : filteredUsers?.length === 0 ? (
                                     <tr>
                                         <td colSpan={5} className="px-6 py-8 text-center text-neutral-500">
                                             No users found matching your criteria.

@@ -34,7 +34,10 @@ async function getLandlordInterests(): Promise<Interest[]> {
   try {
     return await serverApiRequest<Interest[]>('/interests/landlord');
   } catch (error) {
-    console.error('Failed to fetch landlord interests:', error);
+    console.error('Failed to fetch landlord interests', {
+      error,
+      route: '/dashboard/interests'
+    });
     return [];
   }
 }

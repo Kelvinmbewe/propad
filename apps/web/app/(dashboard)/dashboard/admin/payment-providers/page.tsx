@@ -1,11 +1,11 @@
 'use client';
-'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { getServerApiBaseUrl } from '@propad/config';
-
-
+import { AlertTriangle } from 'lucide-react';
+import { Button } from '@propad/ui';
+import { useSdkClient } from '@/hooks/use-sdk-client';
+import { ClientState } from '@/components/client-state';
+import { EmptyState } from '@/components/empty-state';
 interface PaymentProvider {
   id: string;
   provider: 'PAYNOW' | 'PAYPAL' | 'STRIPE';
@@ -16,31 +16,39 @@ interface PaymentProvider {
 }
 
 export default function PaymentProvidersPage() {
-  const { data: session } = useSession();
-  const token = session?.accessToken;
+  const { status, message, apiBaseUrl, accessToken } = useSdkClient();
   const [providers, setProviders] = useState<PaymentProvider[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Partial<PaymentProvider>>({});
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (token) loadProviders();
-  }, [token]);
+    if (status === 'ready') {
+      loadProviders();
+    }
+  }, [status]);
 
   const loadProviders = async () => {
     try {
-      const response = await fetch(`${getServerApiBaseUrl()}/payment-providers`, {
+      if (!apiBaseUrl || !accessToken) {
+        throw new Error('Missing API configuration');
+      }
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${apiBaseUrl}/payment-providers`, {
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${accessToken}`
         }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setProviders(data);
+      if (!response.ok) {
+        throw new Error('Failed to load payment providers');
       }
+
+      const data = await response.json();
+      setProviders(data);
     } catch (error) {
       console.error('Failed to load providers:', error);
+      setError('Failed to load payment providers.');
     } finally {
       setLoading(false);
     }
@@ -48,13 +56,16 @@ export default function PaymentProvidersPage() {
 
   const handleToggle = async (provider: PaymentProvider) => {
     try {
+      if (!apiBaseUrl || !accessToken) {
+        throw new Error('Missing API configuration');
+      }
       const response = await fetch(
-        `${getServerApiBaseUrl()}/payment-providers/${provider.provider}/toggle`,
+        `${apiBaseUrl}/payment-providers/${provider.provider}/toggle`,
         {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
+            Authorization: `Bearer ${accessToken}`
           },
           body: JSON.stringify({ enabled: !provider.enabled })
         }
@@ -70,13 +81,16 @@ export default function PaymentProvidersPage() {
 
   const handleSetDefault = async (provider: PaymentProvider) => {
     try {
+      if (!apiBaseUrl || !accessToken) {
+        throw new Error('Missing API configuration');
+      }
       const response = await fetch(
-        `${getServerApiBaseUrl()}/payment-providers/${provider.provider}/default`,
+        `${apiBaseUrl}/payment-providers/${provider.provider}/default`,
         {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
+            Authorization: `Bearer ${accessToken}`
           }
         }
       );
@@ -89,16 +103,15 @@ export default function PaymentProvidersPage() {
     }
   };
 
-  if (!token) {
-    return <div>Loading session...</div>;
+  if (status !== 'ready') {
+    return <ClientState status={status} message={message} title="Payment providers" />;
   }
 
   if (loading) {
-    return <div>Loading payment providers...</div>;
+    return <div className="text-sm text-neutral-500">Loading payment providers…</div>;
   }
 
   return (
-
     <div className="mx-auto flex max-w-5xl flex-col gap-8">
       <div>
         <h1 className="text-2xl font-bold">Payment Providers</h1>
@@ -106,66 +119,87 @@ export default function PaymentProvidersPage() {
       </div>
 
       <div className="grid gap-4">
-        {providers.map((provider) => (
-          <div
-            key={provider.id}
-            className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-semibold">{provider.provider}</h3>
-                  {provider.isDefault && (
-                    <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
-                      Default
-                    </span>
-                  )}
-                  {provider.isTestMode && (
-                    <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
-                      Test Mode
-                    </span>
-                  )}
-                  <span
-                    className={`rounded-full px-2 py-1 text-xs font-medium ${
-                      provider.enabled
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {provider.enabled ? 'Enabled' : 'Disabled'}
-                  </span>
-                </div>
-                {provider.validatedAt && (
-                  <p className="mt-1 text-sm text-gray-500">
-                    Validated: {new Date(provider.validatedAt).toLocaleDateString()}
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                {!provider.isDefault && provider.enabled && (
-                  <button
-                    onClick={() => handleSetDefault(provider)}
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                  >
-                    Set Default
-                  </button>
-                )}
-                <button
-                  onClick={() => handleToggle(provider)}
-                  className={`rounded-md px-4 py-2 text-sm font-medium ${
-                    provider.enabled
-                      ? 'bg-red-600 text-white hover:bg-red-700'
-                      : 'bg-green-600 text-white hover:bg-green-700'
-                  }`}
-                >
-                  {provider.enabled ? 'Disable' : 'Enable'}
-                </button>
-              </div>
+        {error ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-600">
+            {error}
+            <div className="mt-4">
+              <Button variant="outline" onClick={loadProviders}>
+                Retry
+              </Button>
             </div>
           </div>
-        ))}
+        ) : providers.length === 0 ? (
+          <EmptyState
+            title="No providers configured"
+            description="You have not connected any payment gateways yet."
+            action={
+              <div className="flex items-center gap-2 text-sm text-neutral-500">
+                <AlertTriangle className="h-4 w-4" />
+                Configure a provider to start accepting payments.
+              </div>
+            }
+          />
+        ) : (
+          providers.map((provider) => (
+            <div
+              key={provider.id}
+              className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-lg font-semibold">{provider.provider}</h3>
+                    {provider.isDefault && (
+                      <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
+                        Default
+                      </span>
+                    )}
+                    {provider.isTestMode && (
+                      <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
+                        Test Mode
+                      </span>
+                    )}
+                    <span
+                      className={`rounded-full px-2 py-1 text-xs font-medium ${
+                        provider.enabled
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {provider.enabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </div>
+                  {provider.validatedAt && (
+                    <p className="mt-1 text-sm text-gray-500">
+                      Validated: {new Date(provider.validatedAt).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  {!provider.isDefault && provider.enabled && (
+                    <button
+                      onClick={() => handleSetDefault(provider)}
+                      className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      Set Default
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleToggle(provider)}
+                    className={`rounded-md px-4 py-2 text-sm font-medium ${
+                      provider.enabled
+                        ? 'bg-red-600 text-white hover:bg-red-700'
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                    }`}
+                  >
+                    {provider.enabled ? 'Disable' : 'Enable'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
 }
-

@@ -1,34 +1,35 @@
 'use client';
-'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 
-import { Loader2, Building2, Users, Search, CheckCircle2 } from 'lucide-react';
+import { Building2, Users, Search } from 'lucide-react';
 import { format } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Input } from '@propad/ui';
+import { Card, CardContent, CardHeader, CardTitle, Badge, Input } from '@propad/ui';
 import { useState } from 'react';
+import { useSdkClient } from '@/hooks/use-sdk-client';
+import { ClientState } from '@/components/client-state';
 
 export default function AdminAgenciesPage() {
-    const sdk = useAuthenticatedSDK();
+    const { sdk, status, message } = useSdkClient();
     const [searchTerm, setSearchTerm] = useState('');
 
-    const { data: agencies, isLoading } = useQuery({
+    const { data: agencies, isLoading, isError } = useQuery({
         queryKey: ['admin-agencies'],
-        enabled: !!sdk,
-        queryFn: async () => sdk!.admin.agencies.list()
+        enabled: status === 'ready',
+        queryFn: async () => {
+            if (!sdk) {
+                return [];
+            }
+            return sdk.admin.agencies.list();
+        }
     });
 
     const filteredAgencies = agencies?.filter(agency =>
         agency.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (!sdk || isLoading) {
-        return (
-            <div className="flex h-96 items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
-            </div>
-        );
+    if (status !== 'ready') {
+        return <ClientState status={status} message={message} title="Agencies" />;
     }
 
     return (
@@ -71,7 +72,19 @@ export default function AdminAgenciesPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-100">
-                                {filteredAgencies?.length === 0 ? (
+                                {isLoading ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-8 text-center text-neutral-500">
+                                            Loading agencies…
+                                        </td>
+                                    </tr>
+                                ) : isError ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-8 text-center text-red-600">
+                                            Unable to load agencies right now.
+                                        </td>
+                                    </tr>
+                                ) : filteredAgencies?.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} className="px-6 py-8 text-center text-neutral-500">
                                             No agencies found.
