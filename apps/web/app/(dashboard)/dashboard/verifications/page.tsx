@@ -1,7 +1,9 @@
 'use client';
+'use client';
 
 import { useQuery } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
+
 import { Card, CardContent, Skeleton } from '@propad/ui';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import Link from 'next/link';

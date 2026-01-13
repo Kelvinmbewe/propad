@@ -1,7 +1,9 @@
 'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@propad/ui';
+
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import type { Campaign } from '@propad/sdk/ads';
 

@@ -1,7 +1,9 @@
 'use client';
+'use client';
 
 import { useQuery } from '@tanstack/react-query';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
+
 import { Loader2, Shield, Search, UserCheck, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Input } from '@propad/ui';

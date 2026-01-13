@@ -1,7 +1,9 @@
 'use client';
+'use client';
 
 import { useState } from 'react';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
+
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Textarea, Badge } from '@propad/ui';
 import { DollarSign, Save, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';

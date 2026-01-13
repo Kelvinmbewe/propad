@@ -1,7 +1,9 @@
-'use client';
+"use client";
+"use client";
 
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+
 import {
   Button,
   Card,
@@ -12,12 +14,12 @@ import {
   CardTitle,
   Skeleton,
   Badge,
-} from '@propad/ui';
-import type { PropertyManagement as PropertyManagementType } from '@propad/sdk';
-import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
-import { formatCurrency } from '@/lib/formatters';
-import Link from 'next/link';
-import { MapPin, Home, DollarSign, CheckCircle2 } from 'lucide-react';
+} from "@propad/ui";
+import type { PropertyManagement as PropertyManagementType } from "@propad/sdk";
+import { useAuthenticatedSDK } from "@/hooks/use-authenticated-sdk";
+import { formatCurrency } from "@/lib/formatters";
+import Link from "next/link";
+import { MapPin, Home, DollarSign, CheckCircle2 } from "lucide-react";
 
 export function PropertyManagement() {
   const sdk = useAuthenticatedSDK();
@@ -28,13 +30,13 @@ export function PropertyManagement() {
     isError: propertiesError,
     error: propertiesErrorDetails,
   } = useQuery({
-    queryKey: ['properties:owned'],
+    queryKey: ["properties:owned"],
     queryFn: async () => {
       try {
         const result = await sdk!.properties.listOwned();
         return result;
       } catch (error) {
-        console.error('Failed to load properties:', error);
+        console.error("Failed to load properties:", error);
         throw error;
       }
     },
@@ -49,18 +51,18 @@ export function PropertyManagement() {
     }
 
     const groups: Record<string, PropertyManagementType[]> = {
-      'Active Listings': [],
-      'Drafts': [],
-      'Archived': []
+      "Active Listings": [],
+      Drafts: [],
+      Archived: [],
     };
 
     properties.forEach((property) => {
-      if (property.status === 'DRAFT') {
-        groups['Drafts'].push(property);
-      } else if (property.status === 'ARCHIVED') {
-        groups['Archived'].push(property);
+      if (property.status === "DRAFT") {
+        groups["Drafts"].push(property);
+      } else if (property.status === "ARCHIVED") {
+        groups["Archived"].push(property);
       } else {
-        groups['Active Listings'].push(property); // Includes VERIFIED, PENDING_VERIFY, etc.
+        groups["Active Listings"].push(property); // Includes VERIFIED, PENDING_VERIFY, etc.
       }
     });
 
@@ -68,7 +70,11 @@ export function PropertyManagement() {
   }, [properties]);
 
   if (!sdk) {
-    return <p className="text-sm text-neutral-500">Sign in to manage your listings.</p>;
+    return (
+      <p className="text-sm text-neutral-500">
+        Sign in to manage your listings.
+      </p>
+    );
   }
 
   if (loadingProperties) {
@@ -82,13 +88,16 @@ export function PropertyManagement() {
   }
 
   if (propertiesError) {
-    const errorMessage = propertiesErrorDetails instanceof Error
-      ? propertiesErrorDetails.message
-      : 'Unknown error';
-    console.error('Properties error:', propertiesErrorDetails);
+    const errorMessage =
+      propertiesErrorDetails instanceof Error
+        ? propertiesErrorDetails.message
+        : "Unknown error";
+    console.error("Properties error:", propertiesErrorDetails);
     return (
       <div className="flex flex-col items-center justify-center space-y-4 py-12 border-2 border-dashed border-red-200 rounded-xl bg-red-50/50">
-        <p className="text-sm text-red-600 font-semibold">We could not load your listings at this time.</p>
+        <p className="text-sm text-red-600 font-semibold">
+          We could not load your listings at this time.
+        </p>
         <p className="text-xs text-red-500">Error: {errorMessage}</p>
         <Button onClick={() => window.location.reload()}>Retry</Button>
       </div>
@@ -99,7 +108,9 @@ export function PropertyManagement() {
     return (
       <div className="flex flex-col items-center justify-center space-y-4 py-12 border-2 border-dashed rounded-xl bg-neutral-50/50">
         <Home className="h-12 w-12 text-neutral-300" />
-        <p className="text-sm text-neutral-600">You have not published any listings yet.</p>
+        <p className="text-sm text-neutral-600">
+          You have not published any listings yet.
+        </p>
         <Link href="/dashboard/listings/new">
           <Button>List New Property</Button>
         </Link>
@@ -122,7 +133,10 @@ export function PropertyManagement() {
         return (
           <div key={groupName} className="space-y-4">
             <h3 className="text-lg font-semibold text-neutral-900 border-b pb-2">
-              {groupName} <span className="text-neutral-500 font-normal text-sm ml-2">({groupProperties.length})</span>
+              {groupName}{" "}
+              <span className="text-neutral-500 font-normal text-sm ml-2">
+                ({groupProperties.length})
+              </span>
             </h3>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {groupProperties.map((property) => {
@@ -130,65 +144,95 @@ export function PropertyManagement() {
                 const priceLabel = formatCurrency(safePrice, property.currency);
                 const locationLabel = [
                   property.suburbName ?? property.location.suburb?.name,
-                  property.cityName ?? property.location.city?.name
-                ].filter(Boolean).join(', ');
+                  property.cityName ?? property.location.city?.name,
+                ]
+                  .filter(Boolean)
+                  .join(", ");
 
                 return (
-                  <Card key={property.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                  <Card
+                    key={property.id}
+                    className="overflow-hidden hover:shadow-md transition-shadow"
+                  >
                     <div className="h-40 bg-neutral-100 relative">
                       {/* Placeholder for image - in real app would use proper media */}
                       {property.media?.[0]?.url ? (
-                        <img src={property.media[0].url} alt={property.title} className="w-full h-full object-cover" />
+                        <img
+                          src={property.media[0].url}
+                          alt={property.title}
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-neutral-400">
                           <Home className="h-10 w-10" />
                         </div>
                       )}
                       <div className="absolute top-2 right-2">
-                        <Badge variant={
-                          property.status === 'VERIFIED' ? 'default' :
-                            property.status === 'DRAFT' ? 'secondary' : 'outline'
-                        }>
+                        <Badge
+                          variant={
+                            property.status === "VERIFIED"
+                              ? "default"
+                              : property.status === "DRAFT"
+                                ? "secondary"
+                                : "outline"
+                          }
+                        >
                           {property.status}
                         </Badge>
                       </div>
                     </div>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-semibold truncate" title={property.title}>
+                      <CardTitle
+                        className="text-base font-semibold truncate"
+                        title={property.title}
+                      >
                         {property.title}
                       </CardTitle>
                       <CardDescription className="flex items-center gap-1 text-xs">
-                        <MapPin className="h-3 w-3" /> {locationLabel || 'No location set'}
+                        <MapPin className="h-3 w-3" />{" "}
+                        {locationLabel || "No location set"}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="pb-2">
                       <div className="text-lg font-bold text-emerald-600 flex items-center gap-1">
                         {priceLabel}
                         <span className="text-xs font-normal text-neutral-500">
-                          {property.listingIntent === 'TO_RENT' ? '/ month' : ''}
+                          {property.listingIntent === "TO_RENT"
+                            ? "/ month"
+                            : ""}
                         </span>
                       </div>
                     </CardContent>
                     <CardFooter className="pt-2 flex justify-between gap-2 border-t bg-neutral-50/50">
                       <div className="flex gap-2 flex-1">
-                        <Link href={`/dashboard/listings/${property.id}`} className="flex-1">
-                          <Button variant="default" className="w-full" size="sm">
+                        <Link
+                          href={`/dashboard/listings/${property.id}`}
+                          className="flex-1"
+                        >
+                          <Button
+                            variant="default"
+                            className="w-full"
+                            size="sm"
+                          >
                             Manage
                           </Button>
                         </Link>
                         {/* Publish Button for DRAFT */}
-                        {property.status === 'DRAFT' && (
+                        {property.status === "DRAFT" && (
                           <Button
                             variant="secondary"
                             size="sm"
                             onClick={async (e) => {
                               e.preventDefault();
-                              if (confirm('Publish this listing?')) {
+                              if (confirm("Publish this listing?")) {
                                 try {
-                                  await sdk.request(`/properties/${property.id}/publish`, { method: 'PATCH' });
+                                  await sdk.request(
+                                    `/properties/${property.id}/publish`,
+                                    { method: "PATCH" },
+                                  );
                                   window.location.reload();
                                 } catch (err) {
-                                  alert('Failed to publish');
+                                  alert("Failed to publish");
                                 }
                               }
                             }}
@@ -198,7 +242,9 @@ export function PropertyManagement() {
                         )}
                       </div>
                       <Link href={`/dashboard/listings/${property.id}/edit`}>
-                        <Button variant="ghost" size="sm">Edit</Button>
+                        <Button variant="ghost" size="sm">
+                          Edit
+                        </Button>
                       </Link>
                     </CardFooter>
                   </Card>

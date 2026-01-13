@@ -1,7 +1,9 @@
 'use client';
+'use client';
 
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@propad/ui';
+
 import { useSession } from 'next-auth/react';
 import { formatCurrency } from '@/lib/formatters';
 import { Loader2 } from 'lucide-react';

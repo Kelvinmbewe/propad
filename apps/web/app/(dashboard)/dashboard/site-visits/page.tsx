@@ -1,7 +1,9 @@
 'use client';
+'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
+
 import { Loader2, MapPin, CheckCircle, Clock, User, UserCheck, ShieldAlert } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';

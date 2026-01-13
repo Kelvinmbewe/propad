@@ -2,9 +2,11 @@ import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { InterestActions } from '@/components/interest-actions';
+
 import { serverApiRequest } from '@/lib/server-api';
 
 export const dynamic = 'force-dynamic';
+
 
 interface Interest {
   id: string;

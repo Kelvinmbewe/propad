@@ -1,7 +1,9 @@
 'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@propad/ui';
+
 import { useRouter } from 'next/navigation';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import type { AdvertiserAnalyticsSummary } from '@propad/sdk';

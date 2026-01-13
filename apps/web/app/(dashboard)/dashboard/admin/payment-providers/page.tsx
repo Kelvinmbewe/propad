@@ -1,7 +1,9 @@
 'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { getServerApiBaseUrl } from '@propad/config';
+
 
 interface PaymentProvider {
   id: string;

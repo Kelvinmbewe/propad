@@ -1,9 +1,11 @@
-'use client';
+"use client";
+"use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useSession } from 'next-auth/react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+import { useSession } from "next-auth/react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Area,
   AreaChart,
@@ -13,11 +15,21 @@ import {
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
   XAxis,
-  YAxis
-} from 'recharts';
-import { io } from 'socket.io-client';
-import { Building2, MapPin, MousePointerClick, TrendingUp, Users, X, LayoutDashboard, Wallet2, MessageSquare } from 'lucide-react';
-import { env } from '@propad/config';
+  YAxis,
+} from "recharts";
+import { io } from "socket.io-client";
+import {
+  Building2,
+  MapPin,
+  MousePointerClick,
+  TrendingUp,
+  Users,
+  X,
+  LayoutDashboard,
+  Wallet2,
+  MessageSquare,
+} from "lucide-react";
+import { env } from "@propad/config";
 import {
   Button,
   Card,
@@ -25,32 +37,45 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Skeleton
-} from '@propad/ui';
-import { useOverviewMetrics, useDailyAds, useTopAgents, useGeoListings } from '@/hooks/use-admin-metrics';
-import { useDashboardMetrics } from '@/hooks/use-dashboard-metrics';
-import { useAdvertiser } from '@/hooks/use-advertiser';
-import type { AdminOverviewMetrics, DailyAdsPoint, TopAgentPerformance, Role } from '@propad/sdk';
+  Skeleton,
+} from "@propad/ui";
+import {
+  useOverviewMetrics,
+  useDailyAds,
+  useTopAgents,
+  useGeoListings,
+} from "@/hooks/use-admin-metrics";
+import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
+import { useAdvertiser } from "@/hooks/use-advertiser";
+import type {
+  AdminOverviewMetrics,
+  DailyAdsPoint,
+  TopAgentPerformance,
+  Role,
+} from "@propad/sdk";
 
 const RANGE_OPTIONS = [7, 30, 90] as const;
-const CITY_CHOICES = ['Harare', 'Bulawayo', 'Mutare'];
+const CITY_CHOICES = ["Harare", "Bulawayo", "Mutare"];
 
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD'
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
 });
 
-const numberFormatter = new Intl.NumberFormat('en-US');
+const numberFormatter = new Intl.NumberFormat("en-US");
 
 type RangeOption = (typeof RANGE_OPTIONS)[number];
 
-type DateFormatPattern = 'yyyy-MM-dd' | 'MMM d' | 'MMM d, yyyy';
+type DateFormatPattern = "yyyy-MM-dd" | "MMM d" | "MMM d, yyyy";
 
-const shortDateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
-const longDateFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric'
+const shortDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+});
+const longDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
 });
 
 function parseISO(value: string) {
@@ -68,20 +93,28 @@ function subDays(date: Date, amount: number) {
 }
 
 function differenceInCalendarDays(left: Date, right: Date) {
-  const startLeft = Date.UTC(left.getFullYear(), left.getMonth(), left.getDate());
-  const startRight = Date.UTC(right.getFullYear(), right.getMonth(), right.getDate());
+  const startLeft = Date.UTC(
+    left.getFullYear(),
+    left.getMonth(),
+    left.getDate(),
+  );
+  const startRight = Date.UTC(
+    right.getFullYear(),
+    right.getMonth(),
+    right.getDate(),
+  );
   const diff = startLeft - startRight;
   return Math.round(diff / (24 * 60 * 60 * 1000));
 }
 
 function format(date: Date, pattern: DateFormatPattern) {
-  if (pattern === 'yyyy-MM-dd') {
+  if (pattern === "yyyy-MM-dd") {
     return date.toISOString().slice(0, 10);
   }
-  if (pattern === 'MMM d') {
+  if (pattern === "MMM d") {
     return shortDateFormatter.format(date);
   }
-  if (pattern === 'MMM d, yyyy') {
+  if (pattern === "MMM d, yyyy") {
     return longDateFormatter.format(date);
   }
   return date.toISOString();
@@ -93,12 +126,12 @@ export function DashboardOverview() {
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
-  const role = (session?.user?.role || 'USER') as Role;
+  const role = (session?.user?.role || "USER") as Role;
 
   // --- Admin Specific State ---
-  const toParam = searchParams.get('to');
-  const fromParam = searchParams.get('from');
-  const cityParam = searchParams.get('city');
+  const toParam = searchParams.get("to");
+  const fromParam = searchParams.get("from");
+  const cityParam = searchParams.get("city");
 
   const today = new Date();
   const toCandidate = toParam ? parseISO(toParam) : today;
@@ -108,11 +141,14 @@ export function DashboardOverview() {
   const fromDate = isValid(fromCandidate) ? fromCandidate : defaultFrom;
   const normalizedFrom = fromDate > toDate ? subDays(toDate, 29) : fromDate;
 
-  const fromIso = format(normalizedFrom, 'yyyy-MM-dd');
-  const toIso = format(toDate, 'yyyy-MM-dd');
-  const selectedCity = cityParam && cityParam.trim().length > 0 ? cityParam : 'Harare';
+  const fromIso = format(normalizedFrom, "yyyy-MM-dd");
+  const toIso = format(toDate, "yyyy-MM-dd");
+  const selectedCity =
+    cityParam && cityParam.trim().length > 0 ? cityParam : "Harare";
   const rangeDays = differenceInCalendarDays(toDate, normalizedFrom) + 1;
-  const activeRange: RangeOption | null = RANGE_OPTIONS.includes(rangeDays as RangeOption)
+  const activeRange: RangeOption | null = RANGE_OPTIONS.includes(
+    rangeDays as RangeOption,
+  )
     ? (rangeDays as RangeOption)
     : null;
 
@@ -120,7 +156,7 @@ export function DashboardOverview() {
   const dashboardQuery = useDashboardMetrics();
 
   // Conditionally fetch admin metrics
-  const isAdmin = role === 'ADMIN';
+  const isAdmin = role === "ADMIN";
   const overviewQuery = useOverviewMetrics(); // Ideally conditionally enabled, but keep simple for now
   const dailyAdsQuery = useDailyAds(fromIso, toIso);
   const [agentsLimit, setAgentsLimit] = useState(5);
@@ -139,22 +175,22 @@ export function DashboardOverview() {
       });
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
-    [pathname, router, searchParams]
+    [pathname, router, searchParams],
   );
 
   const handleRangeChange = useCallback(
     (days: RangeOption) => {
       const newFrom = subDays(toDate, days - 1);
-      updateQuery({ from: format(newFrom, 'yyyy-MM-dd'), to: toIso });
+      updateQuery({ from: format(newFrom, "yyyy-MM-dd"), to: toIso });
     },
-    [toDate, toIso, updateQuery]
+    [toDate, toIso, updateQuery],
   );
 
   const handleCityChange = useCallback(
     (value: string) => {
       updateQuery({ city: value });
     },
-    [updateQuery]
+    [updateQuery],
   );
 
   // --- Data Preparation ---
@@ -173,26 +209,28 @@ export function DashboardOverview() {
 
     const apiBase = env.NEXT_PUBLIC_API_BASE_URL;
     if (!apiBase) {
-      console.warn('Dashboard metrics socket disabled: NEXT_PUBLIC_API_BASE_URL is not configured.');
+      console.warn(
+        "Dashboard metrics socket disabled: NEXT_PUBLIC_API_BASE_URL is not configured.",
+      );
       return;
     }
 
     const baseUrl = new URL(apiBase);
-    const wsProtocol = baseUrl.protocol === 'https:' ? 'wss' : 'ws';
+    const wsProtocol = baseUrl.protocol === "https:" ? "wss" : "ws";
     const socket = io(`${wsProtocol}://${baseUrl.host}/admin.metrics`, {
-      transports: ['websocket'],
-      auth: { token: session.accessToken }
+      transports: ["websocket"],
+      auth: { token: session.accessToken },
     });
 
-    socket.on('metrics:overview:update', (payload: AdminOverviewMetrics) => {
-      queryClient.setQueryData(['admin-metrics', 'overview'], payload);
+    socket.on("metrics:overview:update", (payload: AdminOverviewMetrics) => {
+      queryClient.setQueryData(["admin-metrics", "overview"], payload);
     });
 
-    socket.on('metrics:ads:tick', (payload: DailyAdsPoint) => {
+    socket.on("metrics:ads:tick", (payload: DailyAdsPoint) => {
       queryClient.setQueryData(
-        ['admin-metrics', 'ads', fromIso, toIso],
+        ["admin-metrics", "ads", fromIso, toIso],
         (current: DailyAdsPoint[] | undefined) => {
-          const payloadDay = format(parseISO(payload.date), 'yyyy-MM-dd');
+          const payloadDay = format(parseISO(payload.date), "yyyy-MM-dd");
           const inRange = payloadDay >= fromIso && payloadDay <= toIso;
           if (!inRange) {
             return current;
@@ -201,7 +239,8 @@ export function DashboardOverview() {
             return [payload];
           }
           const index = current.findIndex(
-            (point) => format(parseISO(point.date), 'yyyy-MM-dd') === payloadDay
+            (point) =>
+              format(parseISO(point.date), "yyyy-MM-dd") === payloadDay,
           );
           if (index >= 0) {
             const next = current.slice();
@@ -209,14 +248,18 @@ export function DashboardOverview() {
             return next;
           }
           const next = [...current, payload];
-          next.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          next.sort(
+            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+          );
           return next;
-        }
+        },
       );
     });
 
-    socket.on('leads:new', () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-metrics', 'overview'] });
+    socket.on("leads:new", () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin-metrics", "overview"],
+      });
     });
 
     return () => {
@@ -230,55 +273,56 @@ export function DashboardOverview() {
     }
   }, [agentsLimit, totalAgents]);
 
-  const [selectedAgent, setSelectedAgent] = useState<TopAgentPerformance | null>(null);
+  const [selectedAgent, setSelectedAgent] =
+    useState<TopAgentPerformance | null>(null);
 
   const overviewCards = useMemo(() => {
     if (!overview) return [];
     return [
       {
-        key: 'listings',
-        label: 'Verified listings',
+        key: "listings",
+        label: "Verified listings",
         value: numberFormatter.format(overview.listings.verified),
         hint: `${overview.listings.new7d} added this week`,
         delta: `${overview.listings.growth7dPct.toFixed(1)}% vs prior 7d`,
-        icon: Building2
+        icon: Building2,
       },
       {
-        key: 'leads',
-        label: 'Lead conversion',
+        key: "leads",
+        label: "Lead conversion",
         value: `${overview.leads.conversionRate30d.toFixed(1)}%`,
         hint: `${overview.leads.qualified30d}/${overview.leads.total30d} qualified`,
-        delta: '30-day conversion',
-        icon: MousePointerClick
+        delta: "30-day conversion",
+        icon: MousePointerClick,
       },
       {
-        key: 'revenue',
-        label: 'Ad revenue (30d)',
+        key: "revenue",
+        label: "Ad revenue (30d)",
         value: currencyFormatter.format(overview.revenue.total30dUsd),
         hint: `Daily avg ${currencyFormatter.format(overview.revenue.averageDailyUsd)}`,
         delta: `${overview.revenue.deltaPct.toFixed(1)}% vs prev 30d`,
-        icon: TrendingUp
+        icon: TrendingUp,
       },
       {
-        key: 'agents',
-        label: 'Active agents',
+        key: "agents",
+        label: "Active agents",
         value: numberFormatter.format(overview.agents.active30d),
         hint: `${overview.agents.new7d} joined last 7d`,
         delta: `${overview.agents.total} total roster`,
-        icon: Users
-      }
+        icon: Users,
+      },
     ];
   }, [overview]);
 
   const dailyAdsChartData = useMemo(
     () =>
       dailyAds.map((point) => ({
-        dateLabel: format(parseISO(point.date), 'MMM d'),
+        dateLabel: format(parseISO(point.date), "MMM d"),
         revenue: point.revenueUSD,
         impressions: point.impressions,
-        clicks: point.clicks
+        clicks: point.clicks,
       })),
-    [dailyAds]
+    [dailyAds],
   );
 
   const geoChartData = useMemo(() => {
@@ -288,7 +332,7 @@ export function DashboardOverview() {
     return geoData.suburbs.slice(0, 6).map((suburb) => ({
       name: suburb.suburbName,
       verified: suburb.verifiedListings,
-      pending: suburb.pendingListings
+      pending: suburb.pendingListings,
     }));
   }, [geoData]);
 
@@ -318,7 +362,7 @@ export function DashboardOverview() {
   const advertiserQuery = useAdvertiser();
 
   if (!isAdmin) {
-    if (role === 'ADVERTISER') {
+    if (role === "ADVERTISER") {
       const { stats, campaigns, isLoading } = advertiserQuery;
 
       if (isLoading) return <Skeleton className="h-64 w-full" />;
@@ -329,42 +373,64 @@ export function DashboardOverview() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold">Advertiser Dashboard</h1>
-            <Button onClick={() => alert('Campaign Creation Wizard coming in Phase C')}>Create Campaign</Button>
+            <Button
+              onClick={() =>
+                alert("Campaign Creation Wizard coming in Phase C")
+              }
+            >
+              Create Campaign
+            </Button>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-neutral-500">Impressions</CardTitle>
+                <CardTitle className="text-sm font-medium text-neutral-500">
+                  Impressions
+                </CardTitle>
                 <Users className="h-4 w-4 text-neutral-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{numberFormatter.format(stats.impressions)}</div>
+                <div className="text-2xl font-bold">
+                  {numberFormatter.format(stats.impressions)}
+                </div>
                 <p className="text-xs text-neutral-500">Total ad views</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-neutral-500">Clicks</CardTitle>
+                <CardTitle className="text-sm font-medium text-neutral-500">
+                  Clicks
+                </CardTitle>
                 <MousePointerClick className="h-4 w-4 text-neutral-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{numberFormatter.format(stats.clicks)}</div>
-                <p className="text-xs text-neutral-500">Total clicks received</p>
+                <div className="text-2xl font-bold">
+                  {numberFormatter.format(stats.clicks)}
+                </div>
+                <p className="text-xs text-neutral-500">
+                  Total clicks received
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-neutral-500">Spend</CardTitle>
+                <CardTitle className="text-sm font-medium text-neutral-500">
+                  Spend
+                </CardTitle>
                 <Wallet2 className="h-4 w-4 text-neutral-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{currencyFormatter.format(stats.spend)}</div>
+                <div className="text-2xl font-bold">
+                  {currencyFormatter.format(stats.spend)}
+                </div>
                 <p className="text-xs text-neutral-500">Total campaign spend</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-neutral-500">Campaigns</CardTitle>
+                <CardTitle className="text-sm font-medium text-neutral-500">
+                  Campaigns
+                </CardTitle>
                 <LayoutDashboard className="h-4 w-4 text-neutral-500" />
               </CardHeader>
               <CardContent>
@@ -377,51 +443,76 @@ export function DashboardOverview() {
       );
     }
 
-    if (!scopedMetrics) return <p className="text-neutral-500">No dashboard data available.</p>;
+    if (!scopedMetrics)
+      return <p className="text-neutral-500">No dashboard data available.</p>;
 
-    if (scopedMetrics.type === 'AGENT') {
+    if (scopedMetrics.type === "AGENT") {
       return (
         <div className="space-y-6">
           <h1 className="text-2xl font-semibold">Agent Dashboard</h1>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-neutral-500">Active Listings</CardTitle>
+                <CardTitle className="text-sm font-medium text-neutral-500">
+                  Active Listings
+                </CardTitle>
                 <Building2 className="h-4 w-4 text-neutral-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{scopedMetrics.activeListings}</div>
-                <p className="text-xs text-neutral-500">Properties verified & live</p>
+                <div className="text-2xl font-bold">
+                  {scopedMetrics.activeListings}
+                </div>
+                <p className="text-xs text-neutral-500">
+                  Properties verified & live
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-neutral-500">Total Interests</CardTitle>
+                <CardTitle className="text-sm font-medium text-neutral-500">
+                  Total Interests
+                </CardTitle>
                 <Users className="h-4 w-4 text-neutral-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{scopedMetrics.totalInterests}</div>
-                <p className="text-xs text-neutral-500">Total leads/interests</p>
+                <div className="text-2xl font-bold">
+                  {scopedMetrics.totalInterests}
+                </div>
+                <p className="text-xs text-neutral-500">
+                  Total leads/interests
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-neutral-500">New Leads (7d)</CardTitle>
+                <CardTitle className="text-sm font-medium text-neutral-500">
+                  New Leads (7d)
+                </CardTitle>
                 <TrendingUp className="h-4 w-4 text-neutral-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{scopedMetrics.newLeads7d}</div>
-                <p className="text-xs text-neutral-500">Recent potential clients</p>
+                <div className="text-2xl font-bold">
+                  {scopedMetrics.newLeads7d}
+                </div>
+                <p className="text-xs text-neutral-500">
+                  Recent potential clients
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-neutral-500">Pending Commission</CardTitle>
+                <CardTitle className="text-sm font-medium text-neutral-500">
+                  Pending Commission
+                </CardTitle>
                 <Wallet2 className="h-4 w-4 text-neutral-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{currencyFormatter.format(scopedMetrics.pendingCommissionUsd)}</div>
-                <p className="text-xs text-neutral-500">Rewards to be paid out</p>
+                <div className="text-2xl font-bold">
+                  {currencyFormatter.format(scopedMetrics.pendingCommissionUsd)}
+                </div>
+                <p className="text-xs text-neutral-500">
+                  Rewards to be paid out
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -429,39 +520,53 @@ export function DashboardOverview() {
       );
     }
 
-    if (scopedMetrics.type === 'LANDLORD') {
+    if (scopedMetrics.type === "LANDLORD") {
       return (
         <div className="space-y-6">
           <h1 className="text-2xl font-semibold">Landlord Dashboard</h1>
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-neutral-500">Owned Properties</CardTitle>
+                <CardTitle className="text-sm font-medium text-neutral-500">
+                  Owned Properties
+                </CardTitle>
                 <Building2 className="h-4 w-4 text-neutral-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{scopedMetrics.ownedProperties}</div>
+                <div className="text-2xl font-bold">
+                  {scopedMetrics.ownedProperties}
+                </div>
                 <p className="text-xs text-neutral-500">Total portfolio size</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-neutral-500">Active Tenants</CardTitle>
+                <CardTitle className="text-sm font-medium text-neutral-500">
+                  Active Tenants
+                </CardTitle>
                 <Users className="h-4 w-4 text-neutral-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{scopedMetrics.activeTenants}</div>
+                <div className="text-2xl font-bold">
+                  {scopedMetrics.activeTenants}
+                </div>
                 <p className="text-xs text-neutral-500">Currently renting</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-neutral-500">Occupancy Rate</CardTitle>
+                <CardTitle className="text-sm font-medium text-neutral-500">
+                  Occupancy Rate
+                </CardTitle>
                 <TrendingUp className="h-4 w-4 text-neutral-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{scopedMetrics.occupancyRate.toFixed(1)}%</div>
-                <p className="text-xs text-neutral-500">Portfolio utilization</p>
+                <div className="text-2xl font-bold">
+                  {scopedMetrics.occupancyRate.toFixed(1)}%
+                </div>
+                <p className="text-xs text-neutral-500">
+                  Portfolio utilization
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -476,21 +581,31 @@ export function DashboardOverview() {
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-neutral-500">Active Applications</CardTitle>
+              <CardTitle className="text-sm font-medium text-neutral-500">
+                Active Applications
+              </CardTitle>
               <LayoutDashboard className="h-4 w-4 text-neutral-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{scopedMetrics?.activeApplications || 0}</div>
-              <p className="text-xs text-neutral-500">Ongoing property applications</p>
+              <div className="text-2xl font-bold">
+                {scopedMetrics?.activeApplications || 0}
+              </div>
+              <p className="text-xs text-neutral-500">
+                Ongoing property applications
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-neutral-500">Saved Properties</CardTitle>
+              <CardTitle className="text-sm font-medium text-neutral-500">
+                Saved Properties
+              </CardTitle>
               <Users className="h-4 w-4 text-neutral-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{scopedMetrics?.savedProperties || 0}</div>
+              <div className="text-2xl font-bold">
+                {scopedMetrics?.savedProperties || 0}
+              </div>
               <p className="text-xs text-neutral-500">Favorites & Watchlist</p>
             </CardContent>
           </Card>
@@ -504,16 +619,19 @@ export function DashboardOverview() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">Operations overview</h1>
+          <h1 className="text-2xl font-semibold text-neutral-900">
+            Operations overview
+          </h1>
           <p className="text-sm text-neutral-600">
-            Performance metrics update automatically from live marketplace signals.
+            Performance metrics update automatically from live marketplace
+            signals.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {RANGE_OPTIONS.map((option) => (
             <Button
               key={option}
-              variant={activeRange === option ? 'default' : 'outline'}
+              variant={activeRange === option ? "default" : "outline"}
               onClick={() => handleRangeChange(option)}
             >
               Last {option}d
@@ -535,27 +653,34 @@ export function DashboardOverview() {
               </CardContent>
             </Card>
           ))}
-        {!overviewQuery.isLoading && overviewCards.map((card) => (
-          <Card key={card.key} className="border-neutral-200">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-sm font-medium text-neutral-600">
-                  {card.label}
-                </CardTitle>
-                <CardDescription>{card.hint}</CardDescription>
-              </div>
-              <card.icon className="h-5 w-5 text-neutral-500" aria-hidden />
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold text-neutral-900">{card.value}</p>
-              <p className="mt-2 text-xs font-medium text-neutral-500">{card.delta}</p>
-            </CardContent>
-          </Card>
-        ))}
+        {!overviewQuery.isLoading &&
+          overviewCards.map((card) => (
+            <Card key={card.key} className="border-neutral-200">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium text-neutral-600">
+                    {card.label}
+                  </CardTitle>
+                  <CardDescription>{card.hint}</CardDescription>
+                </div>
+                <card.icon className="h-5 w-5 text-neutral-500" aria-hidden />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold text-neutral-900">
+                  {card.value}
+                </p>
+                <p className="mt-2 text-xs font-medium text-neutral-500">
+                  {card.delta}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
         {overviewQuery.isError && !overview && (
           <Card className="md:col-span-2 xl:col-span-4 border-red-200 bg-red-50">
             <CardHeader>
-              <CardTitle className="text-red-700">Unable to load overview metrics</CardTitle>
+              <CardTitle className="text-red-700">
+                Unable to load overview metrics
+              </CardTitle>
               <CardDescription className="text-red-600">
                 Please refresh or try again later.
               </CardDescription>
@@ -569,22 +694,42 @@ export function DashboardOverview() {
           <CardHeader>
             <CardTitle>Daily ad performance</CardTitle>
             <CardDescription>
-              {format(normalizedFrom, 'MMM d, yyyy')} – {format(toDate, 'MMM d, yyyy')}
+              {format(normalizedFrom, "MMM d, yyyy")} –{" "}
+              {format(toDate, "MMM d, yyyy")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {dailyAdsQuery.isLoading ? (
               <Skeleton className="h-64 w-full" />
             ) : dailyAdsChartData.length === 0 ? (
-              <p className="text-sm text-neutral-500">No ad activity recorded for the selected range.</p>
+              <p className="text-sm text-neutral-500">
+                No ad activity recorded for the selected range.
+              </p>
             ) : (
               <div className="h-64">
                 <ResponsiveContainer>
-                  <AreaChart data={dailyAdsChartData} margin={{ left: 8, right: 16 }}>
+                  <AreaChart
+                    data={dailyAdsChartData}
+                    margin={{ left: 8, right: 16 }}
+                  >
                     <defs>
-                      <linearGradient id="revenueGradient" x1="0" x2="0" y1="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0.05} />
+                      <linearGradient
+                        id="revenueGradient"
+                        x1="0"
+                        x2="0"
+                        y1="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#6366f1"
+                          stopOpacity={0.35}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#6366f1"
+                          stopOpacity={0.05}
+                        />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -595,13 +740,21 @@ export function DashboardOverview() {
                       fontSize={12}
                       tickFormatter={(value) => `$${value}`}
                     />
-                    <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={12} />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      stroke="#94a3b8"
+                      fontSize={12}
+                    />
                     <RechartsTooltip
                       formatter={(value: number, name) => {
-                        if (name === 'revenue') {
-                          return [currencyFormatter.format(value), 'Revenue'];
+                        if (name === "revenue") {
+                          return [currencyFormatter.format(value), "Revenue"];
                         }
-                        return [numberFormatter.format(value), name === 'impressions' ? 'Impressions' : 'Clicks'];
+                        return [
+                          numberFormatter.format(value),
+                          name === "impressions" ? "Impressions" : "Clicks",
+                        ];
                       }}
                     />
                     <Area
@@ -612,7 +765,13 @@ export function DashboardOverview() {
                       fill="url(#revenueGradient)"
                       name="revenue"
                     />
-                    <Bar yAxisId="right" dataKey="impressions" fill="#a855f7" name="impressions" opacity={0.45} />
+                    <Bar
+                      yAxisId="right"
+                      dataKey="impressions"
+                      fill="#a855f7"
+                      name="impressions"
+                      opacity={0.45}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -647,29 +806,53 @@ export function DashboardOverview() {
             ) : geoData && geoData.suburbs.length > 0 ? (
               <div className="h-48">
                 <ResponsiveContainer>
-                  <BarChart data={geoChartData} margin={{ left: 16, right: 16 }}>
+                  <BarChart
+                    data={geoChartData}
+                    margin={{ left: 16, right: 16 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="name" stroke="#4b5563" fontSize={12} />
                     <YAxis stroke="#4b5563" fontSize={12} />
                     <RechartsTooltip
-                      formatter={(value: number, name) => [numberFormatter.format(value), name]}
+                      formatter={(value: number, name) => [
+                        numberFormatter.format(value),
+                        name,
+                      ]}
                     />
-                    <Bar dataKey="verified" fill="#22c55e" name="Verified" radius={4} />
-                    <Bar dataKey="pending" fill="#f97316" name="Pending" radius={4} />
+                    <Bar
+                      dataKey="verified"
+                      fill="#22c55e"
+                      name="Verified"
+                      radius={4}
+                    />
+                    <Bar
+                      dataKey="pending"
+                      fill="#f97316"
+                      name="Pending"
+                      radius={4}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             ) : (
-              <p className="text-sm text-neutral-500">No suburb level listings available for this city.</p>
+              <p className="text-sm text-neutral-500">
+                No suburb level listings available for this city.
+              </p>
             )}
 
             {geoData && geoData.suburbs.length > 0 && (
               <div className="space-y-2">
                 {geoData.suburbs.slice(0, 4).map((suburb) => (
-                  <div key={suburb.suburbId} className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-neutral-700">{suburb.suburbName}</span>
+                  <div
+                    key={suburb.suburbId}
+                    className="flex items-center justify-between text-sm"
+                  >
+                    <span className="font-medium text-neutral-700">
+                      {suburb.suburbName}
+                    </span>
                     <span className="text-neutral-500">
-                      {suburb.verifiedListings} verified · {suburb.pendingListings} pending ·{' '}
+                      {suburb.verifiedListings} verified ·{" "}
+                      {suburb.pendingListings} pending ·{" "}
                       {suburb.marketSharePct.toFixed(1)}%
                     </span>
                   </div>
@@ -691,7 +874,9 @@ export function DashboardOverview() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setAgentsLimit((limit) => Math.max(5, limit - 5))}
+                onClick={() =>
+                  setAgentsLimit((limit) => Math.max(5, limit - 5))
+                }
                 disabled={agentsLimit <= 5}
               >
                 Show fewer
@@ -699,7 +884,11 @@ export function DashboardOverview() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setAgentsLimit((limit) => Math.min(limit + 5, totalAgents || limit + 5))}
+                onClick={() =>
+                  setAgentsLimit((limit) =>
+                    Math.min(limit + 5, totalAgents || limit + 5),
+                  )
+                }
                 disabled={totalAgents > 0 && agentsLimit >= totalAgents}
               >
                 Show more
@@ -710,14 +899,18 @@ export function DashboardOverview() {
             {topAgentsQuery.isLoading ? (
               <Skeleton className="h-48 w-full" />
             ) : topAgents.length === 0 ? (
-              <p className="text-sm text-neutral-500">No agent activity recorded for this period.</p>
+              <p className="text-sm text-neutral-500">
+                No agent activity recorded for this period.
+              </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[480px] text-left text-sm">
                   <thead className="bg-neutral-50 text-neutral-600">
                     <tr>
                       <th className="px-4 py-2 font-medium">Agent</th>
-                      <th className="px-4 py-2 font-medium">Verified listings</th>
+                      <th className="px-4 py-2 font-medium">
+                        Verified listings
+                      </th>
                       <th className="px-4 py-2 font-medium">Valid leads</th>
                       <th className="px-4 py-2 font-medium">Month points</th>
                       <th className="px-4 py-2 font-medium">Est. payout</th>
@@ -730,11 +923,21 @@ export function DashboardOverview() {
                         className="cursor-pointer border-b border-neutral-100 text-neutral-700 transition hover:bg-neutral-50"
                         onClick={() => setSelectedAgent(agent)}
                       >
-                        <td className="px-4 py-2 font-medium">{agent.agentName ?? 'Unnamed agent'}</td>
-                        <td className="px-4 py-2">{numberFormatter.format(agent.verifiedListings)}</td>
-                        <td className="px-4 py-2">{numberFormatter.format(agent.validLeads)}</td>
-                        <td className="px-4 py-2">{numberFormatter.format(agent.monthPoints)}</td>
-                        <td className="px-4 py-2">{currencyFormatter.format(agent.estPayoutUSD)}</td>
+                        <td className="px-4 py-2 font-medium">
+                          {agent.agentName ?? "Unnamed agent"}
+                        </td>
+                        <td className="px-4 py-2">
+                          {numberFormatter.format(agent.verifiedListings)}
+                        </td>
+                        <td className="px-4 py-2">
+                          {numberFormatter.format(agent.validLeads)}
+                        </td>
+                        <td className="px-4 py-2">
+                          {numberFormatter.format(agent.monthPoints)}
+                        </td>
+                        <td className="px-4 py-2">
+                          {currencyFormatter.format(agent.estPayoutUSD)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -747,7 +950,9 @@ export function DashboardOverview() {
         <Card className="border-neutral-200">
           <CardHeader>
             <CardTitle>Payout pipeline</CardTitle>
-            <CardDescription>Pending disbursements and wallet state</CardDescription>
+            <CardDescription>
+              Pending disbursements and wallet state
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-neutral-600">
             {overview ? (
@@ -755,7 +960,8 @@ export function DashboardOverview() {
                 <div className="flex items-center justify-between rounded-md bg-neutral-50 px-3 py-2">
                   <span>Pending payouts</span>
                   <span className="font-medium text-neutral-800">
-                    {currencyFormatter.format(overview.payouts.pendingUsd)} · {overview.payouts.pendingCount}
+                    {currencyFormatter.format(overview.payouts.pendingUsd)} ·{" "}
+                    {overview.payouts.pendingCount}
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-md bg-neutral-50 px-3 py-2">
@@ -767,7 +973,8 @@ export function DashboardOverview() {
                 <div className="flex items-center justify-between rounded-md bg-neutral-50 px-3 py-2">
                   <span>Ad impressions</span>
                   <span className="font-medium text-neutral-800">
-                    {numberFormatter.format(overview.traffic.impressions30d)} · CTR {overview.traffic.ctr30d.toFixed(1)}%
+                    {numberFormatter.format(overview.traffic.impressions30d)} ·
+                    CTR {overview.traffic.ctr30d.toFixed(1)}%
                   </span>
                 </div>
               </>
@@ -780,31 +987,48 @@ export function DashboardOverview() {
 
       {selectedAgent && (
         <div className="fixed inset-0 z-40 flex justify-end">
-          <div className="absolute inset-0 bg-black/40" onClick={handleCloseDrawer} aria-hidden />
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={handleCloseDrawer}
+            aria-hidden
+          />
           <aside className="relative h-full w-full max-w-md overflow-y-auto bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-4">
               <div>
                 <h2 className="text-lg font-semibold text-neutral-900">
-                  {selectedAgent.agentName ?? 'Agent details'}
+                  {selectedAgent.agentName ?? "Agent details"}
                 </h2>
-                <p className="text-sm text-neutral-500">Agent ID: {selectedAgent.agentId}</p>
+                <p className="text-sm text-neutral-500">
+                  Agent ID: {selectedAgent.agentId}
+                </p>
               </div>
-              <Button variant="ghost" size="icon" onClick={handleCloseDrawer} aria-label="Close agent details">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCloseDrawer}
+                aria-label="Close agent details"
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
             <div className="space-y-4 px-6 py-6 text-sm text-neutral-700">
               <div className="flex items-center justify-between">
                 <span>Verified listings</span>
-                <span className="font-medium">{numberFormatter.format(selectedAgent.verifiedListings)}</span>
+                <span className="font-medium">
+                  {numberFormatter.format(selectedAgent.verifiedListings)}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Valid leads</span>
-                <span className="font-medium">{numberFormatter.format(selectedAgent.validLeads)}</span>
+                <span className="font-medium">
+                  {numberFormatter.format(selectedAgent.validLeads)}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Month points</span>
-                <span className="font-medium">{numberFormatter.format(selectedAgent.monthPoints)}</span>
+                <span className="font-medium">
+                  {numberFormatter.format(selectedAgent.monthPoints)}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Estimated payout</span>
@@ -813,8 +1037,9 @@ export function DashboardOverview() {
                 </span>
               </div>
               <p className="rounded-md bg-neutral-50 p-3 text-xs text-neutral-500">
-                Payout forecasts refresh automatically when new reward events post or listings verify. Agents are eligible for
-                disbursement once earnings clear the wallet threshold.
+                Payout forecasts refresh automatically when new reward events
+                post or listings verify. Agents are eligible for disbursement
+                once earnings clear the wallet threshold.
               </p>
             </div>
           </aside>
@@ -823,4 +1048,3 @@ export function DashboardOverview() {
     </div>
   );
 }
-

@@ -1,7 +1,9 @@
 'use client';
+'use client';
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Input, Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Skeleton } from '@propad/ui';
 import { formatCurrency } from '@/lib/formatters';
 import { ArrowDownLeft, ArrowUpRight, Lock, Undo, RefreshCw, Search, Filter } from 'lucide-react';
