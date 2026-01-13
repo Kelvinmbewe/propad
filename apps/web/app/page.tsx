@@ -18,6 +18,22 @@ interface ShowcaseProperty extends LandingProperty {
   coordinates: [number, number];
 }
 
+interface FeaturedListing {
+  id: string;
+  title: string;
+  price: string | number;
+  currency: string;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  areaSqm: number | null;
+  lat: number | null;
+  lng: number | null;
+  listingIntent: string | null;
+  media: Array<{ url: string }>;
+  city?: { name: string } | null;
+  suburb?: { name: string } | null;
+}
+
 const heroCards: FloatingHeroCard[] = [
   {
     accent: 'CURATED AGENTS',
@@ -38,12 +54,39 @@ const heroCards: FloatingHeroCard[] = [
 
 async function getFeaturedProperties(): Promise<ShowcaseProperty[]> {
   try {
-    // TODO: Implement API endpoint for featured properties
-    // const properties = await serverPublicApiRequest<any[]>('/properties/featured');
-    console.warn('[page.tsx] getFeaturedProperties - API endpoint not yet implemented');
+    const properties = await serverPublicApiRequest<FeaturedListing[]>('/properties/featured');
 
-    // Return empty array until API is ready
-    return [];
+    return properties.map((property) => {
+      const location = property.suburb?.name || property.city?.name || 'Zimbabwe';
+      const statusTone = property.listingIntent === 'SELL' ? 'sale' : 'rent';
+      const statusLabel = statusTone === 'sale' ? 'FOR SALE' : 'FOR RENT';
+      const imageUrl = property.media?.[0]?.url ?? '/icons/icon-512.svg';
+      const priceValue = typeof property.price === 'string' ? Number(property.price) : property.price;
+      const priceLabel = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: property.currency || 'USD',
+        maximumFractionDigits: 0
+      }).format(priceValue ?? 0);
+
+      const coordinates: [number, number] = [
+        property.lat ?? 0,
+        property.lng ?? 0
+      ];
+
+      return {
+        id: property.id,
+        title: property.title,
+        location,
+        price: priceLabel,
+        status: statusLabel,
+        statusTone,
+        imageUrl,
+        beds: property.bedrooms ?? 0,
+        baths: property.bathrooms ?? 0,
+        area: property.areaSqm ?? 0,
+        coordinates
+      };
+    });
   } catch (error) {
     console.error('Failed to fetch featured properties:', error);
     return [];

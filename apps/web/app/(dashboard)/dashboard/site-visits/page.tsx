@@ -1,20 +1,20 @@
 'use client';
-'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 
-import { Loader2, MapPin, CheckCircle, Clock, User, UserCheck, ShieldAlert } from 'lucide-react';
+import { Loader2, MapPin, Clock, User, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
-import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Badge } from '@propad/ui';
 import type { SiteVisit } from '@propad/sdk';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useSdkClient } from '@/hooks/use-sdk-client';
+import { ClientState } from '@/components/client-state';
 
 export default function SiteVisitsPage() {
+    const { sdk, status, message, accessToken, apiBaseUrl } = useSdkClient();
     const { data: session } = useSession();
-    const sdk = useAuthenticatedSDK();
     const queryClient = useQueryClient();
     const role = session?.user?.role;
     const isAdmin = role === 'ADMIN';
@@ -22,18 +22,24 @@ export default function SiteVisitsPage() {
     // Toggle between "All Pending" (Admin) and "My Assignments"
     const [viewMode, setViewMode] = useState<'PENDING' | 'MINE'>(isAdmin ? 'PENDING' : 'MINE');
 
-    const { data: visits, isLoading } = useQuery({
+    const { data: visits, isLoading, isError } = useQuery({
         queryKey: ['site-visits', viewMode],
-        enabled: !!sdk,
+        enabled: status === 'ready',
         queryFn: async () => {
-            if (viewMode === 'PENDING') return sdk!.siteVisits.listPending();
-            return sdk!.siteVisits.listMyAssignments();
+            if (!sdk) {
+                return [];
+            }
+            if (viewMode === 'PENDING') return sdk.siteVisits.listPending();
+            return sdk.siteVisits.listMyAssignments();
         }
     });
 
     const assignMutation = useMutation({
         mutationFn: async ({ visitId, moderatorId }: { visitId: string; moderatorId: string }) => {
-            return sdk!.siteVisits.assign(visitId, moderatorId);
+            if (!sdk) {
+                throw new Error('Site visit client not ready');
+            }
+            return sdk.siteVisits.assign(visitId, moderatorId);
         },
         onSuccess: () => {
             toast.success('Moderator assigned');
@@ -44,11 +50,13 @@ export default function SiteVisitsPage() {
 
     const completeMutation = useMutation({
         mutationFn: async ({ visitId, lat, lng, notes }: { visitId: string; lat: number; lng: number; notes?: string }) => {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+            if (!apiBaseUrl || !accessToken) {
+                throw new Error('Missing API configuration');
+            }
             const res = await fetch(`${apiBaseUrl}/site-visits/${visitId}/complete`, {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${session?.accessToken}`,
+                    Authorization: `Bearer ${accessToken}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ gpsLat: lat, gpsLng: lng, notes })
@@ -63,12 +71,8 @@ export default function SiteVisitsPage() {
         onError: () => toast.error('Failed to complete visit')
     });
 
-    if (!sdk || isLoading) {
-        return (
-            <div className="flex h-96 items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
-            </div>
-        );
+    if (status !== 'ready') {
+        return <ClientState status={status} message={message} title="Site visits" />;
     }
 
     return (
@@ -99,7 +103,15 @@ export default function SiteVisitsPage() {
                 )}
             </header>
 
-            {!visits?.length ? (
+            {isLoading ? (
+                <div className="flex h-64 items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
+                </div>
+            ) : isError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-600">
+                    Unable to load site visits right now. Please try again.
+                </div>
+            ) : !visits?.length ? (
                 <EmptyState viewMode={viewMode} />
             ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

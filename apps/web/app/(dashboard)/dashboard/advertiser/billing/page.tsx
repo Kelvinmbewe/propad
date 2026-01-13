@@ -1,26 +1,34 @@
 'use client';
-'use client';
 
 import { useEffect, useState } from 'react';
-import { api as sdk } from '@/lib/api-client';
 
 import { AdvertiserInvoice } from '@propad/sdk';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Badge, Button, Alert, AlertDescription, AlertTitle } from '@propad/ui';
 import { Loader2, Receipt, AlertCircle } from 'lucide-react';
+import { useSdkClient } from '@/hooks/use-sdk-client';
+import { ClientState } from '@/components/client-state';
 
 export default function AdvertiserBillingPage() {
+    const { sdk, status, message } = useSdkClient();
     const [invoices, setInvoices] = useState<AdvertiserInvoice[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        loadInvoices();
-    }, []);
+        if (status === 'ready') {
+            loadInvoices();
+        }
+    }, [status]);
 
     const loadInvoices = async () => {
         try {
+            if (!sdk) {
+                throw new Error('Billing client not ready');
+            }
+            setLoading(true);
+            setError('');
             const data = await sdk.ads.getMyInvoices();
-            setInvoices(data);
+            setInvoices(data ?? []);
         } catch (err) {
             console.error('Failed to load invoices:', err);
             setError('Failed to load invoices. Please try again.');
@@ -44,6 +52,10 @@ export default function AdvertiserBillingPage() {
         }
     };
 
+    if (status !== 'ready') {
+        return <ClientState status={status} message={message} title="Advertiser billing" />;
+    }
+
     if (loading) {
         return (
             <div className="flex justify-center p-12">
@@ -65,7 +77,14 @@ export default function AdvertiserBillingPage() {
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertDescription>
+                        {error}
+                        <div className="mt-3">
+                            <Button variant="outline" size="sm" onClick={loadInvoices}>
+                                Retry
+                            </Button>
+                        </div>
+                    </AlertDescription>
                 </Alert>
             )}
 
@@ -88,7 +107,13 @@ export default function AdvertiserBillingPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {invoices.length === 0 ? (
+                            {error ? (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                                        Unable to load invoices.
+                                    </TableCell>
+                                </TableRow>
+                            ) : invoices.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
                                         No invoices found.

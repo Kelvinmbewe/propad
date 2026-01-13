@@ -20,15 +20,18 @@ export async function logRentPayment(formData: FormData) {
   const paidAt = new Date(paidAtStr);
 
   try {
-    // TODO: Implement API endpoint
-    // await serverApiRequest('/rent-payments', {
-    //     method: 'POST',
-    //     body: { propertyId, amount, currency, paidAt, proofUrl }
-    // });
-    console.warn('[rent.ts] logRentPayment - API endpoint not yet implemented');
+    await serverApiRequest(`/properties/${propertyId}/rent-payments`, {
+      method: 'POST',
+      body: {
+        amount,
+        currency,
+        paidAt,
+        ...(proofUrl ? { proofUrl } : {})
+      }
+    });
 
     revalidatePath('/dashboard/rent-history');
-    return { success: true, warning: 'API endpoint pending implementation' };
+    return { success: true };
   } catch (error) {
     console.error('Failed to log payment:', error);
     return { error: 'Failed to log payment' };

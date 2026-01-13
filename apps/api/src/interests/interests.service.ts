@@ -1,5 +1,7 @@
-import { Injectable, Logger, BadRequestException } from "@nestjs/common";
+import { Injectable, Logger, BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { Role } from "@propad/config";
 import { PrismaService } from "../prisma/prisma.service";
+import { AuthContext } from "../auth/interfaces/auth-context.interface";
 
 @Injectable()
 export class InterestsService {
@@ -79,5 +81,44 @@ export class InterestsService {
       },
       orderBy: { createdAt: "desc" },
     });
+  }
+
+  async updateStatus(interestId: string, status: "ACCEPTED" | "REJECTED", actor: AuthContext) {
+    const interest = await this.prisma.interest.findUnique({
+      where: { id: interestId },
+      include: {
+        property: { select: { id: true, landlordId: true, agentOwnerId: true } }
+      }
+    });
+
+    if (!interest) {
+      throw new NotFoundException("Interest not found");
+    }
+
+    const isOwner = interest.property.landlordId === actor.userId;
+    const isAgentOwner = interest.property.agentOwnerId === actor.userId;
+    const isAdmin = actor.role === Role.ADMIN;
+
+    if (!isAdmin && !isOwner && !isAgentOwner) {
+      throw new ForbiddenException("You do not have permission to update this interest");
+    }
+
+    const updated = await this.prisma.interest.update({
+      where: { id: interestId },
+      data: { status }
+    });
+
+    if (status === "ACCEPTED") {
+      await this.prisma.interest.updateMany({
+        where: {
+          propertyId: interest.propertyId,
+          id: { not: interestId },
+          status: "PENDING"
+        },
+        data: { status: "ON_HOLD" }
+      });
+    }
+
+    return updated;
   }
 }

@@ -30,14 +30,13 @@ export async function acceptInterest(interestId: string) {
       return { error: 'Unauthorized' };
     }
 
-    // TODO: Implement API endpoint for accepting interest
-    // For now, return a placeholder response
-    // await serverApiRequest(`/interests/${interestId}/accept`, { method: 'POST' });
-
-    console.warn('[landlord.ts] acceptInterest - API endpoint not yet implemented');
+    await serverApiRequest(`/interests/${interestId}/status`, {
+      method: 'PATCH',
+      body: { status: InterestStatus.ACCEPTED }
+    });
 
     revalidatePath('/dashboard/interests');
-    return { success: true, warning: 'API endpoint pending implementation' };
+    return { success: true };
   } catch (error) {
     console.error('Error accepting interest:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to accept interest';
@@ -52,13 +51,13 @@ export async function rejectInterest(interestId: string) {
       return { error: 'Unauthorized' };
     }
 
-    // TODO: Implement API endpoint for rejecting interest
-    // await serverApiRequest(`/interests/${interestId}/reject`, { method: 'POST' });
-
-    console.warn('[landlord.ts] rejectInterest - API endpoint not yet implemented');
+    await serverApiRequest(`/interests/${interestId}/status`, {
+      method: 'PATCH',
+      body: { status: InterestStatus.REJECTED }
+    });
 
     revalidatePath('/dashboard/interests');
-    return { success: true, warning: 'API endpoint pending implementation' };
+    return { success: true };
   } catch (error) {
     console.error('Error rejecting interest:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to reject interest';

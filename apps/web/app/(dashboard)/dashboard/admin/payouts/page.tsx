@@ -1,8 +1,6 @@
 'use client';
-'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api as sdk } from '@/lib/api-client';
 
 import { format } from 'date-fns';
 import {
@@ -24,45 +22,58 @@ import {
   DialogTitle,
   DialogDescription,
   Textarea,
-  useToast
+  notify
 } from '@propad/ui';
 import { formatCurrency } from '@/lib/formatters';
-import { Loader2, Check, X, AlertCircle } from 'lucide-react';
+import { Loader2, Check, X } from 'lucide-react';
 import { useState } from 'react';
+import { useSdkClient } from '@/hooks/use-sdk-client';
+import { ClientState } from '@/components/client-state';
 
 export default function AdminPayoutsPage() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
+  const { sdk, status, message } = useSdkClient();
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  const { data: payouts, isLoading } = useQuery({
+  const { data: payouts, isLoading, isError } = useQuery({
     queryKey: ['admin-payouts'],
-    queryFn: () => sdk.admin.payouts.list()
+    enabled: status === 'ready',
+    queryFn: async () => {
+      if (!sdk) {
+        return [];
+      }
+      return sdk.admin.payouts.list();
+    }
   });
 
   const approveMutation = useMutation({
-    mutationFn: (id: string) => sdk.admin.payouts.approve(id),
+    mutationFn: async (id: string) => {
+      if (!sdk) {
+        throw new Error('Payout client not ready');
+      }
+      return sdk.admin.payouts.approve(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-payouts'] });
-      toast({ title: 'Approved', description: 'Payout request approved for processing.' });
+      notify.success('Payout request approved for processing.');
     },
-    onError: (err: any) => {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    onError: () => {
+      notify.error('Failed to approve payout request.');
     }
   });
 
   const rejectMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
-      sdk.admin.payouts.reject(id, reason),
+      sdk ? sdk.admin.payouts.reject(id, reason) : Promise.reject(new Error('Payout client not ready')),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-payouts'] });
-      toast({ title: 'Rejected', description: 'Payout request rejected.' });
+      notify.success('Payout request rejected.');
       setRejectId(null);
       setRejectReason('');
     },
-    onError: (err: any) => {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    onError: () => {
+      notify.error('Failed to reject payout request.');
     }
   });
 
@@ -88,16 +99,20 @@ export default function AdminPayoutsPage() {
   // I'll add "Process" action for APPROVED items.
 
   const processMutation = useMutation({
-    mutationFn: (id: string) => sdk.admin.payouts.process(id, `MANUAL-${Date.now()}`),
+    mutationFn: (id: string) =>
+      sdk ? sdk.admin.payouts.process(id, `MANUAL-${Date.now()}`) : Promise.reject(new Error('Payout client not ready')),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-payouts'] });
-      toast({ title: 'Processed', description: 'Payout sent to gateway.' });
+      notify.success('Payout sent to gateway.');
     },
-    onError: (err: any) => {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    onError: () => {
+      notify.error('Failed to process payout.');
     }
   });
 
+  if (status !== 'ready') {
+    return <ClientState status={status} message={message} title="Payout approvals" />;
+  }
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -113,6 +128,10 @@ export default function AdminPayoutsPage() {
           <CardContent>
             {isLoading ? (
               <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+            ) : isError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-600">
+                Unable to load payouts right now. Please try again.
+              </div>
             ) : pendingPayouts.length === 0 ? (
               <div className="text-center p-8 text-muted-foreground">No pending requests</div>
             ) : (

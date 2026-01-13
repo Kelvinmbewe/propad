@@ -9,16 +9,14 @@ export async function submitRating(targetUserId: string, propertyId: string, rat
     if (!session?.user?.id) throw new Error('Unauthorized');
 
     try {
-        // TODO: Implement API endpoint
-        // const review = await serverApiRequest('/reviews', {
-        //     method: 'POST',
-        //     body: { targetUserId, propertyId, rating, comment }
-        // });
-        console.warn('[ratings.ts] submitRating - API endpoint not yet implemented');
+        await serverApiRequest(`/properties/${propertyId}/ratings`, {
+            method: 'POST',
+            body: { rating, comment, type: 'EXTERNAL' }
+        });
 
         revalidatePath(`/dashboard/listings/${propertyId}`);
         return {
-            id: 'pending',
+            id: 'submitted',
             reviewerId: session.user.id,
             revieweeId: targetUserId,
             propertyId,
@@ -33,10 +31,7 @@ export async function submitRating(targetUserId: string, propertyId: string, rat
 
 export async function getPropertyRatings(propertyId: string) {
     try {
-        // TODO: Implement API endpoint
-        // return await serverApiRequest(`/properties/${propertyId}/ratings`);
-        console.warn('[ratings.ts] getPropertyRatings - API endpoint not yet implemented');
-        return [];
+        return await serverApiRequest(`/properties/${propertyId}/ratings`);
     } catch (error) {
         console.error('getPropertyRatings error:', error);
         return [];
@@ -45,11 +40,8 @@ export async function getPropertyRatings(propertyId: string) {
 
 export async function computeTrustScore(userId: string) {
     try {
-        // TODO: Implement API endpoint
-        // const result = await serverApiRequest(`/users/${userId}/trust-score`);
-        // return result.score;
-        console.warn('[ratings.ts] computeTrustScore - API endpoint not yet implemented');
-        return 0;
+        const result = await serverApiRequest<{ score: number }>(`/trust/score`);
+        return result.score;
     } catch (error) {
         console.error('computeTrustScore error:', error);
         return 0;
