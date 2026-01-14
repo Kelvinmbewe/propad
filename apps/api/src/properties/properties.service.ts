@@ -2603,7 +2603,13 @@ export class PropertiesService {
 
   async listFeatured() {
     const now = new Date();
-    const properties = await this.prisma.property.findMany({
+    const properties: Prisma.PropertyGetPayload<{
+      include: {
+        media: true;
+        city: true;
+        suburb: true;
+      };
+    }>[] = await this.prisma.property.findMany({
       where: {
         status: PropertyStatus.VERIFIED,
         featuredListing: {
