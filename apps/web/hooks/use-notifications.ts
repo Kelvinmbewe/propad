@@ -1,18 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthenticatedSDK } from './use-authenticated-sdk';
 import { useSession } from 'next-auth/react';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 export function useNotifications() {
     const sdk = useAuthenticatedSDK();
     const { data: session } = useSession();
     const queryClient = useQueryClient();
     const token = session?.accessToken;
+    const apiBaseUrl = getRequiredPublicApiBaseUrl();
 
     const { data: notifications, isLoading } = useQuery({
         queryKey: ['notifications'],
         queryFn: async () => {
             if (!token) return [];
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/notifications`, {
+            const res = await fetch(`${apiBaseUrl}/notifications`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             return res.json();
@@ -24,7 +26,7 @@ export function useNotifications() {
 
     const markRead = useMutation({
         mutationFn: async (id: string) => {
-            await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/notifications/${id}/read`, {
+            await fetch(`${apiBaseUrl}/notifications/${id}/read`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -36,7 +38,7 @@ export function useNotifications() {
 
     const markAllRead = useMutation({
         mutationFn: async () => {
-            await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/notifications/read-all`, {
+            await fetch(`${apiBaseUrl}/notifications/read-all`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` }
             });

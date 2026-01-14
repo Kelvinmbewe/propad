@@ -6,15 +6,17 @@ import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '@propad/ui';
 import { ShieldCheck, RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 export default function IntegrityPage() {
     const sdk = useAuthenticatedSDK();
     const { data: session } = useSession();
     const [reconcileResult, setReconcileResult] = useState<any>(null);
+    const apiBaseUrl = getRequiredPublicApiBaseUrl();
 
     const reconcileMutation = useMutation({
         mutationFn: async () => {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/reconciliation/wallets`, {
+            const res = await fetch(`${apiBaseUrl}/reconciliation/wallets`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${session?.accessToken}` }
             });

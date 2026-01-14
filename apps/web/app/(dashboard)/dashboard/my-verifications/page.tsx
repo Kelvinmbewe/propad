@@ -6,15 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton, Button } fro
 import { ShieldCheck, MapPin, Plus } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 export default function MyVerificationsPage() {
     const sdk = useAuthenticatedSDK();
     const { data: session } = useSession();
+    const apiBaseUrl = getRequiredPublicApiBaseUrl();
 
     const { data: requests, isLoading } = useQuery({
         queryKey: ['verifications', 'my'],
         queryFn: async () => {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/verifications/my`, {
+            const res = await fetch(`${apiBaseUrl}/verifications/my`, {
                 headers: { Authorization: `Bearer ${session?.accessToken}` }
             });
             return res.json();

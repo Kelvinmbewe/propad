@@ -6,16 +6,18 @@ import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Switch, Badge } from '@propad/ui';
 import { Activity, ShieldAlert, Cpu, Settings, RefreshCw } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 export default function OpsPage() {
     const sdk = useAuthenticatedSDK();
     const { data: session } = useSession();
     const queryClient = useQueryClient();
+    const apiBaseUrl = getRequiredPublicApiBaseUrl();
 
     const { data: metrics, isLoading: metricsLoading } = useQuery({
         queryKey: ['metrics', 'system'],
         queryFn: async () => {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/metrics/system`, {
+            const res = await fetch(`${apiBaseUrl}/admin/metrics/system`, {
                 headers: { Authorization: `Bearer ${session?.accessToken}` }
             });
             return res.json();
@@ -25,7 +27,7 @@ export default function OpsPage() {
     const { data: flags, isLoading: flagsLoading } = useQuery({
         queryKey: ['ops', 'flags'],
         queryFn: async () => {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ops/flags`, {
+            const res = await fetch(`${apiBaseUrl}/ops/flags`, {
                 headers: { Authorization: `Bearer ${session?.accessToken}` }
             });
             return res.json();
@@ -34,7 +36,7 @@ export default function OpsPage() {
 
     const toggleFlag = useMutation({
         mutationFn: async ({ key, enabled }: { key: string, enabled: boolean }) => {
-            await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ops/flags`, {
+            await fetch(`${apiBaseUrl}/ops/flags`, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${session?.accessToken}`,

@@ -45,6 +45,7 @@ import {
 } from "@/hooks/use-admin-metrics";
 import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
 import { useAdvertiser } from "@/hooks/use-advertiser";
+import { getPublicApiBaseUrl } from "@/lib/api-base-url";
 import type {
   AdminOverviewMetrics,
   DailyAdsPoint,
@@ -207,7 +208,7 @@ export function DashboardOverview() {
       return;
     }
 
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+    const apiBase = getPublicApiBaseUrl();
     if (!apiBase) {
       console.warn(
         "Dashboard metrics socket disabled: NEXT_PUBLIC_API_BASE_URL is not configured.",

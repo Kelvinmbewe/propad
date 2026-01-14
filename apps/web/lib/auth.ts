@@ -1,5 +1,6 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
+import { normalizeApiBaseUrl } from "./api-base-url"
 
 export const {
   handlers: { GET, POST },
@@ -20,7 +21,8 @@ export const {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
-        const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://api:3001/v1'
+        const rawApiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://api:3001/v1'
+        const apiUrl = normalizeApiBaseUrl(rawApiUrl)
         console.log('[AUTH] Attempting login with API URL:', apiUrl)
         const res = await fetch(
           `${apiUrl}/auth/login`,
@@ -53,7 +55,16 @@ export const {
     },
 
     async session({ session, token }) {
-      session.user = token as any
+      session.user = {
+        id: typeof token.sub === "string" ? token.sub : (token as any).id ?? "",
+        email: (token as any).email ?? session.user?.email ?? undefined,
+        name: (token as any).name ?? session.user?.name ?? undefined,
+        role: (token as any).role ?? (session.user as any)?.role,
+      } as any
+      session.accessToken =
+        typeof (token as any).accessToken === "string"
+          ? (token as any).accessToken
+          : undefined
       return session
     },
   },

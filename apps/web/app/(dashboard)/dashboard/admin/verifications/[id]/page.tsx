@@ -7,6 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, Button, Label, notify } from '@propad/ui';
 import { ChevronLeft, Check, X, FileText, Download, ExternalLink, MapPin, Camera, AlertTriangle, ShieldAlert, UserCheck, Clock } from 'lucide-react';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 
 export default function VerificationReviewPage() {
@@ -14,6 +15,7 @@ export default function VerificationReviewPage() {
     const router = useRouter();
     const { data: session } = useSession();
     const queryClient = useQueryClient();
+    const apiBaseUrl = getRequiredPublicApiBaseUrl();
     const [rejectionNotes, setRejectionNotes] = useState<Record<string, string>>({});
     const [activeRejection, setActiveRejection] = useState<string | null>(null);
     const [selectedOfficerId, setSelectedOfficerId] = useState<Record<string, string | null>>({});
@@ -22,7 +24,6 @@ export default function VerificationReviewPage() {
         queryKey: ['verification-request', params.id],
         queryFn: async () => {
             if (!session?.accessToken) throw new Error('No session');
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
             // Bind strictly to VerificationRequest model
             const res = await fetch(`${apiBaseUrl}/verifications/requests/${params.id}`, {
                 headers: { Authorization: `Bearer ${session.accessToken}` }
@@ -35,7 +36,6 @@ export default function VerificationReviewPage() {
 
     const reviewMutation = useMutation({
         mutationFn: async ({ itemId, status, notes }: { itemId: string, status: 'APPROVED' | 'REJECTED', notes?: string }) => {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
             // Update VerificationRequestItem.status via PATCH endpoint
             const res = await fetch(`${apiBaseUrl}/verifications/requests/${params.id}/items/${itemId}`, {
                 method: 'PATCH',
@@ -65,7 +65,6 @@ export default function VerificationReviewPage() {
         queryKey: ['eligible-officers'],
         queryFn: async () => {
             if (!session?.accessToken || session?.user?.role !== 'ADMIN') return [];
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
             const res = await fetch(`${apiBaseUrl}/site-visits/eligible-officers`, {
                 headers: { Authorization: `Bearer ${session.accessToken}` }
             });
@@ -78,7 +77,6 @@ export default function VerificationReviewPage() {
     // Assign officer mutation
     const assignOfficerMutation = useMutation({
         mutationFn: async ({ visitId, officerId }: { visitId: string; officerId: string }) => {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
             const res = await fetch(`${apiBaseUrl}/site-visits/${visitId}/assign`, {
                 method: 'POST',
                 headers: {
