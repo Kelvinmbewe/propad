@@ -21,6 +21,34 @@ export interface PropertyInterest {
     user: PropertyInterestUser;
 }
 
+export interface PropertyViewing {
+    id: string;
+    propertyId: string;
+    viewerId: string;
+    agentId: string | null;
+    landlordId: string | null;
+    scheduledAt: string;
+    status: string;
+    notes: string | null;
+    locationLat: number | null;
+    locationLng: number | null;
+    createdAt: string;
+    updatedAt: string;
+    viewer: {
+        id: string;
+        name: string | null;
+        phone: string | null;
+    };
+    agent: {
+        id: string;
+        name: string | null;
+    } | null;
+    landlord: {
+        id: string;
+        name: string | null;
+    } | null;
+}
+
 export async function getInterestsForProperty(propertyId: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Unauthorized');

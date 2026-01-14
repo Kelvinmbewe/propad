@@ -9,7 +9,7 @@ import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { formatCurrency } from '@/lib/formatters';
 import Link from 'next/link';
 
-import type { PropertyInterest } from '@/app/actions/listings';
+import type { PropertyInterest, PropertyViewing } from '@/app/actions/listings';
 import { getInterestsForProperty, getChatThreads, getThreadMessages, sendMessage, getViewings } from '@/app/actions/listings';
 import { acceptInterest, rejectInterest } from '@/app/actions/landlord';
 import { getFeaturedStatus, createFeaturedListing, completeFeaturedPayment } from '@/app/actions/featured';
