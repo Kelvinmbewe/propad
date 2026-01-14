@@ -4,15 +4,32 @@ import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 import { serverApiRequest } from '@/lib/server-api';
 
+export interface PropertyInterestUser {
+    id: string;
+    name: string | null;
+    email: string | null;
+    isVerified: boolean | null;
+}
+
+export interface PropertyInterest {
+    id: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+    offerAmount: number | string | null;
+    message: string | null;
+    user: PropertyInterestUser;
+}
+
 export async function getInterestsForProperty(propertyId: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Unauthorized');
 
     try {
-        return await serverApiRequest(`/properties/${propertyId}/interests`);
+        return await serverApiRequest<PropertyInterest[]>(`/properties/${propertyId}/interests`);
     } catch (error) {
         console.error('getInterestsForProperty error:', error);
-        return [];
+        return [] as PropertyInterest[];
     }
 }
 
