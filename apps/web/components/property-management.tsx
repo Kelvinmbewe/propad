@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -232,6 +232,10 @@ export function PropertyManagement() {
                             onClick={async (e) => {
                               e.preventDefault();
                               if (confirm("Publish this listing?")) {
+                                if (!sdk) {
+                                  alert("Service unavailable. Please retry.");
+                                  return;
+                                }
                                 try {
                                   await sdk.request(
                                     `/properties/${property.id}/publish`,
