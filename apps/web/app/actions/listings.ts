@@ -21,24 +21,6 @@ export interface PropertyInterest {
     user: PropertyInterestUser;
 }
 
-export interface PropertyViewingUser {
-    id: string;
-    name: string | null;
-}
-
-export interface PropertyViewingViewer extends PropertyViewingUser {
-    phone: string | null;
-}
-
-export interface PropertyViewing {
-    id: string;
-    scheduledAt: string;
-    status: string;
-    viewer: PropertyViewingViewer;
-    agent: PropertyViewingUser | null;
-    landlord: PropertyViewingUser | null;
-}
-
 export async function getInterestsForProperty(propertyId: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Unauthorized');
