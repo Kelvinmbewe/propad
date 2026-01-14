@@ -4,15 +4,50 @@ import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
 import { serverApiRequest } from '@/lib/server-api';
 
+export interface PropertyInterestUser {
+    id: string;
+    name: string | null;
+    email: string | null;
+    isVerified: boolean | null;
+}
+
+export interface PropertyInterest {
+    id: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+    offerAmount: number | string | null;
+    message: string | null;
+    user: PropertyInterestUser;
+}
+
+export interface PropertyViewingUser {
+    id: string;
+    name: string | null;
+}
+
+export interface PropertyViewingViewer extends PropertyViewingUser {
+    phone: string | null;
+}
+
+export interface PropertyViewing {
+    id: string;
+    scheduledAt: string;
+    status: string;
+    viewer: PropertyViewingViewer;
+    agent: PropertyViewingUser | null;
+    landlord: PropertyViewingUser | null;
+}
+
 export async function getInterestsForProperty(propertyId: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Unauthorized');
 
     try {
-        return await serverApiRequest(`/properties/${propertyId}/interests`);
+        return await serverApiRequest<PropertyInterest[]>(`/properties/${propertyId}/interests`);
     } catch (error) {
         console.error('getInterestsForProperty error:', error);
-        return [];
+        return [] as PropertyInterest[];
     }
 }
 
@@ -107,9 +142,9 @@ export async function getViewings(propertyId: string) {
     if (!session?.user?.id) throw new Error('Unauthorized');
 
     try {
-        return await serverApiRequest(`/properties/${propertyId}/viewings`);
+        return await serverApiRequest<PropertyViewing[]>(`/properties/${propertyId}/viewings`);
     } catch (error) {
         console.error('getViewings error:', error);
-        return [];
+        return [] as PropertyViewing[];
     }
 }

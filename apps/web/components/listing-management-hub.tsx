@@ -9,6 +9,7 @@ import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { formatCurrency } from '@/lib/formatters';
 import Link from 'next/link';
 
+import type { PropertyInterest, PropertyViewing } from '@/app/actions/listings';
 import { getInterestsForProperty, getChatThreads, getThreadMessages, sendMessage, getViewings } from '@/app/actions/listings';
 import { acceptInterest, rejectInterest } from '@/app/actions/landlord';
 import { getFeaturedStatus, createFeaturedListing, completeFeaturedPayment } from '@/app/actions/featured';
@@ -433,7 +434,7 @@ function FeaturedSection({ propertyId }: { propertyId: string }) {
 
 
 function InterestTab({ propertyId }: { propertyId: string }) {
-    const { data: interests, isLoading, refetch } = useQuery({
+    const { data: interests, isLoading, refetch } = useQuery<PropertyInterest[]>({
         queryKey: ['interests', propertyId],
         queryFn: () => getInterestsForProperty(propertyId)
     });
@@ -494,7 +495,7 @@ function InterestTab({ propertyId }: { propertyId: string }) {
 
     return (
         <div className="space-y-4">
-            {interests.map((interest: any) => {
+            {interests.map((interest) => {
                 const isActionable = interest.status === 'PENDING';
                 const daysRemaining = interest.status === 'ACCEPTED' ? getDaysUntilAutoConfirm(interest.updatedAt) : null;
 
@@ -663,7 +664,7 @@ function ChatThreadView({ propertyId, userId, onBack }: { propertyId: string, us
 }
 
 function ViewingsTab({ propertyId }: { propertyId: string }) {
-    const { data: viewings, isLoading } = useQuery({
+    const { data: viewings, isLoading } = useQuery<PropertyViewing[]>({
         queryKey: ['viewings', propertyId],
         queryFn: () => getViewings(propertyId)
     });
@@ -684,7 +685,7 @@ function ViewingsTab({ propertyId }: { propertyId: string }) {
             {!viewings?.length ? (
                 <div className="p-8 text-center text-neutral-500">No upcoming viewings scheduled.</div>
             ) : (
-                viewings.map((v: any) => (
+                viewings.map((v) => (
                     <Card key={v.id}>
                         <CardContent className="p-4 flex justify-between items-center">
                             <div className="flex gap-3">
