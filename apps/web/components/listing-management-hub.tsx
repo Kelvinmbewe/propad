@@ -9,6 +9,7 @@ import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { formatCurrency } from '@/lib/formatters';
 import Link from 'next/link';
 
+import type { PropertyInterest } from '@/app/actions/listings';
 import { getInterestsForProperty, getChatThreads, getThreadMessages, sendMessage, getViewings } from '@/app/actions/listings';
 import { acceptInterest, rejectInterest } from '@/app/actions/landlord';
 import { getFeaturedStatus, createFeaturedListing, completeFeaturedPayment } from '@/app/actions/featured';
@@ -433,7 +434,7 @@ function FeaturedSection({ propertyId }: { propertyId: string }) {
 
 
 function InterestTab({ propertyId }: { propertyId: string }) {
-    const { data: interests, isLoading, refetch } = useQuery({
+    const { data: interests, isLoading, refetch } = useQuery<PropertyInterest[]>({
         queryKey: ['interests', propertyId],
         queryFn: () => getInterestsForProperty(propertyId)
     });
@@ -494,7 +495,7 @@ function InterestTab({ propertyId }: { propertyId: string }) {
 
     return (
         <div className="space-y-4">
-            {interests.map((interest: any) => {
+            {interests.map((interest) => {
                 const isActionable = interest.status === 'PENDING';
                 const daysRemaining = interest.status === 'ACCEPTED' ? getDaysUntilAutoConfirm(interest.updatedAt) : null;
 
