@@ -124,9 +124,9 @@ export async function getViewings(propertyId: string) {
     if (!session?.user?.id) throw new Error('Unauthorized');
 
     try {
-        return await serverApiRequest(`/properties/${propertyId}/viewings`);
+        return await serverApiRequest<PropertyViewing[]>(`/properties/${propertyId}/viewings`);
     } catch (error) {
         console.error('getViewings error:', error);
-        return [];
+        return [] as PropertyViewing[];
     }
 }

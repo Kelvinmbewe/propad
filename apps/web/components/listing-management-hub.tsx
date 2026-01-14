@@ -664,7 +664,7 @@ function ChatThreadView({ propertyId, userId, onBack }: { propertyId: string, us
 }
 
 function ViewingsTab({ propertyId }: { propertyId: string }) {
-    const { data: viewings, isLoading } = useQuery({
+    const { data: viewings, isLoading } = useQuery<PropertyViewing[]>({
         queryKey: ['viewings', propertyId],
         queryFn: () => getViewings(propertyId)
     });
@@ -685,7 +685,7 @@ function ViewingsTab({ propertyId }: { propertyId: string }) {
             {!viewings?.length ? (
                 <div className="p-8 text-center text-neutral-500">No upcoming viewings scheduled.</div>
             ) : (
-                viewings.map((v: any) => (
+                viewings.map((v) => (
                     <Card key={v.id}>
                         <CardContent className="p-4 flex justify-between items-center">
                             <div className="flex gap-3">
