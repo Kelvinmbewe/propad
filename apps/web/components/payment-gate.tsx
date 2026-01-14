@@ -6,6 +6,7 @@ import { Button, Card, CardContent, CardDescription, CardFooter, CardHeader, Car
 import { formatCurrency } from '@/lib/formatters';
 import { CheckCircle2, Lock, AlertCircle, Loader2, XCircle } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 import { ChargeableItemType } from '@propad/config';
 
@@ -60,6 +61,7 @@ export function PaymentGate({
   children
 }: PaymentGateProps) {
   const { data: session } = useSession();
+  const apiBaseUrl = getRequiredPublicApiBaseUrl();
   const [processing, setProcessing] = useState(false);
   const onGrantedCalledRef = useRef(false);
 
@@ -71,7 +73,7 @@ export function PaymentGate({
       if (!token) throw new Error('Not authenticated');
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/features/access/${featureType}/${targetId}`,
+        `${apiBaseUrl}/features/access/${featureType}/${targetId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -93,7 +95,7 @@ export function PaymentGate({
       if (!token) throw new Error('Not authenticated');
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/features/pricing/${featureType}`,
+        `${apiBaseUrl}/features/pricing/${featureType}`,
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -116,7 +118,7 @@ export function PaymentGate({
     try {
       // Create invoice for feature
       const invoiceResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/payments/invoices/for-feature`,
+        `${apiBaseUrl}/payments/invoices/for-feature`,
         {
           method: 'POST',
           headers: {
@@ -140,7 +142,7 @@ export function PaymentGate({
 
       // Create payment intent
       const intentResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/payments/intents`,
+        `${apiBaseUrl}/payments/intents`,
         {
           method: 'POST',
           headers: {
@@ -376,4 +378,3 @@ export function PaymentGate({
     </Card>
   );
 }
-

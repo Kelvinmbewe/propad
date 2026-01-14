@@ -13,6 +13,7 @@ import { PropertyFeedSkeleton } from './property-feed-skeleton';
 import { EmptyState } from './empty-state';
 import type { MapBounds } from './property-map';
 import { api } from '@/lib/api-client';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 // Dynamic import to avoid SSR issues with Leaflet
 const PropertyMap = dynamic(
@@ -38,11 +39,7 @@ function sanitizeFilters(filters: Record<string, string>) {
 async function requestProperties(
   params: URLSearchParams
 ): Promise<PropertySearchResult> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-
-  if (!baseUrl) {
-    throw new Error('API base URL is not configured');
-  }
+  const baseUrl = getRequiredPublicApiBaseUrl();
 
   const response = await fetch(`${baseUrl}/properties/search?${params.toString()}`, {
     cache: 'no-store'

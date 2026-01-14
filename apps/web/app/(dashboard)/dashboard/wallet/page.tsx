@@ -13,6 +13,7 @@ import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { formatCurrency } from '@/lib/formatters';
 import { DollarSign, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import type { PayoutRequest } from '@propad/sdk';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 
 
@@ -50,6 +51,7 @@ export default function WalletPage() {
   const sdk = useAuthenticatedSDK();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
+  const apiBaseUrl = getRequiredPublicApiBaseUrl();
 
   const handleRequestPayout = async () => {
     // In a real app, this would open a Dialog with form
@@ -176,7 +178,7 @@ export default function WalletPage() {
                       const input = document.getElementById('promoCodeInput') as HTMLInputElement;
                       if (!input.value) return;
                       try {
-                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/growth/promos/redeem`, {
+                        const res = await fetch(`${apiBaseUrl}/growth/promos/redeem`, {
                           method: 'POST',
                           headers: {
                             Authorization: `Bearer ${session?.accessToken}`,
@@ -221,4 +223,3 @@ export default function WalletPage() {
     </div>
   );
 }
-

@@ -8,15 +8,17 @@ import { useSession } from 'next-auth/react';
 import { formatCurrency } from '@/lib/formatters';
 import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 export default function AdminRewards() {
     const { data: session } = useSession();
     const [calculating, setCalculating] = useState(false);
+    const apiBaseUrl = getRequiredPublicApiBaseUrl();
 
     const { data: pools, isLoading } = useQuery({
         queryKey: ['admin-reward-pools'],
         queryFn: async () => {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/rewards/pools`, {
+            const res = await fetch(`${apiBaseUrl}/admin/rewards/pools`, {
                 headers: { Authorization: `Bearer ${session?.accessToken}` }
             });
             if (!res.ok) throw new Error('Failed to fetch pools');
@@ -29,7 +31,7 @@ export default function AdminRewards() {
         if (!confirm('Are you sure you want to trigger revenue share distribution?')) return;
         setCalculating(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/rewards/recalculate-revshare`, {
+            const res = await fetch(`${apiBaseUrl}/admin/rewards/recalculate-revshare`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${session?.accessToken}` }
             });

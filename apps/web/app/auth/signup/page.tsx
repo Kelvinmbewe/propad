@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation';
 import { Button, Input, Label } from '@propad/ui';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 export default function SignUpPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const apiBaseUrl = getRequiredPublicApiBaseUrl();
 
     async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -29,7 +31,7 @@ export default function SignUpPage() {
         }
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/register`, {
+            const response = await fetch(`${apiBaseUrl}/auth/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
