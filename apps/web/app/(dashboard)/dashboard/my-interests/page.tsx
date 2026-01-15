@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { formatCurrency } from '@/lib/formatters';
 import { PropertyImage } from '@/components/property-image';
 import { serverApiRequest } from '@/lib/server-api';
+import { getImageUrl } from '@/lib/image-url';
 
 export const metadata: Metadata = {
   title: 'My Interests | PropAd'
@@ -86,9 +87,7 @@ export default async function MyInterestsPage() {
                         {property.media?.[0]?.url && (
                           <Link href={`/properties/${property.id}`} className="flex-shrink-0">
                             <PropertyImage
-                              src={property.media[0].url.startsWith('http')
-                                ? property.media[0].url
-                                : `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'}${property.media[0].url}`}
+                              src={getImageUrl(property.media[0].url)}
                               alt={property.title}
                               className="h-24 w-32 rounded-lg object-cover"
                             />

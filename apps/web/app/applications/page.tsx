@@ -69,7 +69,7 @@ export default async function MyApplicationsPage() {
                             <div key={app.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col md:flex-row">
                                 <div className="w-full md:w-64 h-48 md:h-auto relative">
                                     <Image
-                                        src={app.property.media?.[0]?.url || 'https://via.placeholder.com/300'}
+                                        src={app.property.media?.[0]?.url ? getImageUrl(app.property.media[0].url) : 'https://via.placeholder.com/300'}
                                         alt={app.property.title}
                                         fill
                                         className="object-cover"

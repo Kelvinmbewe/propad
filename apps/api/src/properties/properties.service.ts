@@ -991,10 +991,9 @@ export class PropertiesService {
     const isOwner = actor && (property.landlordId === actor.userId || property.agentOwnerId === actor.userId);
     const isAdmin = actor?.role === Role.ADMIN;
 
-    // If not Owner/Admin, enforce PUBLISHED status
+    // If not Owner/Admin, enforce public status
     if (!isOwner && !isAdmin) {
-      // Allow VERIFIED as well just in case, but strictly typically PUBLISHED
-      if (property.status !== 'PUBLISHED' as any && property.status !== PropertyStatus.VERIFIED) {
+      if (property.status !== PropertyStatus.VERIFIED) {
         throw new NotFoundException('Property not found'); // Hide non-public
       }
     }
@@ -1245,11 +1244,11 @@ export class PropertiesService {
 
     // Auto-publish if already Verified or Admin or has sufficient trust
     if (property.status === PropertyStatus.VERIFIED || actor.role === Role.ADMIN) {
-      newStatus = 'PUBLISHED' as any;
+      newStatus = PropertyStatus.VERIFIED;
     }
 
     if (property.verificationLevel === 'VERIFIED' || property.verificationLevel === 'TRUSTED') {
-      newStatus = 'PUBLISHED' as any;
+      newStatus = PropertyStatus.VERIFIED;
     }
 
     const updated = await this.prisma.property.update({
@@ -1264,6 +1263,26 @@ export class PropertiesService {
       targetId: id,
       metadata: { status: newStatus }
     });
+    return updated;
+  }
+
+  async updateStatus(id: string, status: PropertyStatus, actor: AuthContext) {
+    const property = await this.getPropertyOrThrow(id);
+    this.ensureCanMutate(property, actor);
+
+    const updated = await this.prisma.property.update({
+      where: { id },
+      data: { status }
+    });
+
+    await this.audit.logAction({
+      action: 'PROPERTY_STATUS_UPDATE',
+      actorId: actor.userId,
+      targetType: 'property',
+      targetId: id,
+      metadata: { status }
+    });
+
     return updated;
   }
 
@@ -2728,6 +2747,38 @@ export class PropertiesService {
       targetType: 'property',
       targetId: propertyId,
       metadata: { mediaId: media.id, filename: file.filename }
+    });
+
+    return media;
+  }
+
+  async linkMedia(
+    propertyId: string,
+    dto: { url: string; kind?: 'IMAGE' | 'VIDEO' },
+    actor: AuthContext
+  ) {
+    const property = await this.getPropertyOrThrow(propertyId);
+    this.ensureCanMutate(property, actor);
+
+    const url = dto.url.trim();
+    const inferredKind = /\.(mp4|m4v|mov|webm)(\?|#|$)/i.test(url) ? 'VIDEO' : 'IMAGE';
+    const kind = dto.kind ?? inferredKind;
+
+    const media = await this.prisma.propertyMedia.create({
+      data: {
+        propertyId,
+        url,
+        kind,
+        hasGps: false
+      }
+    });
+
+    await this.audit.logAction({
+      action: 'property.linkMedia',
+      actorId: actor.userId,
+      targetType: 'property',
+      targetId: propertyId,
+      metadata: { mediaId: media.id, url }
     });
 
     return media;

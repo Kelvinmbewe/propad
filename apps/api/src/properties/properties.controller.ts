@@ -29,6 +29,8 @@ import {
 } from './dto/submit-verification.dto';
 import { MapBoundsDto, mapBoundsSchema } from './dto/map-bounds.dto';
 import { CreateSignedUploadDto, createSignedUploadSchema } from './dto/signed-upload.dto';
+import { LinkMediaDto, linkMediaSchema } from './dto/link-media.dto';
+import { UpdatePropertyStatusDto, updatePropertyStatusSchema } from './dto/update-property-status.dto';
 import { AssignAgentDto, assignAgentSchema } from './dto/assign-agent.dto';
 import {
   UpdateDealConfirmationDto,
@@ -201,6 +203,17 @@ export class PropertiesController {
     return this.propertiesService.publish(id, req.user);
   }
 
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  updateStatus(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(updatePropertyStatusSchema)) dto: UpdatePropertyStatusDto
+  ) {
+    return this.propertiesService.updateStatus(id, dto.status, req.user);
+  }
+
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
@@ -349,6 +362,17 @@ export class PropertiesController {
       mimetype: file.mimetype,
       buffer: file.buffer
     }, req.user);
+  }
+
+  @Post(':id/media/link')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  linkMedia(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(linkMediaSchema)) dto: LinkMediaDto
+  ) {
+    return this.propertiesService.linkMedia(id, dto, req.user);
   }
 
   @Post(':id/viewings/schedule')

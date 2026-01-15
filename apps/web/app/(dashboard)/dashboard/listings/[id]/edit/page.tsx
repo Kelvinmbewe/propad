@@ -45,6 +45,8 @@ export default function EditPropertyPage() {
     const sdk = useAuthenticatedSDK();
     const queryClient = useQueryClient();
     const [isLoading, setIsLoading] = useState(false);
+    const [externalImageUrl, setExternalImageUrl] = useState('');
+    const [isAddingExternalImage, setIsAddingExternalImage] = useState(false);
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -581,6 +583,54 @@ export default function EditPropertyPage() {
                             }}
                             disabled={isReadOnly}
                         />
+                    </div>
+
+                    <div className="mt-6 space-y-2">
+                        <Label htmlFor="externalImageUrl">Add external image URL (S3/hosted)</Label>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                            <Input
+                                id="externalImageUrl"
+                                value={externalImageUrl}
+                                onChange={(e) => setExternalImageUrl(e.target.value)}
+                                placeholder="https://your-bucket.s3.amazonaws.com/property.jpg"
+                                disabled={isReadOnly || isAddingExternalImage}
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={isReadOnly || isAddingExternalImage}
+                                onClick={async () => {
+                                    if (!sdk) {
+                                        notify.error('Please wait for authentication');
+                                        return;
+                                    }
+                                    if (!externalImageUrl.trim()) {
+                                        notify.error('Please enter a valid URL');
+                                        return;
+                                    }
+                                    setIsAddingExternalImage(true);
+                                    try {
+                                        await sdk.request(`/properties/${propertyId}/media/link`, {
+                                            method: 'POST',
+                                            body: { url: externalImageUrl.trim() }
+                                        });
+                                        setExternalImageUrl('');
+                                        queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
+                                        notify.success('External image added');
+                                    } catch (error) {
+                                        console.error('Failed to link external image:', error);
+                                        notify.error('Failed to add external image');
+                                    } finally {
+                                        setIsAddingExternalImage(false);
+                                    }
+                                }}
+                            >
+                                {isAddingExternalImage ? 'Adding...' : 'Add URL'}
+                            </Button>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                            Use this if you host images on S3 or another CDN. The URL must be publicly accessible.
+                        </p>
                     </div>
                 </div>
 
