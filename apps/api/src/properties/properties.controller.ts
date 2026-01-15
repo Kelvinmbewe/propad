@@ -17,6 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Role } from '@propad/config';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PropertiesService } from './properties.service';
@@ -112,6 +113,7 @@ export class PropertiesController {
   }
 
   @Get(':id')
+  @UseGuards(OptionalJwtAuthGuard)
   async findOne(@Param('id') id: string, @Req() req: any) {
     // req.user might be present if guarded or if OptionalAuth applied. 
     // Here we'll treat it as permissive, but typed as any for now given AuthenticatedRequest expects user.
