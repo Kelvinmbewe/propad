@@ -6,6 +6,7 @@ import { LandingAuroraPalette } from '@/components/landing-aurora-palette';
 import { Instagram, Linkedin, Twitter } from 'lucide-react';
 import type { LandingMapSectionProps } from '@/components/landing-map-section';
 import { serverPublicApiRequest } from '@/lib/server-api';
+import { getImageUrl } from '@/lib/image-url';
 
 const LandingMapSection = nextDynamic<LandingMapSectionProps>(
   () => import('@/components/landing-map-section').then((mod) => mod.LandingMapSection),
@@ -60,7 +61,9 @@ async function getFeaturedProperties(): Promise<ShowcaseProperty[]> {
       const location = property.suburb?.name || property.city?.name || 'Zimbabwe';
       const statusTone = property.listingIntent === 'SELL' ? 'sale' : 'rent';
       const statusLabel = statusTone === 'sale' ? 'FOR SALE' : 'FOR RENT';
-      const imageUrl = property.media?.[0]?.url ?? '/icons/icon-512.svg';
+      const imageUrl = property.media?.[0]?.url
+        ? getImageUrl(property.media[0].url)
+        : '/icons/icon-512.svg';
       const priceValue = typeof property.price === 'string' ? Number(property.price) : property.price;
       const priceLabel = new Intl.NumberFormat('en-US', {
         style: 'currency',

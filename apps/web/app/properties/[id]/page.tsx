@@ -11,6 +11,7 @@ import { Bath, BedDouble, MapPin, Ruler, Star, CheckCircle2 } from 'lucide-react
 import { Badge, Button } from '@propad/ui';
 import { ViewTracker } from '@/components/view-tracker';
 import { serverPublicApiRequest } from '@/lib/server-api';
+import { getImageUrl } from '@/lib/image-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,7 +84,9 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
         currency: property.currency || 'USD'
     }).format(priceNum);
 
-    const mainImage = property.media?.[0]?.url || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80';
+    const mainImage = property.media?.[0]?.url
+        ? getImageUrl(property.media[0].url)
+        : 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80';
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -105,7 +108,7 @@ export default async function PropertyDetailsPage({ params }: { params: { id: st
                             {(property.verificationLevel === 'VERIFIED' || property.verificationLevel === 'TRUSTED') && (
                                 <Badge className="bg-blue-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Verified</Badge>
                             )}
-                            {property.status !== 'PUBLISHED' && <Badge variant="secondary">{property.status}</Badge>}
+                            {property.status !== 'VERIFIED' && <Badge variant="secondary">{property.status}</Badge>}
                         </div>
 
                         <div className="absolute bottom-0 left-0 p-8 text-white">

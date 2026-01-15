@@ -7,6 +7,7 @@ import type { Property } from '@propad/sdk';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import { formatCurrency, formatFriendlyDate } from '@/lib/formatters';
+import { getImageUrl } from '@/lib/image-url';
 
 interface PropertyCardProps {
   property: Property;
@@ -15,7 +16,7 @@ interface PropertyCardProps {
 }
 
 export function PropertyCard({ property, highlighted = false, appearanceOrder = 0 }: PropertyCardProps) {
-  const primaryImage = property.media?.[0]?.url;
+  const primaryImage = property.media?.[0]?.url ? getImageUrl(property.media[0].url) : null;
   const locationName =
     property.location.suburb?.name ??
     property.location.city?.name ??
