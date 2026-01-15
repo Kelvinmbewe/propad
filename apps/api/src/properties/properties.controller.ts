@@ -17,6 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Role } from '@propad/config';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PropertiesService } from './properties.service';
@@ -29,6 +30,8 @@ import {
 } from './dto/submit-verification.dto';
 import { MapBoundsDto, mapBoundsSchema } from './dto/map-bounds.dto';
 import { CreateSignedUploadDto, createSignedUploadSchema } from './dto/signed-upload.dto';
+import { LinkMediaDto, linkMediaSchema } from './dto/link-media.dto';
+import { UpdatePropertyStatusDto, updatePropertyStatusSchema } from './dto/update-property-status.dto';
 import { AssignAgentDto, assignAgentSchema } from './dto/assign-agent.dto';
 import {
   UpdateDealConfirmationDto,
@@ -110,6 +113,7 @@ export class PropertiesController {
   }
 
   @Get(':id')
+  @UseGuards(OptionalJwtAuthGuard)
   async findOne(@Param('id') id: string, @Req() req: any) {
     // req.user might be present if guarded or if OptionalAuth applied. 
     // Here we'll treat it as permissive, but typed as any for now given AuthenticatedRequest expects user.
@@ -199,6 +203,17 @@ export class PropertiesController {
     @Req() req: AuthenticatedRequest
   ) {
     return this.propertiesService.publish(id, req.user);
+  }
+
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  updateStatus(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(updatePropertyStatusSchema)) dto: UpdatePropertyStatusDto
+  ) {
+    return this.propertiesService.updateStatus(id, dto.status, req.user);
   }
 
   @Patch(':id')
@@ -349,6 +364,17 @@ export class PropertiesController {
       mimetype: file.mimetype,
       buffer: file.buffer
     }, req.user);
+  }
+
+  @Post(':id/media/link')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  linkMedia(
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(linkMediaSchema)) dto: LinkMediaDto
+  ) {
+    return this.propertiesService.linkMedia(id, dto, req.user);
   }
 
   @Post(':id/viewings/schedule')

@@ -17,6 +17,7 @@ import {
 import type { PropertyManagement as PropertyManagementType } from "@propad/sdk";
 import { useSdkClient } from "@/hooks/use-sdk-client";
 import { formatCurrency } from "@/lib/formatters";
+import { getImageUrl } from "@/lib/image-url";
 import Link from "next/link";
 import { MapPin, Home } from "lucide-react";
 import { ClientState } from "@/components/client-state";
@@ -165,7 +166,7 @@ export function PropertyManagement() {
                       {/* Placeholder for image - in real app would use proper media */}
                       {property.media?.[0]?.url ? (
                         <img
-                          src={property.media[0].url}
+                          src={getImageUrl(property.media[0].url)}
                           alt={property.title}
                           className="w-full h-full object-cover"
                         />
@@ -210,8 +211,8 @@ export function PropertyManagement() {
                         </span>
                       </div>
                     </CardContent>
-                    <CardFooter className="pt-2 flex justify-between gap-2 border-t bg-neutral-50/50">
-                      <div className="flex gap-2 flex-1">
+                    <CardFooter className="pt-2 flex flex-wrap justify-between gap-2 border-t bg-neutral-50/50">
+                      <div className="flex gap-2 flex-1 flex-wrap">
                         <Link
                           href={`/dashboard/listings/${property.id}`}
                           className="flex-1"
@@ -251,12 +252,78 @@ export function PropertyManagement() {
                             Publish
                           </Button>
                         )}
+                        {property.status !== "ARCHIVED" &&
+                          property.status !== "DRAFT" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                if (!sdk) {
+                                  alert("Service unavailable. Please retry.");
+                                  return;
+                                }
+                                if (confirm("Pause this listing?")) {
+                                  try {
+                                    await sdk.request(
+                                      `/properties/${property.id}/status`,
+                                      {
+                                        method: "PATCH",
+                                        body: { status: "ARCHIVED" },
+                                      },
+                                    );
+                                    window.location.reload();
+                                  } catch (err) {
+                                    alert("Failed to pause listing");
+                                  }
+                                }
+                              }}
+                            >
+                              Pause
+                            </Button>
+                          )}
+                        {property.status === "ARCHIVED" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              if (!sdk) {
+                                alert("Service unavailable. Please retry.");
+                                return;
+                              }
+                              if (confirm("Restore this listing to draft?")) {
+                                try {
+                                  await sdk.request(
+                                    `/properties/${property.id}/status`,
+                                    {
+                                      method: "PATCH",
+                                      body: { status: "DRAFT" },
+                                    },
+                                  );
+                                  window.location.reload();
+                                } catch (err) {
+                                  alert("Failed to restore listing");
+                                }
+                              }
+                            }}
+                          >
+                            Restore
+                          </Button>
+                        )}
                       </div>
-                      <Link href={`/dashboard/listings/${property.id}/edit`}>
-                        <Button variant="ghost" size="sm">
-                          Edit
-                        </Button>
-                      </Link>
+                      <div className="flex gap-2">
+                        <Link href={`/dashboard/listings/${property.id}/edit`}>
+                          <Button variant="ghost" size="sm">
+                            Edit
+                          </Button>
+                        </Link>
+                        <Link href={`/dashboard/listings/${property.id}/delete`}>
+                          <Button variant="ghost" size="sm">
+                            Delete
+                          </Button>
+                        </Link>
+                      </div>
                     </CardFooter>
                   </Card>
                 );

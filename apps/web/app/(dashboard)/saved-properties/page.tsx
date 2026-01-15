@@ -4,6 +4,7 @@ import { useInterests } from '../../../hooks/use-interests';
 import { Card, CardContent, CardHeader, CardTitle, Skeleton, Badge, Button } from '@propad/ui';
 import { Home, Heart, MapPin, Bed, Bath, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { getImageUrl } from '@/lib/image-url';
 
 export default function SavedPropertiesPage() {
     const { savedProperties, isLoading, toggleInterest } = useInterests();
@@ -64,7 +65,7 @@ export default function SavedPropertiesPage() {
                             <div className="relative h-48 bg-muted">
                                 {property.media?.[0]?.url ? (
                                     <img
-                                        src={property.media[0].url}
+                                        src={getImageUrl(property.media[0].url)}
                                         alt={property.title}
                                         className="w-full h-full object-cover transition-transform group-hover:scale-105"
                                     />
