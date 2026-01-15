@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Skele
 import { useSession } from 'next-auth/react';
 import { Gift, Award, TrendingUp, Percent } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 interface RewardDistribution {
     id: string;
@@ -39,12 +40,13 @@ const getSourceLabel = (type: string) => {
 
 export function RewardsHistory() {
     const { data: session } = useSession();
+    const apiBaseUrl = getRequiredPublicApiBaseUrl();
 
     const { data: rewards, isLoading } = useQuery<RewardDistribution[]>({
         queryKey: ['rewards-my'],
         queryFn: async () => {
             // Direct API call until SDK is updated
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/rewards/my`, {
+            const res = await fetch(`${apiBaseUrl}/rewards/my`, {
                 headers: {
                     Authorization: `Bearer ${session?.accessToken}`
                 }

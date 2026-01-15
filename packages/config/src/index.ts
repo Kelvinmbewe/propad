@@ -106,6 +106,11 @@ export const env: ServerEnv & Partial<ClientEnv> = {
   ...clientEnv
 };
 
+function normalizeApiBaseUrl(baseUrl: string): string {
+  const trimmed = baseUrl.replace(/\/+$/, '');
+  return trimmed.endsWith('/v1') ? trimmed : `${trimmed}/v1`;
+}
+
 /**
  * Get the API base URL for server-side requests.
  * In Docker, server-side requests need to use the internal service name (api:3001)
@@ -119,16 +124,16 @@ export function getServerApiBaseUrl(): string {
   const publicUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   if (internalUrl) {
-    return internalUrl;
+    return normalizeApiBaseUrl(internalUrl);
   }
 
   if (publicUrl) {
-    return publicUrl;
+    return normalizeApiBaseUrl(publicUrl);
   }
 
   // Fallback for development
   if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:3001';
+    return normalizeApiBaseUrl('http://localhost:3001');
   }
 
   // In production, this should be configured

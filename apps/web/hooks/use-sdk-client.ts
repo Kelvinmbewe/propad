@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { createSDK } from '@propad/sdk/browser';
+import { getPublicApiBaseUrl } from '@/lib/api-base-url';
 
 export type SdkClientStatus =
   | 'loading'
@@ -27,7 +28,7 @@ const STATUS_MESSAGES: Record<Exclude<SdkClientStatus, 'ready' | 'loading'>, str
 
 export function useSdkClient(): SdkClientState {
   const { data, status } = useSession();
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? null;
+  const apiBaseUrl = getPublicApiBaseUrl();
   const accessToken = data?.accessToken ?? null;
 
   const sdk = useMemo(() => {

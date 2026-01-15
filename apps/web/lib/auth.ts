@@ -1,5 +1,44 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
+import { normalizeApiBaseUrl } from "./api-base-url"
+
+const TOKEN_REFRESH_BUFFER_MS = 60 * 1000;
+
+function decodeJwtPayload(token: string): { exp?: number } | null {
+  const [, payload] = token.split(".");
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    const padded = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = Buffer.from(padded, "base64").toString("utf-8");
+    return JSON.parse(decoded) as { exp?: number };
+  } catch {
+    return null;
+  }
+}
+
+async function refreshAccessToken(refreshToken: string) {
+  const rawApiUrl =
+    process.env.API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    "http://api:3001/v1";
+  const apiUrl = normalizeApiBaseUrl(rawApiUrl);
+
+  const response = await fetch(`${apiUrl}/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refreshToken })
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return response.json();
+}
 
 export const {
   handlers: { GET, POST },
@@ -20,7 +59,8 @@ export const {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
-        const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://api:3001/v1'
+        const rawApiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://api:3001/v1'
+        const apiUrl = normalizeApiBaseUrl(rawApiUrl)
         console.log('[AUTH] Attempting login with API URL:', apiUrl)
         const res = await fetch(
           `${apiUrl}/auth/login`,
@@ -48,12 +88,57 @@ export const {
 
   callbacks: {
     async jwt({ token, user }) {
-      if (user) Object.assign(token, user)
-      return token
+      if (user) {
+        Object.assign(token, user)
+        const accessToken = (user as any).accessToken as string | undefined
+        if (accessToken) {
+          const payload = decodeJwtPayload(accessToken)
+          token.accessTokenExpires = payload?.exp ? payload.exp * 1000 : undefined
+        }
+        return token
+      }
+
+      const accessToken = token.accessToken as string | undefined
+      const refreshToken = token.refreshToken as string | undefined
+      const expiresAt = token.accessTokenExpires as number | undefined
+
+      if (!accessToken || !refreshToken) {
+        return token
+      }
+
+      const shouldRefresh =
+        !expiresAt ||
+        Date.now() + TOKEN_REFRESH_BUFFER_MS >= expiresAt
+
+      if (!shouldRefresh) {
+        return token
+      }
+
+      const refreshed = await refreshAccessToken(refreshToken)
+      if (!refreshed?.accessToken) {
+        return token
+      }
+
+      const payload = decodeJwtPayload(refreshed.accessToken)
+      return {
+        ...token,
+        accessToken: refreshed.accessToken,
+        refreshToken: refreshed.refreshToken ?? refreshToken,
+        accessTokenExpires: payload?.exp ? payload.exp * 1000 : token.accessTokenExpires
+      }
     },
 
     async session({ session, token }) {
-      session.user = token as any
+      session.user = {
+        id: typeof token.sub === "string" ? token.sub : (token as any).id ?? "",
+        email: (token as any).email ?? session.user?.email ?? undefined,
+        name: (token as any).name ?? session.user?.name ?? undefined,
+        role: (token as any).role ?? (session.user as any)?.role,
+      } as any
+      session.accessToken =
+        typeof (token as any).accessToken === "string"
+          ? (token as any).accessToken
+          : undefined
       return session
     },
   },

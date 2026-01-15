@@ -6,16 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '@propad
 import { ShieldAlert, Unlock } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 export default function SecurityPage() {
     const sdk = useAuthenticatedSDK();
     const { data: session } = useSession();
     const queryClient = useQueryClient();
+    const apiBaseUrl = getRequiredPublicApiBaseUrl();
 
     const { data: events, isLoading } = useQuery({
         queryKey: ['admin', 'security', 'events'],
         queryFn: async () => {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/security/events`, {
+            const res = await fetch(`${apiBaseUrl}/admin/security/events`, {
                 headers: { Authorization: `Bearer ${session?.accessToken}` }
             });
             return res.json();
@@ -24,7 +26,7 @@ export default function SecurityPage() {
 
     const unlockUser = useMutation({
         mutationFn: async (userId: string) => {
-            await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/security/unlock/${userId}`, {
+            await fetch(`${apiBaseUrl}/admin/security/unlock/${userId}`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${session?.accessToken}` }
             });

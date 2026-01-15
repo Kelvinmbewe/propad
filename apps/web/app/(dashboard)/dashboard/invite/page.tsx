@@ -6,17 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge } from '
 import { Users, Copy, Gift } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 export default function InvitePage() {
     const sdk = useAuthenticatedSDK();
     const { data: session } = useSession();
     const [email, setEmail] = useState('');
     const [copied, setCopied] = useState(false);
+    const apiBaseUrl = getRequiredPublicApiBaseUrl();
 
     const { data: codeData, isLoading } = useQuery({
         queryKey: ['growth', 'referrals', 'code'],
         queryFn: async () => {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/growth/invites/stats`, {
+            const res = await fetch(`${apiBaseUrl}/growth/invites/stats`, {
                 headers: { Authorization: `Bearer ${session?.accessToken}` }
             });
             return res.json();

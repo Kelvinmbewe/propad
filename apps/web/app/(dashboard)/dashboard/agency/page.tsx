@@ -6,16 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Skeleton } fro
 import { Users, Building, ShieldCheck, UserPlus } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 export default function AgencyDashboardPage() {
     const sdk = useAuthenticatedSDK();
     const { data: session } = useSession();
     const router = useRouter();
+    const apiBaseUrl = getRequiredPublicApiBaseUrl();
 
     const { data: agency, isLoading } = useQuery({
         queryKey: ['agency', 'my'],
         queryFn: async () => {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/agencies/my`, {
+            const res = await fetch(`${apiBaseUrl}/agencies/my`, {
                 headers: { Authorization: `Bearer ${session?.accessToken}` }
             });
             if (res.status === 404) return null;
