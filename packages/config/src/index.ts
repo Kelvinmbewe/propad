@@ -139,9 +139,11 @@ const clientSchema = z.object({
 type ServerEnv = z.infer<typeof baseServerSchema>;
 type ClientEnv = z.infer<typeof clientSchema>;
 
+const isBrowser = typeof globalThis !== "undefined" && "window" in globalThis;
 const isNextRuntime = Boolean(process.env.NEXT_RUNTIME);
+const shouldUsePartialServerSchema = isNextRuntime || isBrowser;
 const serverEnv = (
-  isNextRuntime
+  shouldUsePartialServerSchema
     ? baseServerSchema.partial().parse({
         ...defaultServerEnv,
         ...process.env,
