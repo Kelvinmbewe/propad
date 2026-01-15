@@ -62,8 +62,6 @@ async function bootstrap() {
     }),
   );
 
-  app.setGlobalPrefix("v1");
-
   // Serve uploaded files statically from the same root path used by uploadLocalMedia (resolve('uploads', ...))
   const uploadsRoot = resolve("uploads");
   app.useStaticAssets(uploadsRoot, {
