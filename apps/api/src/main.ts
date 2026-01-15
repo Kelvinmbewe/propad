@@ -1,4 +1,5 @@
 import "./setup/prisma-polyfill";
+import process from "process";
 import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
@@ -8,12 +9,33 @@ import { randomUUID } from "crypto";
 import pinoHttp from "pino-http";
 import { env } from "@propad/config";
 import { resolve } from "path";
+import { existsSync } from "fs";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { HttpAdapterHost } from "@nestjs/core";
 import { AllExceptionsFilter } from "./common/all-exceptions.filter";
 import { LoggingInterceptor } from "./common/logging.interceptor";
 import { VersioningType } from "@nestjs/common";
 import compression from "compression";
+
+const resolveUploadsRoots = () => {
+  const runtimeCwd = process.env.INIT_CWD ?? process.env.PWD ?? ".";
+  const candidates = [
+    process.env.UPLOADS_DIR,
+    resolve(runtimeCwd, "uploads"),
+    resolve(runtimeCwd, "apps", "api", "uploads"),
+    resolve(runtimeCwd, "..", "uploads"),
+    resolve(runtimeCwd, "..", "..", "uploads"),
+  ].filter((value): value is string => !!value);
+
+  const roots = candidates.filter((candidate, index) => {
+    if (candidates.indexOf(candidate) !== index) {
+      return false;
+    }
+    return existsSync(candidate);
+  });
+
+  return roots.length > 0 ? roots : [resolve(runtimeCwd, "uploads")];
+};
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -62,13 +84,15 @@ async function bootstrap() {
     }),
   );
 
-  // Serve uploaded files statically from the same root path used by uploadLocalMedia (resolve('uploads', ...))
-  const uploadsRoot = resolve("uploads");
-  app.useStaticAssets(uploadsRoot, {
-    prefix: "/uploads/",
-  });
-  app.useStaticAssets(uploadsRoot, {
-    prefix: "/v1/uploads/",
+  // Serve uploaded files statically from the same root path used by uploadLocalMedia
+  const uploadsRoots = resolveUploadsRoots();
+  uploadsRoots.forEach((uploadsRoot) => {
+    app.useStaticAssets(uploadsRoot, {
+      prefix: "/uploads/",
+    });
+    app.useStaticAssets(uploadsRoot, {
+      prefix: "/v1/uploads/",
+    });
   });
 
   app.enableCors({
