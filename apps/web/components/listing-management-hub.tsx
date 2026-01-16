@@ -15,6 +15,7 @@ import {
   Label,
   Textarea,
 } from "@propad/ui";
+import { getPublicApiBaseUrl } from "@/lib/api-base-url";
 import { ChargeableItemType } from "@propad/config";
 import { useAuthenticatedSDK } from "@/hooks/use-authenticated-sdk";
 import { formatCurrency } from "@/lib/formatters";
@@ -86,6 +87,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
   const queryClient = useQueryClient();
+  const apiBaseUrl = getPublicApiBaseUrl();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [serviceFee, setServiceFee] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
@@ -93,6 +95,26 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
   const [agentSearchResults, setAgentSearchResults] = useState<any[]>([]);
   const [isSearchingAgents, setIsSearchingAgents] = useState(false);
   const [showAgentDropdown, setShowAgentDropdown] = useState(false);
+  const [agentFeeConfig, setAgentFeeConfig] = useState<
+    Array<{ min: number; max: number; feeUsd: number; label?: string }>
+  >([]);
+  const [featuredPlans, setFeaturedPlans] = useState<
+    Array<{
+      id: string;
+      label: string;
+      durationDays: number;
+      discountPercent?: number;
+      description?: string;
+    }>
+  >([]);
+  const [selectedFeaturedPlan, setSelectedFeaturedPlan] = useState<
+    string | null
+  >(null);
+  const [featuredPricing, setFeaturedPricing] = useState<any>(null);
+  const [featuredBasePriceUsd, setFeaturedBasePriceUsd] = useState<
+    number | null
+  >(null);
+  const [featuredProcessing, setFeaturedProcessing] = useState(false);
 
   const {
     data: property,
@@ -118,6 +140,70 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     staleTime: 30000,
   });
 
+  useEffect(() => {
+    if (!apiBaseUrl || !session?.accessToken) {
+      return;
+    }
+
+    const fetchConfigs = async () => {
+      try {
+        const [
+          agentFeesResponse,
+          featuredPlansResponse,
+          featuredPricingResponse,
+        ] = await Promise.all([
+          fetch(`${apiBaseUrl}/pricing-config/pricing.agentFees`, {
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+            },
+          }),
+          fetch(`${apiBaseUrl}/pricing-config/pricing.featuredPlans`, {
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+            },
+          }),
+          fetch(`${apiBaseUrl}/features/pricing/BOOST`, {
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+            },
+          }),
+        ]);
+
+        if (agentFeesResponse.ok) {
+          const agentFees = await agentFeesResponse.json();
+          if (Array.isArray(agentFees)) {
+            setAgentFeeConfig(agentFees);
+          } else if (agentFees?.value && Array.isArray(agentFees.value)) {
+            setAgentFeeConfig(agentFees.value);
+          }
+        }
+
+        if (featuredPlansResponse.ok) {
+          const plans = await featuredPlansResponse.json();
+          if (Array.isArray(plans)) {
+            setFeaturedPlans(plans);
+          } else if (plans?.value && Array.isArray(plans.value)) {
+            setFeaturedPlans(plans.value);
+          }
+        }
+
+        if (featuredPricingResponse.ok) {
+          const pricing = await featuredPricingResponse.json();
+          setFeaturedPricing(pricing);
+          if (pricing?.basePriceUsdCents) {
+            setFeaturedBasePriceUsd(pricing.basePriceUsdCents / 100);
+          } else if (pricing?.priceCents) {
+            setFeaturedBasePriceUsd(pricing.priceCents / 100);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load pricing configs", err);
+      }
+    };
+
+    fetchConfigs();
+  }, [apiBaseUrl, session?.accessToken]);
+
   // Initialize selectedAgent and search query when property loads with existing agent
   useEffect(() => {
     if (property?.agentOwnerId && !selectedAgent) {
@@ -135,6 +221,20 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
       }
     }
   }, [property?.agentOwnerId, selectedAgent, agents]);
+
+  useEffect(() => {
+    if (!selectedAgent || serviceFee) return;
+    const selectedAgentInfo =
+      agentSearchResults.find((a: any) => a.id === selectedAgent) ||
+      agents?.find((a: any) => a.id === selectedAgent);
+    const trustScore = Number(selectedAgentInfo?.trustScore ?? 0);
+    const matchingTier = agentFeeConfig.find(
+      (tier) => trustScore >= tier.min && trustScore <= tier.max,
+    );
+    if (matchingTier) {
+      setServiceFee(String(matchingTier.feeUsd));
+    }
+  }, [selectedAgent, agentSearchResults, agents, agentFeeConfig, serviceFee]);
 
   // Debounced agent search
   useEffect(() => {
@@ -192,6 +292,64 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     if (!selectedAgent) return notify.error("Select an agent first");
     const fee = serviceFee ? Number(serviceFee) : undefined;
     assignMutation.mutate({ agentId: selectedAgent, serviceFeeUsd: fee });
+  };
+
+  const handlePurchaseFeatured = async () => {
+    if (!selectedFeaturedPlan || !apiBaseUrl || !session?.accessToken) {
+      return notify.error("Select a featured plan first");
+    }
+
+    const targetPropertyId = property?.id ?? propertyId;
+    if (!targetPropertyId) {
+      return notify.error("Listing details not ready yet");
+    }
+
+    const plan = featuredPlans.find((p) => p.id === selectedFeaturedPlan);
+    if (!plan) return notify.error("Featured plan not found");
+
+    setFeaturedProcessing(true);
+    try {
+      const basePriceUsd = featuredBasePriceUsd ?? 0;
+      const discount = plan.discountPercent ?? 0;
+      const discountedPrice = basePriceUsd * (1 - discount / 100);
+      const amountUsd = discountedPrice * (plan.durationDays / 7);
+
+      const response = await fetch(
+        `${apiBaseUrl}/properties/${targetPropertyId}/payments/invoices`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          body: JSON.stringify({
+            type: "PROMOTION",
+            amount: Number(amountUsd.toFixed(2)),
+            currency: featuredPricing?.currency ?? "USD",
+            description: `${plan.label} featured listing`,
+            purpose: "BOOST",
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error?.message || "Failed to create invoice");
+      }
+
+      const payment = await response.json();
+      const redirectUrl = payment?.invoice?.paymentIntents?.[0]?.redirectUrl;
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+      } else {
+        notify.success("Invoice created. Complete payment in Payments tab.");
+        queryClient.invalidateQueries({ queryKey: ["payments", propertyId] });
+      }
+    } catch (error: any) {
+      notify.error(error?.message || "Failed to start featured payment");
+    } finally {
+      setFeaturedProcessing(false);
+    }
   };
 
   if (!sdk || isLoading) return <Skeleton className="h-96 w-full" />;
@@ -262,6 +420,13 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
             isAssigning={assignMutation.isPending}
             updateFee={updateFeeMutation.mutate}
             isUpdatingFee={updateFeeMutation.isPending}
+            agentFeeConfig={agentFeeConfig}
+            featuredPlans={featuredPlans}
+            selectedFeaturedPlan={selectedFeaturedPlan}
+            setSelectedFeaturedPlan={setSelectedFeaturedPlan}
+            featuredBasePriceUsd={featuredBasePriceUsd}
+            featuredProcessing={featuredProcessing}
+            handlePurchaseFeatured={handlePurchaseFeatured}
           />
         )}
         {activeTab === "interest" && <InterestTab propertyId={propertyId} />}
@@ -327,12 +492,28 @@ function ManagementTab({
   isAssigning,
   updateFee,
   isUpdatingFee,
+  agentFeeConfig,
+  featuredPlans,
+  selectedFeaturedPlan,
+  setSelectedFeaturedPlan,
+  featuredBasePriceUsd,
+  featuredProcessing,
+  handlePurchaseFeatured,
 }: any) {
   const assignment = property.assignments?.[0];
   const selectedAgentData =
     agentSearchResults.find((a: any) => a.id === selectedAgent) ||
     agents?.find((a: any) => a.id === selectedAgent);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const trustScore = Number(selectedAgentData?.trustScore ?? 0);
+  const feeTier = (agentFeeConfig || []).find(
+    (tier: { min: number; max: number; feeUsd: number; label?: string }) =>
+      trustScore >= tier.min && trustScore <= tier.max,
+  );
+  const feeLabel = feeTier
+    ? `${feeTier.label ?? "Recommended"} • ${feeTier.feeUsd} USD`
+    : null;
 
   const handleAgentSelect = (agent: any) => {
     setSelectedAgent(agent.id);
@@ -438,6 +619,20 @@ function ManagementTab({
               }
               onChange={(e) => setServiceFee(e.target.value)}
             />
+            {feeLabel && (
+              <p className="text-xs text-neutral-500">
+                Suggested fee: {feeLabel}
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600">
+            <p className="font-medium text-neutral-700">How agent fees work</p>
+            <p>
+              Agent fees are based on trust scores set by Admin to keep pricing
+              fair. Agents with higher trust scores can propose custom fees that
+              require Admin/Moderator approval.
+            </p>
           </div>
 
           <PaymentGate
@@ -472,12 +667,44 @@ function ManagementTab({
         </CardContent>
       </Card>
 
-      <FeaturedSection propertyId={property.id} />
+      <FeaturedSection
+        propertyId={property.id}
+        plans={featuredPlans}
+        selectedPlan={selectedFeaturedPlan}
+        onSelectPlan={setSelectedFeaturedPlan}
+        basePriceUsd={featuredBasePriceUsd}
+        isProcessing={featuredProcessing}
+        onPurchase={handlePurchaseFeatured}
+      />
     </div>
   );
 }
 
-function FeaturedSection({ propertyId }: { propertyId: string }) {
+function FeaturedSection({
+  propertyId,
+  plans,
+  selectedPlan,
+  onSelectPlan,
+  basePriceUsd,
+  isProcessing,
+  onPurchase,
+}: {
+  propertyId: string;
+  plans: Array<{
+    id: string;
+    label: string;
+    durationDays: number;
+    discountPercent?: number;
+    description?: string;
+  }>;
+  selectedPlan: string | null;
+  onSelectPlan: (value: string) => void;
+  basePriceUsd: number | null;
+  isProcessing: boolean;
+  onPurchase: () => void;
+}) {
+  void propertyId;
+  const basePriceLabel = basePriceUsd ? `$${basePriceUsd.toFixed(2)}/week` : "";
   return (
     <Card>
       <CardHeader>
@@ -486,19 +713,69 @@ function FeaturedSection({ propertyId }: { propertyId: string }) {
           Featured Listing
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        <div className="text-sm text-neutral-600 space-y-1">
+          <p>
+            Choose a featured plan. Longer plans include discounts, and unused
+            time can be applied to future listings if the property is acquired.
+          </p>
+          {basePriceLabel && (
+            <p className="text-xs text-neutral-500">
+              Base price: {basePriceLabel}
+            </p>
+          )}
+        </div>
+        <div className="space-y-2">
+          {plans.length === 0 ? (
+            <p className="text-xs text-neutral-500">
+              Plans are managed by Admin. Contact support if unavailable.
+            </p>
+          ) : (
+            plans.map((plan) => {
+              const isActive = selectedPlan === plan.id;
+              const discount = plan.discountPercent ?? 0;
+              return (
+                <button
+                  key={plan.id}
+                  type="button"
+                  onClick={() => onSelectPlan(plan.id)}
+                  className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                    isActive
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-neutral-200 hover:border-neutral-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-neutral-800">
+                      {plan.label}
+                    </span>
+                    {discount > 0 && (
+                      <span className="text-xs text-emerald-600">
+                        Save {discount}%
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-neutral-500">
+                    {plan.description || `${plan.durationDays} days`}
+                  </p>
+                </button>
+              );
+            })
+          )}
+        </div>
         <PaymentGate
           featureType={ChargeableItemType.BOOST}
           targetId={propertyId}
           featureName="Featured Listing"
-          featureDescription="Boost your listing visibility for 7 days"
+          featureDescription="Boost your listing visibility"
         >
-          <div className="space-y-3">
-            <p className="text-sm text-neutral-600">
-              Feature boosts are activated after payment. We'll mark your
-              listing featured once the payment clears.
-            </p>
-          </div>
+          <Button
+            onClick={onPurchase}
+            disabled={!selectedPlan || isProcessing}
+            className="w-full"
+          >
+            {isProcessing ? "Processing..." : "Select & Pay"}
+          </Button>
         </PaymentGate>
       </CardContent>
     </Card>
@@ -961,6 +1238,8 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
   const verificationPayment = payments?.find(
     (p: any) => p.type === "VERIFICATION" && p.status === "PENDING",
   );
+  const verifiedForFree =
+    verificationPayment && verificationPayment.amountCents === 0;
 
   const submitMut = useMutation({
     mutationFn: (payload: any) =>
@@ -976,6 +1255,15 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
       notify.error(err.message || "Failed to submit verification"),
   });
 
+  const refreshVerification = useMutation({
+    mutationFn: () => sdk!.properties.refreshVerification(propertyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["verification-request", propertyId],
+      });
+    },
+  });
+
   const updateItemMut = useMutation({
     mutationFn: ({ itemId, payload }: { itemId: string; payload: any }) =>
       sdk!.properties.updateVerificationItem(propertyId, itemId, payload),
@@ -984,6 +1272,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
       queryClient.invalidateQueries({
         queryKey: ["verification-request", propertyId],
       });
+      refreshVerification.mutate();
     },
     onError: (err: any) => notify.error(err.message || "Failed to update item"),
   });
@@ -1006,6 +1295,10 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
   }
 
   const overallStatus = verificationRequest?.status || "NONE";
+  const verificationLevel =
+    verificationRequest?.property?.verificationLevel || "NONE";
+  const verificationScore =
+    verificationRequest?.property?.verificationScore || 0;
   const items = verificationRequest?.items || [];
   const proofItem = items.find((i: any) => i.type === "PROOF_OF_OWNERSHIP");
   const locationItem = items.find(
@@ -1063,7 +1356,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
       {verificationRequest &&
         verificationPayment &&
         verificationPayment.amountCents > 0 &&
-        verificationRequest.property?.verificationLevel !== "VERIFIED" && (
+        verificationLevel !== "VERIFIED" && (
           <Card className="border-amber-200 bg-amber-50">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -1073,7 +1366,8 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                     Verification payment required
                   </p>
                   <p className="text-sm text-amber-700">
-                    Please complete payment before verification can proceed.
+                    Paid verifications are prioritized ahead of older and newer
+                    unpaid requests.
                   </p>
                 </div>
                 <Button
@@ -1092,6 +1386,24 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
             </CardContent>
           </Card>
         )}
+      {verifiedForFree && (
+        <Card className="border-emerald-200 bg-emerald-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              <div className="flex-1">
+                <p className="font-medium text-emerald-900">
+                  Verification fee waived
+                </p>
+                <p className="text-sm text-emerald-700">
+                  Admin has written off the verification payment for this
+                  listing.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Overall Status */}
       <Card>
@@ -1099,7 +1411,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
           <div className="flex items-center gap-4 mb-6">
             <div
               className={`h-12 w-12 rounded-full flex items-center justify-center ${
-                overallStatus === "APPROVED"
+                verificationLevel === "VERIFIED"
                   ? "bg-emerald-100 text-emerald-600"
                   : overallStatus === "PENDING"
                     ? "bg-yellow-100 text-yellow-600"
@@ -1108,7 +1420,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                       : "bg-neutral-100 text-neutral-600"
               }`}
             >
-              {overallStatus === "APPROVED" ? (
+              {verificationLevel === "VERIFIED" ? (
                 <ShieldCheck className="h-6 w-6" />
               ) : overallStatus === "PENDING" ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -1122,7 +1434,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-lg font-semibold">
-                    {overallStatus === "APPROVED"
+                    {verificationLevel === "VERIFIED"
                       ? "Property Verified"
                       : overallStatus === "PENDING"
                         ? "Verification Pending"
@@ -1131,8 +1443,8 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                           : "Not Started"}
                   </h3>
                   <p className="text-sm text-neutral-500 mb-2">
-                    {overallStatus === "APPROVED"
-                      ? "This property has been verified by our team."
+                    {verificationLevel === "VERIFIED"
+                      ? "At least one verification item was approved."
                       : overallStatus === "PENDING"
                         ? "Our team is reviewing your documentation."
                         : overallStatus === "REJECTED"
@@ -1192,22 +1504,32 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                     </div>
                   </span>
                   <span className="text-neutral-500">
-                    {verificationRequest?.property?.verificationScore || 0} /
-                    110+ Points
+                    {verificationScore} / 110+ Points
                   </span>
                 </div>
                 <div className="h-2 w-full bg-neutral-100 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-emerald-500 transition-all duration-500"
                     style={{
-                      width: `${Math.min(((verificationRequest?.property?.verificationScore || 0) / 110) * 100, 100)}%`,
+                      width: `${Math.min((verificationScore / 110) * 100, 100)}%`,
                     }}
                   />
                 </div>
-                <p className="text-xs text-neutral-500 mt-1">
-                  Complete more verifications to increase listing trust and
-                  visibility.
-                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-neutral-500">
+                    Complete more verifications to increase listing trust and
+                    visibility.
+                  </span>
+                  {verificationLevel !== "NONE" && (
+                    <span className="text-xs font-semibold text-emerald-600">
+                      {verificationLevel === "BASIC"
+                        ? "Bronze Badge"
+                        : verificationLevel === "TRUSTED"
+                          ? "Silver Badge"
+                          : "Gold Badge"}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1695,6 +2017,21 @@ function VerificationStep({
 
 function PaymentsTab({ propertyId }: { propertyId: string }) {
   const sdk = useAuthenticatedSDK();
+  const queryClient = useQueryClient();
+
+  const [offlineMethod, setOfflineMethod] = useState("Bank Transfer");
+  const [offlineAmount, setOfflineAmount] = useState("");
+  const [offlineCurrency, setOfflineCurrency] = useState("USD");
+  const [offlineReference, setOfflineReference] = useState("");
+  const [offlineNotes, setOfflineNotes] = useState("");
+  const [offlinePaidAt, setOfflinePaidAt] = useState("");
+  const [offlineProofUrl, setOfflineProofUrl] = useState<string | null>(null);
+  const [offlineUploading, setOfflineUploading] = useState(false);
+
+  const [invoiceType, setInvoiceType] = useState("PROMOTION");
+  const [invoiceAmount, setInvoiceAmount] = useState("");
+  const [invoiceCurrency, setInvoiceCurrency] = useState("USD");
+  const [invoiceDescription, setInvoiceDescription] = useState("");
 
   const {
     data: payments,
@@ -1748,6 +2085,71 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
       window.location.href = redirectUrl;
     } else {
       notify.error("Payment URL not available. Please contact support.");
+    }
+  };
+
+  const handleOfflineProofUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !sdk) return;
+    setOfflineUploading(true);
+    try {
+      const result = await sdk.properties.uploadMedia(propertyId, files[0]);
+      setOfflineProofUrl(result.url);
+      notify.success("Proof uploaded");
+    } catch (err) {
+      notify.error("Failed to upload proof");
+    } finally {
+      setOfflineUploading(false);
+    }
+  };
+
+  const submitOfflinePayment = async () => {
+    if (!sdk) return;
+    const amount = Number(offlineAmount);
+    if (!amount || amount <= 0) {
+      return notify.error("Enter a valid amount");
+    }
+    try {
+      await sdk.properties.createOfflinePayment(propertyId, {
+        amount,
+        currency: offlineCurrency as "USD" | "ZWG",
+        method: offlineMethod,
+        reference: offlineReference || undefined,
+        proofUrl: offlineProofUrl || undefined,
+        notes: offlineNotes || undefined,
+        paidAt: offlinePaidAt || undefined,
+      });
+      notify.success("Offline payment submitted");
+      setOfflineAmount("");
+      setOfflineReference("");
+      setOfflineNotes("");
+      setOfflinePaidAt("");
+      setOfflineProofUrl(null);
+      queryClient.invalidateQueries({ queryKey: ["payments", propertyId] });
+    } catch (err: any) {
+      notify.error(err?.message || "Failed to submit offline payment");
+    }
+  };
+
+  const createInvoice = async () => {
+    if (!sdk) return;
+    const amount = Number(invoiceAmount);
+    if (!amount || amount <= 0) {
+      return notify.error("Enter a valid invoice amount");
+    }
+    try {
+      await sdk.properties.createListingInvoice(propertyId, {
+        type: invoiceType as any,
+        amount,
+        currency: invoiceCurrency as "USD" | "ZWG",
+        description: invoiceDescription || undefined,
+        purpose: invoiceType === "VERIFICATION" ? "VERIFICATION" : "BOOST",
+      });
+      notify.success("Invoice created");
+      setInvoiceAmount("");
+      setInvoiceDescription("");
+      queryClient.invalidateQueries({ queryKey: ["payments", propertyId] });
+    } catch (err: any) {
+      notify.error(err?.message || "Failed to create invoice");
     }
   };
 
@@ -1839,6 +2241,11 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                           Ref: {payment.reference}
                         </p>
                       )}
+                      {payment.invoice?.invoiceNo && (
+                        <p className="text-xs text-neutral-400">
+                          Invoice: {payment.invoice.invoiceNo}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 ml-4">
                       <div className="text-right">
@@ -1846,6 +2253,16 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                           {formattedAmount}
                         </p>
                       </div>
+                      {payment.invoice?.pdfUrl && (
+                        <a
+                          href={payment.invoice.pdfUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-emerald-600 hover:underline"
+                        >
+                          Invoice PDF
+                        </a>
+                      )}
                       {canPay && (
                         <Button
                           size="sm"
@@ -1861,6 +2278,130 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
               })}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Offline Payment Proof
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Payment Method</Label>
+              <Input
+                value={offlineMethod}
+                onChange={(e) => setOfflineMethod(e.target.value)}
+                placeholder="Bank Transfer / Cash"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <Input
+                type="number"
+                value={offlineAmount}
+                onChange={(e) => setOfflineAmount(e.target.value)}
+                placeholder="e.g. 50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Input
+                value={offlineCurrency}
+                onChange={(e) => setOfflineCurrency(e.target.value)}
+                placeholder="USD"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Reference</Label>
+              <Input
+                value={offlineReference}
+                onChange={(e) => setOfflineReference(e.target.value)}
+                placeholder="Bank ref or receipt number"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Payment Date</Label>
+            <Input
+              type="date"
+              value={offlinePaidAt}
+              onChange={(e) => setOfflinePaidAt(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Notes</Label>
+            <Textarea
+              value={offlineNotes}
+              onChange={(e) => setOfflineNotes(e.target.value)}
+              placeholder="Add optional notes"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Proof of Payment</Label>
+            <input
+              type="file"
+              onChange={(e) => handleOfflineProofUpload(e.target.files)}
+              disabled={offlineUploading}
+              className="block w-full text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 disabled:opacity-50"
+            />
+            {offlineProofUrl && (
+              <p className="text-xs text-neutral-500">Proof uploaded.</p>
+            )}
+          </div>
+          <Button onClick={submitOfflinePayment} disabled={offlineUploading}>
+            Submit Offline Payment
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Request Invoice
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Payment Type</Label>
+              <Input
+                value={invoiceType}
+                onChange={(e) => setInvoiceType(e.target.value)}
+                placeholder="PROMOTION / VERIFICATION / AGENT_FEE"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <Input
+                type="number"
+                value={invoiceAmount}
+                onChange={(e) => setInvoiceAmount(e.target.value)}
+                placeholder="e.g. 75"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Input
+                value={invoiceCurrency}
+                onChange={(e) => setInvoiceCurrency(e.target.value)}
+                placeholder="USD"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Input
+                value={invoiceDescription}
+                onChange={(e) => setInvoiceDescription(e.target.value)}
+                placeholder="Invoice description"
+              />
+            </div>
+          </div>
+          <Button onClick={createInvoice}>Create Invoice</Button>
         </CardContent>
       </Card>
     </div>

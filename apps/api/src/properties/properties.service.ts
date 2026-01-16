@@ -130,6 +130,9 @@ import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { GeoService } from "../geo/geo.service";
 import { CreatePropertyDto } from "./dto/create-property.dto";
+import { PaymentsService } from "../payments/payments.service";
+import { PricingService } from "../pricing/pricing.service";
+import { VerificationsService } from "../verifications/verifications.service";
 import { UpdatePropertyDto } from "./dto/update-property.dto";
 import { SubmitForVerificationDto } from "./dto/submit-verification.dto";
 import { MapBoundsDto } from "./dto/map-bounds.dto";
@@ -243,6 +246,9 @@ export class PropertiesService {
     private readonly fingerprintService: VerificationFingerprintService,
     private readonly ranking: RankingService,
     private readonly riskService: RiskService,
+    private readonly pricing: PricingService,
+    private readonly paymentsService: PaymentsService,
+    private readonly verificationsService: VerificationsService,
   ) {}
 
   /**
@@ -1218,6 +1224,7 @@ export class PropertiesService {
         id: true,
         name: true,
         phone: true,
+        trustScore: true,
         agentProfile: {
           select: { verifiedListingsCount: true, leadsCount: true },
         },
@@ -1264,6 +1271,7 @@ export class PropertiesService {
         id: true,
         name: true,
         phone: true,
+        trustScore: true,
         agentProfile: {
           select: {
             verifiedListingsCount: true,
@@ -1394,7 +1402,7 @@ export class PropertiesService {
     return { success: true };
   }
 
-  async create(dto: CreatePropertyDto, actor: AuthContext) {
+  async create(dto: CreatePropertyDto, actor: AuthContext): Promise<any> {
     try {
       const landlordId =
         dto.landlordId ??
@@ -1482,7 +1490,7 @@ export class PropertiesService {
       const resolvedSuburbId = location.suburb?.id ?? dto.suburbId ?? null;
       const resolvedPendingGeoId = location.pendingGeo?.id ?? null;
 
-      const property = await this.prisma.property.create({
+      const createdProperty = await this.prisma.property.create({
         data: {
           title: dto.title,
           ...(landlordId && { landlordId }),
@@ -1524,12 +1532,12 @@ export class PropertiesService {
         action: "property.create",
         actorId: actor.userId,
         targetType: "property",
-        targetId: property.id,
+        targetId: createdProperty.id,
         metadata: { landlordId, agentOwnerId },
       });
 
       try {
-        return this.attachLocation(property);
+        return this.attachLocation(createdProperty);
       } catch (attachError) {
         // If attachLocation fails, return property without location data
         const errorMessage =
@@ -1537,7 +1545,7 @@ export class PropertiesService {
             ? attachError.message
             : String(attachError);
         this.logger.error(
-          `Failed to attach location to created property ${property.id}: ${errorMessage}`,
+          `Failed to attach location to created property ${createdProperty.id}: ${errorMessage}`,
           attachError instanceof Error ? attachError.stack : undefined,
         );
 
@@ -1549,7 +1557,7 @@ export class PropertiesService {
           suburb,
           pendingGeo,
           ...cleanProperty
-        } = property as any;
+        } = createdProperty as any;
         return this.convertDecimalsToNumbers({
           ...cleanProperty,
           countryName: null,
@@ -1557,22 +1565,22 @@ export class PropertiesService {
           cityName: null,
           suburbName: null,
           location: {
-            countryId: property.countryId,
+            countryId: createdProperty.countryId,
             country: null,
-            provinceId: property.provinceId,
+            provinceId: createdProperty.provinceId,
             province: null,
-            cityId: property.cityId,
+            cityId: createdProperty.cityId,
             city: null,
-            suburbId: property.suburbId,
+            suburbId: createdProperty.suburbId,
             suburb: null,
-            pendingGeoId: property.pendingGeoId,
+            pendingGeoId: createdProperty.pendingGeoId,
             pendingGeo: null,
-            lat: property.lat,
-            lng: property.lng,
+            lat: createdProperty.lat,
+            lng: createdProperty.lng,
           },
         });
       }
-      return this.attachLocation(property);
+      return this.attachLocation(createdProperty);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -1654,7 +1662,11 @@ export class PropertiesService {
     return updated;
   }
 
-  async update(id: string, dto: UpdatePropertyDto, actor: AuthContext) {
+  async update(
+    id: string,
+    dto: UpdatePropertyDto,
+    actor: AuthContext,
+  ): Promise<any> {
     const existing = await this.getPropertyOrThrow(id);
     this.ensureCanMutate(existing, actor);
 
@@ -3620,6 +3632,8 @@ export class PropertiesService {
             id: true,
             invoiceNo: true,
             status: true,
+            currency: true,
+            pdfUrl: true,
             paymentIntents: {
               select: {
                 id: true,
@@ -3637,6 +3651,201 @@ export class PropertiesService {
     });
 
     return payments;
+  }
+
+  async createOfflineListingPayment(
+    propertyId: string,
+    payload: {
+      amount: number;
+      currency: string;
+      method: string;
+      reference?: string | null;
+      proofUrl?: string | null;
+      notes?: string | null;
+      paidAt?: Date | string;
+    },
+    actor: AuthContext,
+  ) {
+    const property = await this.getPropertyOrThrow(propertyId);
+    this.ensureLandlordAccess(property, actor);
+
+    const amountCents = Math.round(payload.amount * 100);
+    if (!amountCents || amountCents <= 0) {
+      throw new BadRequestException("Amount must be greater than zero");
+    }
+
+    const payment = await this.prisma.listingPayment.create({
+      data: {
+        propertyId,
+        type: payload.type,
+        amountCents,
+        currency: payload.currency as Currency,
+        status: ListingPaymentStatus.PENDING,
+        reference: payload.reference ?? null,
+        metadata: {
+          method: payload.method,
+          notes: payload.notes ?? null,
+          proofUrl: payload.proofUrl ?? null,
+          paidAt: payload.paidAt ?? null,
+        },
+      },
+      include: {
+        invoice: {
+          select: {
+            id: true,
+            invoiceNo: true,
+            status: true,
+            currency: true,
+            pdfUrl: true,
+          },
+        },
+      },
+    });
+
+    await this.audit.logAction({
+      action: "property.offlinePayment",
+      actorId: actor.userId,
+      targetType: "property",
+      targetId: propertyId,
+      metadata: {
+        paymentId: payment.id,
+        amountCents,
+        currency: payload.currency,
+        method: payload.method,
+      },
+    });
+
+    return payment;
+  }
+
+  async createListingPaymentInvoice(
+    propertyId: string,
+    payload: {
+      type: ListingPaymentType;
+      amount: number;
+      currency?: Currency;
+      description?: string;
+      purpose?: "OTHER" | "VERIFICATION" | "BOOST";
+    },
+    actor: AuthContext,
+  ) {
+    const property = await this.getPropertyOrThrow(propertyId);
+    this.ensureLandlordAccess(property, actor);
+
+    const amountCents = Math.round(payload.amount * 100);
+    if (!amountCents || amountCents <= 0) {
+      throw new BadRequestException("Amount must be greater than zero");
+    }
+
+    const invoice = await this.paymentsService.createInvoice({
+      buyerUserId: actor.userId,
+      purpose: (payload.purpose ?? "OTHER") as any,
+      currency: payload.currency ?? Currency.USD,
+      lines: [
+        {
+          sku: `${payload.type}-${propertyId}`,
+          description:
+            payload.description ??
+            `${payload.type} payment for ${property.title}`,
+          qty: 1,
+          unitPriceCents: amountCents,
+          taxable: true,
+          meta: {
+            listingPaymentType: payload.type,
+            propertyId,
+          },
+        },
+      ],
+    });
+
+    const refreshInvoice = await this.prisma.invoice.findUnique({
+      where: { id: invoice.id },
+      select: {
+        id: true,
+        invoiceNo: true,
+        status: true,
+        currency: true,
+        pdfUrl: true,
+      },
+    });
+
+    const payment = await this.prisma.listingPayment.create({
+      data: {
+        propertyId,
+        type: payload.type,
+        amountCents,
+        currency: payload.currency ?? Currency.USD,
+        status: ListingPaymentStatus.PENDING,
+        reference: invoice.invoiceNo ?? invoice.id,
+        invoiceId: invoice.id,
+        metadata: {
+          invoiceId: invoice.id,
+          invoiceNo: invoice.invoiceNo ?? invoice.id,
+        },
+      },
+      include: {
+        invoice: {
+          select: {
+            id: true,
+            invoiceNo: true,
+            status: true,
+            currency: true,
+            pdfUrl: true,
+          },
+        },
+      },
+    });
+
+    if (refreshInvoice?.pdfUrl) {
+      await this.prisma.listingPayment.update({
+        where: { id: payment.id },
+        data: {
+          metadata: {
+            invoiceId: invoice.id,
+            invoiceNo: invoice.invoiceNo ?? invoice.id,
+            invoicePdfUrl: refreshInvoice.pdfUrl,
+          },
+        },
+      });
+      return {
+        ...payment,
+        invoice: {
+          ...payment.invoice,
+          pdfUrl: refreshInvoice.pdfUrl,
+        },
+      };
+    }
+
+    return payment;
+  }
+
+  async refreshPropertyVerification(propertyId: string, actor: AuthContext) {
+    const property = await this.getPropertyOrThrow(propertyId);
+    const isAuthorized =
+      property.landlordId === actor.userId ||
+      property.agentOwnerId === actor.userId ||
+      actor.role === Role.ADMIN;
+    if (!isAuthorized) {
+      throw new ForbiddenException(
+        "Only the property owner or assigned agent can refresh verification",
+      );
+    }
+
+    const updated =
+      await this.verificationsService.refreshPropertyVerification(propertyId);
+
+    await this.audit.logAction({
+      action: "property.refreshVerification",
+      actorId: actor.userId,
+      targetType: "property",
+      targetId: propertyId,
+      metadata: {
+        verificationScore: updated?.verificationScore ?? null,
+        verificationLevel: updated?.verificationLevel ?? null,
+      },
+    });
+
+    return updated;
   }
 
   /**

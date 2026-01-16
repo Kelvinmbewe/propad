@@ -422,10 +422,10 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           Array<{
             id: string;
             propertyId: string;
-            type: "AGENT_FEE" | "FEATURED" | "VERIFICATION" | "OTHER";
+            type: "LISTING_FEE" | "PROMOTION" | "VERIFICATION" | "AGENT_FEE";
             amountCents: number;
             currency: string;
-            status: "PENDING" | "PAID" | "FAILED";
+            status: "PENDING" | "PAID" | "FAILED" | "CANCELLED";
             reference: string | null;
             invoiceId: string | null;
             metadata: Record<string, unknown> | null;
@@ -435,6 +435,8 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
               id: string;
               invoiceNo: string | null;
               status: string;
+              currency?: string;
+              pdfUrl?: string | null;
               paymentIntents?: Array<{
                 id: string;
                 redirectUrl: string | null;
@@ -444,6 +446,55 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             } | null;
           }>
         >(),
+      createOfflinePayment: async (
+        id: string,
+        payload: {
+          amount: number;
+          currency: "USD" | "ZWG";
+          method: string;
+          reference?: string;
+          proofUrl?: string;
+          notes?: string;
+          paidAt?: string;
+        },
+      ) =>
+        client
+          .post(`properties/${id}/payments/offline`, { json: payload })
+          .json<{
+            id: string;
+            status: string;
+          }>(),
+      createListingInvoice: async (
+        id: string,
+        payload: {
+          type: "LISTING_FEE" | "PROMOTION" | "VERIFICATION" | "AGENT_FEE";
+          amount: number;
+          currency?: "USD" | "ZWG";
+          description?: string;
+          purpose?: "OTHER" | "VERIFICATION" | "BOOST";
+        },
+      ) =>
+        client
+          .post(`properties/${id}/payments/invoices`, { json: payload })
+          .json<{
+            id: string;
+            invoice?: {
+              id: string;
+              invoiceNo: string | null;
+              status: string;
+              currency?: string;
+              pdfUrl?: string | null;
+              paymentIntents?: Array<{ redirectUrl: string | null }>;
+            } | null;
+          }>(),
+      refreshVerification: async (id: string) =>
+        client.post(`properties/${id}/verification/refresh`).json<{
+          id: string;
+          status: string;
+          verificationScore: number;
+          verificationLevel: string;
+          verifiedAt: string | null;
+        }>(),
       getVerificationRequest: async (id: string) =>
         client.get(`properties/${id}/verification-request`).json<{
           id: string;
