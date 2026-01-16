@@ -17,8 +17,10 @@ export default function PricingPage() {
   const queryClient = useQueryClient();
   const [editKey, setEditKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>('');
+  const [draftKey, setDraftKey] = useState<string>('');
   const [jsonError, setJsonError] = useState<string | null>(null);
   const { status, message, apiBaseUrl, accessToken } = useSdkClient();
+
 
   const { data: configs, isLoading, isError } = useQuery<PricingConfig[]>({
     queryKey: ['admin', 'pricing'],
@@ -72,6 +74,7 @@ export default function PricingPage() {
     onSuccess: () => {
       setEditKey(null);
       setEditValue('');
+      setDraftKey('');
       setJsonError(null);
       queryClient.invalidateQueries({ queryKey: ['admin', 'pricing'] });
     },
@@ -82,9 +85,16 @@ export default function PricingPage() {
     }
   });
 
+  const knownConfigs = configs ?? [];
+  const showDraftCard =
+    !!editKey && (editKey === 'NEW' || !knownConfigs.some((cfg) => cfg.key === editKey));
+  const draftTitle = editKey === 'NEW' ? (draftKey || 'New config') : editKey;
+
   if (status !== 'ready') {
     return <ClientState status={status} message={message} title="Pricing admin" />;
   }
+
+
 
   return (
     <div className="space-y-6">
@@ -111,57 +121,129 @@ export default function PricingPage() {
             Unable to load pricing configurations. Please try again.
           </div>
         ) : (
-          configs?.map((cfg) => (
-            <Card key={cfg.key}>
-            <CardHeader className="py-4">
-              <CardTitle className="text-base font-mono flex items-center justify-between">
-                {cfg.key}
-                {editKey !== cfg.key && (
-                  <Button variant="ghost" size="sm" onClick={() => {
-                    setEditKey(cfg.key);
-                    setEditValue(JSON.stringify(cfg.value, null, 2));
-                    setJsonError(null);
-                  }}>Edit</Button>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {editKey === cfg.key ? (
-                <div className="space-y-4">
-                  <Textarea
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    className="font-mono text-xs"
-                    rows={5}
-                  />
-                  {jsonError && (
-                    <p className="text-xs text-red-600">{jsonError}</p>
-                  )}
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => {
-                      setEditKey(null);
-                      setJsonError(null);
-                    }}>Cancel</Button>
-                    <Button
-                      onClick={() => saveConfig.mutate({ key: cfg.key, value: editValue })}
-                      disabled={saveConfig.isPending}
-                    >
-                      <Save className="mr-2 h-4 w-4" /> Save
-                    </Button>
+          <>
+            {showDraftCard && (
+              <Card>
+                <CardHeader className="py-4">
+                  <CardTitle className="text-base font-mono flex items-center justify-between">
+                    {draftTitle}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {editKey === 'NEW' && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-neutral-600">Config key</label>
+                        <input
+                          value={draftKey}
+                          onChange={(e) => setDraftKey(e.target.value)}
+                          className="w-full rounded-md border border-neutral-200 px-3 py-2 text-xs font-mono"
+                          placeholder="pricing.newConfig"
+                        />
+                      </div>
+                    )}
+                    <Textarea
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="font-mono text-xs"
+                      rows={5}
+                    />
+                    {jsonError && <p className="text-xs text-red-600">{jsonError}</p>}
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setEditKey(null);
+                          setDraftKey('');
+                          setJsonError(null);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() =>
+                          saveConfig.mutate({
+                            key: editKey === 'NEW' ? draftKey.trim() : editKey,
+                            value: editValue
+                          })
+                        }
+                        disabled={
+                          saveConfig.isPending || (editKey === 'NEW' && draftKey.trim().length === 0)
+                        }
+                      >
+                        <Save className="mr-2 h-4 w-4" /> Save
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <pre className="text-xs bg-neutral-50 p-3 rounded overflow-auto">
-                  {JSON.stringify(cfg.value, null, 2)}
-                </pre>
-              )}
-              <div className="mt-2 text-xs text-neutral-400">
-                Updated: {new Date(cfg.updatedAt).toLocaleString()}
-              </div>
-            </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            )}
+            {configs?.map((cfg) => (
+              <Card key={cfg.key}>
+                <CardHeader className="py-4">
+                  <CardTitle className="text-base font-mono flex items-center justify-between">
+                    {cfg.key}
+                    {editKey !== cfg.key && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditKey(cfg.key);
+                          setDraftKey(cfg.key);
+                          setEditValue(JSON.stringify(cfg.value, null, 2));
+                          setJsonError(null);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+
+                <CardContent>
+                  {editKey === cfg.key ? (
+                    <div className="space-y-4">
+                      <Textarea
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="font-mono text-xs"
+                        rows={5}
+                      />
+
+                      {jsonError && <p className="text-xs text-red-600">{jsonError}</p>}
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setEditKey(null);
+                            setDraftKey('');
+                            setJsonError(null);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={() => saveConfig.mutate({ key: cfg.key, value: editValue })}
+                          disabled={saveConfig.isPending}
+                        >
+                          <Save className="mr-2 h-4 w-4" /> Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <pre className="text-xs bg-neutral-50 p-3 rounded overflow-auto">
+                      {JSON.stringify(cfg.value, null, 2)}
+                    </pre>
+                  )}
+                  <div className="mt-2 text-xs text-neutral-400">
+                    Updated: {new Date(cfg.updatedAt).toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </>
         )}
+
 
         {configs?.length === 0 && !isLoading && !isError && (
           <div className="text-center p-8 text-neutral-500 border rounded-lg border-dashed">
@@ -170,6 +252,7 @@ export default function PricingPage() {
               <Button
                 onClick={() => {
                   setEditKey('pricing.agentFees');
+                  setDraftKey('pricing.agentFees');
                   setEditValue(
                     JSON.stringify(
                       [
@@ -190,6 +273,7 @@ export default function PricingPage() {
                 variant="outline"
                 onClick={() => {
                   setEditKey('pricing.featuredPlans');
+                  setDraftKey('pricing.featuredPlans');
                   setEditValue(
                     JSON.stringify(
                       [
@@ -228,6 +312,7 @@ export default function PricingPage() {
                 variant="ghost"
                 onClick={() => {
                   setEditKey('NEW');
+                  setDraftKey('');
                   setEditValue('{}');
                   setJsonError(null);
                 }}
