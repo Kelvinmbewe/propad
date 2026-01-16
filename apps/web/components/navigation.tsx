@@ -113,6 +113,12 @@ const links = [
     icon: <Wallet2 className="h-4 w-4" />,
   },
   {
+    href: "/dashboard/admin/settings",
+    label: "Settings",
+    roles: ["ADMIN"] as Role[],
+    icon: <Wallet2 className="h-4 w-4" />,
+  },
+  {
     href: "/dashboard/admin/pricing",
     label: "Pricing & Fees",
     roles: ["ADMIN"] as Role[],

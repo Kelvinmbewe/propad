@@ -93,39 +93,62 @@ export class PaymentProviderSettingsService {
       });
     }
 
+    const existing = await this.prisma.paymentProviderSettings.findUnique({
+      where: { provider },
+    });
+
+    const mergedConfig: Record<string, unknown> = {
+      ...(existing?.configJson as Record<string, unknown> | null),
+      ...(data.configJson as Record<string, unknown> | null),
+    };
+
+    const mergedData = {
+      ...existing,
+      ...data,
+      configJson: Object.keys(mergedConfig).length ? mergedConfig : undefined,
+    };
+
     // Validate credentials if enabling
-    if (data.enabled === true) {
-      await this.validateProvider(provider, data);
+    if (mergedData.enabled === true) {
+      await this.validateProvider(provider, mergedData);
     }
 
     const settings = await this.prisma.paymentProviderSettings.upsert({
       where: { provider },
       create: {
         provider,
-        enabled: data.enabled ?? false,
-        isDefault: data.isDefault ?? false,
-        isTestMode: data.isTestMode ?? true,
-        apiKey: data.apiKey,
-        apiSecret: data.apiSecret,
-        returnUrl: data.returnUrl,
-        webhookUrl: data.webhookUrl,
-        webhookSecret: data.webhookSecret,
-        configJson: data.configJson,
-        validatedAt: data.enabled ? new Date() : null,
-        validatedBy: data.enabled ? actorId : null,
+        enabled: mergedData.enabled ?? false,
+        isDefault: mergedData.isDefault ?? false,
+        isTestMode: mergedData.isTestMode ?? true,
+        apiKey: mergedData.apiKey,
+        apiSecret: mergedData.apiSecret,
+        returnUrl: mergedData.returnUrl,
+        webhookUrl: mergedData.webhookUrl,
+        webhookSecret: mergedData.webhookSecret,
+        configJson: mergedData.configJson,
+        validatedAt: mergedData.enabled ? new Date() : null,
+        validatedBy: mergedData.enabled ? actorId : null,
       },
       update: {
-        enabled: data.enabled,
-        isDefault: data.isDefault,
-        isTestMode: data.isTestMode,
-        apiKey: data.apiKey,
-        apiSecret: data.apiSecret,
-        returnUrl: data.returnUrl,
-        webhookUrl: data.webhookUrl,
-        webhookSecret: data.webhookSecret,
-        configJson: data.configJson,
-        validatedAt: data.enabled ? new Date() : null,
-        validatedBy: data.enabled ? actorId : null,
+        enabled: mergedData.enabled,
+        isDefault: mergedData.isDefault,
+        isTestMode: mergedData.isTestMode,
+        apiKey: mergedData.apiKey,
+        apiSecret: mergedData.apiSecret,
+        returnUrl: mergedData.returnUrl,
+        webhookUrl: mergedData.webhookUrl,
+        webhookSecret: mergedData.webhookSecret,
+        configJson: mergedData.configJson,
+        validatedAt: mergedData.enabled
+          ? new Date()
+          : mergedData.enabled === false
+            ? null
+            : undefined,
+        validatedBy: mergedData.enabled
+          ? actorId
+          : mergedData.enabled === false
+            ? null
+            : undefined,
       },
     });
 

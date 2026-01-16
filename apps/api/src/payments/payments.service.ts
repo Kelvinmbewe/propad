@@ -29,6 +29,7 @@ import { env } from "@propad/config";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { PaymentGatewayRegistry } from "./payment-gateway.registry";
+import { AppConfigService } from "../app-config/app-config.service";
 import { MailService } from "../mail/mail.service";
 import { PaymentPollingService } from "./payment-polling.service";
 import { PricingService } from "./pricing.service";
@@ -38,7 +39,6 @@ import { PaymentProviderSettingsService } from "./payment-provider-settings.serv
 
 const VAT_SCALE = 100;
 const MICRO_SCALE = 1_000_000;
-const BASE_CURRENCY = Currency.USD;
 
 type PrismaTx = PrismaClient;
 type PrismaClientOrTx = PrismaClient;
@@ -106,8 +106,10 @@ import { ReferralsService } from "../growth/referrals/referrals.service";
 
 @Injectable()
 export class PaymentsService {
-  private readonly vatRate =
-    env.VAT_RATE ?? (env.VAT_PERCENT ?? 15) / VAT_SCALE;
+  private get vatRate() {
+    const configRate = this.appConfig.getConfig().billing.taxRate / VAT_SCALE;
+    return configRate || env.VAT_RATE || (env.VAT_PERCENT ?? 15) / VAT_SCALE;
+  }
 
   constructor(
     private readonly prisma: PrismaService,
@@ -120,6 +122,7 @@ export class PaymentsService {
     private readonly rewards: RewardsService,
     private readonly referrals: ReferralsService,
     private readonly providerSettings: PaymentProviderSettingsService,
+    private readonly appConfig: AppConfigService,
   ) {}
 
   // Property injection to avoid constructor overload if preferred, but standard is constructor.
@@ -272,18 +275,28 @@ export class PaymentsService {
         line.taxable ? acc + line.qty * line.unitPriceCents : acc,
       0,
     );
-    const taxUsd = Math.round(taxableSubtotalUsd * this.vatRate);
+    const taxUsd = this.getTaxEnabled()
+      ? Math.round(taxableSubtotalUsd * this.vatRate)
+      : 0;
 
+    const config = this.appConfig.getConfig();
+    const billingCurrency = config.billing.currency;
+    if (!billingCurrency.supportedCurrencies.includes(options.currency)) {
+      throw new BadRequestException("Unsupported invoice currency");
+    }
+
+    const baseCurrency = billingCurrency.fxBase as Currency;
     let fxRate: FxRate | null = null;
-    if (options.currency === Currency.ZWG) {
+    if (options.currency !== baseCurrency) {
+      if (!billingCurrency.allowManualFxRates) {
+        throw new BadRequestException("FX conversion is disabled");
+      }
       fxRate = await this.resolveFxRate(
         client,
-        BASE_CURRENCY,
-        Currency.ZWG,
+        baseCurrency,
+        options.currency,
         new Date(),
       );
-    } else if (options.currency !== BASE_CURRENCY) {
-      throw new BadRequestException("Unsupported invoice currency");
     }
 
     const rateMicros = fxRate?.rateMicros;
@@ -309,7 +322,7 @@ export class PaymentsService {
             const convertedUnit = convert(baseUnit);
             const convertedTotal = convert(baseTotal);
             const meta: Record<string, unknown> = {
-              baseCurrency: BASE_CURRENCY,
+              baseCurrency: baseCurrency,
               baseUnitPriceCents: baseUnit,
               baseTotalCents: baseTotal,
               taxable: line.taxable ?? false,
@@ -837,6 +850,10 @@ export class PaymentsService {
     return new Date(now.getTime() + 7 * 24 * 3600 * 1000);
   }
 
+  private getTaxEnabled() {
+    return this.appConfig.getConfig().billing.taxEnabled;
+  }
+
   private buildReference(invoiceId: string) {
     return `INV-${invoiceId}-${Date.now()}`;
   }
@@ -910,7 +927,8 @@ export class PaymentsService {
         resolve(`data:application/pdf;base64,${buffer.toString("base64")}`);
       });
 
-      doc.fontSize(20).text("Propad Payment Receipt", { align: "center" });
+      const config = this.appConfig.getConfig().billing;
+      doc.fontSize(20).text(config.labels.receiptTitle, { align: "center" });
       doc.moveDown();
       doc
         .fontSize(12)
@@ -926,7 +944,7 @@ export class PaymentsService {
         `Subtotal: ${(invoice.amountCents / 100).toFixed(2)} ${invoice.currency}`,
       );
       doc.text(
-        `VAT: ${(invoice.taxCents / 100).toFixed(2)} ${invoice.currency}`,
+        `${config.labels.taxLabel}: ${(invoice.taxCents / 100).toFixed(2)} ${invoice.currency}`,
       );
       doc.text(
         `Total: ${((invoice.amountCents + invoice.taxCents) / 100).toFixed(2)} ${invoice.currency}`,
@@ -935,7 +953,9 @@ export class PaymentsService {
         doc.text(
           `Subtotal (USD): ${(invoice.amountUsdCents / 100).toFixed(2)} USD`,
         );
-        doc.text(`VAT (USD): ${(invoice.taxUsdCents / 100).toFixed(2)} USD`);
+        doc.text(
+          `${config.labels.taxLabel} (USD): ${(invoice.taxUsdCents / 100).toFixed(2)} USD`,
+        );
         doc.text(
           `Total (USD): ${((invoice.amountUsdCents + invoice.taxUsdCents) / 100).toFixed(2)} USD`,
         );
@@ -945,6 +965,7 @@ export class PaymentsService {
           );
         }
       }
+
       doc.moveDown();
 
       doc.fontSize(14).text("Line Items");
@@ -989,7 +1010,8 @@ export class PaymentsService {
         resolve(`data:application/pdf;base64,${buffer.toString("base64")}`);
       });
 
-      doc.fontSize(20).text("Propad Tax Invoice", { align: "center" });
+      const config = this.appConfig.getConfig().billing;
+      doc.fontSize(20).text(config.labels.invoiceTitle, { align: "center" });
       doc.moveDown();
       doc.fontSize(12).text(`Invoice Number: ${invoice.invoiceNo}`);
       doc.text(`Issued At: ${invoice.issuedAt.toISOString()}`);
@@ -999,7 +1021,7 @@ export class PaymentsService {
         `Subtotal: ${(invoice.amountCents / 100).toFixed(2)} ${invoice.currency}`,
       );
       doc.text(
-        `VAT: ${(invoice.taxCents / 100).toFixed(2)} ${invoice.currency}`,
+        `${config.labels.taxLabel}: ${(invoice.taxCents / 100).toFixed(2)} ${invoice.currency}`,
       );
       doc.text(
         `Total: ${((invoice.amountCents + invoice.taxCents) / 100).toFixed(2)} ${invoice.currency}`,
@@ -1008,7 +1030,9 @@ export class PaymentsService {
         doc.text(
           `Subtotal (USD): ${(invoice.amountUsdCents / 100).toFixed(2)} USD`,
         );
-        doc.text(`VAT (USD): ${(invoice.taxUsdCents / 100).toFixed(2)} USD`);
+        doc.text(
+          `${config.labels.taxLabel} (USD): ${(invoice.taxUsdCents / 100).toFixed(2)} USD`,
+        );
         doc.text(
           `Total (USD): ${((invoice.amountUsdCents + invoice.taxUsdCents) / 100).toFixed(2)} USD`,
         );
