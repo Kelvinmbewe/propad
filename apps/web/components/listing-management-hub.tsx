@@ -105,6 +105,8 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     retry: 1,
     initialData: null,
     staleTime: 5000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: "always",
   });
 
   const { data: agents } = useQuery({
@@ -192,7 +194,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     assignMutation.mutate({ agentId: selectedAgent, serviceFeeUsd: fee });
   };
 
-  if (isLoading) return <Skeleton className="h-96 w-full" />;
+  if (!sdk || isLoading) return <Skeleton className="h-96 w-full" />;
   if (error || !property)
     return (
       <div className="text-red-500">
