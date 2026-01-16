@@ -718,6 +718,71 @@ export class VerificationsService {
     });
   }
 
+  async decideRequest(
+    requestId: string,
+    status: "APPROVED" | "REJECTED",
+    notes: string,
+    actorId: string,
+  ) {
+    const request = await this.prisma.verificationRequest.findUnique({
+      where: { id: requestId },
+    });
+    if (!request) throw new NotFoundException("Request not found");
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.verificationRequest.update({
+        where: { id: requestId },
+        data: { status, reviewedAt: new Date(), notes },
+      });
+
+      if (status === "APPROVED") {
+        if (request.targetType === "PROPERTY" && request.propertyId) {
+          await tx.property.update({
+            where: { id: request.propertyId },
+            data: { status: "VERIFIED", verifiedAt: new Date() },
+          });
+        } else if (request.targetType === "USER" && request.targetUserId) {
+          await tx.user.update({
+            where: { id: request.targetUserId },
+            data: { isVerified: true },
+          });
+        } else if (request.targetType === "COMPANY" && request.agencyId) {
+          await tx.agency.update({
+            where: { id: request.agencyId },
+            data: { verifiedAt: new Date() },
+          });
+        }
+      }
+    });
+
+    await this.audit.logAction({
+      action: "VERIFICATION_DECIDE",
+      actorId: actorId,
+      targetType: "VERIFICATION_REQUEST",
+      targetId: requestId,
+      metadata: { status, notes },
+    });
+
+    if (request.requesterId) {
+      await this.notifications.notifyUser(
+        request.requesterId,
+        "VERIFICATION_UPDATE" as any,
+        `Verification ${status}`,
+        `Your verification request was ${status.toLowerCase()}. ${notes || ""}`,
+      );
+    }
+
+    if (
+      status === "APPROVED" &&
+      request.targetType === "PROPERTY" &&
+      request.propertyId
+    ) {
+      await this.recalculatePropertyScore(request.propertyId);
+    }
+
+    return this.getRequest(requestId);
+  }
+
   async assignItem(
     requestId: string,
     itemId: string,

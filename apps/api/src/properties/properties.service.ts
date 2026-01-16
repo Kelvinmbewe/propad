@@ -3656,6 +3656,7 @@ export class PropertiesService {
   async createOfflineListingPayment(
     propertyId: string,
     payload: {
+      type: ListingPaymentType;
       amount: number;
       currency: string;
       method: string;
