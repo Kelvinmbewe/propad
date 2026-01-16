@@ -88,12 +88,18 @@ export default function PricingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Pricing & Rules</h1>
           <p className="text-sm text-neutral-500">Configure business logic dynamically.</p>
         </div>
+        <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-xs text-emerald-700">
+          Manage listing pricing inputs like agent fee tiers and featured listing plans here.
+          Keys in use: <span className="font-semibold">pricing.agentFees</span> and{' '}
+          <span className="font-semibold">pricing.featuredPlans</span>.
+        </div>
       </div>
+
 
       <div className="grid gap-4">
         {isLoading ? (
@@ -160,15 +166,78 @@ export default function PricingPage() {
         {configs?.length === 0 && !isLoading && !isError && (
           <div className="text-center p-8 text-neutral-500 border rounded-lg border-dashed">
             No configs found.
-            <div className="mt-4">
-              <Button onClick={() => {
-                setEditKey('NEW');
-                setEditValue('{}');
-                setJsonError(null);
-              }}>Create Config</Button>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <Button
+                onClick={() => {
+                  setEditKey('pricing.agentFees');
+                  setEditValue(
+                    JSON.stringify(
+                      [
+                        { min: 0, max: 49, feeUsd: 25, label: 'Starter' },
+                        { min: 50, max: 79, feeUsd: 35, label: 'Trusted' },
+                        { min: 80, max: 100, feeUsd: 50, label: 'Elite' }
+                      ],
+                      null,
+                      2
+                    )
+                  );
+                  setJsonError(null);
+                }}
+              >
+                Add agent fee tiers
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditKey('pricing.featuredPlans');
+                  setEditValue(
+                    JSON.stringify(
+                      [
+                        {
+                          id: 'starter',
+                          label: 'Starter Boost',
+                          durationDays: 7,
+                          discountPercent: 0,
+                          description: '7 days featured placement'
+                        },
+                        {
+                          id: 'growth',
+                          label: 'Growth Boost',
+                          durationDays: 14,
+                          discountPercent: 10,
+                          description: '2 weeks featured placement'
+                        },
+                        {
+                          id: 'pro',
+                          label: 'Pro Boost',
+                          durationDays: 30,
+                          discountPercent: 20,
+                          description: 'Full month featured placement'
+                        }
+                      ],
+                      null,
+                      2
+                    )
+                  );
+                  setJsonError(null);
+                }}
+              >
+                Add featured plans
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setEditKey('NEW');
+                  setEditValue('{}');
+                  setJsonError(null);
+                }}
+              >
+                Create custom config
+              </Button>
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

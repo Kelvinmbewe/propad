@@ -1,4 +1,4 @@
-import { Currency, PaymentGateway, PaymentIntentStatus } from '@prisma/client';
+import { Currency, PaymentGateway, PaymentIntentStatus } from "@prisma/client";
 
 export interface PaymentIntentResult {
   redirectUrl: string;
@@ -18,6 +18,7 @@ export interface PaymentWebhookResult {
 
 export interface PaymentGatewayHandler {
   readonly gateway: PaymentGateway;
+  readonly provider?: string;
 
   createIntent(input: {
     invoiceId: string;

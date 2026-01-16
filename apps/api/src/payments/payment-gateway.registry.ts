@@ -1,7 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { PaymentGateway } from '@prisma/client';
-import { PaymentGatewayHandler } from './interfaces/payment-gateway';
-import { PAYMENT_GATEWAYS } from './payments.constants';
+import { Inject, Injectable } from "@nestjs/common";
+import { PaymentGateway } from "@prisma/client";
+import { PaymentGatewayHandler } from "./interfaces/payment-gateway";
+import { PAYMENT_GATEWAYS } from "./payments.constants";
 
 @Injectable()
 export class PaymentGatewayRegistry {
@@ -19,5 +19,9 @@ export class PaymentGatewayRegistry {
       throw new Error(`Unsupported payment gateway: ${gateway}`);
     }
     return handler;
+  }
+
+  list() {
+    return Array.from(this.registry.values());
   }
 }

@@ -1,13 +1,22 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { PaymentProvider } from '@propad/config';
-import { Prisma } from '@prisma/client';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
+import { PaymentProvider } from "@propad/config";
+import { Prisma } from "@prisma/client";
 // import { PaymentProvider, Prisma } from '@prisma/client';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { PaymentProviderSettingsService } from './payment-provider-settings.service';
-import { ZodValidationPipe } from '../common/zod-validation.pipe';
-import { z } from 'zod';
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { Roles } from "../auth/decorators/roles.decorator";
+import { PaymentProviderSettingsService } from "./payment-provider-settings.service";
+import { ZodValidationPipe } from "../common/zod-validation.pipe";
+import { z } from "zod";
 
 interface AuthenticatedRequest {
   user: {
@@ -24,63 +33,72 @@ const updateProviderSchema = z.object({
   returnUrl: z.string().url().optional(),
   webhookUrl: z.string().url().optional(),
   webhookSecret: z.string().optional(),
-  configJson: z.record(z.unknown()).optional()
+  configJson: z.record(z.unknown()).optional(),
 });
 
-@Controller('payment-providers')
+@Controller("payment-providers")
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PaymentProviderSettingsController {
-  constructor(private readonly service: PaymentProviderSettingsService) { }
+  constructor(private readonly service: PaymentProviderSettingsService) {}
 
   @Get()
-  @Roles('ADMIN')
+  @Roles("ADMIN")
   findAll() {
     return this.service.findAll();
   }
 
-  @Get('enabled')
+  @Get("enabled")
   getEnabledProviders() {
     return this.service.getEnabledProviders();
   }
 
-  @Get('default')
+  @Get("enabled-gateways")
+  getEnabledGateways() {
+    return this.service.getEnabledGateways();
+  }
+
+  @Get("default")
   getDefaultProvider() {
     return this.service.getDefaultProvider();
   }
 
-  @Get(':provider')
-  @Roles('ADMIN')
-  findOne(@Param('provider') provider: PaymentProvider) {
+  @Get(":provider")
+  @Roles("ADMIN")
+  findOne(@Param("provider") provider: PaymentProvider) {
     return this.service.findOne(provider);
   }
 
-  @Post(':provider')
-  @Roles('ADMIN')
+  @Post(":provider")
+  @Roles("ADMIN")
   createOrUpdate(
     @Req() req: AuthenticatedRequest,
-    @Param('provider') provider: PaymentProvider,
-    @Body(new ZodValidationPipe(updateProviderSchema)) body: z.infer<typeof updateProviderSchema>
+    @Param("provider") provider: PaymentProvider,
+    @Body(new ZodValidationPipe(updateProviderSchema))
+    body: z.infer<typeof updateProviderSchema>,
   ) {
-    return this.service.createOrUpdate(provider, { ...body, configJson: body.configJson as Prisma.InputJsonValue }, req.user.userId);
+    return this.service.createOrUpdate(
+      provider,
+      { ...body, configJson: body.configJson as Prisma.InputJsonValue },
+      req.user.userId,
+    );
   }
 
-  @Patch(':provider/toggle')
-  @Roles('ADMIN')
+  @Patch(":provider/toggle")
+  @Roles("ADMIN")
   toggleEnabled(
     @Req() req: AuthenticatedRequest,
-    @Param('provider') provider: PaymentProvider,
-    @Body('enabled') enabled: boolean
+    @Param("provider") provider: PaymentProvider,
+    @Body("enabled") enabled: boolean,
   ) {
     return this.service.toggleEnabled(provider, enabled, req.user.userId);
   }
 
-  @Patch(':provider/default')
-  @Roles('ADMIN')
+  @Patch(":provider/default")
+  @Roles("ADMIN")
   setDefault(
     @Req() req: AuthenticatedRequest,
-    @Param('provider') provider: PaymentProvider
+    @Param("provider") provider: PaymentProvider,
   ) {
     return this.service.setDefault(provider, req.user.userId);
   }
 }
-

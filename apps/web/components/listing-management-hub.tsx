@@ -19,6 +19,7 @@ import { getPublicApiBaseUrl } from "@/lib/api-base-url";
 import { ChargeableItemType } from "@propad/config";
 import { useAuthenticatedSDK } from "@/hooks/use-authenticated-sdk";
 import { formatCurrency } from "@/lib/formatters";
+import { getImageUrl } from "@/lib/image-url";
 import Link from "next/link";
 
 import type { PropertyInterest, PropertyViewing } from "@/app/actions/listings";
@@ -115,6 +116,12 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     number | null
   >(null);
   const [featuredProcessing, setFeaturedProcessing] = useState(false);
+  const [enabledPaymentProviders, setEnabledPaymentProviders] = useState<any[]>(
+    [],
+  );
+  const [defaultPaymentProvider, setDefaultPaymentProvider] = useState<
+    any | null
+  >(null);
 
   const {
     data: property,
@@ -151,6 +158,8 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
           agentFeesResponse,
           featuredPlansResponse,
           featuredPricingResponse,
+          enabledProvidersResponse,
+          defaultProviderResponse,
         ] = await Promise.all([
           fetch(`${apiBaseUrl}/pricing-config/pricing.agentFees`, {
             headers: {
@@ -163,6 +172,16 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
             },
           }),
           fetch(`${apiBaseUrl}/features/pricing/BOOST`, {
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+            },
+          }),
+          fetch(`${apiBaseUrl}/payment-providers/enabled`, {
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+            },
+          }),
+          fetch(`${apiBaseUrl}/payment-providers/default`, {
             headers: {
               Authorization: `Bearer ${session.accessToken}`,
             },
@@ -195,6 +214,16 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
           } else if (pricing?.priceCents) {
             setFeaturedBasePriceUsd(pricing.priceCents / 100);
           }
+        }
+
+        if (enabledProvidersResponse.ok) {
+          const providers = await enabledProvidersResponse.json();
+          setEnabledPaymentProviders(Array.isArray(providers) ? providers : []);
+        }
+
+        if (defaultProviderResponse.ok) {
+          const provider = await defaultProviderResponse.json();
+          setDefaultPaymentProvider(provider ?? null);
         }
       } catch (err) {
         console.error("Failed to load pricing configs", err);
@@ -288,6 +317,16 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     onError: (err: any) => notify.error(err.message || "Failed to update fee"),
   });
 
+  const resolvePaymentGateway = () => {
+    if (enabledPaymentProviders.length === 0) {
+      return null;
+    }
+    if (defaultPaymentProvider?.provider) {
+      return defaultPaymentProvider.provider;
+    }
+    return enabledPaymentProviders[0]?.provider ?? null;
+  };
+
   const handleAssign = () => {
     if (!selectedAgent) return notify.error("Select an agent first");
     const fee = serviceFee ? Number(serviceFee) : undefined;
@@ -313,6 +352,13 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
       const discount = plan.discountPercent ?? 0;
       const discountedPrice = basePriceUsd * (1 - discount / 100);
       const amountUsd = discountedPrice * (plan.durationDays / 7);
+      const gateway = resolvePaymentGateway();
+
+      if (!gateway) {
+        throw new Error(
+          "No payment provider is enabled. Ask Admin to enable a provider.",
+        );
+      }
 
       const response = await fetch(
         `${apiBaseUrl}/properties/${targetPropertyId}/payments/invoices`,
@@ -338,9 +384,28 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
       }
 
       const payment = await response.json();
-      const redirectUrl = payment?.invoice?.paymentIntents?.[0]?.redirectUrl;
-      if (redirectUrl) {
-        window.location.href = redirectUrl;
+
+      const intentResponse = await fetch(`${apiBaseUrl}/payments/intents`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+        body: JSON.stringify({
+          invoiceId: payment?.invoice?.id ?? payment?.invoiceId,
+          gateway,
+          returnUrl: `${window.location.origin}/dashboard/listings/${targetPropertyId}`,
+        }),
+      });
+
+      if (!intentResponse.ok) {
+        const error = await intentResponse.json();
+        throw new Error(error?.message || "Failed to start payment");
+      }
+
+      const intent = await intentResponse.json();
+      if (intent.redirectUrl) {
+        window.location.href = intent.redirectUrl;
       } else {
         notify.success("Invoice created. Complete payment in Payments tab.");
         queryClient.invalidateQueries({ queryKey: ["payments", propertyId] });
@@ -543,6 +608,12 @@ function ManagementTab({
       <Card>
         <CardHeader>
           <CardTitle>Agent Assignment</CardTitle>
+          {agentFeeConfig?.length === 0 && (
+            <p className="text-xs text-neutral-500">
+              Agent fee tiers are managed by Admin. Configure them in Pricing
+              &amp; Fees.
+            </p>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2 relative">
@@ -724,7 +795,19 @@ function FeaturedSection({
               Base price: {basePriceLabel}
             </p>
           )}
+          {plans.length === 0 && (
+            <p className="text-xs text-amber-600">
+              No featured plans yet. Ask Admin to configure
+              pricing.featuredPlans.
+            </p>
+          )}
         </div>
+        {!plans.length && (
+          <div className="rounded-lg border border-dashed border-neutral-200 p-3 text-xs text-neutral-500">
+            Featured pricing will activate once plans are configured.
+          </div>
+        )}
+
         <div className="space-y-2">
           {plans.length === 0 ? (
             <p className="text-xs text-neutral-500">
@@ -1478,6 +1561,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                         };
                         const badge = badges[level as keyof typeof badges];
                         if (!badge) return null;
+
                         return (
                           <span
                             className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${badge.color}`}
@@ -1802,6 +1886,66 @@ function VerificationStep({
           </div>
         )}
 
+        {evidenceUrls.length > 0 && (
+          <div className="mb-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+            {evidenceUrls.map((url, idx) => {
+              const resolved = getImageUrl(url);
+              const isDoc =
+                resolved.endsWith(".pdf") ||
+                resolved.includes(".pdf") ||
+                resolved.includes(".doc");
+              return (
+                <div
+                  key={idx}
+                  className="relative aspect-video bg-neutral-100 rounded overflow-hidden group border"
+                >
+                  {isDoc ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center">
+                      <FileText className="h-8 w-8 text-neutral-400 mb-1" />
+                      <span className="text-[10px] text-neutral-500 truncate w-full px-1">
+                        {resolved.split("/").pop()}
+                      </span>
+                      <a
+                        href={resolved}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-blue-500 hover:underline mt-1"
+                      >
+                        View
+                      </a>
+                    </div>
+                  ) : (
+                    <a
+                      href={resolved}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full h-full"
+                    >
+                      <img
+                        src={resolved}
+                        alt={`Evidence ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </a>
+                  )}
+                  {!isDisabled && (
+                    <button
+                      onClick={(e: any) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleRemoveFile(idx);
+                      }}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {!isDisabled && (
           <div className="space-y-4">
             {type === "proof" || type === "photos" ? (
@@ -2018,6 +2162,8 @@ function VerificationStep({
 function PaymentsTab({ propertyId }: { propertyId: string }) {
   const sdk = useAuthenticatedSDK();
   const queryClient = useQueryClient();
+  const { data: session } = useSession();
+  const apiBaseUrl = getPublicApiBaseUrl();
 
   const [offlineMethod, setOfflineMethod] = useState("Bank Transfer");
   const [offlineAmount, setOfflineAmount] = useState("");
@@ -2130,6 +2276,35 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
     }
   };
 
+  const fetchPaymentIntent = async (payment: any) => {
+    if (!apiBaseUrl || !session?.accessToken || !payment?.invoice?.id) {
+      return null;
+    }
+
+    const gateway = payment.invoice?.paymentIntents?.[0]?.gateway ?? "PAYNOW";
+
+    const intentResponse = await fetch(`${apiBaseUrl}/payments/intents`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.accessToken}`,
+      },
+      body: JSON.stringify({
+        invoiceId: payment.invoice.id,
+        gateway,
+        returnUrl: `${window.location.origin}/dashboard/listings/${propertyId}`,
+      }),
+    });
+
+    if (!intentResponse.ok) {
+      const error = await intentResponse.json();
+      throw new Error(error?.message || "Failed to create payment intent");
+    }
+
+    const intent = await intentResponse.json();
+    return intent;
+  };
+
   const createInvoice = async () => {
     if (!sdk) return;
     const amount = Number(invoiceAmount);
@@ -2154,22 +2329,9 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
   };
 
   if (isLoading) return <Skeleton className="h-64" />;
-
   if (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Failed to load payments";
-    if (errorMessage.includes("403") || errorMessage.includes("Forbidden")) {
-      return (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <AlertCircle className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
-            <p className="text-neutral-600">
-              You don't have permission to view payments for this listing.
-            </p>
-          </CardContent>
-        </Card>
-      );
-    }
     return (
       <Card>
         <CardContent className="p-8 text-center">
@@ -2203,7 +2365,7 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
             <div className="space-y-3">
               {payments.map((payment: any) => {
                 const isPending = payment.status === "PENDING";
-                const canPay =
+                const hasRedirectUrl =
                   isPending &&
                   payment.invoice?.paymentIntents?.[0]?.redirectUrl;
                 const amount = payment.amountCents / 100;
@@ -2263,7 +2425,7 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                           Invoice PDF
                         </a>
                       )}
-                      {canPay && (
+                      {hasRedirectUrl ? (
                         <Button
                           size="sm"
                           onClick={() => handlePayNow(payment)}
@@ -2271,6 +2433,29 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                         >
                           Pay Now
                         </Button>
+                      ) : (
+                        isPending &&
+                        payment.invoice?.id && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              try {
+                                const intent =
+                                  await fetchPaymentIntent(payment);
+                                if (intent?.redirectUrl) {
+                                  window.location.href = intent.redirectUrl;
+                                }
+                              } catch (err: any) {
+                                notify.error(
+                                  err?.message || "Failed to prepare payment",
+                                );
+                              }
+                            }}
+                          >
+                            Generate Pay Link
+                          </Button>
+                        )
                       )}
                     </div>
                   </div>
@@ -2966,18 +3151,6 @@ function LogsTab({ propertyId }: { propertyId: string }) {
   if (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Failed to load activity logs";
-    if (errorMessage.includes("403") || errorMessage.includes("Forbidden")) {
-      return (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <AlertCircle className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
-            <p className="text-neutral-600">
-              You don't have permission to view activity logs for this listing.
-            </p>
-          </CardContent>
-        </Card>
-      );
-    }
     return (
       <Card>
         <CardContent className="p-8 text-center">
@@ -3113,6 +3286,7 @@ function LogsTab({ propertyId }: { propertyId: string }) {
                         log.type,
                         log.metadata as Record<string, unknown> | null,
                       );
+
                       return (
                         <div
                           key={log.id}

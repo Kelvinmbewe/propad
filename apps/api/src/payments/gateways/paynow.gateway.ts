@@ -1,10 +1,14 @@
-import { HttpService } from '@nestjs/axios';
-import { Injectable } from '@nestjs/common';
-import { firstValueFrom } from 'rxjs';
-import { createHash } from 'crypto';
-import { Currency, PaymentGateway, PaymentIntentStatus } from '@prisma/client';
-import { env } from '@propad/config';
-import { PaymentGatewayHandler, PaymentIntentResult, PaymentWebhookResult } from '../interfaces/payment-gateway';
+import { HttpService } from "@nestjs/axios";
+import { Injectable } from "@nestjs/common";
+import { firstValueFrom } from "rxjs";
+import { createHash } from "crypto";
+import { Currency, PaymentGateway, PaymentIntentStatus } from "@prisma/client";
+import { env } from "@propad/config";
+import {
+  PaymentGatewayHandler,
+  PaymentIntentResult,
+  PaymentWebhookResult,
+} from "../interfaces/payment-gateway";
 
 interface PaynowConfig {
   id: string;
@@ -16,8 +20,10 @@ interface PaynowConfig {
 @Injectable()
 export class PaynowGateway implements PaymentGatewayHandler {
   readonly gateway = PaymentGateway.PAYNOW;
+  readonly provider = "PAYNOW";
 
-  private readonly endpoint = 'https://www.paynow.co.zw/interface/initiatepayment';
+  private readonly endpoint =
+    "https://www.paynow.co.zw/interface/initiatepayment";
 
   constructor(private readonly http: HttpService) {}
 
@@ -39,57 +45,64 @@ export class PaynowGateway implements PaymentGatewayHandler {
       reference: input.reference,
       amount,
       id: config.id,
-      additionalinfo: input.description
+      additionalinfo: input.description,
     });
 
     const response = await firstValueFrom(
       this.http.post(this.endpoint, params.toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-      })
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      }),
     );
 
     const data = this.parseKeyValue(response.data);
-    if (!data.status || data.status.toLowerCase() !== 'ok') {
+    if (!data.status || data.status.toLowerCase() !== "ok") {
       throw new Error(`Paynow initiation failed: ${response.data}`);
     }
 
     const redirectUrl = data.browserurl ?? data.redirecturl;
     if (!redirectUrl) {
-      throw new Error('Paynow did not return a redirect URL');
+      throw new Error("Paynow did not return a redirect URL");
     }
 
     return {
       redirectUrl,
       gatewayReference: data.pollurl ?? data.paynowreference ?? undefined,
-      status: PaymentIntentStatus.REQUIRES_ACTION
+      status: PaymentIntentStatus.REQUIRES_ACTION,
     };
   }
 
-  async verifyWebhook(payload: Record<string, string>): Promise<PaymentWebhookResult> {
+  async verifyWebhook(
+    payload: Record<string, string>,
+  ): Promise<PaymentWebhookResult> {
     const config = this.requireConfig();
 
     const providedHash = payload.hash ?? payload.HASH;
     if (!providedHash) {
-      throw new Error('Missing Paynow hash');
+      throw new Error("Missing Paynow hash");
     }
 
     const computed = this.computeHash(payload, config.key);
     if (computed !== providedHash.toUpperCase()) {
-      throw new Error('Invalid Paynow signature');
+      throw new Error("Invalid Paynow signature");
     }
 
-    const amount = this.toNumber(payload.paidamount ?? payload.amount ?? '0');
+    const amount = this.toNumber(payload.paidamount ?? payload.amount ?? "0");
     const amountCents = Math.round(amount * 100);
-    const status = (payload.status ?? '').toLowerCase();
-    const success = status === 'paid' || status === 'awaiting delivery';
+    const status = (payload.status ?? "").toLowerCase();
+    const success = status === "paid" || status === "awaiting delivery";
 
     return {
-      reference: payload.reference || payload.pollreference || payload.paynowreference || '',
-      externalRef: payload.paynowreference ?? payload.transactionreference ?? '',
+      reference:
+        payload.reference ||
+        payload.pollreference ||
+        payload.paynowreference ||
+        "",
+      externalRef:
+        payload.paynowreference ?? payload.transactionreference ?? "",
       amountCents,
       currency: this.detectCurrency(payload.currency),
       success,
-      rawPayload: payload
+      rawPayload: payload,
     };
   }
 
@@ -101,44 +114,47 @@ export class PaynowGateway implements PaymentGatewayHandler {
         this.http.get(pollUrl, {
           timeout: 10000, // 10 second timeout
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        })
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        }),
       );
 
       const data = this.parseKeyValue(response.data);
-      
+
       // Verify hash if present
       const providedHash = data.hash ?? data.HASH;
       if (providedHash) {
         const computed = this.computeHash(data, config.key);
         if (computed !== providedHash.toUpperCase()) {
-          throw new Error('Invalid Paynow signature in poll response');
+          throw new Error("Invalid Paynow signature in poll response");
         }
       }
 
-      const amount = this.toNumber(data.amount ?? data.paidamount ?? '0');
+      const amount = this.toNumber(data.amount ?? data.paidamount ?? "0");
       const amountCents = Math.round(amount * 100);
-      const status = (data.status ?? '').toLowerCase();
-      const success = status === 'paid' || status === 'awaiting delivery';
+      const status = (data.status ?? "").toLowerCase();
+      const success = status === "paid" || status === "awaiting delivery";
 
       return {
-        reference: data.reference || data.pollreference || data.paynowreference || '',
-        externalRef: data.paynowreference ?? data.transactionreference ?? '',
+        reference:
+          data.reference || data.pollreference || data.paynowreference || "",
+        externalRef: data.paynowreference ?? data.transactionreference ?? "",
         amountCents,
         currency: this.detectCurrency(data.currency),
         success,
-        rawPayload: data
+        rawPayload: data,
       };
     } catch (error) {
       // If polling fails, return a failed result
       return {
-        reference: '',
-        externalRef: '',
+        reference: "",
+        externalRef: "",
         amountCents: 0,
         currency: Currency.USD,
         success: false,
-        rawPayload: { error: error instanceof Error ? error.message : String(error) }
+        rawPayload: {
+          error: error instanceof Error ? error.message : String(error),
+        },
       };
     }
   }
@@ -150,7 +166,7 @@ export class PaynowGateway implements PaymentGatewayHandler {
     const returnUrl = env.PAYNOW_RETURN_URL;
 
     if (!id || !key || !resultUrl || !returnUrl) {
-      throw new Error('Paynow configuration is incomplete');
+      throw new Error("Paynow configuration is incomplete");
     }
 
     return { id, key, resultUrl, returnUrl };
@@ -158,29 +174,32 @@ export class PaynowGateway implements PaymentGatewayHandler {
 
   private parseKeyValue(body: string): Record<string, string> {
     return body
-      .split('&')
-      .map((pair) => pair.split('='))
+      .split("&")
+      .map((pair) => pair.split("="))
       .reduce<Record<string, string>>((acc, [key, value]) => {
         if (!key) {
           return acc;
         }
-        acc[key.toLowerCase()] = decodeURIComponent(value ?? '');
+        acc[key.toLowerCase()] = decodeURIComponent(value ?? "");
         return acc;
       }, {});
   }
 
   private computeHash(payload: Record<string, string>, key: string) {
     const canonical = Object.entries(payload)
-      .filter(([k]) => k.toLowerCase() !== 'hash')
+      .filter(([k]) => k.toLowerCase() !== "hash")
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([k, v]) => `${k}=${v}`)
-      .join('&');
+      .join("&");
 
-    return createHash('sha512').update(`${canonical}${key}`).digest('hex').toUpperCase();
+    return createHash("sha512")
+      .update(`${canonical}${key}`)
+      .digest("hex")
+      .toUpperCase();
   }
 
   private toNumber(value: string) {
-    const parsed = parseFloat(value ?? '0');
+    const parsed = parseFloat(value ?? "0");
     return Number.isNaN(parsed) ? 0 : parsed;
   }
 
@@ -190,7 +209,7 @@ export class PaynowGateway implements PaymentGatewayHandler {
     }
 
     const normalized = value.toUpperCase();
-    if (normalized.startsWith('ZW')) {
+    if (normalized.startsWith("ZW")) {
       return Currency.ZWG;
     }
 
