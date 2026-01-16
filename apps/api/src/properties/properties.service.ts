@@ -2177,7 +2177,7 @@ export class PropertiesService {
     }
 
     // Determine recipient
-    let recipientId: string | null = null;
+    let recipientId: string | null = dto.recipientId ?? null;
 
     const isOwner = property.landlordId === actor.userId;
     const isAgent = property.agentOwnerId === actor.userId;
@@ -2200,28 +2200,30 @@ export class PropertiesService {
       }
     }
 
-    if (isOwner || isAgent) {
-      // Owner/Agent replying - try to find the last person who messaged
-      const lastIncoming = await this.prisma.propertyMessage.findFirst({
-        where: {
-          propertyId: id,
-          senderId: { not: actor.userId },
-        },
-        orderBy: { createdAt: "desc" },
-        select: { senderId: true },
-      });
+    if (!recipientId) {
+      if (isOwner || isAgent) {
+        // Owner/Agent replying - try to find the last person who messaged
+        const lastIncoming = await this.prisma.propertyMessage.findFirst({
+          where: {
+            propertyId: id,
+            senderId: { not: actor.userId },
+          },
+          orderBy: { createdAt: "desc" },
+          select: { senderId: true },
+        });
 
-      if (lastIncoming) {
-        recipientId = lastIncoming.senderId;
+        if (lastIncoming) {
+          recipientId = lastIncoming.senderId;
+        } else {
+          // No incoming messages, fallback to Landlord <-> Agent
+          recipientId = isOwner
+            ? property.agentOwnerId ?? property.landlordId
+            : property.landlordId;
+        }
       } else {
-        // No incoming messages, fallback to Landlord <-> Agent
-        recipientId = isOwner
-          ? property.agentOwnerId ?? property.landlordId
-          : property.landlordId;
+        // Interested party messaging the owner (Agent preferred, else Landlord)
+        recipientId = property.agentOwnerId ?? property.landlordId;
       }
-    } else {
-      // Interested party messaging the owner (Agent preferred, else Landlord)
-      recipientId = property.agentOwnerId ?? property.landlordId;
     }
 
     // A property must have either a landlord or an agent owner to receive messages
