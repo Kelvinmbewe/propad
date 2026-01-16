@@ -100,14 +100,20 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     error,
   } = useQuery({
     queryKey: ["property", propertyId],
-    queryFn: () => sdk!.properties.get(propertyId),
+    queryFn: async () => sdk!.properties.get(propertyId),
     enabled: !!sdk,
+    retry: 1,
+    initialData: null,
+    staleTime: 5000,
   });
 
   const { data: agents } = useQuery({
     queryKey: ["agents:verified"],
-    queryFn: () => sdk!.agents.listVerified(),
+    queryFn: async () => sdk!.agents.listVerified(),
     enabled: !!sdk,
+    initialData: [] as any[],
+    retry: 1,
+    staleTime: 30000,
   });
 
   // Initialize selectedAgent and search query when property loads with existing agent
@@ -188,7 +194,11 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
 
   if (isLoading) return <Skeleton className="h-96 w-full" />;
   if (error || !property)
-    return <div className="text-red-500">Failed to load property</div>;
+    return (
+      <div className="text-red-500">
+        {error instanceof Error ? error.message : "Failed to load property"}
+      </div>
+    );
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
@@ -933,15 +943,17 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
     error,
   } = useQuery({
     queryKey: ["verification-request", propertyId],
-    queryFn: () => sdk!.properties.getVerificationRequest(propertyId),
+    queryFn: async () => sdk!.properties.getVerificationRequest(propertyId),
     enabled: !!sdk,
     retry: 1,
+    initialData: null as any,
   });
 
   const { data: payments } = useQuery({
     queryKey: ["payments", propertyId],
-    queryFn: () => sdk!.properties.getPayments(propertyId),
+    queryFn: async () => sdk!.properties.getPayments(propertyId),
     enabled: !!sdk,
+    initialData: [] as any[],
   });
 
   const verificationPayment = payments?.find(
@@ -991,18 +1003,8 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
     );
   }
 
-  if (!verificationRequest) {
-    return (
-      <Card>
-        <CardContent className="p-8 text-center text-neutral-500">
-          No verification request yet. Submit documents below to start.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const overallStatus = verificationRequest.status || "NONE";
-  const items = verificationRequest.items || [];
+  const overallStatus = verificationRequest?.status || "NONE";
+  const items = verificationRequest?.items || [];
   const proofItem = items.find((i: any) => i.type === "PROOF_OF_OWNERSHIP");
   const locationItem = items.find(
     (i: any) => i.type === "LOCATION_CONFIRMATION",
@@ -1056,9 +1058,10 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
   return (
     <div className="space-y-6">
       {/* Payment Notice */}
-      {verificationPayment &&
+      {verificationRequest &&
+        verificationPayment &&
         verificationPayment.amountCents > 0 &&
-        verificationRequest?.property?.verificationLevel !== "VERIFIED" && (
+        verificationRequest.property?.verificationLevel !== "VERIFIED" && (
           <Card className="border-amber-200 bg-amber-50">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -1211,6 +1214,13 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
 
       {/* Verification Steps */}
       <div className="space-y-4">
+        {!verificationRequest && (
+          <Card>
+            <CardContent className="p-6 text-sm text-neutral-500">
+              No verification request yet. Submit documents below to start.
+            </CardContent>
+          </Card>
+        )}
         {/* Step 1: Proof of Ownership */}
         <VerificationStep
           title="Proof of Ownership"

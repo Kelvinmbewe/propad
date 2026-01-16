@@ -1213,10 +1213,6 @@ export class PropertiesService {
     return this.prisma.user.findMany({
       where: {
         role: Role.AGENT,
-        agentProfile: {
-          verifiedListingsCount: { gt: 0 },
-          kycStatus: "VERIFIED",
-        },
       },
       select: {
         id: true,
@@ -1235,7 +1231,7 @@ export class PropertiesService {
   }
 
   searchAgents(query: string) {
-    const searchTerm = query.trim().toLowerCase();
+    const searchTerm = query.trim();
     if (!searchTerm) {
       return this.listVerifiedAgents();
     }
@@ -1243,14 +1239,26 @@ export class PropertiesService {
     return this.prisma.user.findMany({
       where: {
         role: Role.AGENT,
-        agentProfile: {
-          verifiedListingsCount: { gt: 0 },
-          kycStatus: "VERIFIED",
-        },
-        name: {
-          contains: searchTerm,
-          mode: "insensitive",
-        },
+        OR: [
+          {
+            name: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+          {
+            email: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+          {
+            phone: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+        ],
       },
       select: {
         id: true,
