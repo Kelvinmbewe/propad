@@ -195,17 +195,6 @@ export function PaymentGate({
     }
   };
 
-  // ... (Loading/Error/Granted states remain same) ...
-  if (loadingAccess) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-        </CardContent>
-      </Card>
-    );
-  }
-
   // Call onGranted callback when status becomes GRANTED (only once)
   useEffect(() => {
     if (!access) return;
@@ -222,6 +211,17 @@ export function PaymentGate({
       onGrantedCalledRef.current = false;
     }
   }, [access, onGranted]);
+
+  // ... (Loading/Error/Granted states remain same) ...
+  if (loadingAccess) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!access) {
     return (
