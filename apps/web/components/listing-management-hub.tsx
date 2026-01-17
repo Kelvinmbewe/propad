@@ -219,7 +219,13 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
             setFeaturedBasePriceUsd(pricing.basePriceUsdCents / 100);
           } else if (pricing?.priceCents) {
             setFeaturedBasePriceUsd(pricing.priceCents / 100);
+          } else {
+            // Default to $10/week if no pricing configured
+            setFeaturedBasePriceUsd(10);
           }
+        } else {
+          // Set default pricing if endpoint fails
+          setFeaturedBasePriceUsd(10);
         }
 
         if (enabledProvidersResponse.ok) {
@@ -360,10 +366,22 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
 
     setFeaturedProcessing(true);
     try {
-      const basePriceUsd = featuredBasePriceUsd ?? 0;
-      const discount = plan.discountPercent ?? 0;
-      const discountedPrice = basePriceUsd * (1 - discount / 100);
-      const amountUsd = discountedPrice * (plan.durationDays / 7);
+      // Calculate fee: prefer plan.feeUsdCents, else calculate from base price
+      let amountUsd: number;
+      if (plan.feeUsdCents) {
+        const discount = plan.discountPercent ?? 0;
+        amountUsd = (plan.feeUsdCents / 100) * (1 - discount / 100);
+      } else {
+        const basePriceUsd = featuredBasePriceUsd ?? 10; // Default $10/week
+        const discount = plan.discountPercent ?? 0;
+        const discountedPrice = basePriceUsd * (1 - discount / 100);
+        amountUsd = discountedPrice * (plan.durationDays / 7);
+      }
+
+      if (!amountUsd || amountUsd <= 0) {
+        throw new Error("Unable to calculate payment amount. Please contact support.");
+      }
+
       const gateway = resolvePaymentGateway();
 
       if (!gateway) {
@@ -1788,16 +1806,25 @@ function VerificationStep({
     !!item?.notes?.includes("On-site visit"),
   );
   const [uploading, setUploading] = useState(false);
+  // Track if local changes have been made that shouldn't be overwritten by item sync
+  const [hasLocalChanges, setHasLocalChanges] = useState(false);
 
-  // Sync with item when it changes
+  // Sync with item when it changes - but only if no local changes pending
   useEffect(() => {
-    if (item) {
+    if (item && !hasLocalChanges) {
       setEvidenceUrls(item.evidenceUrls || []);
       setGpsLat(item.gpsLat || undefined);
       setGpsLng(item.gpsLng || undefined);
       setRequestOnSiteVisit(!!item.notes?.includes("On-site visit"));
     }
-  }, [item]);
+  }, [item, hasLocalChanges]);
+
+  // Reset hasLocalChanges when item status changes (meaning server processed our update)
+  useEffect(() => {
+    if (item?.status) {
+      setHasLocalChanges(false);
+    }
+  }, [item?.status, item?.updatedAt]);
 
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0 || !sdk) return;
@@ -1851,6 +1878,7 @@ function VerificationStep({
 
       if (uploadedUrls.length > 0) {
         setEvidenceUrls((prev) => [...prev, ...uploadedUrls]);
+        setHasLocalChanges(true);
         notify.success(`Uploaded ${uploadedUrls.length} files`);
       }
     } catch (error) {
@@ -1886,6 +1914,7 @@ function VerificationStep({
 
   const handleRemoveFile = (index: number) => {
     setEvidenceUrls((prev) => prev.filter((_, i) => i !== index));
+    setHasLocalChanges(true);
   };
 
   return (
@@ -2027,60 +2056,6 @@ function VerificationStep({
                     </p>
                   )}
                 </div>
-                {evidenceUrls.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {evidenceUrls.map((url, idx) => (
-                      <div
-                        key={idx}
-                        className="relative aspect-video bg-neutral-100 rounded overflow-hidden group border"
-                      >
-                        {url.endsWith(".pdf") ||
-                          url.includes(".pdf") ||
-                          url.includes(".doc") ? (
-                          <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center">
-                            <FileText className="h-8 w-8 text-neutral-400 mb-1" />
-                            <span className="text-[10px] text-neutral-500 truncate w-full px-1">
-                              {url.split("/").pop()}
-                            </span>
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[10px] text-blue-500 hover:underline mt-1"
-                            >
-                              View
-                            </a>
-                          </div>
-                        ) : (
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block w-full h-full"
-                          >
-                            <img
-                              src={url}
-                              alt={`Evidence ${idx + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                          </a>
-                        )}
-                        {!isDisabled && (
-                          <button
-                            onClick={(e: any) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleRemoveFile(idx);
-                            }}
-                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </>
             ) : (
               <>
