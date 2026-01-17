@@ -122,6 +122,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
   const [defaultPaymentProvider, setDefaultPaymentProvider] = useState<
     any | null
   >(null);
+  const [verificationCosts, setVerificationCosts] = useState<any>(null);
 
   const {
     data: property,
@@ -186,6 +187,9 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
               Authorization: `Bearer ${session.accessToken}`,
             },
           }),
+          fetch(`${apiBaseUrl}/pricing-config/pricing.verificationCosts`, {
+            headers: { Authorization: `Bearer ${session.accessToken}` },
+          }),
         ]);
 
         if (agentFeesResponse.ok) {
@@ -224,6 +228,12 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
         if (defaultProviderResponse.ok) {
           const provider = await defaultProviderResponse.json();
           setDefaultPaymentProvider(provider ?? null);
+        }
+
+        // Handle verification costs (response item 6 is index 5)
+        if (results[5]?.ok) {
+          const costs = await results[5].json();
+          setVerificationCosts(costs.value || costs);
         }
       } catch (err) {
         console.error("Failed to load pricing configs", err);
@@ -454,11 +464,10 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
             key={tab.id}
             data-tab={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-              activeTab === tab.id
-                ? "border-emerald-600 text-emerald-600"
-                : "border-transparent text-neutral-500 hover:text-neutral-700"
-            }`}
+            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.id
+              ? "border-emerald-600 text-emerald-600"
+              : "border-transparent text-neutral-500 hover:text-neutral-700"
+              }`}
           >
             {tab.label}
           </button>
@@ -499,7 +508,10 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
         {activeTab === "viewings" && <ViewingsTab propertyId={propertyId} />}
         {activeTab === "payments" && <PaymentsTab propertyId={propertyId} />}
         {activeTab === "verification" && (
-          <VerificationTab propertyId={propertyId} />
+          <VerificationTab
+            propertyId={propertyId}
+            verificationCosts={verificationCosts}
+          />
         )}
         {activeTab === "ratings" && <RatingsTab propertyId={propertyId} />}
         {activeTab === "logs" && <LogsTab propertyId={propertyId} />}
@@ -822,11 +834,10 @@ function FeaturedSection({
                   key={plan.id}
                   type="button"
                   onClick={() => onSelectPlan(plan.id)}
-                  className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-                    isActive
-                      ? "border-emerald-500 bg-emerald-50"
-                      : "border-neutral-200 hover:border-neutral-300"
-                  }`}
+                  className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${isActive
+                    ? "border-emerald-500 bg-emerald-50"
+                    : "border-neutral-200 hover:border-neutral-300"
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-neutral-800">
@@ -1200,11 +1211,10 @@ function ChatThreadView({
               className={`flex ${isMe ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[80%] rounded-lg p-3 ${
-                  isMe
-                    ? "bg-emerald-600 text-white"
-                    : "bg-neutral-100 text-neutral-800"
-                }`}
+                className={`max-w-[80%] rounded-lg p-3 ${isMe
+                  ? "bg-emerald-600 text-white"
+                  : "bg-neutral-100 text-neutral-800"
+                  }`}
               >
                 <p className="text-sm">{msg.body}</p>
                 <p
@@ -1295,7 +1305,13 @@ function ViewingsTab({ propertyId }: { propertyId: string }) {
   );
 }
 
-function VerificationTab({ propertyId }: { propertyId: string }) {
+function VerificationTab({
+  propertyId,
+  verificationCosts,
+}: {
+  propertyId: string;
+  verificationCosts?: any;
+}) {
   const sdk = useAuthenticatedSDK();
   const queryClient = useQueryClient();
 
@@ -1405,24 +1421,24 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
 
   const getStatusBadge = (status: string) => {
     const config: Record<string, { bg: string; text: string; label: string }> =
-      {
-        PENDING: {
-          bg: "bg-neutral-100",
-          text: "text-neutral-700",
-          label: "Pending",
-        },
-        SUBMITTED: {
-          bg: "bg-blue-100",
-          text: "text-blue-700",
-          label: "Submitted",
-        },
-        APPROVED: {
-          bg: "bg-emerald-100",
-          text: "text-emerald-700",
-          label: "Approved",
-        },
-        REJECTED: { bg: "bg-red-100", text: "text-red-700", label: "Rejected" },
-      };
+    {
+      PENDING: {
+        bg: "bg-neutral-100",
+        text: "text-neutral-700",
+        label: "Pending",
+      },
+      SUBMITTED: {
+        bg: "bg-blue-100",
+        text: "text-blue-700",
+        label: "Submitted",
+      },
+      APPROVED: {
+        bg: "bg-emerald-100",
+        text: "text-emerald-700",
+        label: "Approved",
+      },
+      REJECTED: { bg: "bg-red-100", text: "text-red-700", label: "Rejected" },
+    };
     const style = config[status] || config.PENDING;
     return (
       <span
@@ -1438,8 +1454,8 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
       {/* Payment Notice */}
       {verificationRequest &&
         verificationPayment &&
-        verificationPayment.amountCents > 0 &&
-        verificationLevel !== "VERIFIED" && (
+        verificationPayment.status === "PENDING" &&
+        items.some((i: any) => i.status === "SUBMITTED") && (
           <Card className="border-amber-200 bg-amber-50">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -1449,8 +1465,8 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
                     Verification payment required
                   </p>
                   <p className="text-sm text-amber-700">
-                    Paid verifications are prioritized ahead of older and newer
-                    unpaid requests.
+                    You have submitted verification items. Please complete payment
+                    to proceed.
                   </p>
                 </div>
                 <Button
@@ -1493,15 +1509,14 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
         <CardContent>
           <div className="flex items-center gap-4 mb-6">
             <div
-              className={`h-12 w-12 rounded-full flex items-center justify-center ${
-                verificationLevel === "VERIFIED"
-                  ? "bg-emerald-100 text-emerald-600"
-                  : overallStatus === "PENDING"
-                    ? "bg-yellow-100 text-yellow-600"
-                    : overallStatus === "REJECTED"
-                      ? "bg-red-100 text-red-600"
-                      : "bg-neutral-100 text-neutral-600"
-              }`}
+              className={`h-12 w-12 rounded-full flex items-center justify-center ${verificationLevel === "VERIFIED"
+                ? "bg-emerald-100 text-emerald-600"
+                : overallStatus === "PENDING"
+                  ? "bg-yellow-100 text-yellow-600"
+                  : overallStatus === "REJECTED"
+                    ? "bg-red-100 text-red-600"
+                    : "bg-neutral-100 text-neutral-600"
+                }`}
             >
               {verificationLevel === "VERIFIED" ? (
                 <ShieldCheck className="h-6 w-6" />
@@ -1637,6 +1652,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
           item={proofItem}
           statusBadge={getStatusBadge(proofItem?.status || "PENDING")}
           isDisabled={checkIsLocked(proofItem)}
+          cost={verificationCosts?.PROOF_OF_OWNERSHIP}
           onSubmit={(evidenceUrls) => {
             if (verificationRequest && proofItem) {
               updateItemMut.mutate({
@@ -1661,6 +1677,7 @@ function VerificationTab({ propertyId }: { propertyId: string }) {
           item={locationItem}
           statusBadge={getStatusBadge(locationItem?.status || "PENDING")}
           isDisabled={checkIsLocked(locationItem)}
+          cost={verificationCosts?.LOCATION_CONFIRMATION}
           onSubmit={(data) => {
             if (verificationRequest && locationItem) {
               updateItemMut.mutate({
@@ -1727,6 +1744,7 @@ function VerificationStep({
   onSubmit: (data: any) => void;
   type: "proof" | "location" | "photos";
   propertyId: string;
+  cost?: number;
 }) {
   const sdk = useAuthenticatedSDK();
   const [evidenceUrls, setEvidenceUrls] = useState<string[]>(
@@ -1855,36 +1873,42 @@ function VerificationStep({
               <p className="text-sm text-neutral-500">{description}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">{statusBadge}</div>
+          <div className="flex items-center gap-2">
+            {cost !== undefined && cost > 0 && (
+              <span className="text-xs font-medium text-neutral-500 bg-neutral-100 px-2 py-1 rounded">
+                {formatCurrency(cost / 100, "USD")}
+              </span>
+            )}
+            {statusBadge}
+          </div>
         </div>
 
         {(item?.notes ||
           item?.status === "APPROVED" ||
           item?.status === "REJECTED") && (
-          <div
-            className={`mb-4 p-3 rounded-lg ${
-              item?.status === "APPROVED"
+            <div
+              className={`mb-4 p-3 rounded-lg ${item?.status === "APPROVED"
                 ? "bg-emerald-50 border border-emerald-200"
                 : item?.status === "REJECTED"
                   ? "bg-red-50 border border-red-200"
                   : "bg-neutral-50 border border-neutral-200"
-            }`}
-          >
-            <p className="text-sm font-medium mb-1">
-              {item?.status === "APPROVED"
-                ? item?.notes?.includes("On-site visit")
-                  ? "Site Visit Verified"
-                  : "Verified"
-                : item?.status === "REJECTED"
-                  ? "Rejected"
-                  : "Note"}
-              {item?.verifier ? ` by ${item.verifier.name}` : ""}
-              {item?.reviewedAt &&
-                ` on ${new Date(item.reviewedAt).toLocaleDateString()}`}
-            </p>
-            <p className="text-xs text-neutral-600">{item?.notes}</p>
-          </div>
-        )}
+                }`}
+            >
+              <p className="text-sm font-medium mb-1">
+                {item?.status === "APPROVED"
+                  ? item?.notes?.includes("On-site visit")
+                    ? "Site Visit Verified"
+                    : "Verified"
+                  : item?.status === "REJECTED"
+                    ? "Rejected"
+                    : "Note"}
+                {item?.verifier ? ` by ${item.verifier.name}` : ""}
+                {item?.reviewedAt &&
+                  ` on ${new Date(item.reviewedAt).toLocaleDateString()}`}
+              </p>
+              <p className="text-xs text-neutral-600">{item?.notes}</p>
+            </div>
+          )}
 
         {evidenceUrls.length > 0 && (
           <div className="mb-4 grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -1983,8 +2007,8 @@ function VerificationStep({
                         className="relative aspect-video bg-neutral-100 rounded overflow-hidden group border"
                       >
                         {url.endsWith(".pdf") ||
-                        url.includes(".pdf") ||
-                        url.includes(".doc") ? (
+                          url.includes(".pdf") ||
+                          url.includes(".doc") ? (
                           <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center">
                             <FileText className="h-8 w-8 text-neutral-400 mb-1" />
                             <span className="text-[10px] text-neutral-500 truncate w-full px-1">
@@ -2179,6 +2203,54 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
   const [invoiceCurrency, setInvoiceCurrency] = useState("USD");
   const [invoiceDescription, setInvoiceDescription] = useState("");
 
+  const [selectedPayments, setSelectedPayments] = useState<string[]>([]);
+  const isAdmin = session?.user?.role === "ADMIN";
+
+  const handleApprovePayment = async (paymentId: string) => {
+    try {
+      if (!session?.accessToken || !apiBaseUrl) return;
+
+      const response = await fetch(
+        `${apiBaseUrl}/properties/${propertyId}/payments/offline/${paymentId}/approve`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error?.message || "Failed to approve payment");
+      }
+
+      notify.success("Payment approved successfully");
+      queryClient.invalidateQueries({ queryKey: ["payments", propertyId] });
+      queryClient.invalidateQueries({ queryKey: ["property", propertyId] });
+    } catch (err: any) {
+      notify.error(err?.message || "Failed to approve payment");
+    }
+  };
+
+  const handleBulkApprove = async () => {
+    // Optimistic loop for now
+    let successCount = 0;
+    for (const id of selectedPayments) {
+      // Only approve pending ones? We can try all selected.
+      try {
+        await handleApprovePayment(id);
+        successCount++;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    if (successCount > 0) {
+      notify.success(`Approved ${successCount} payments`);
+      setSelectedPayments([]);
+    }
+  };
+
   const {
     data: payments,
     isLoading,
@@ -2206,15 +2278,15 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
 
   const getStatusBadge = (status: string) => {
     const config: Record<string, { bg: string; text: string; label: string }> =
-      {
-        PENDING: {
-          bg: "bg-yellow-100",
-          text: "text-yellow-700",
-          label: "Pending",
-        },
-        PAID: { bg: "bg-emerald-100", text: "text-emerald-700", label: "Paid" },
-        FAILED: { bg: "bg-red-100", text: "text-red-700", label: "Failed" },
-      };
+    {
+      PENDING: {
+        bg: "bg-yellow-100",
+        text: "text-yellow-700",
+        label: "Pending",
+      },
+      PAID: { bg: "bg-emerald-100", text: "text-emerald-700", label: "Paid" },
+      FAILED: { bg: "bg-red-100", text: "text-red-700", label: "Failed" },
+    };
     const style = config[status] || config.PENDING;
     return (
       <span
@@ -2374,40 +2446,81 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                   payment.currency as any,
                 );
 
+                const isSelected = selectedPayments.includes(payment.id);
+
                 return (
                   <div
                     key={payment.id}
-                    className="flex justify-between items-start p-4 border rounded-lg hover:bg-neutral-50 transition-colors"
+                    className={`flex justify-between items-start p-4 border rounded-lg transition-colors ${isSelected ? 'bg-blue-50 border-blue-200' : 'hover:bg-neutral-50'}`}
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium text-neutral-900">
-                          {getPaymentTitle(payment.type, payment.metadata)}
-                        </p>
-                        {getStatusBadge(payment.status)}
+                    <div className="flex gap-3 items-start flex-1 min-w-0">
+                      <div className="pt-1">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedPayments([...selectedPayments, payment.id]);
+                            } else {
+                              setSelectedPayments(selectedPayments.filter(id => id !== payment.id));
+                            }
+                          }}
+                          className="rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer h-4 w-4"
+                        />
                       </div>
-                      <p className="text-xs text-neutral-500 mb-2">
-                        {new Date(payment.createdAt).toLocaleDateString(
-                          "en-ZW",
-                          {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          },
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium text-neutral-900">
+                            {getPaymentTitle(payment.type, payment.metadata)}
+                          </p>
+                          {getStatusBadge(payment.status)}
+                        </div>
+                        <p className="text-xs text-neutral-500 mb-2">
+                          {new Date(payment.createdAt).toLocaleDateString(
+                            "en-ZW",
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </p>
+                        {payment.reference && (
+                          <p className="text-xs text-neutral-400">
+                            Ref: {payment.reference}
+                          </p>
                         )}
-                      </p>
-                      {payment.reference && (
-                        <p className="text-xs text-neutral-400">
-                          Ref: {payment.reference}
-                        </p>
-                      )}
-                      {payment.invoice?.invoiceNo && (
-                        <p className="text-xs text-neutral-400">
-                          Invoice: {payment.invoice.invoiceNo}
-                        </p>
-                      )}
+                        {payment.invoice?.invoiceNo && (
+                          <p className="text-xs text-neutral-400">
+                            Invoice: {payment.invoice.invoiceNo}
+                          </p>
+                        )}
+                        {payment.metadata?.notes && (
+                          <p className="text-xs text-neutral-500 mt-1">
+                            Note: {payment.metadata.notes}
+                          </p>
+                        )}
+                        {(payment.metadata?.proofUrl ||
+                          payment.metadata?.method) && (
+                            <div className="flex gap-2 text-xs text-neutral-400 mt-1">
+                              {payment.metadata.method && (
+                                <span>via {payment.metadata.method}</span>
+                              )}
+                              {payment.metadata.proofUrl && (
+                                <a
+                                  href={getImageUrl(payment.metadata.proofUrl)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-500 hover:underline"
+                                >
+                                  View Proof
+                                </a>
+                              )}
+                            </div>
+                          )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-4 ml-4">
                       <div className="text-right">
@@ -2415,53 +2528,73 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                           {formattedAmount}
                         </p>
                       </div>
-                      {payment.invoice?.pdfUrl && (
-                        <a
-                          href={payment.invoice.pdfUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs text-emerald-600 hover:underline"
-                        >
-                          Invoice PDF
-                        </a>
-                      )}
-                      {hasRedirectUrl ? (
-                        <Button
-                          size="sm"
-                          onClick={() => handlePayNow(payment)}
-                          className="bg-emerald-600 hover:bg-emerald-700"
-                        >
-                          Pay Now
-                        </Button>
-                      ) : (
-                        isPending &&
-                        payment.invoice?.id && (
+                      <div className="flex flex-col gap-2 items-end">
+                        {isPending && isAdmin && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={async () => {
-                              try {
-                                const intent =
-                                  await fetchPaymentIntent(payment);
-                                if (intent?.redirectUrl) {
-                                  window.location.href = intent.redirectUrl;
-                                }
-                              } catch (err: any) {
-                                notify.error(
-                                  err?.message || "Failed to prepare payment",
-                                );
-                              }
-                            }}
+                            onClick={() => handleApprovePayment(payment.id)}
+                            className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                           >
-                            Generate Pay Link
+                            Approve
                           </Button>
-                        )
-                      )}
+                        )}
+                        {payment.invoice?.pdfUrl && (
+                          <a
+                            href={payment.invoice.pdfUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-emerald-600 hover:underline block"
+                          >
+                            Invoice PDF
+                          </a>
+                        )}
+                        {hasRedirectUrl ? (
+                          <Button
+                            size="sm"
+                            onClick={() => handlePayNow(payment)}
+                            className="bg-emerald-600 hover:bg-emerald-700"
+                          >
+                            Pay Now
+                          </Button>
+                        ) : (
+                          isPending &&
+                          payment.invoice?.id && !isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  const intent =
+                                    await fetchPaymentIntent(payment);
+                                  if (intent?.redirectUrl) {
+                                    window.location.href = intent.redirectUrl;
+                                  }
+                                } catch (err: any) {
+                                  notify.error(
+                                    err?.message || "Failed to prepare payment",
+                                  );
+                                }
+                              }}
+                            >
+                              Generate Pay Link
+                            </Button>
+                          )
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
+             {selectedPayments.length > 0 && isAdmin && (
+            <div className="mt-4 p-4 border-t bg-emerald-50 flex justify-between items-center rounded-b-lg -m-4 mb-0 mt-4 rounded-t-none">
+              <span className="text-sm font-medium text-emerald-800">{selectedPayments.length} payments selected</span>
+              <Button onClick={handleBulkApprove} size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                Approve Selected
+              </Button>
+            </div>
+          )}
           )}
         </CardContent>
       </Card>
@@ -2725,7 +2858,7 @@ function RatingsTab({ propertyId }: { propertyId: string }) {
                   {[5, 4, 3, 2, 1].map((starValue) => {
                     const count =
                       aggregate.ratingCounts[
-                        starValue as keyof typeof aggregate.ratingCounts
+                      starValue as keyof typeof aggregate.ratingCounts
                       ] || 0;
                     const percentage =
                       aggregate.totalCount > 0
@@ -2786,11 +2919,10 @@ function RatingsTab({ propertyId }: { propertyId: string }) {
                       onClick={() => setRating(star)}
                     >
                       <Star
-                        className={`h-8 w-8 transition-colors ${
-                          star <= (hoverRating || rating)
-                            ? "fill-yellow-400 text-yellow-400"
-                            : "text-neutral-300"
-                        }`}
+                        className={`h-8 w-8 transition-colors ${star <= (hoverRating || rating)
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "text-neutral-300"
+                          }`}
                       />
                     </button>
                   ))}

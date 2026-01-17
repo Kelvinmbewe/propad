@@ -12,8 +12,10 @@ import { RankingModule } from '../ranking/ranking.module';
 
 import { PaymentsModule } from '../payments/payments.module';
 
+import { PricingModule } from '../pricing/pricing.module';
+
 @Module({
-  imports: [PrismaModule, AuditModule, GeoModule, VerificationsModule, TrustModule, RankingModule, PaymentsModule],
+  imports: [PrismaModule, AuditModule, GeoModule, VerificationsModule, TrustModule, RankingModule, PaymentsModule, PricingModule],
   controllers: [PropertiesController],
   providers: [PropertiesService, OfferAutoConfirmationService],
   exports: [PropertiesService]

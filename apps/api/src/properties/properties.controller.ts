@@ -102,7 +102,7 @@ interface AuthenticatedRequest {
 
 @Controller("properties")
 export class PropertiesController {
-  constructor(private readonly propertiesService: PropertiesService) {}
+  constructor(private readonly propertiesService: PropertiesService) { }
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -517,6 +517,21 @@ export class PropertiesController {
     return this.propertiesService.createOfflineListingPayment(
       id,
       dto,
+      req.user,
+    );
+  }
+
+  @Post(":id/payments/offline/:paymentId/approve")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  approveOfflinePayment(
+    @Param("id") id: string,
+    @Param("paymentId") paymentId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.propertiesService.approveOfflineListingPayment(
+      id,
+      paymentId,
       req.user,
     );
   }

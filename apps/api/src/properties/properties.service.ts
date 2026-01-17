@@ -132,6 +132,7 @@ import { GeoService } from "../geo/geo.service";
 import { CreatePropertyDto } from "./dto/create-property.dto";
 import { PaymentsService } from "../payments/payments.service";
 import { PricingService } from "../pricing/pricing.service";
+import { differenceInHours } from "date-fns";
 import { VerificationsService } from "../verifications/verifications.service";
 import { UpdatePropertyDto } from "./dto/update-property.dto";
 import { SubmitForVerificationDto } from "./dto/submit-verification.dto";
@@ -142,6 +143,7 @@ import { AssignAgentDto } from "./dto/assign-agent.dto";
 import { UpdateDealConfirmationDto } from "./dto/update-deal-confirmation.dto";
 import { CreateMessageDto } from "./dto/create-message.dto";
 import { UpdateServiceFeeDto } from "./dto/update-service-fee.dto";
+import { differenceInHours } from "date-fns";
 import { VerificationFingerprintService } from "../verifications/verification-fingerprint.service";
 import { RankingService } from "../ranking/ranking.service";
 import { RiskService, RiskSignalType } from "../trust/risk.service";
@@ -249,7 +251,7 @@ export class PropertiesService {
     private readonly pricing: PricingService,
     private readonly paymentsService: PaymentsService,
     private readonly verificationsService: VerificationsService,
-  ) {}
+  ) { }
 
   /**
    * Recursively convert Prisma Decimal types and Date objects for JSON serialization
@@ -344,8 +346,8 @@ export class PropertiesService {
           runId: "run1",
           hypothesisId,
         }) + "\n";
-      await mkdir(".cursor", { recursive: true }).catch(() => {});
-      await appendFile(".cursor/debug.log", logEntry).catch(() => {});
+      await mkdir(".cursor", { recursive: true }).catch(() => { });
+      await appendFile(".cursor/debug.log", logEntry).catch(() => { });
     } catch {
       // Ignore logging errors
     }
@@ -390,7 +392,7 @@ export class PropertiesService {
         priceType: typeof property?.price,
       },
       "A",
-    ).catch(() => {});
+    ).catch(() => { });
     // #endregion
     try {
       // Safely extract location data with proper null checks
@@ -425,7 +427,7 @@ export class PropertiesService {
           provinceType: typeof province,
         },
         "A",
-      ).catch(() => {});
+      ).catch(() => { });
       // #endregion
 
       // Exclude Prisma relation objects from the spread to avoid serialization issues
@@ -450,7 +452,7 @@ export class PropertiesService {
           priceValue: cleanProperty?.price?.toString?.()?.substring(0, 20),
         },
         "B",
-      ).catch(() => {});
+      ).catch(() => { });
       // #endregion
 
       // Use pending geo's proposed name as suburb name if no regular suburb exists
@@ -504,18 +506,18 @@ export class PropertiesService {
           countryId: property.countryId ?? null,
           country: country
             ? {
-                id: String(country.id ?? ""),
-                name: String(country.name ?? ""),
-                iso2: String(country.iso2 ?? ""),
-                phoneCode: String(country.phoneCode ?? ""),
-              }
+              id: String(country.id ?? ""),
+              name: String(country.name ?? ""),
+              iso2: String(country.iso2 ?? ""),
+              phoneCode: String(country.phoneCode ?? ""),
+            }
             : null,
           provinceId: property.provinceId ?? null,
           province: province
             ? {
-                id: String(province.id ?? ""),
-                name: String(province.name ?? ""),
-              }
+              id: String(province.id ?? ""),
+              name: String(province.name ?? ""),
+            }
             : null,
           cityId: property.cityId ?? null,
           city: city
@@ -528,11 +530,11 @@ export class PropertiesService {
           pendingGeoId: property.pendingGeoId ?? null,
           pendingGeo: pendingGeo
             ? {
-                id: String(pendingGeo.id ?? ""),
-                proposedName: String(pendingGeo.proposedName ?? ""),
-                level: String(pendingGeo.level ?? ""),
-                status: String(pendingGeo.status ?? ""),
-              }
+              id: String(pendingGeo.id ?? ""),
+              proposedName: String(pendingGeo.proposedName ?? ""),
+              level: String(pendingGeo.level ?? ""),
+              status: String(pendingGeo.status ?? ""),
+            }
             : null,
           lat: typeof property.lat === "number" ? property.lat : null,
           lng: typeof property.lng === "number" ? property.lng : null,
@@ -552,7 +554,7 @@ export class PropertiesService {
           resultAreaSqmType: typeof convertedResult?.areaSqm,
         },
         "B",
-      ).catch(() => {});
+      ).catch(() => { });
       // #endregion
 
       return convertedResult;
@@ -608,7 +610,7 @@ export class PropertiesService {
       "attachLocationToMany entry",
       { propertyCount: properties.length },
       "C",
-    ).catch(() => {});
+    ).catch(() => { });
     // #endregion
     return properties
       .map((property, index) => {
@@ -619,7 +621,7 @@ export class PropertiesService {
             "attachLocationToMany processing property",
             { index, propertyId: property?.id },
             "C",
-          ).catch(() => {});
+          ).catch(() => { });
           // #endregion
           return this.attachLocation(property);
         } catch (error) {
@@ -678,7 +680,7 @@ export class PropertiesService {
             isDecimal: result?.price?.constructor?.name === "Decimal",
           },
           "B",
-        ).catch(() => {});
+        ).catch(() => { });
         // #endregion
         // Convert all Decimal types recursively
         const converted = this.convertDecimalsToNumbers(result);
@@ -692,7 +694,7 @@ export class PropertiesService {
             newPriceType: typeof converted?.price,
           },
           "B",
-        ).catch(() => {});
+        ).catch(() => { });
         // #endregion
         return converted;
       });
@@ -1750,12 +1752,12 @@ export class PropertiesService {
         ...filtered,
         ...(isUpdatingLocation
           ? {
-              countryId: location.country?.id ?? null,
-              provinceId: location.province?.id ?? null,
-              cityId: location.city?.id ?? null,
-              suburbId: location.suburb?.id ?? null,
-              pendingGeoId: location.pendingGeo?.id ?? null,
-            }
+            countryId: location.country?.id ?? null,
+            provinceId: location.province?.id ?? null,
+            cityId: location.city?.id ?? null,
+            suburbId: location.suburb?.id ?? null,
+            pendingGeoId: location.pendingGeo?.id ?? null,
+          }
           : {}),
         ...(lat !== undefined ? { lat } : {}),
         ...(lng !== undefined ? { lng } : {}),
@@ -2365,26 +2367,26 @@ export class PropertiesService {
       // Range Filters
       ...(filters.priceMin || filters.priceMax
         ? {
-            price: {
-              ...(filters.priceMin ? { gte: filters.priceMin } : {}),
-              ...(filters.priceMax ? { lte: filters.priceMax } : {}),
-            },
-          }
+          price: {
+            ...(filters.priceMin ? { gte: filters.priceMin } : {}),
+            ...(filters.priceMax ? { lte: filters.priceMax } : {}),
+          },
+        }
         : {}),
       ...(filters.bedrooms ? { bedrooms: { gte: filters.bedrooms } } : {}),
       ...(filters.bathrooms ? { bathrooms: { gte: filters.bathrooms } } : {}),
       ...(filters.minFloorArea
         ? {
-            OR: [
-              { areaSqm: { gte: filters.minFloorArea } },
-              {
-                commercialFields: {
-                  path: ["floorAreaSqm"],
-                  gte: filters.minFloorArea,
-                },
+          OR: [
+            { areaSqm: { gte: filters.minFloorArea } },
+            {
+              commercialFields: {
+                path: ["floorAreaSqm"],
+                gte: filters.minFloorArea,
               },
-            ],
-          }
+            },
+          ],
+        }
         : {}),
 
       // Boolean / Enum Filters
@@ -2400,33 +2402,33 @@ export class PropertiesService {
       // JSON Array Filter (Amenities)
       ...(filters.amenities && filters.amenities.length > 0
         ? {
-            amenities: { hasSome: filters.amenities },
-          }
+          amenities: { hasSome: filters.amenities },
+        }
         : {}),
 
       // Geo Bounds
       ...(filters.bounds
         ? {
-            lat: {
-              gte: filters.bounds.southWest.lat,
-              lte: filters.bounds.northEast.lat,
-            },
-            lng: {
-              gte: filters.bounds.southWest.lng,
-              lte: filters.bounds.northEast.lng,
-            },
-          }
+          lat: {
+            gte: filters.bounds.southWest.lat,
+            lte: filters.bounds.northEast.lat,
+          },
+          lng: {
+            gte: filters.bounds.southWest.lng,
+            lte: filters.bounds.northEast.lng,
+          },
+        }
         : {}),
 
       // --- SMART RANKING FILTERS ---
       // Verified Only Support
       ...(dto.verifiedOnly
         ? {
-            OR: [
-              { verificationLevel: "VERIFIED" },
-              { verificationLevel: "TRUSTED" },
-            ],
-          }
+          OR: [
+            { verificationLevel: "VERIFIED" },
+            { verificationLevel: "TRUSTED" },
+          ],
+        }
         : {}),
     };
 
@@ -2527,7 +2529,12 @@ export class PropertiesService {
       throw new BadRequestException("Property Photos allows max 5 files");
     }
 
-    const verificationFeeUsdCents = 2000; // $20.00 - Admin configurable
+    const verificationCosts = (await this.pricing.getConfig("pricing.verificationCosts", {
+      PROOF_OF_OWNERSHIP: 500,
+      LOCATION_CONFIRMATION: 2000,
+    })) as any;
+    const baseFee = typeof verificationCosts === 'number' ? verificationCosts : (verificationCosts['LOCATION_CONFIRMATION'] || 2000);
+    const verificationFeeUsdCents = baseFee;
 
     let verificationRequest: any;
 
@@ -2552,36 +2559,32 @@ export class PropertiesService {
       );
       if (dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0) {
         if (proofItem) {
-          if (proofItem.status !== "APPROVED") {
-            await this.prisma.verificationRequestItem.update({
-              where: { id: proofItem.id },
-              data: {
-                status: "SUBMITTED",
-                evidenceUrls: dto.proofOfOwnershipUrls,
-                verifierId: null,
-                reviewedAt: null,
-              },
-            });
-            // Fingerprint (Async)
-            void this.fingerprintService.processItemEvidence(
-              proofItem.id,
-              dto.proofOfOwnershipUrls,
-            );
+          // Editability Window Check: Allow edit if < 6 hours since review OR if status is NOT Approved
+          const hoursSinceReview = proofItem.reviewedAt ? differenceInHours(new Date(), proofItem.reviewedAt) : 0;
+          const isEditable = proofItem.status !== "APPROVED" || hoursSinceReview < 6;
+
+          if (isEditable) {
+            // ... logic ...
+            if (proofItem.status !== "APPROVED" || hoursSinceReview < 6) {
+              await this.prisma.verificationRequestItem.update({
+                where: { id: proofItem.id },
+                data: {
+                  status: "SUBMITTED",
+                  evidenceUrls: dto.proofOfOwnershipUrls,
+                  verifierId: null,
+                  reviewedAt: null,
+                },
+              });
+              // Fingerprint
+              void this.fingerprintService.processItemEvidence(proofItem.id, dto.proofOfOwnershipUrls);
+            }
           }
         } else {
+          // ... create new ...
           const newItem = await this.prisma.verificationRequestItem.create({
-            data: {
-              verificationRequestId: existingRequest.id,
-              type: "PROOF_OF_OWNERSHIP",
-              status: "SUBMITTED",
-              evidenceUrls: dto.proofOfOwnershipUrls,
-            },
+            // ...
           });
-          // Fingerprint (Async)
-          void this.fingerprintService.processItemEvidence(
-            newItem.id,
-            dto.proofOfOwnershipUrls,
-          );
+          // ...
         }
       }
 
@@ -2592,7 +2595,11 @@ export class PropertiesService {
       if (dto.locationGpsLat && dto.locationGpsLng) {
         let updatedLocationItem;
         if (locationItem) {
-          if (locationItem.status !== "APPROVED") {
+          const hoursSinceReview = locationItem.reviewedAt ? differenceInHours(new Date(), locationItem.reviewedAt) : 0;
+          const isUpgrade = dto.requestOnSiteVisit && !locationItem.notes?.includes("On-site visit");
+          const isEditable = locationItem.status !== "APPROVED" || hoursSinceReview < 6 || isUpgrade;
+
+          if (isEditable) {
             updatedLocationItem =
               await this.prisma.verificationRequestItem.update({
                 where: { id: locationItem.id },
@@ -2602,7 +2609,7 @@ export class PropertiesService {
                   gpsLng: dto.locationGpsLng,
                   notes: dto.requestOnSiteVisit
                     ? "On-site visit requested"
-                    : locationItem.notes,
+                    : (isUpgrade ? "On-site visit requested" : locationItem.notes),
                   verifierId: null,
                   reviewedAt: null,
                 },
@@ -2623,1231 +2630,1286 @@ export class PropertiesService {
               },
             });
         }
-
-        // PRODUCTION HARDENING: Auto-create SiteVisit when location item requests on-site visit
-        if (updatedLocationItem && dto.requestOnSiteVisit) {
-          // Check if site visit already exists for this item
-          const existingSiteVisit = await this.prisma.siteVisit.findFirst({
-            where: { verificationItemId: updatedLocationItem.id },
-          });
-          if (!existingSiteVisit) {
-            await this.prisma.siteVisit.create({
-              data: {
-                propertyId: id,
-                verificationItemId: updatedLocationItem.id,
-                requestedByUserId: actor.userId,
-                status: "PENDING_ASSIGNMENT",
-                notes: "Auto-created from verification request",
-              },
-            });
-          }
-        }
-      }
-
-      // Handle Photos Item
-      const photoItem = existingRequest.items.find(
-        (i: { type: string }) => i.type === "PROPERTY_PHOTOS",
-      );
-      if (dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0) {
-        if (photoItem) {
-          if (photoItem.status !== "APPROVED") {
-            await this.prisma.verificationRequestItem.update({
-              where: { id: photoItem.id },
-              data: {
-                status: "SUBMITTED",
-                evidenceUrls: dto.propertyPhotoUrls,
-                verifierId: null,
-                reviewedAt: null,
-              },
-            });
-            // Fingerprint (Async)
-            void this.fingerprintService.processItemEvidence(
-              photoItem.id,
-              dto.propertyPhotoUrls,
-            );
-          }
-        } else {
-          const newItem = await this.prisma.verificationRequestItem.create({
-            data: {
-              verificationRequestId: existingRequest.id,
-              type: "PROPERTY_PHOTOS",
-              status: "SUBMITTED",
-              evidenceUrls: dto.propertyPhotoUrls,
-            },
-          });
-          // Fingerprint (Async)
-          void this.fingerprintService.processItemEvidence(
-            newItem.id,
-            dto.propertyPhotoUrls,
-          );
-        }
-      }
-
-      // Reload request and validate at least one item is SUBMITTED
-      verificationRequest = await this.prisma.verificationRequest.findUnique({
-        where: { id: existingRequest.id },
-        include: { items: true },
-      });
-
-      // Validate that at least one item has SUBMITTED status
-      const submittedItemsCount = verificationRequest.items.filter(
-        (i: any) => i.status === "SUBMITTED",
-      ).length;
-      if (submittedItemsCount === 0) {
-        throw new BadRequestException(
-          "At least one verification item must be SUBMITTED. Please provide evidence for at least one item (proof of ownership, location GPS, or property photos).",
-        );
-      }
-    } else {
-      // NEW Request Logic
-      // MANDATORY: Create VerificationRequest with targetType='PROPERTY' and at least one SUBMITTED item
-
-      // Validate that at least one item will be SUBMITTED
-      const hasProofOfOwnership =
-        dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0;
-      const hasLocation = dto.locationGpsLat && dto.locationGpsLng;
-      const hasPropertyPhotos =
-        dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0;
-
-      if (!hasProofOfOwnership && !hasLocation && !hasPropertyPhotos) {
-        throw new BadRequestException(
-          "At least one verification item with evidence must be provided (proof of ownership, location GPS, or property photos)",
-        );
-      }
-
-      verificationRequest = await this.prisma.verificationRequest.create({
-        data: {
-          targetType: "PROPERTY",
-          targetId: id,
-          propertyId: id,
-          requesterId: actor.userId,
-          status: "PENDING",
-          notes: dto.notes ?? null,
-          items: {
-            create: [
-              ...(hasProofOfOwnership
-                ? [
-                    {
-                      type: "PROOF_OF_OWNERSHIP" as const,
-                      status: "SUBMITTED" as const,
-                      evidenceUrls: dto.proofOfOwnershipUrls!,
-                    },
-                  ]
-                : [
-                    {
-                      type: "PROOF_OF_OWNERSHIP" as const,
-                      status: "PENDING" as const,
-                    },
-                  ]),
-              {
-                type: "LOCATION_CONFIRMATION" as const,
-                status: hasLocation
-                  ? ("SUBMITTED" as const)
-                  : ("PENDING" as const),
-                gpsLat: dto.locationGpsLat ?? null,
-                gpsLng: dto.locationGpsLng ?? null,
-                notes: dto.requestOnSiteVisit
-                  ? "On-site visit requested"
-                  : null,
-              },
-              ...(hasPropertyPhotos
-                ? [
-                    {
-                      type: "PROPERTY_PHOTOS" as const,
-                      status: "SUBMITTED" as const,
-                      evidenceUrls: dto.propertyPhotoUrls!,
-                    },
-                  ]
-                : [
-                    {
-                      type: "PROPERTY_PHOTOS" as const,
-                      status: "PENDING" as const,
-                    },
-                  ]),
-            ],
+        gpsLat: dto.locationGpsLat,
+          gpsLng: dto.locationGpsLng,
+            notes: dto.requestOnSiteVisit
+              ? "On-site visit requested"
+              : null,
           },
-        },
-        include: {
-          items: true,
-        },
-      });
+    });
+  }
 
-      // Validate that at least one item was created with SUBMITTED status
-      const submittedItemsCount = verificationRequest.items.filter(
-        (i: any) => i.status === "SUBMITTED",
-      ).length;
-      if (submittedItemsCount === 0) {
-        // This should not happen due to validation above, but double-check
-        await this.prisma.verificationRequest.delete({
-          where: { id: verificationRequest.id },
-        });
-        throw new BadRequestException(
-          "Failed to create verification request: at least one item must be SUBMITTED",
-        );
-      }
-
-      // Post-Creation Fingerprinting
-      for (const item of verificationRequest.items) {
-        if (item.evidenceUrls && item.evidenceUrls.length > 0) {
-          void this.fingerprintService.processItemEvidence(
-            item.id,
-            item.evidenceUrls,
-          );
-        }
-      }
-
-      // PRODUCTION HARDENING: Auto-create SiteVisit when location item requests on-site visit
-      const locationItem = verificationRequest.items.find(
-        (i: any) =>
-          i.type === "LOCATION_CONFIRMATION" &&
-          i.notes?.includes("On-site visit requested"),
-      );
-      if (locationItem && dto.requestOnSiteVisit) {
-        await this.prisma.siteVisit.create({
-          data: {
-            propertyId: id,
-            verificationItemId: locationItem.id,
-            requestedByUserId: actor.userId,
-            status: "PENDING_ASSIGNMENT",
-            notes: "Auto-created from verification request",
-          },
-        });
-      }
-    }
-
-    // Only create payment if fee > 0
-    let payment = null;
-    if (verificationFeeUsdCents > 0) {
-      payment = await this.prisma.listingPayment.create({
-        data: {
-          propertyId: id,
-          type: ListingPaymentType.VERIFICATION,
-          amountCents: verificationFeeUsdCents,
-          currency: Currency.USD,
-          status: ListingPaymentStatus.PENDING,
-          reference: `VERIFICATION_${id}_${Date.now()}`,
-          metadata: {
-            verificationFee: true,
-          },
-        },
-      });
-    }
-
-    // Update property status
-    // Do not update property status. Verification state is derived from VerificationRequest.
-    // const updated = await this.prisma.property.update({ ... });
-
-    await this.audit.logAction({
-      action: "property.submitForVerification",
-      actorId: actor.userId,
-      targetType: "property",
-      targetId: id,
-      metadata: {
-        verificationRequestId: verificationRequest.id,
-        paymentId: payment?.id ?? null,
-        itemsSubmitted: verificationRequest.items.filter(
-          (i: { status: string }) => i.status === "SUBMITTED",
-        ).length,
+  // PRODUCTION HARDENING: Auto-create SiteVisit when location item requests on-site visit
+  if(updatedLocationItem && dto.requestOnSiteVisit) {
+  // Check if site visit already exists for this item
+  const existingSiteVisit = await this.prisma.siteVisit.findFirst({
+    where: { verificationItemId: updatedLocationItem.id },
+  });
+  if (!existingSiteVisit) {
+    await this.prisma.siteVisit.create({
+      data: {
+        propertyId: id,
+        verificationItemId: updatedLocationItem.id,
+        requestedByUserId: actor.userId,
+        status: "PENDING_ASSIGNMENT",
+        notes: "Auto-created from verification request",
       },
     });
+  }
+}
+  }
 
-    // Log activity
-    await this.logActivity(
-      id,
-      ListingActivityType.VERIFICATION_SUBMITTED,
-      actor.userId,
-      {
-        verificationRequestId: verificationRequest.id,
+// Handle Photos Item
+const photoItem = existingRequest.items.find(
+  (i: { type: string }) => i.type === "PROPERTY_PHOTOS",
+);
+if (dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0) {
+  if (photoItem) {
+    if (photoItem.status !== "APPROVED") {
+      await this.prisma.verificationRequestItem.update({
+        where: { id: photoItem.id },
+        data: {
+          status: "SUBMITTED",
+          evidenceUrls: dto.propertyPhotoUrls,
+          verifierId: null,
+          reviewedAt: null,
+        },
+      });
+      // Fingerprint (Async)
+      void this.fingerprintService.processItemEvidence(
+        photoItem.id,
+        dto.propertyPhotoUrls,
+      );
+    }
+  } else {
+    const newItem = await this.prisma.verificationRequestItem.create({
+      data: {
+        verificationRequestId: existingRequest.id,
+        type: "PROPERTY_PHOTOS",
+        status: "SUBMITTED",
+        evidenceUrls: dto.propertyPhotoUrls,
       },
+    });
+    // Fingerprint (Async)
+    void this.fingerprintService.processItemEvidence(
+      newItem.id,
+      dto.propertyPhotoUrls,
     );
+  }
+}
 
-    return {
-      property: this.attachLocation(property),
-      verificationRequest,
-      payment,
-    };
+// Reload request and validate at least one item is SUBMITTED
+verificationRequest = await this.prisma.verificationRequest.findUnique({
+  where: { id: existingRequest.id },
+  include: { items: true },
+});
+
+// Validate that at least one item has SUBMITTED status
+const submittedItemsCount = verificationRequest.items.filter(
+  (i: any) => i.status === "SUBMITTED",
+).length;
+if (submittedItemsCount === 0) {
+  throw new BadRequestException(
+    "At least one verification item must be SUBMITTED. Please provide evidence for at least one item (proof of ownership, location GPS, or property photos).",
+  );
+}
+    } else {
+  // NEW Request Logic
+  // MANDATORY: Create VerificationRequest with targetType='PROPERTY' and at least one SUBMITTED item
+
+  // Validate that at least one item will be SUBMITTED
+  const hasProofOfOwnership =
+    dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0;
+  const hasLocation = dto.locationGpsLat && dto.locationGpsLng;
+  const hasPropertyPhotos =
+    dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0;
+
+  if (!hasProofOfOwnership && !hasLocation && !hasPropertyPhotos) {
+    throw new BadRequestException(
+      "At least one verification item with evidence must be provided (proof of ownership, location GPS, or property photos)",
+    );
+  }
+
+  verificationRequest = await this.prisma.verificationRequest.create({
+    data: {
+      targetType: "PROPERTY",
+      targetId: id,
+      propertyId: id,
+      requesterId: actor.userId,
+      status: "PENDING",
+      notes: dto.notes ?? null,
+      items: {
+        create: [
+          ...(hasProofOfOwnership
+            ? [
+              {
+                type: "PROOF_OF_OWNERSHIP" as const,
+                status: "SUBMITTED" as const,
+                evidenceUrls: dto.proofOfOwnershipUrls!,
+              },
+            ]
+            : [
+              {
+                type: "PROOF_OF_OWNERSHIP" as const,
+                status: "PENDING" as const,
+              },
+            ]),
+          {
+            type: "LOCATION_CONFIRMATION" as const,
+            status: hasLocation
+              ? ("SUBMITTED" as const)
+              : ("PENDING" as const),
+            gpsLat: dto.locationGpsLat ?? null,
+            gpsLng: dto.locationGpsLng ?? null,
+            notes: dto.requestOnSiteVisit
+              ? "On-site visit requested"
+              : null,
+          },
+          ...(hasPropertyPhotos
+            ? [
+              {
+                type: "PROPERTY_PHOTOS" as const,
+                status: "SUBMITTED" as const,
+                evidenceUrls: dto.propertyPhotoUrls!,
+              },
+            ]
+            : [
+              {
+                type: "PROPERTY_PHOTOS" as const,
+                status: "PENDING" as const,
+              },
+            ]),
+        ],
+      },
+    },
+    include: {
+      items: true,
+    },
+  });
+
+  // Validate that at least one item was created with SUBMITTED status
+  const submittedItemsCount = verificationRequest.items.filter(
+    (i: any) => i.status === "SUBMITTED",
+  ).length;
+  if (submittedItemsCount === 0) {
+    // This should not happen due to validation above, but double-check
+    await this.prisma.verificationRequest.delete({
+      where: { id: verificationRequest.id },
+    });
+    throw new BadRequestException(
+      "Failed to create verification request: at least one item must be SUBMITTED",
+    );
+  }
+
+  // Post-Creation Fingerprinting
+  for (const item of verificationRequest.items) {
+    if (item.evidenceUrls && item.evidenceUrls.length > 0) {
+      void this.fingerprintService.processItemEvidence(
+        item.id,
+        item.evidenceUrls,
+      );
+    }
+  }
+
+  // PRODUCTION HARDENING: Auto-create SiteVisit when location item requests on-site visit
+  const locationItem = verificationRequest.items.find(
+    (i: any) =>
+      i.type === "LOCATION_CONFIRMATION" &&
+      i.notes?.includes("On-site visit requested"),
+  );
+  if (locationItem && dto.requestOnSiteVisit) {
+    await this.prisma.siteVisit.create({
+      data: {
+        propertyId: id,
+        verificationItemId: locationItem.id,
+        requestedByUserId: actor.userId,
+        status: "PENDING_ASSIGNMENT",
+        notes: "Auto-created from verification request",
+      },
+    });
+  }
+}
+
+// Only create payment if fee > 0
+let payment = null;
+if (verificationFeeUsdCents > 0) {
+  payment = await this.prisma.listingPayment.create({
+    data: {
+      propertyId: id,
+      type: ListingPaymentType.VERIFICATION,
+      amountCents: verificationFeeUsdCents,
+      currency: Currency.USD,
+      status: ListingPaymentStatus.PENDING,
+      reference: `VERIFICATION_${id}_${Date.now()}`,
+      metadata: {
+        verificationFee: true,
+      },
+    },
+  });
+}
+
+// Update property status
+// Do not update property status. Verification state is derived from VerificationRequest.
+// const updated = await this.prisma.property.update({ ... });
+
+await this.audit.logAction({
+  action: "property.submitForVerification",
+  actorId: actor.userId,
+  targetType: "property",
+  targetId: id,
+  metadata: {
+    verificationRequestId: verificationRequest.id,
+    paymentId: payment?.id ?? null,
+    itemsSubmitted: verificationRequest.items.filter(
+      (i: { status: string }) => i.status === "SUBMITTED",
+    ).length,
+  },
+});
+
+// Log activity
+await this.logActivity(
+  id,
+  ListingActivityType.VERIFICATION_SUBMITTED,
+  actor.userId,
+  {
+    verificationRequestId: verificationRequest.id,
+  },
+);
+
+return {
+  property: this.attachLocation(property),
+  verificationRequest,
+  payment,
+};
   }
 
   async getVerificationRequest(propertyId: string, actor: AuthContext) {
-    const property = await this.getPropertyOrThrow(propertyId);
+  const property = await this.getPropertyOrThrow(propertyId);
 
-    // Verify access
-    const isAuthorized =
-      property.landlordId === actor.userId ||
-      property.agentOwnerId === actor.userId ||
-      actor.role === Role.ADMIN;
-    if (!isAuthorized) {
-      throw new ForbiddenException(
-        "You do not have permission to view verification requests for this property",
-      );
-    }
+  // Verify access
+  const isAuthorized =
+    property.landlordId === actor.userId ||
+    property.agentOwnerId === actor.userId ||
+    actor.role === Role.ADMIN;
+  if (!isAuthorized) {
+    throw new ForbiddenException(
+      "You do not have permission to view verification requests for this property",
+    );
+  }
 
-    const request = await this.prisma.verificationRequest.findFirst({
-      where: { propertyId },
-      include: {
-        property: {
-          select: {
-            id: true,
-            title: true,
-            verificationScore: true,
-            verificationLevel: true,
-          },
-        },
-        items: {
-          include: {
-            verifier: {
-              select: { id: true, name: true },
-            },
-          },
-          orderBy: { type: "asc" },
-        },
-        requester: {
-          select: { id: true, name: true, email: true },
+  const request = await this.prisma.verificationRequest.findFirst({
+    where: { propertyId },
+    include: {
+      property: {
+        select: {
+          id: true,
+          title: true,
+          verificationScore: true,
+          verificationLevel: true,
         },
       },
-      orderBy: { createdAt: "desc" },
-    });
+      items: {
+        include: {
+          verifier: {
+            select: { id: true, name: true },
+          },
+        },
+        orderBy: { type: "asc" },
+      },
+      requester: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
-    return request;
-  }
+  return request;
+}
 
   async updateVerificationItem(
-    propertyId: string,
-    itemId: string,
-    dto: {
-      evidenceUrls?: string[];
-      gpsLat?: number;
-      gpsLng?: number;
-      notes?: string;
-      requestOnSiteVisit?: boolean;
-    },
-    actor: AuthContext,
-  ) {
-    const property = await this.getPropertyOrThrow(propertyId);
-    this.ensureCanMutate(property, actor);
+  propertyId: string,
+  itemId: string,
+  dto: {
+  evidenceUrls?: string[];
+  gpsLat?: number;
+  gpsLng?: number;
+  notes?: string;
+  requestOnSiteVisit?: boolean;
+},
+  actor: AuthContext,
+) {
+  const property = await this.getPropertyOrThrow(propertyId);
+  this.ensureCanMutate(property, actor);
 
-    const item = await this.prisma.verificationRequestItem.findUnique({
-      where: { id: itemId },
-      include: {
-        verificationRequest: {
-          select: { propertyId: true, requesterId: true, id: true },
-        },
+  const item = await this.prisma.verificationRequestItem.findUnique({
+    where: { id: itemId },
+    include: {
+      verificationRequest: {
+        select: { propertyId: true, requesterId: true, id: true },
       },
-    });
+    },
+  });
 
-    if (!item) {
-      throw new NotFoundException("Verification item not found");
+  if (!item) {
+    throw new NotFoundException("Verification item not found");
+  }
+
+  if (item.verificationRequest.propertyId !== propertyId) {
+    throw new BadRequestException(
+      "Verification item does not belong to this property",
+    );
+  }
+
+  if (item.verificationRequest.requesterId !== actor.userId) {
+    throw new ForbiddenException(
+      "Only the requester can update verification items",
+    );
+  }
+
+  if (item.status === "APPROVED") {
+    throw new BadRequestException(
+      "Cannot update an item that has been approved",
+    );
+  }
+
+  const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
+  if (item.status === "SUBMITTED" && item.updatedAt < thirtyMinsAgo) {
+    throw new BadRequestException(
+      "Verification item is locked for review (30-minute edit window expired)",
+    );
+  }
+
+  // Validate single file upload (now max 5)
+  if (dto.evidenceUrls && dto.evidenceUrls.length > 5) {
+    if (item.type === "PROOF_OF_OWNERSHIP") {
+      throw new BadRequestException("Proof of Ownership allows max 5 files");
     }
-
-    if (item.verificationRequest.propertyId !== propertyId) {
-      throw new BadRequestException(
-        "Verification item does not belong to this property",
-      );
+    if (item.type === "PROPERTY_PHOTOS") {
+      throw new BadRequestException("Property Photos allows max 5 files");
     }
+  }
 
-    if (item.verificationRequest.requesterId !== actor.userId) {
-      throw new ForbiddenException(
-        "Only the requester can update verification items",
-      );
+  let notes = dto.notes ?? item.notes;
+  if (dto.requestOnSiteVisit) {
+    const visitNote = "On-site visit requested";
+    if (!notes) {
+      notes = visitNote;
+    } else if (!notes.includes(visitNote)) {
+      notes = `${notes}\n${visitNote}`;
     }
+  }
 
-    if (item.status === "APPROVED") {
-      throw new BadRequestException(
-        "Cannot update an item that has been approved",
-      );
-    }
+  // Auto-transition to SUBMITTED logic
+  let newStatus = item.status;
+  const hasEvidence = dto.evidenceUrls && dto.evidenceUrls.length > 0;
+  const hasLocation =
+    (dto.gpsLat !== undefined && dto.gpsLng !== undefined) ||
+    dto.requestOnSiteVisit;
 
-    const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
-    if (item.status === "SUBMITTED" && item.updatedAt < thirtyMinsAgo) {
-      throw new BadRequestException(
-        "Verification item is locked for review (30-minute edit window expired)",
-      );
-    }
-
-    // Validate single file upload (now max 5)
-    if (dto.evidenceUrls && dto.evidenceUrls.length > 5) {
-      if (item.type === "PROOF_OF_OWNERSHIP") {
-        throw new BadRequestException("Proof of Ownership allows max 5 files");
-      }
-      if (item.type === "PROPERTY_PHOTOS") {
-        throw new BadRequestException("Property Photos allows max 5 files");
-      }
-    }
-
-    let notes = dto.notes ?? item.notes;
-    if (dto.requestOnSiteVisit) {
-      const visitNote = "On-site visit requested";
-      if (!notes) {
-        notes = visitNote;
-      } else if (!notes.includes(visitNote)) {
-        notes = `${notes}\n${visitNote}`;
-      }
-    }
-
-    // Auto-transition to SUBMITTED logic
-    let newStatus = item.status;
-    const hasEvidence = dto.evidenceUrls && dto.evidenceUrls.length > 0;
-    const hasLocation =
-      (dto.gpsLat !== undefined && dto.gpsLng !== undefined) ||
-      dto.requestOnSiteVisit;
-
-    if (item.status === "PENDING" || item.status === "REJECTED") {
-      if (hasEvidence || hasLocation) {
-        newStatus = "SUBMITTED";
-      }
-    } else if (item.status === "SUBMITTED") {
-      // Keep as SUBMITTED (editing window)
+  if (item.status === "PENDING" || item.status === "REJECTED") {
+    if (hasEvidence || hasLocation) {
       newStatus = "SUBMITTED";
     }
-
-    // If updating usage of REJECTED item was successful, ensure parent request is also revived if it was rejected
-    if (item.status === "REJECTED" && newStatus === "SUBMITTED") {
-      const parentRequest = await this.prisma.verificationRequest.findUnique({
-        where: { id: item.verificationRequest.id },
-      });
-      if (parentRequest && parentRequest.status === "REJECTED") {
-        await this.prisma.verificationRequest.update({
-          where: { id: parentRequest.id },
-          data: { status: "PENDING" },
-        });
-      }
-    }
-
-    const updatedItem = await this.prisma.verificationRequestItem.update({
-      where: { id: itemId },
-      data: {
-        evidenceUrls: dto.evidenceUrls ?? item.evidenceUrls,
-        gpsLat: dto.gpsLat ?? item.gpsLat,
-        gpsLng: dto.gpsLng ?? item.gpsLng,
-        notes: notes,
-        status: newStatus,
-        verifierId: newStatus === "SUBMITTED" ? null : item.verifierId, // Reset verifier on resubmit
-        reviewedAt: newStatus === "SUBMITTED" ? null : item.reviewedAt,
-      },
-    });
-
-    await this.audit.logAction({
-      action: "verification.item.update",
-      actorId: actor.userId,
-      targetType: "verificationRequestItem",
-      targetId: itemId,
-      metadata: { propertyId, itemType: item.type, newStatus },
-    });
-
-    return updatedItem;
+  } else if (item.status === "SUBMITTED") {
+    // Keep as SUBMITTED (editing window)
+    newStatus = "SUBMITTED";
   }
+
+  // If updating usage of REJECTED item was successful, ensure parent request is also revived if it was rejected
+  if (item.status === "REJECTED" && newStatus === "SUBMITTED") {
+    const parentRequest = await this.prisma.verificationRequest.findUnique({
+      where: { id: item.verificationRequest.id },
+    });
+    if (parentRequest && parentRequest.status === "REJECTED") {
+      await this.prisma.verificationRequest.update({
+        where: { id: parentRequest.id },
+        data: { status: "PENDING" },
+      });
+    }
+  }
+
+  const updatedItem = await this.prisma.verificationRequestItem.update({
+    where: { id: itemId },
+    data: {
+      evidenceUrls: dto.evidenceUrls ?? item.evidenceUrls,
+      gpsLat: dto.gpsLat ?? item.gpsLat,
+      gpsLng: dto.gpsLng ?? item.gpsLng,
+      notes: notes,
+      status: newStatus,
+      verifierId: newStatus === "SUBMITTED" ? null : item.verifierId, // Reset verifier on resubmit
+      reviewedAt: newStatus === "SUBMITTED" ? null : item.reviewedAt,
+    },
+  });
+
+  await this.audit.logAction({
+    action: "verification.item.update",
+    actorId: actor.userId,
+    targetType: "verificationRequestItem",
+    targetId: itemId,
+    metadata: { propertyId, itemType: item.type, newStatus },
+  });
+
+  return updatedItem;
+}
 
   async reviewVerificationItem(
-    propertyId: string,
-    itemId: string,
-    dto: { status: string; notes?: string },
-    actor: AuthContext,
-  ) {
-    // Only admins can review verification items
-    if (actor.role !== Role.ADMIN) {
-      throw new ForbiddenException(
-        "Only administrators can review verification items",
-      );
-    }
-
-    const property = await this.getPropertyOrThrow(propertyId);
-    const item = await this.prisma.verificationRequestItem.findUnique({
-      where: { id: itemId },
-      include: {
-        verificationRequest: {
-          select: { propertyId: true, id: true },
-        },
-      },
-    });
-
-    if (!item) {
-      throw new NotFoundException("Verification item not found");
-    }
-
-    if (item.verificationRequest.propertyId !== propertyId) {
-      throw new BadRequestException(
-        "Verification item does not belong to this property",
-      );
-    }
-
-    const updated = await this.prisma.verificationRequestItem.update({
-      where: { id: itemId },
-      data: {
-        status: dto.status as VerificationItemStatus,
-        notes: dto.notes ?? item.notes,
-        verifierId: actor.userId,
-        reviewedAt: new Date(),
-      },
-    });
-
-    // Check if all items are reviewed and update request status
-    const allItems = await this.prisma.verificationRequestItem.findMany({
-      where: { verificationRequestId: item.verificationRequest.id },
-    });
-
-    const allApproved = allItems.every(
-      (i: { status: string }) => i.status === "APPROVED",
+  propertyId: string,
+  itemId: string,
+  dto: { status: string; notes?: string },
+  actor: AuthContext,
+) {
+  // Only admins can review verification items
+  if (actor.role !== Role.ADMIN) {
+    throw new ForbiddenException(
+      "Only administrators can review verification items",
     );
-    const anyRejected = allItems.some(
-      (i: { status: string }) => i.status === "REJECTED",
-    );
-
-    if (allApproved) {
-      await this.prisma.verificationRequest.update({
-        where: { id: item.verificationRequest.id },
-        data: { status: VerificationStatus.APPROVED },
-      });
-
-      // Update property status to VERIFIED
-      await this.prisma.property.update({
-        where: { id: propertyId },
-        data: {
-          status: PropertyStatus.VERIFIED,
-          verifiedAt: new Date(),
-        },
-      });
-    } else if (anyRejected) {
-      await this.prisma.verificationRequest.update({
-        where: { id: item.verificationRequest.id },
-        data: { status: VerificationStatus.REJECTED },
-      });
-    }
-
-    await this.audit.logAction({
-      action: "verification.item.review",
-      actorId: actor.userId,
-      targetType: "verificationRequestItem",
-      targetId: itemId,
-      metadata: { propertyId, status: dto.status },
-    });
-
-    // Log activity
-    const activityType =
-      dto.status === "APPROVED"
-        ? ListingActivityType.VERIFICATION_APPROVED
-        : ListingActivityType.VERIFICATION_REJECTED;
-    await this.logActivity(propertyId, activityType, actor.userId, {
-      verificationRequestId: item.verificationRequest.id,
-      itemType: item.type,
-    });
-
-    return updated;
   }
+
+  const property = await this.getPropertyOrThrow(propertyId);
+  const item = await this.prisma.verificationRequestItem.findUnique({
+    where: { id: itemId },
+    include: {
+      verificationRequest: {
+        select: { propertyId: true, id: true },
+      },
+    },
+  });
+
+  if (!item) {
+    throw new NotFoundException("Verification item not found");
+  }
+
+  if (item.verificationRequest.propertyId !== propertyId) {
+    throw new BadRequestException(
+      "Verification item does not belong to this property",
+    );
+  }
+
+  const updated = await this.prisma.verificationRequestItem.update({
+    where: { id: itemId },
+    data: {
+      status: dto.status as VerificationItemStatus,
+      notes: dto.notes ?? item.notes,
+      verifierId: actor.userId,
+      reviewedAt: new Date(),
+    },
+  });
+
+  // Check if all items are reviewed and update request status
+  const allItems = await this.prisma.verificationRequestItem.findMany({
+    where: { verificationRequestId: item.verificationRequest.id },
+  });
+
+  const allApproved = allItems.every(
+    (i: { status: string }) => i.status === "APPROVED",
+  );
+  const anyRejected = allItems.some(
+    (i: { status: string }) => i.status === "REJECTED",
+  );
+
+  if (allApproved) {
+    await this.prisma.verificationRequest.update({
+      where: { id: item.verificationRequest.id },
+      data: { status: VerificationStatus.APPROVED },
+    });
+
+    // Update property status to VERIFIED
+    await this.prisma.property.update({
+      where: { id: propertyId },
+      data: {
+        status: PropertyStatus.VERIFIED,
+        verifiedAt: new Date(),
+      },
+    });
+  } else if (anyRejected) {
+    await this.prisma.verificationRequest.update({
+      where: { id: item.verificationRequest.id },
+      data: { status: VerificationStatus.REJECTED },
+    });
+  }
+
+  await this.audit.logAction({
+    action: "verification.item.review",
+    actorId: actor.userId,
+    targetType: "verificationRequestItem",
+    targetId: itemId,
+    metadata: { propertyId, status: dto.status },
+  });
+
+  // Log activity
+  const activityType =
+    dto.status === "APPROVED"
+      ? ListingActivityType.VERIFICATION_APPROVED
+      : ListingActivityType.VERIFICATION_REJECTED;
+  await this.logActivity(propertyId, activityType, actor.userId, {
+    verificationRequestId: item.verificationRequest.id,
+    itemType: item.type,
+  });
+
+  return updated;
+}
 
   async mapBounds(dto: MapBoundsDto) {
-    const southLat = Math.min(dto.southWestLat, dto.northEastLat);
-    const northLat = Math.max(dto.southWestLat, dto.northEastLat);
-    const westLng = Math.min(dto.southWestLng, dto.northEastLng);
-    const eastLng = Math.max(dto.southWestLng, dto.northEastLng);
+  const southLat = Math.min(dto.southWestLat, dto.northEastLat);
+  const northLat = Math.max(dto.southWestLat, dto.northEastLat);
+  const westLng = Math.min(dto.southWestLng, dto.northEastLng);
+  const eastLng = Math.max(dto.southWestLng, dto.northEastLng);
 
-    const properties = await this.prisma.property.findMany({
-      where: {
-        status: PropertyStatus.VERIFIED,
-        lat: {
-          gte: southLat,
-          lte: northLat,
-        },
-        lng: {
-          gte: westLng,
-          lte: eastLng,
-        },
-        ...(dto.type ? { type: dto.type } : {}),
+  const properties = await this.prisma.property.findMany({
+    where: {
+      status: PropertyStatus.VERIFIED,
+      lat: {
+        gte: southLat,
+        lte: northLat,
       },
-      include: {
-        media: { take: 3 },
-        country: true,
-        province: true,
-        city: true,
-        suburb: true,
-        pendingGeo: true,
+      lng: {
+        gte: westLng,
+        lte: eastLng,
       },
-    });
+      ...(dto.type ? { type: dto.type } : {}),
+    },
+    include: {
+      media: { take: 3 },
+      country: true,
+      province: true,
+      city: true,
+      suburb: true,
+      pendingGeo: true,
+    },
+  });
 
-    return this.attachLocationToMany(properties);
-  }
+  return this.attachLocationToMany(properties);
+}
 
   async listFeatured() {
-    const now = new Date();
-    const properties: Prisma.PropertyGetPayload<{
-      include: {
-        media: true;
-        city: true;
-        suburb: true;
-      };
-    }>[] = await this.prisma.property.findMany({
-      where: {
-        status: PropertyStatus.VERIFIED,
-        featuredListing: {
-          status: "ACTIVE",
-          startsAt: { lte: now },
-          endsAt: { gte: now },
-        },
+  const now = new Date();
+  const properties: Prisma.PropertyGetPayload<{
+    include: {
+      media: true;
+      city: true;
+      suburb: true;
+    };
+  }>[] = await this.prisma.property.findMany({
+    where: {
+      status: PropertyStatus.VERIFIED,
+      featuredListing: {
+        status: "ACTIVE",
+        startsAt: { lte: now },
+        endsAt: { gte: now },
       },
-      include: {
-        media: { take: 1 },
-        city: true,
-        suburb: true,
-      },
-      orderBy: [
-        { featuredListing: { priorityLevel: "desc" } },
-        { featuredListing: { startsAt: "desc" } },
-      ],
-      take: 12,
-    });
+    },
+    include: {
+      media: { take: 1 },
+      city: true,
+      suburb: true,
+    },
+    orderBy: [
+      { featuredListing: { priorityLevel: "desc" } },
+      { featuredListing: { startsAt: "desc" } },
+    ],
+    take: 12,
+  });
 
-    return properties.map((property) => ({
-      id: property.id,
-      title: property.title,
-      price: property.price,
-      currency: property.currency,
-      bedrooms: property.bedrooms,
-      bathrooms: property.bathrooms,
-      areaSqm: property.areaSqm,
-      lat: property.lat,
-      lng: property.lng,
-      listingIntent: property.listingIntent,
-      media: property.media,
-      city: property.city,
-      suburb: property.suburb,
-    }));
-  }
+  return properties.map((property) => ({
+    id: property.id,
+    title: property.title,
+    price: property.price,
+    currency: property.currency,
+    bedrooms: property.bedrooms,
+    bathrooms: property.bathrooms,
+    areaSqm: property.areaSqm,
+    lat: property.lat,
+    lng: property.lng,
+    listingIntent: property.listingIntent,
+    media: property.media,
+    city: property.city,
+    suburb: property.suburb,
+  }));
+}
 
   async createSignedUpload(dto: CreateSignedUploadDto, actor: AuthContext) {
-    if (!ALLOWED_MIME_TYPES.has(dto.mimeType)) {
-      throw new BadRequestException("Unsupported file type");
-    }
-
-    const extension = extname(dto.fileName).toLowerCase();
-    if (!ALLOWED_EXTENSIONS.has(extension)) {
-      throw new BadRequestException("Unsupported file extension");
-    }
-
-    if (dto.propertyId) {
-      const property = await this.getPropertyOrThrow(dto.propertyId);
-      this.ensureCanMutate(property, actor);
-    }
-
-    const key = `properties/${dto.propertyId ?? "drafts"}/${randomUUID()}${extension}`;
-    const expires = Math.floor(Date.now() / 1000) + 900;
-    const payload = `${key}:${dto.mimeType}:${expires}`;
-    const signature = createHmac("sha256", env.S3_SECRET_KEY)
-      .update(payload)
-      .digest("hex");
-
-    return {
-      key,
-      uploadUrl: `${env.S3_ENDPOINT}/${env.S3_BUCKET}/${key}?expires=${expires}&signature=${signature}`,
-      method: "PUT",
-      headers: {
-        "Content-Type": dto.mimeType,
-        "x-upload-signature": signature,
-        "x-upload-expires": expires.toString(),
-      },
-      expiresAt: new Date(expires * 1000),
-    };
+  if (!ALLOWED_MIME_TYPES.has(dto.mimeType)) {
+    throw new BadRequestException("Unsupported file type");
   }
+
+  const extension = extname(dto.fileName).toLowerCase();
+  if (!ALLOWED_EXTENSIONS.has(extension)) {
+    throw new BadRequestException("Unsupported file extension");
+  }
+
+  if (dto.propertyId) {
+    const property = await this.getPropertyOrThrow(dto.propertyId);
+    this.ensureCanMutate(property, actor);
+  }
+
+  const key = `properties/${dto.propertyId ?? "drafts"}/${randomUUID()}${extension}`;
+  const expires = Math.floor(Date.now() / 1000) + 900;
+  const payload = `${key}:${dto.mimeType}:${expires}`;
+  const signature = createHmac("sha256", env.S3_SECRET_KEY)
+    .update(payload)
+    .digest("hex");
+
+  return {
+    key,
+    uploadUrl: `${env.S3_ENDPOINT}/${env.S3_BUCKET}/${key}?expires=${expires}&signature=${signature}`,
+    method: "PUT",
+    headers: {
+      "Content-Type": dto.mimeType,
+      "x-upload-signature": signature,
+      "x-upload-expires": expires.toString(),
+    },
+    expiresAt: new Date(expires * 1000),
+  };
+}
 
   /**
    * Local image upload - stores files on disk and saves reference in database.
    * This is a fallback for when S3/R2 is not available.
    */
   async uploadLocalMedia(
-    propertyId: string,
-    file: { filename: string; mimetype: string; buffer: Buffer },
-    actor: AuthContext,
-  ) {
-    const property = await this.getPropertyOrThrow(propertyId);
-    this.ensureCanMutate(property, actor);
+  propertyId: string,
+  file: { filename: string; mimetype: string; buffer: Buffer },
+  actor: AuthContext,
+) {
+  const property = await this.getPropertyOrThrow(propertyId);
+  this.ensureCanMutate(property, actor);
 
-    const uploadsRoot = this.resolveUploadsRoot();
+  const uploadsRoot = this.resolveUploadsRoot();
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = resolve(uploadsRoot, "properties", propertyId);
-    await mkdir(uploadsDir, { recursive: true });
+  // Create uploads directory if it doesn't exist
+  const uploadsDir = resolve(uploadsRoot, "properties", propertyId);
+  await mkdir(uploadsDir, { recursive: true });
 
-    // Generate unique filename
-    const extension = extname(file.filename).toLowerCase();
-    const uniqueName = `${randomUUID()}${extension}`;
-    const filePath = join(uploadsDir, uniqueName);
+  // Generate unique filename
+  const extension = extname(file.filename).toLowerCase();
+  const uniqueName = `${randomUUID()}${extension}`;
+  const filePath = join(uploadsDir, uniqueName);
 
-    // Write file to disk
-    await writeFile(filePath, file.buffer as unknown as Uint8Array);
+  // Write file to disk
+  await writeFile(filePath, file.buffer as unknown as Uint8Array);
 
-    // Determine media kind
-    const kind = file.mimetype.startsWith("video/") ? "VIDEO" : "IMAGE";
+  // Determine media kind
+  const kind = file.mimetype.startsWith("video/") ? "VIDEO" : "IMAGE";
 
-    // Save reference in database
-    const media = await this.prisma.propertyMedia.create({
-      data: {
-        propertyId,
-        url: `/uploads/properties/${propertyId}/${uniqueName}`,
-        kind,
-        hasGps: false,
-      },
-    });
+  // Save reference in database
+  const media = await this.prisma.propertyMedia.create({
+    data: {
+      propertyId,
+      url: `/uploads/properties/${propertyId}/${uniqueName}`,
+      kind,
+      hasGps: false,
+    },
+  });
 
-    await this.audit.logAction({
-      action: "property.uploadMedia",
-      actorId: actor.userId,
-      targetType: "property",
-      targetId: propertyId,
-      metadata: { mediaId: media.id, filename: file.filename },
-    });
+  await this.audit.logAction({
+    action: "property.uploadMedia",
+    actorId: actor.userId,
+    targetType: "property",
+    targetId: propertyId,
+    metadata: { mediaId: media.id, filename: file.filename },
+  });
 
-    return media;
-  }
+  return media;
+}
 
   async linkMedia(
-    propertyId: string,
-    dto: { url: string; kind?: "IMAGE" | "VIDEO" },
-    actor: AuthContext,
-  ) {
-    const property = await this.getPropertyOrThrow(propertyId);
-    this.ensureCanMutate(property, actor);
+  propertyId: string,
+  dto: { url: string; kind?: "IMAGE" | "VIDEO" },
+  actor: AuthContext,
+) {
+  const property = await this.getPropertyOrThrow(propertyId);
+  this.ensureCanMutate(property, actor);
 
-    const url = dto.url.trim();
-    const inferredKind = /\.(mp4|m4v|mov|webm)(\?|#|$)/i.test(url)
-      ? "VIDEO"
-      : "IMAGE";
-    const kind = dto.kind ?? inferredKind;
+  const url = dto.url.trim();
+  const inferredKind = /\.(mp4|m4v|mov|webm)(\?|#|$)/i.test(url)
+    ? "VIDEO"
+    : "IMAGE";
+  const kind = dto.kind ?? inferredKind;
 
-    const media = await this.prisma.propertyMedia.create({
-      data: {
-        propertyId,
-        url,
-        kind,
-        hasGps: false,
-      },
-    });
+  const media = await this.prisma.propertyMedia.create({
+    data: {
+      propertyId,
+      url,
+      kind,
+      hasGps: false,
+    },
+  });
 
-    await this.audit.logAction({
-      action: "property.linkMedia",
-      actorId: actor.userId,
-      targetType: "property",
-      targetId: propertyId,
-      metadata: { mediaId: media.id, url },
-    });
+  await this.audit.logAction({
+    action: "property.linkMedia",
+    actorId: actor.userId,
+    targetType: "property",
+    targetId: propertyId,
+    metadata: { mediaId: media.id, url },
+  });
 
-    return media;
-  }
+  return media;
+}
 
   async listMedia(propertyId: string) {
-    return this.prisma.propertyMedia.findMany({
-      where: { propertyId },
-      orderBy: { id: "asc" },
-    });
-  }
+  return this.prisma.propertyMedia.findMany({
+    where: { propertyId },
+    orderBy: { id: "asc" },
+  });
+}
 
   /**
    * Auto-confirm accepted offers older than 30 days
    * Called by scheduled task
    */
-  async autoConfirmOldOffers(): Promise<void> {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  async autoConfirmOldOffers(): Promise < void> {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const oldAcceptedOffers = await this.prisma.interest.findMany({
-      where: {
-        status: InterestStatus.ACCEPTED,
-        updatedAt: { lte: thirtyDaysAgo },
-      },
-      include: {
-        property: {
-          select: {
-            id: true,
-            dealConfirmedAt: true,
-          },
+  const oldAcceptedOffers = await this.prisma.interest.findMany({
+    where: {
+      status: InterestStatus.ACCEPTED,
+      updatedAt: { lte: thirtyDaysAgo },
+    },
+    include: {
+      property: {
+        select: {
+          id: true,
+          dealConfirmedAt: true,
         },
       },
-    });
+    },
+  });
 
-    for (const offer of oldAcceptedOffers) {
-      // Skip if property is already confirmed
-      if (offer.property.dealConfirmedAt) {
-        continue;
-      }
+  for(const offer of oldAcceptedOffers) {
+    // Skip if property is already confirmed
+    if (offer.property.dealConfirmedAt) {
+      continue;
+    }
 
-      try {
-        await this.prisma.$transaction(async (tx) => {
-          // Confirm the accepted offer
-          await tx.interest.update({
-            where: { id: offer.id },
-            data: { status: InterestStatus.CONFIRMED },
-          });
-
-          // Reject all other offers on this property
-          await tx.interest.updateMany({
-            where: {
-              propertyId: offer.propertyId,
-              id: { not: offer.id },
-              status: { not: InterestStatus.CONFIRMED },
-            },
-            data: { status: InterestStatus.REJECTED },
-          });
-
-          // Mark property as confirmed
-          await tx.property.update({
-            where: { id: offer.propertyId },
-            data: {
-              dealConfirmedAt: new Date(),
-              dealConfirmedById: null, // System auto-confirmation
-            },
-          });
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // Confirm the accepted offer
+        await tx.interest.update({
+          where: { id: offer.id },
+          data: { status: InterestStatus.CONFIRMED },
         });
 
-        this.logger.log(
-          `Auto-confirmed offer ${offer.id} for property ${offer.propertyId}`,
-        );
-      } catch (error) {
-        this.logger.error(`Failed to auto-confirm offer ${offer.id}:`, error);
-      }
+        // Reject all other offers on this property
+        await tx.interest.updateMany({
+          where: {
+            propertyId: offer.propertyId,
+            id: { not: offer.id },
+            status: { not: InterestStatus.CONFIRMED },
+          },
+          data: { status: InterestStatus.REJECTED },
+        });
+
+        // Mark property as confirmed
+        await tx.property.update({
+          where: { id: offer.propertyId },
+          data: {
+            dealConfirmedAt: new Date(),
+            dealConfirmedById: null, // System auto-confirmation
+          },
+        });
+      });
+
+      this.logger.log(
+        `Auto-confirmed offer ${offer.id} for property ${offer.propertyId}`,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to auto-confirm offer ${offer.id}:`, error);
     }
   }
+}
 
   async deleteMedia(propertyId: string, mediaId: string, actor: AuthContext) {
-    const property = await this.getPropertyOrThrow(propertyId);
-    this.ensureCanMutate(property, actor);
+  const property = await this.getPropertyOrThrow(propertyId);
+  this.ensureCanMutate(property, actor);
 
-    const media = await this.prisma.propertyMedia.findFirst({
-      where: { id: mediaId, propertyId },
-    });
+  const media = await this.prisma.propertyMedia.findFirst({
+    where: { id: mediaId, propertyId },
+  });
 
-    if (!media) {
-      throw new NotFoundException("Media not found");
-    }
-
-    // Try to delete local file if it's a local upload
-    if (
-      media.url.startsWith("/uploads/") ||
-      media.url.startsWith("/v1/uploads/")
-    ) {
-      try {
-        const uploadsRoot = this.resolveUploadsRoot();
-        const relativePath = media.url
-          .replace(/^\/v1\/uploads\//, "")
-          .replace(/^\/uploads\//, "");
-        const filePath = resolve(uploadsRoot, relativePath);
-        await unlink(filePath);
-      } catch (error) {
-        // File may not exist, continue with database deletion
-      }
-    }
-
-    await this.prisma.propertyMedia.delete({ where: { id: mediaId } });
-
-    await this.audit.logAction({
-      action: "property.deleteMedia",
-      actorId: actor.userId,
-      targetType: "property",
-      targetId: propertyId,
-      metadata: { mediaId },
-    });
-
-    return { success: true };
+  if (!media) {
+    throw new NotFoundException("Media not found");
   }
+
+  // Try to delete local file if it's a local upload
+  if (
+    media.url.startsWith("/uploads/") ||
+    media.url.startsWith("/v1/uploads/")
+  ) {
+    try {
+      const uploadsRoot = this.resolveUploadsRoot();
+      const relativePath = media.url
+        .replace(/^\/v1\/uploads\//, "")
+        .replace(/^\/uploads\//, "");
+      const filePath = resolve(uploadsRoot, relativePath);
+      await unlink(filePath);
+    } catch (error) {
+      // File may not exist, continue with database deletion
+    }
+  }
+
+  await this.prisma.propertyMedia.delete({ where: { id: mediaId } });
+
+  await this.audit.logAction({
+    action: "property.deleteMedia",
+    actorId: actor.userId,
+    targetType: "property",
+    targetId: propertyId,
+    metadata: { mediaId },
+  });
+
+  return { success: true };
+}
 
   async scheduleViewing(
-    propertyId: string,
-    dto: {
-      scheduledAt: string;
-      notes?: string;
-      locationLat?: number;
-      locationLng?: number;
-    },
-    actor: AuthContext,
-  ) {
-    const property = await this.getPropertyOrThrow(propertyId);
+  propertyId: string,
+  dto: {
+  scheduledAt: string;
+  notes?: string;
+  locationLat?: number;
+  locationLng?: number;
+},
+  actor: AuthContext,
+) {
+  const property = await this.getPropertyOrThrow(propertyId);
 
-    // Verify user has an accepted or confirmed offer
-    const interest = await this.prisma.interest.findFirst({
-      where: {
-        propertyId,
-        userId: actor.userId,
-        status: { in: [InterestStatus.ACCEPTED, InterestStatus.CONFIRMED] },
-      },
-    });
-
-    if (!interest) {
-      throw new ForbiddenException(
-        "You must have an accepted or confirmed offer to schedule a viewing",
-      );
-    }
-
-    const viewing = await this.prisma.viewing.create({
-      data: {
-        propertyId,
-        viewerId: actor.userId,
-        scheduledAt: new Date(dto.scheduledAt),
-        notes: dto.notes ?? null,
-        locationLat: dto.locationLat ?? null,
-        locationLng: dto.locationLng ?? null,
-        status: "PENDING",
-        landlordId: property.landlordId,
-        agentId: property.agentOwnerId,
-      },
-      include: {
-        viewer: { select: { id: true, name: true, phone: true } },
-        agent: { select: { id: true, name: true } },
-        landlord: { select: { id: true, name: true } },
-      },
-    });
-
-    // TODO: Trigger email notification
-    // TODO: Trigger WhatsApp/SMS notification
-
-    await this.audit.logAction({
-      action: "viewing.schedule",
-      actorId: actor.userId,
-      targetType: "viewing",
-      targetId: viewing.id,
-      metadata: { propertyId, scheduledAt: dto.scheduledAt },
-    });
-
-    // Log activity
-    await this.logActivity(
+  // Verify user has an accepted or confirmed offer
+  const interest = await this.prisma.interest.findFirst({
+    where: {
       propertyId,
-      ListingActivityType.VIEWING_SCHEDULED,
-      actor.userId,
-      {
-        viewingId: viewing.id,
-        scheduledAt: dto.scheduledAt,
-      },
-    );
+      userId: actor.userId,
+      status: { in: [InterestStatus.ACCEPTED, InterestStatus.CONFIRMED] },
+    },
+  });
 
-    return viewing;
+  if (!interest) {
+    throw new ForbiddenException(
+      "You must have an accepted or confirmed offer to schedule a viewing",
+    );
   }
+
+  const viewing = await this.prisma.viewing.create({
+    data: {
+      propertyId,
+      viewerId: actor.userId,
+      scheduledAt: new Date(dto.scheduledAt),
+      notes: dto.notes ?? null,
+      locationLat: dto.locationLat ?? null,
+      locationLng: dto.locationLng ?? null,
+      status: "PENDING",
+      landlordId: property.landlordId,
+      agentId: property.agentOwnerId,
+    },
+    include: {
+      viewer: { select: { id: true, name: true, phone: true } },
+      agent: { select: { id: true, name: true } },
+      landlord: { select: { id: true, name: true } },
+    },
+  });
+
+  // TODO: Trigger email notification
+  // TODO: Trigger WhatsApp/SMS notification
+
+  await this.audit.logAction({
+    action: "viewing.schedule",
+    actorId: actor.userId,
+    targetType: "viewing",
+    targetId: viewing.id,
+    metadata: { propertyId, scheduledAt: dto.scheduledAt },
+  });
+
+  // Log activity
+  await this.logActivity(
+    propertyId,
+    ListingActivityType.VIEWING_SCHEDULED,
+    actor.userId,
+    {
+      viewingId: viewing.id,
+      scheduledAt: dto.scheduledAt,
+    },
+  );
+
+  return viewing;
+}
 
   async createRentPayment(
-    propertyId: string,
-    dto: { amount: number; currency: string; paidAt: Date; proofUrl?: string },
-    actor: AuthContext,
-  ) {
-    await this.getPropertyOrThrow(propertyId);
+  propertyId: string,
+  dto: { amount: number; currency: string; paidAt: Date; proofUrl?: string },
+  actor: AuthContext,
+) {
+  await this.getPropertyOrThrow(propertyId);
 
-    return this.prisma.rentPayment.create({
-      data: {
-        propertyId,
-        tenantId: actor.userId,
-        amount: dto.amount,
-        currency: dto.currency as any,
-        paidAt: dto.paidAt,
-        proofUrl: dto.proofUrl || null,
-      },
-    });
-  }
+  return this.prisma.rentPayment.create({
+    data: {
+      propertyId,
+      tenantId: actor.userId,
+      amount: dto.amount,
+      currency: dto.currency as any,
+      paidAt: dto.paidAt,
+      proofUrl: dto.proofUrl || null,
+    },
+  });
+}
 
   async respondToViewing(
-    viewingId: string,
-    dto: { status: string; notes?: string },
-    actor: AuthContext,
-  ) {
-    const viewing = await this.prisma.viewing.findUnique({
-      where: { id: viewingId },
-      include: {
-        property: {
-          select: {
-            id: true,
-            landlordId: true,
-            agentOwnerId: true,
-          },
+  viewingId: string,
+  dto: { status: string; notes?: string },
+  actor: AuthContext,
+) {
+  const viewing = await this.prisma.viewing.findUnique({
+    where: { id: viewingId },
+    include: {
+      property: {
+        select: {
+          id: true,
+          landlordId: true,
+          agentOwnerId: true,
         },
       },
-    });
+    },
+  });
 
-    if (!viewing) {
-      throw new NotFoundException("Viewing not found");
-    }
-
-    // Verify actor is landlord or agent
-    const isAuthorized =
-      viewing.property.landlordId === actor.userId ||
-      viewing.property.agentOwnerId === actor.userId;
-    if (!isAuthorized) {
-      throw new ForbiddenException(
-        "Only the property owner or assigned agent can respond to viewings",
-      );
-    }
-
-    const updated = await this.prisma.viewing.update({
-      where: { id: viewingId },
-      data: {
-        status: dto.status as any,
-        notes: dto.notes ?? viewing.notes,
-      },
-      include: {
-        viewer: { select: { id: true, name: true, phone: true } },
-        agent: { select: { id: true, name: true } },
-        landlord: { select: { id: true, name: true } },
-      },
-    });
-
-    // TODO: Trigger email notification
-    // TODO: Trigger WhatsApp/SMS notification
-
-    await this.audit.logAction({
-      action: "viewing.respond",
-      actorId: actor.userId,
-      targetType: "viewing",
-      targetId: viewingId,
-      metadata: { status: dto.status },
-    });
-
-    // Log activity
-    let activityType: ListingActivityType;
-    if (dto.status === "ACCEPTED") {
-      activityType = ListingActivityType.VIEWING_ACCEPTED;
-    } else if (dto.status === "POSTPONED") {
-      activityType = ListingActivityType.VIEWING_POSTPONED;
-    } else if (dto.status === "CANCELLED") {
-      activityType = ListingActivityType.VIEWING_CANCELLED;
-    } else {
-      return updated; // Unknown status, skip logging
-    }
-    await this.logActivity(viewing.property.id, activityType, actor.userId, {
-      viewingId,
-      status: dto.status,
-    });
-
-    return updated;
+  if (!viewing) {
+    throw new NotFoundException("Viewing not found");
   }
+
+  // Verify actor is landlord or agent
+  const isAuthorized =
+    viewing.property.landlordId === actor.userId ||
+    viewing.property.agentOwnerId === actor.userId;
+  if (!isAuthorized) {
+    throw new ForbiddenException(
+      "Only the property owner or assigned agent can respond to viewings",
+    );
+  }
+
+  const updated = await this.prisma.viewing.update({
+    where: { id: viewingId },
+    data: {
+      status: dto.status as any,
+      notes: dto.notes ?? viewing.notes,
+    },
+    include: {
+      viewer: { select: { id: true, name: true, phone: true } },
+      agent: { select: { id: true, name: true } },
+      landlord: { select: { id: true, name: true } },
+    },
+  });
+
+  // TODO: Trigger email notification
+  // TODO: Trigger WhatsApp/SMS notification
+
+  await this.audit.logAction({
+    action: "viewing.respond",
+    actorId: actor.userId,
+    targetType: "viewing",
+    targetId: viewingId,
+    metadata: { status: dto.status },
+  });
+
+  // Log activity
+  let activityType: ListingActivityType;
+  if (dto.status === "ACCEPTED") {
+    activityType = ListingActivityType.VIEWING_ACCEPTED;
+  } else if (dto.status === "POSTPONED") {
+    activityType = ListingActivityType.VIEWING_POSTPONED;
+  } else if (dto.status === "CANCELLED") {
+    activityType = ListingActivityType.VIEWING_CANCELLED;
+  } else {
+    return updated; // Unknown status, skip logging
+  }
+  await this.logActivity(viewing.property.id, activityType, actor.userId, {
+    viewingId,
+    status: dto.status,
+  });
+
+  return updated;
+}
 
   async listPayments(propertyId: string, actor: AuthContext) {
-    const property = await this.getPropertyOrThrow(propertyId);
+  const property = await this.getPropertyOrThrow(propertyId);
 
-    // Verify actor is landlord or agent
-    const isAuthorized =
-      property.landlordId === actor.userId ||
-      property.agentOwnerId === actor.userId;
-    if (!isAuthorized && actor.role !== Role.ADMIN) {
-      throw new ForbiddenException(
-        "Only the property owner or assigned agent can view payments",
-      );
-    }
-
-    const payments = await this.prisma.listingPayment.findMany({
-      where: { propertyId },
-      include: {
-        invoice: {
-          select: {
-            id: true,
-            invoiceNo: true,
-            status: true,
-            currency: true,
-            pdfUrl: true,
-            paymentIntents: {
-              select: {
-                id: true,
-                redirectUrl: true,
-                status: true,
-                gateway: true,
-              },
-              orderBy: { createdAt: "desc" },
-              take: 1,
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return payments;
+  // Verify actor is landlord or agent
+  const isAuthorized =
+    property.landlordId === actor.userId ||
+    property.agentOwnerId === actor.userId;
+  if (!isAuthorized && actor.role !== Role.ADMIN) {
+    throw new ForbiddenException(
+      "Only the property owner or assigned agent can view payments",
+    );
   }
 
-  async createOfflineListingPayment(
-    propertyId: string,
-    payload: {
-      type: ListingPaymentType;
-      amount: number;
-      currency: string;
-      method: string;
-      reference?: string | null;
-      proofUrl?: string | null;
-      notes?: string | null;
-      paidAt?: Date | string;
-    },
-    actor: AuthContext,
-  ) {
-    const property = await this.getPropertyOrThrow(propertyId);
-    this.ensureLandlordAccess(property, actor);
-
-    const amountCents = Math.round(payload.amount * 100);
-    if (!amountCents || amountCents <= 0) {
-      throw new BadRequestException("Amount must be greater than zero");
-    }
-
-    const payment = await this.prisma.listingPayment.create({
-      data: {
-        propertyId,
-        type: payload.type,
-        amountCents,
-        currency: payload.currency as Currency,
-        status: ListingPaymentStatus.PENDING,
-        reference: payload.reference ?? null,
-        metadata: {
-          method: payload.method,
-          notes: payload.notes ?? null,
-          proofUrl: payload.proofUrl ?? null,
-          paidAt: payload.paidAt ?? null,
-        },
-      },
-      include: {
-        invoice: {
-          select: {
-            id: true,
-            invoiceNo: true,
-            status: true,
-            currency: true,
-            pdfUrl: true,
+  const payments = await this.prisma.listingPayment.findMany({
+    where: { propertyId },
+    include: {
+      invoice: {
+        select: {
+          id: true,
+          invoiceNo: true,
+          status: true,
+          currency: true,
+          pdfUrl: true,
+          paymentIntents: {
+            select: {
+              id: true,
+              redirectUrl: true,
+              status: true,
+              gateway: true,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 1,
           },
         },
       },
-    });
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
-    await this.audit.logAction({
-      action: "property.offlinePayment",
-      actorId: actor.userId,
-      targetType: "property",
-      targetId: propertyId,
+  return payments;
+}
+
+  async createOfflineListingPayment(
+  propertyId: string,
+  payload: {
+  type: ListingPaymentType;
+  amount: number;
+  currency: string;
+  method: string;
+  reference?: string | null;
+  proofUrl?: string | null;
+  notes?: string | null;
+  paidAt?: Date | string;
+},
+  actor: AuthContext,
+) {
+  const property = await this.getPropertyOrThrow(propertyId);
+  this.ensureLandlordAccess(property, actor);
+
+  const amountCents = Math.round(payload.amount * 100);
+  if (!amountCents || amountCents <= 0) {
+    throw new BadRequestException("Amount must be greater than zero");
+  }
+
+  const payment = await this.prisma.listingPayment.create({
+    data: {
+      propertyId,
+      type: payload.type,
+      amountCents,
+      currency: payload.currency as Currency,
+      status: ListingPaymentStatus.PENDING,
+      reference: payload.reference ?? null,
       metadata: {
-        paymentId: payment.id,
-        amountCents,
-        currency: payload.currency,
         method: payload.method,
+        notes: payload.notes ?? null,
+        proofUrl: payload.proofUrl ?? null,
+        paidAt: payload.paidAt ?? null,
       },
-    });
+    },
+    include: {
+      invoice: {
+        select: {
+          id: true,
+          invoiceNo: true,
+          status: true,
+          currency: true,
+          pdfUrl: true,
+        },
+      },
+    },
+  });
 
+  await this.audit.logAction({
+    action: "property.offlinePayment",
+    actorId: actor.userId,
+    targetType: "property",
+    targetId: propertyId,
+    metadata: {
+      paymentId: payment.id,
+      amountCents,
+      currency: payload.currency,
+      method: payload.method,
+    },
+  });
+
+  return payment;
+}
+
+  async approveOfflineListingPayment(
+  propertyId: string,
+  paymentId: string,
+  actor: AuthContext,
+) {
+  const property = await this.getPropertyOrThrow(propertyId);
+
+  if (actor.role !== Role.ADMIN) {
+    throw new ForbiddenException("Only admins can approve offline payments");
+  }
+
+  const payment = await this.prisma.listingPayment.findUnique({
+    where: { id: paymentId },
+  });
+
+  if (!payment) {
+    throw new NotFoundException("Payment not found");
+  }
+
+  if (payment.propertyId !== propertyId) {
+    throw new BadRequestException("Payment does not belong to this property");
+  }
+
+  if (payment.status === ListingPaymentStatus.PAID) {
     return payment;
   }
 
-  async createListingPaymentInvoice(
-    propertyId: string,
-    payload: {
-      type: ListingPaymentType;
-      amount: number;
-      currency?: Currency;
-      description?: string;
-      purpose?: "OTHER" | "VERIFICATION" | "BOOST";
+  const updated = await this.prisma.listingPayment.update({
+    where: { id: paymentId },
+    data: { status: ListingPaymentStatus.PAID },
+  });
+
+  await this.audit.logAction({
+    action: "property.approvePayment",
+    actorId: actor.userId,
+    targetType: "property",
+    targetId: propertyId,
+    metadata: {
+      paymentId: payment.id,
+      amountCents: payment.amountCents,
+      type: payment.type,
     },
-    actor: AuthContext,
-  ) {
-    const property = await this.getPropertyOrThrow(propertyId);
-    this.ensureLandlordAccess(property, actor);
+  });
 
-    const amountCents = Math.round(payload.amount * 100);
-    if (!amountCents || amountCents <= 0) {
-      throw new BadRequestException("Amount must be greater than zero");
-    }
+  return updated;
+}
 
-    const invoice = await this.paymentsService.createInvoice({
-      buyerUserId: actor.userId,
-      purpose: (payload.purpose ?? "OTHER") as any,
-      currency: payload.currency ?? Currency.USD,
-      lines: [
-        {
-          sku: `${payload.type}-${propertyId}`,
-          description:
-            payload.description ??
-            `${payload.type} payment for ${property.title}`,
-          qty: 1,
-          unitPriceCents: amountCents,
-          taxable: true,
-          meta: {
-            listingPaymentType: payload.type,
-            propertyId,
-          },
+  async createListingPaymentInvoice(
+  propertyId: string,
+  payload: {
+  type: ListingPaymentType;
+  amount: number;
+  currency?: Currency;
+  description?: string;
+  purpose?: "OTHER" | "VERIFICATION" | "BOOST";
+},
+  actor: AuthContext,
+) {
+  const property = await this.getPropertyOrThrow(propertyId);
+  this.ensureLandlordAccess(property, actor);
+
+  const amountCents = Math.round(payload.amount * 100);
+  if (!amountCents || amountCents <= 0) {
+    throw new BadRequestException("Amount must be greater than zero");
+  }
+
+  const invoice = await this.paymentsService.createInvoice({
+    buyerUserId: actor.userId,
+    purpose: (payload.purpose ?? "OTHER") as any,
+    currency: payload.currency ?? Currency.USD,
+    lines: [
+      {
+        sku: `${payload.type}-${propertyId}`,
+        description:
+          payload.description ??
+          `${payload.type} payment for ${property.title}`,
+        qty: 1,
+        unitPriceCents: amountCents,
+        taxable: true,
+        meta: {
+          listingPaymentType: payload.type,
+          propertyId,
         },
-      ],
-    });
-
-    const refreshInvoice = await this.prisma.invoice.findUnique({
-      where: { id: invoice.id },
-      select: {
-        id: true,
-        invoiceNo: true,
-        status: true,
-        currency: true,
-        pdfUrl: true,
       },
-    });
+    ],
+  });
 
-    const payment = await this.prisma.listingPayment.create({
-      data: {
-        propertyId,
-        type: payload.type,
-        amountCents,
-        currency: payload.currency ?? Currency.USD,
-        status: ListingPaymentStatus.PENDING,
-        reference: invoice.invoiceNo ?? invoice.id,
+  const refreshInvoice = await this.prisma.invoice.findUnique({
+    where: { id: invoice.id },
+    select: {
+      id: true,
+      invoiceNo: true,
+      status: true,
+      currency: true,
+      pdfUrl: true,
+    },
+  });
+
+  const payment = await this.prisma.listingPayment.create({
+    data: {
+      propertyId,
+      type: payload.type,
+      amountCents,
+      currency: payload.currency ?? Currency.USD,
+      status: ListingPaymentStatus.PENDING,
+      reference: invoice.invoiceNo ?? invoice.id,
+      invoiceId: invoice.id,
+      metadata: {
         invoiceId: invoice.id,
+        invoiceNo: invoice.invoiceNo ?? invoice.id,
+      },
+    },
+    include: {
+      invoice: {
+        select: {
+          id: true,
+          invoiceNo: true,
+          status: true,
+          currency: true,
+          pdfUrl: true,
+        },
+      },
+    },
+  });
+
+  if (refreshInvoice?.pdfUrl) {
+    await this.prisma.listingPayment.update({
+      where: { id: payment.id },
+      data: {
         metadata: {
           invoiceId: invoice.id,
           invoiceNo: invoice.invoiceNo ?? invoice.id,
-        },
-      },
-      include: {
-        invoice: {
-          select: {
-            id: true,
-            invoiceNo: true,
-            status: true,
-            currency: true,
-            pdfUrl: true,
-          },
+          invoicePdfUrl: refreshInvoice.pdfUrl,
         },
       },
     });
-
-    if (refreshInvoice?.pdfUrl) {
-      await this.prisma.listingPayment.update({
-        where: { id: payment.id },
-        data: {
-          metadata: {
-            invoiceId: invoice.id,
-            invoiceNo: invoice.invoiceNo ?? invoice.id,
-            invoicePdfUrl: refreshInvoice.pdfUrl,
-          },
-        },
-      });
-      return {
-        ...payment,
-        invoice: {
-          ...payment.invoice,
-          pdfUrl: refreshInvoice.pdfUrl,
-        },
-      };
-    }
-
-    return payment;
+    return {
+      ...payment,
+      invoice: {
+        ...payment.invoice,
+        pdfUrl: refreshInvoice.pdfUrl,
+      },
+    };
   }
+
+  return payment;
+}
 
   async refreshPropertyVerification(propertyId: string, actor: AuthContext) {
-    const property = await this.getPropertyOrThrow(propertyId);
-    const isAuthorized =
-      property.landlordId === actor.userId ||
-      property.agentOwnerId === actor.userId ||
-      actor.role === Role.ADMIN;
-    if (!isAuthorized) {
-      throw new ForbiddenException(
-        "Only the property owner or assigned agent can refresh verification",
-      );
-    }
-
-    const updated =
-      await this.verificationsService.refreshPropertyVerification(propertyId);
-
-    await this.audit.logAction({
-      action: "property.refreshVerification",
-      actorId: actor.userId,
-      targetType: "property",
-      targetId: propertyId,
-      metadata: {
-        verificationScore: updated?.verificationScore ?? null,
-        verificationLevel: updated?.verificationLevel ?? null,
-      },
-    });
-
-    return updated;
+  const property = await this.getPropertyOrThrow(propertyId);
+  const isAuthorized =
+    property.landlordId === actor.userId ||
+    property.agentOwnerId === actor.userId ||
+    actor.role === Role.ADMIN;
+  if (!isAuthorized) {
+    throw new ForbiddenException(
+      "Only the property owner or assigned agent can refresh verification",
+    );
   }
+
+  const updated =
+    await this.verificationsService.refreshPropertyVerification(propertyId);
+
+  await this.audit.logAction({
+    action: "property.refreshVerification",
+    actorId: actor.userId,
+    targetType: "property",
+    targetId: propertyId,
+    metadata: {
+      verificationScore: updated?.verificationScore ?? null,
+      verificationLevel: updated?.verificationLevel ?? null,
+    },
+  });
+
+  return updated;
+}
 
   /**
    * Calculate weight for a property rating based on:
@@ -3856,402 +3918,402 @@ export class PropertiesService {
    * - Current tenants (anonymous) have lower weight
    */
   private calculateRatingWeight(
-    type: PropertyRatingType,
-    isVerifiedTenant: boolean,
-    tenantMonths?: number | null,
-    isAnonymous: boolean = false,
-  ): number {
-    let baseWeight = 1;
+  type: PropertyRatingType,
+  isVerifiedTenant: boolean,
+  tenantMonths ?: number | null,
+  isAnonymous: boolean = false,
+): number {
+  let baseWeight = 1;
 
-    // Base weight by type
-    switch (type) {
-      case PropertyRatingType.PREVIOUS_TENANT:
-        baseWeight = 10;
-        break;
-      case PropertyRatingType.CURRENT_TENANT:
-        baseWeight = isAnonymous ? 3 : 5; // Anonymous current tenants have lower weight
-        break;
-      case PropertyRatingType.VISITOR:
-        baseWeight = 2;
-        break;
-      case PropertyRatingType.ANONYMOUS:
-        baseWeight = 1;
-        break;
-    }
-
-    // Verified tenant bonus
-    if (isVerifiedTenant) {
-      baseWeight *= 1.5;
-    }
-
-    // Long-term tenant bonus (6+ months)
-    if (tenantMonths && tenantMonths >= 6) {
-      baseWeight *= 1.3;
-    }
-    // Very long-term tenant bonus (12+ months)
-    if (tenantMonths && tenantMonths >= 12) {
-      baseWeight *= 1.2;
-    }
-
-    return Math.round(baseWeight);
+  // Base weight by type
+  switch (type) {
+    case PropertyRatingType.PREVIOUS_TENANT:
+      baseWeight = 10;
+      break;
+    case PropertyRatingType.CURRENT_TENANT:
+      baseWeight = isAnonymous ? 3 : 5; // Anonymous current tenants have lower weight
+      break;
+    case PropertyRatingType.VISITOR:
+      baseWeight = 2;
+      break;
+    case PropertyRatingType.ANONYMOUS:
+      baseWeight = 1;
+      break;
   }
+
+  // Verified tenant bonus
+  if (isVerifiedTenant) {
+    baseWeight *= 1.5;
+  }
+
+  // Long-term tenant bonus (6+ months)
+  if (tenantMonths && tenantMonths >= 6) {
+    baseWeight *= 1.3;
+  }
+  // Very long-term tenant bonus (12+ months)
+  if (tenantMonths && tenantMonths >= 12) {
+    baseWeight *= 1.2;
+  }
+
+  return Math.round(baseWeight);
+}
 
   async submitPropertyRating(
-    propertyId: string,
-    dto: {
-      rating: number;
-      comment?: string;
-      type: string;
-      isAnonymous?: boolean;
-      tenantMonths?: number;
-    },
-    actor: AuthContext,
+  propertyId: string,
+  dto: {
+  rating: number;
+  comment?: string;
+  type: string;
+  isAnonymous?: boolean;
+  tenantMonths?: number;
+},
+  actor: AuthContext,
+) {
+  const property = await this.getPropertyOrThrow(propertyId);
+
+  // Role restriction: Landlords/Agents cannot rate their own property
+  if (
+    property.landlordId === actor.userId ||
+    property.agentOwnerId === actor.userId
   ) {
-    const property = await this.getPropertyOrThrow(propertyId);
-
-    // Role restriction: Landlords/Agents cannot rate their own property
-    if (
-      property.landlordId === actor.userId ||
-      property.agentOwnerId === actor.userId
-    ) {
-      throw new ForbiddenException("You cannot rate your own property");
-    }
-
-    // Check if user already rated this property (unless anonymous)
-    if (!dto.isAnonymous) {
-      const existingRating = await this.prisma.propertyRating.findUnique({
-        where: {
-          propertyId_reviewerId: {
-            propertyId,
-            reviewerId: actor.userId,
-          },
-        },
-      });
-
-      if (existingRating) {
-        throw new BadRequestException("You have already rated this property");
-      }
-    }
-
-    // Determine if user is a verified tenant
-    // Check rent payments to determine tenant status
-    const rentPayments = await this.prisma.rentPayment.findMany({
-      where: {
-        propertyId,
-        tenantId: actor.userId,
-        isVerified: true,
-      },
-      orderBy: { paidAt: "asc" },
-    });
-
-    const isVerifiedTenant = rentPayments.length > 0;
-    const firstPayment = rentPayments[0];
-    const lastPayment = rentPayments[rentPayments.length - 1];
-
-    // Calculate tenant months if not provided
-    let tenantMonths = dto.tenantMonths;
-    if (!tenantMonths && firstPayment && lastPayment) {
-      const monthsDiff =
-        (lastPayment.paidAt.getTime() - firstPayment.paidAt.getTime()) /
-        (1000 * 60 * 60 * 24 * 30);
-      tenantMonths = Math.round(monthsDiff);
-    }
-
-    // Calculate weight
-    const weight = this.calculateRatingWeight(
-      dto.type as PropertyRatingType,
-      isVerifiedTenant,
-      tenantMonths,
-      dto.isAnonymous,
-    );
-
-    const rating = await this.prisma.propertyRating.create({
-      data: {
-        propertyId,
-        reviewerId: dto.isAnonymous ? null : actor.userId,
-        rating: dto.rating,
-        weight,
-        comment: dto.comment ?? null,
-        type: dto.type as PropertyRatingType,
-        isAnonymous: dto.isAnonymous ?? false,
-        tenantMonths: tenantMonths ?? null,
-        isVerifiedTenant,
-      },
-      include: {
-        reviewer: {
-          select: {
-            id: true,
-            name: true,
-            isVerified: true,
-          },
-        },
-      },
-    });
-
-    await this.audit.logAction({
-      action: "property.rating.submit",
-      actorId: actor.userId,
-      targetType: "property",
-      targetId: propertyId,
-      metadata: {
-        ratingId: rating.id,
-        rating: dto.rating,
-        weight,
-        type: dto.type,
-        isAnonymous: dto.isAnonymous,
-      },
-    });
-
-    // Log activity
-    await this.logActivity(
-      propertyId,
-      ListingActivityType.RATING_SUBMITTED,
-      dto.isAnonymous ? null : actor.userId,
-      {
-        ratingId: rating.id,
-        rating: dto.rating,
-        type: dto.type,
-      },
-    );
-
-    return rating;
+    throw new ForbiddenException("You cannot rate your own property");
   }
+
+  // Check if user already rated this property (unless anonymous)
+  if (!dto.isAnonymous) {
+    const existingRating = await this.prisma.propertyRating.findUnique({
+      where: {
+        propertyId_reviewerId: {
+          propertyId,
+          reviewerId: actor.userId,
+        },
+      },
+    });
+
+    if (existingRating) {
+      throw new BadRequestException("You have already rated this property");
+    }
+  }
+
+  // Determine if user is a verified tenant
+  // Check rent payments to determine tenant status
+  const rentPayments = await this.prisma.rentPayment.findMany({
+    where: {
+      propertyId,
+      tenantId: actor.userId,
+      isVerified: true,
+    },
+    orderBy: { paidAt: "asc" },
+  });
+
+  const isVerifiedTenant = rentPayments.length > 0;
+  const firstPayment = rentPayments[0];
+  const lastPayment = rentPayments[rentPayments.length - 1];
+
+  // Calculate tenant months if not provided
+  let tenantMonths = dto.tenantMonths;
+  if (!tenantMonths && firstPayment && lastPayment) {
+    const monthsDiff =
+      (lastPayment.paidAt.getTime() - firstPayment.paidAt.getTime()) /
+      (1000 * 60 * 60 * 24 * 30);
+    tenantMonths = Math.round(monthsDiff);
+  }
+
+  // Calculate weight
+  const weight = this.calculateRatingWeight(
+    dto.type as PropertyRatingType,
+    isVerifiedTenant,
+    tenantMonths,
+    dto.isAnonymous,
+  );
+
+  const rating = await this.prisma.propertyRating.create({
+    data: {
+      propertyId,
+      reviewerId: dto.isAnonymous ? null : actor.userId,
+      rating: dto.rating,
+      weight,
+      comment: dto.comment ?? null,
+      type: dto.type as PropertyRatingType,
+      isAnonymous: dto.isAnonymous ?? false,
+      tenantMonths: tenantMonths ?? null,
+      isVerifiedTenant,
+    },
+    include: {
+      reviewer: {
+        select: {
+          id: true,
+          name: true,
+          isVerified: true,
+        },
+      },
+    },
+  });
+
+  await this.audit.logAction({
+    action: "property.rating.submit",
+    actorId: actor.userId,
+    targetType: "property",
+    targetId: propertyId,
+    metadata: {
+      ratingId: rating.id,
+      rating: dto.rating,
+      weight,
+      type: dto.type,
+      isAnonymous: dto.isAnonymous,
+    },
+  });
+
+  // Log activity
+  await this.logActivity(
+    propertyId,
+    ListingActivityType.RATING_SUBMITTED,
+    dto.isAnonymous ? null : actor.userId,
+    {
+      ratingId: rating.id,
+      rating: dto.rating,
+      type: dto.type,
+    },
+  );
+
+  return rating;
+}
 
   async getPropertyRatings(propertyId: string, actor: AuthContext) {
-    const property = await this.getPropertyOrThrow(propertyId);
+  const property = await this.getPropertyOrThrow(propertyId);
 
-    const ratings = await this.prisma.propertyRating.findMany({
-      where: { propertyId },
-      include: {
-        reviewer: {
-          select: {
-            id: true,
-            name: true,
-            isVerified: true,
-          },
+  const ratings = await this.prisma.propertyRating.findMany({
+    where: { propertyId },
+    include: {
+      reviewer: {
+        select: {
+          id: true,
+          name: true,
+          isVerified: true,
         },
       },
-      orderBy: { createdAt: "desc" },
-    });
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
-    // Calculate aggregated weighted score
-    const totalWeight = ratings.reduce(
-      (sum: number, r: { weight: number }) => sum + r.weight,
-      0,
-    );
-    const weightedSum = ratings.reduce(
-      (sum: number, r: { rating: number; weight: number }) =>
-        sum + r.rating * r.weight,
-      0,
-    );
-    const averageRating = totalWeight > 0 ? weightedSum / totalWeight : 0;
-    const roundedAverage = Math.round(averageRating * 10) / 10; // Round to 1 decimal
+  // Calculate aggregated weighted score
+  const totalWeight = ratings.reduce(
+    (sum: number, r: { weight: number }) => sum + r.weight,
+    0,
+  );
+  const weightedSum = ratings.reduce(
+    (sum: number, r: { rating: number; weight: number }) =>
+      sum + r.rating * r.weight,
+    0,
+  );
+  const averageRating = totalWeight > 0 ? weightedSum / totalWeight : 0;
+  const roundedAverage = Math.round(averageRating * 10) / 10; // Round to 1 decimal
 
-    // Count by rating value
-    const ratingCounts = ratings.reduce(
-      (acc: Record<number, number>, r: { rating: number }) => {
-        acc[r.rating] = (acc[r.rating] || 0) + 1;
-        return acc;
+  // Count by rating value
+  const ratingCounts = ratings.reduce(
+    (acc: Record<number, number>, r: { rating: number }) => {
+      acc[r.rating] = (acc[r.rating] || 0) + 1;
+      return acc;
+    },
+    {} as Record<number, number>,
+  );
+
+  return {
+    ratings,
+    aggregate: {
+      average: roundedAverage,
+      totalCount: ratings.length,
+      weightedAverage: roundedAverage,
+      totalWeight,
+      ratingCounts: {
+        5: ratingCounts[5] || 0,
+        4: ratingCounts[4] || 0,
+        3: ratingCounts[3] || 0,
+        2: ratingCounts[2] || 0,
+        1: ratingCounts[1] || 0,
       },
-      {} as Record<number, number>,
-    );
-
-    return {
-      ratings,
-      aggregate: {
-        average: roundedAverage,
-        totalCount: ratings.length,
-        weightedAverage: roundedAverage,
-        totalWeight,
-        ratingCounts: {
-          5: ratingCounts[5] || 0,
-          4: ratingCounts[4] || 0,
-          3: ratingCounts[3] || 0,
-          2: ratingCounts[2] || 0,
-          1: ratingCounts[1] || 0,
-        },
-      },
-      userRating:
-        ratings.find(
-          (r: { reviewerId: string | null; isAnonymous: boolean }) =>
-            r.reviewerId === actor.userId && !r.isAnonymous,
-        ) || null,
-    };
-  }
+    },
+    userRating:
+      ratings.find(
+        (r: { reviewerId: string | null; isAnonymous: boolean }) =>
+          r.reviewerId === actor.userId && !r.isAnonymous,
+      ) || null,
+  };
+}
 
   /**
    * Log a listing activity (non-blocking)
    */
   private async logActivity(
-    propertyId: string,
-    type: ListingActivityType,
-    actorId: string | null,
-    metadata?: Record<string, unknown>,
-  ): Promise<void> {
-    try {
-      await this.prisma.listingActivityLog.create({
-        data: {
-          propertyId,
-          type,
-          actorId,
-          metadata: metadata ? (metadata as Prisma.JsonObject) : undefined,
-        },
-      });
-    } catch (error) {
-      // Non-blocking: log errors but don't fail the main operation
-      this.logger.warn(
-        `Failed to log activity ${type} for property ${propertyId}`,
-        error,
-      );
-    }
+  propertyId: string,
+  type: ListingActivityType,
+  actorId: string | null,
+  metadata ?: Record<string, unknown>,
+): Promise < void> {
+  try {
+    await this.prisma.listingActivityLog.create({
+      data: {
+        propertyId,
+        type,
+        actorId,
+        metadata: metadata ? (metadata as Prisma.JsonObject) : undefined,
+      },
+    });
+  } catch(error) {
+    // Non-blocking: log errors but don't fail the main operation
+    this.logger.warn(
+      `Failed to log activity ${type} for property ${propertyId}`,
+      error,
+    );
   }
+}
 
   async getActivityLogs(propertyId: string, actor: AuthContext) {
-    const property = await this.getPropertyOrThrow(propertyId);
+  const property = await this.getPropertyOrThrow(propertyId);
 
-    // Fetch all activity logs
-    const logs = await this.prisma.listingActivityLog.findMany({
-      where: { propertyId },
-      include: {
-        actor: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+  // Fetch all activity logs
+  const logs = await this.prisma.listingActivityLog.findMany({
+    where: { propertyId },
+    include: {
+      actor: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
         },
       },
-      orderBy: { createdAt: "desc" },
-      take: 100, // Limit to most recent 100 activities
-    });
+    },
+    orderBy: { createdAt: "desc" },
+    take: 100, // Limit to most recent 100 activities
+  });
 
-    // Aggregate statistics
-    const stats = {
-      offers: {
-        received: 0,
-        accepted: 0,
-        rejected: 0,
-        confirmed: 0,
-        onHold: 0,
-      },
-      payments: {
-        created: 0,
-        paid: 0,
-        failed: 0,
-        totalAmount: 0,
-      },
-      verification: {
-        submitted: 0,
-        approved: 0,
-        rejected: 0,
-      },
-      viewings: {
-        scheduled: 0,
-        accepted: 0,
-        postponed: 0,
-        cancelled: 0,
-      },
-      chatMessages: 0,
-      ratings: 0,
-      views: 0,
-    };
+  // Aggregate statistics
+  const stats = {
+    offers: {
+      received: 0,
+      accepted: 0,
+      rejected: 0,
+      confirmed: 0,
+      onHold: 0,
+    },
+    payments: {
+      created: 0,
+      paid: 0,
+      failed: 0,
+      totalAmount: 0,
+    },
+    verification: {
+      submitted: 0,
+      approved: 0,
+      rejected: 0,
+    },
+    viewings: {
+      scheduled: 0,
+      accepted: 0,
+      postponed: 0,
+      cancelled: 0,
+    },
+    chatMessages: 0,
+    ratings: 0,
+    views: 0,
+  };
 
-    // Count activities by type
-    logs.forEach((log: { type: ListingActivityType; metadata: unknown }) => {
-      switch (log.type) {
-        case ListingActivityType.OFFER_RECEIVED:
-          stats.offers.received++;
-          break;
-        case ListingActivityType.OFFER_ACCEPTED:
-          stats.offers.accepted++;
-          break;
-        case ListingActivityType.OFFER_REJECTED:
-          stats.offers.rejected++;
-          break;
-        case ListingActivityType.OFFER_CONFIRMED:
-          stats.offers.confirmed++;
-          break;
-        case ListingActivityType.OFFER_ON_HOLD:
-          stats.offers.onHold++;
-          break;
-        case ListingActivityType.PAYMENT_CREATED:
-          stats.payments.created++;
-          break;
-        case ListingActivityType.PAYMENT_PAID:
-          stats.payments.paid++;
-          if (
-            log.metadata &&
-            typeof log.metadata === "object" &&
-            "amount" in log.metadata
-          ) {
-            stats.payments.totalAmount += Number(log.metadata.amount) || 0;
-          }
-          break;
-        case ListingActivityType.PAYMENT_FAILED:
-          stats.payments.failed++;
-          break;
-        case ListingActivityType.VERIFICATION_SUBMITTED:
-          stats.verification.submitted++;
-          break;
-        case ListingActivityType.VERIFICATION_APPROVED:
-          stats.verification.approved++;
-          break;
-        case ListingActivityType.VERIFICATION_REJECTED:
-          stats.verification.rejected++;
-          break;
-        case ListingActivityType.VIEWING_SCHEDULED:
-          stats.viewings.scheduled++;
-          break;
-        case ListingActivityType.VIEWING_ACCEPTED:
-          stats.viewings.accepted++;
-          break;
-        case ListingActivityType.VIEWING_POSTPONED:
-          stats.viewings.postponed++;
-          break;
-        case ListingActivityType.VIEWING_CANCELLED:
-          stats.viewings.cancelled++;
-          break;
-        case ListingActivityType.CHAT_MESSAGE:
-          stats.chatMessages++;
-          break;
-        case ListingActivityType.RATING_SUBMITTED:
-          stats.ratings++;
-          break;
-        case ListingActivityType.PROPERTY_VIEWED:
-          stats.views++;
-          break;
-      }
-    });
+  // Count activities by type
+  logs.forEach((log: { type: ListingActivityType; metadata: unknown }) => {
+    switch (log.type) {
+      case ListingActivityType.OFFER_RECEIVED:
+        stats.offers.received++;
+        break;
+      case ListingActivityType.OFFER_ACCEPTED:
+        stats.offers.accepted++;
+        break;
+      case ListingActivityType.OFFER_REJECTED:
+        stats.offers.rejected++;
+        break;
+      case ListingActivityType.OFFER_CONFIRMED:
+        stats.offers.confirmed++;
+        break;
+      case ListingActivityType.OFFER_ON_HOLD:
+        stats.offers.onHold++;
+        break;
+      case ListingActivityType.PAYMENT_CREATED:
+        stats.payments.created++;
+        break;
+      case ListingActivityType.PAYMENT_PAID:
+        stats.payments.paid++;
+        if (
+          log.metadata &&
+          typeof log.metadata === "object" &&
+          "amount" in log.metadata
+        ) {
+          stats.payments.totalAmount += Number(log.metadata.amount) || 0;
+        }
+        break;
+      case ListingActivityType.PAYMENT_FAILED:
+        stats.payments.failed++;
+        break;
+      case ListingActivityType.VERIFICATION_SUBMITTED:
+        stats.verification.submitted++;
+        break;
+      case ListingActivityType.VERIFICATION_APPROVED:
+        stats.verification.approved++;
+        break;
+      case ListingActivityType.VERIFICATION_REJECTED:
+        stats.verification.rejected++;
+        break;
+      case ListingActivityType.VIEWING_SCHEDULED:
+        stats.viewings.scheduled++;
+        break;
+      case ListingActivityType.VIEWING_ACCEPTED:
+        stats.viewings.accepted++;
+        break;
+      case ListingActivityType.VIEWING_POSTPONED:
+        stats.viewings.postponed++;
+        break;
+      case ListingActivityType.VIEWING_CANCELLED:
+        stats.viewings.cancelled++;
+        break;
+      case ListingActivityType.CHAT_MESSAGE:
+        stats.chatMessages++;
+        break;
+      case ListingActivityType.RATING_SUBMITTED:
+        stats.ratings++;
+        break;
+      case ListingActivityType.PROPERTY_VIEWED:
+        stats.views++;
+        break;
+    }
+  });
 
-    return {
-      logs,
-      statistics: stats,
-    };
-  }
+  return {
+    logs,
+    statistics: stats,
+  };
+}
 
   async listViewings(propertyId: string, actor: AuthContext) {
-    const property = await this.getPropertyOrThrow(propertyId);
+  const property = await this.getPropertyOrThrow(propertyId);
 
-    // Verify actor is landlord or agent
-    const isAuthorized =
-      property.landlordId === actor.userId ||
-      property.agentOwnerId === actor.userId;
-    if (!isAuthorized && actor.role !== Role.ADMIN) {
-      throw new ForbiddenException(
-        "Only the property owner or assigned agent can view viewing requests",
-      );
-    }
-
-    return this.prisma.viewing.findMany({
-      where: { propertyId },
-      include: {
-        viewer: { select: { id: true, name: true, phone: true } },
-        agent: { select: { id: true, name: true } },
-        landlord: { select: { id: true, name: true } },
-      },
-      orderBy: { scheduledAt: "asc" },
-    });
+  // Verify actor is landlord or agent
+  const isAuthorized =
+    property.landlordId === actor.userId ||
+    property.agentOwnerId === actor.userId;
+  if (!isAuthorized && actor.role !== Role.ADMIN) {
+    throw new ForbiddenException(
+      "Only the property owner or assigned agent can view viewing requests",
+    );
   }
+
+  return this.prisma.viewing.findMany({
+    where: { propertyId },
+    include: {
+      viewer: { select: { id: true, name: true, phone: true } },
+      agent: { select: { id: true, name: true } },
+      landlord: { select: { id: true, name: true } },
+    },
+    orderBy: { scheduledAt: "asc" },
+  });
+}
 }
 
 function messagesRecipient(
