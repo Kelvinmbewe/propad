@@ -105,6 +105,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
       label: string;
       durationDays: number;
       discountPercent?: number;
+      feeUsdCents?: number;
       description?: string;
     }>
   >([]);
@@ -779,6 +780,7 @@ function FeaturedSection({
     label: string;
     durationDays: number;
     discountPercent?: number;
+    feeUsdCents?: number;
     description?: string;
   }>;
   selectedPlan: string | null;
@@ -830,6 +832,17 @@ function FeaturedSection({
             plans.map((plan) => {
               const isActive = selectedPlan === plan.id;
               const discount = plan.discountPercent ?? 0;
+              // Calculate fee: use plan's feeUsdCents if available, else calculate from base
+              let displayFee = '';
+              if (plan.feeUsdCents) {
+                const baseFee = plan.feeUsdCents / 100;
+                const discountedFee = baseFee * (1 - discount / 100);
+                displayFee = `$${discountedFee.toFixed(2)}`;
+              } else if (basePriceUsd) {
+                const perWeekFee = basePriceUsd * (plan.durationDays / 7);
+                const discountedFee = perWeekFee * (1 - discount / 100);
+                displayFee = `$${discountedFee.toFixed(2)}`;
+              }
               return (
                 <button
                   key={plan.id}
@@ -844,11 +857,18 @@ function FeaturedSection({
                     <span className="font-medium text-neutral-800">
                       {plan.label}
                     </span>
-                    {discount > 0 && (
-                      <span className="text-xs text-emerald-600">
-                        Save {discount}%
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {displayFee && (
+                        <span className="text-xs font-semibold text-neutral-700">
+                          {displayFee}
+                        </span>
+                      )}
+                      {discount > 0 && (
+                        <span className="text-xs text-emerald-600">
+                          Save {discount}%
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <p className="text-xs text-neutral-500">
                     {plan.description || `${plan.durationDays} days`}
@@ -1406,6 +1426,17 @@ function VerificationTab({
   );
   const photosItem = items.find((i: any) => i.type === "PROPERTY_PHOTOS");
 
+  // Calculate dynamic verification status for the heading
+  const approvedItems = items.filter((i: any) => i.status === "APPROVED").length;
+  const totalItems = items.length;
+  const getVerificationStatusLabel = () => {
+    if (approvedItems === 0) return "Verification Pending";
+    if (approvedItems > 0 && approvedItems < totalItems) return "Partially Verified";
+    if (approvedItems === totalItems && totalItems > 0) return "Verified";
+    return "Verification Pending";
+  };
+  const verificationStatusLabel = getVerificationStatusLabel();
+
   const checkIsLocked = (item: any) => {
     if (!item) return false;
     if (item.status === "APPROVED") return true;
@@ -1533,22 +1564,16 @@ function VerificationTab({
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-lg font-semibold">
-                    {verificationLevel === "VERIFIED"
-                      ? "Property Verified"
-                      : overallStatus === "PENDING"
-                        ? "Verification Pending"
-                        : overallStatus === "REJECTED"
-                          ? "Verification Rejected"
-                          : "Not Started"}
+                    {verificationStatusLabel}
                   </h3>
                   <p className="text-sm text-neutral-500 mb-2">
-                    {verificationLevel === "VERIFIED"
-                      ? "At least one verification item was approved."
-                      : overallStatus === "PENDING"
+                    {approvedItems === 0
+                      ? overallStatus === "PENDING"
                         ? "Our team is reviewing your documentation."
-                        : overallStatus === "REJECTED"
-                          ? "Verification was rejected. Please submit new documentation."
-                          : "Complete all steps below to request verification."}
+                        : "Complete all steps below to request verification."
+                      : approvedItems === totalItems && totalItems > 0
+                        ? "All verification items have been approved."
+                        : `${approvedItems} of ${totalItems} verification items approved.`}
                   </p>
                 </div>
                 {/* Level Badge */}
@@ -1705,6 +1730,7 @@ function VerificationTab({
           item={photosItem}
           statusBadge={getStatusBadge(photosItem?.status || "PENDING")}
           isDisabled={checkIsLocked(photosItem)}
+          cost={verificationCosts?.PROPERTY_PHOTOS}
           onSubmit={(evidenceUrls) => {
             if (verificationRequest && photosItem) {
               updateItemMut.mutate({
@@ -1878,7 +1904,7 @@ function VerificationStep({
           <div className="flex items-center gap-2">
             {cost !== undefined && cost > 0 && (
               <span className="text-xs font-medium text-neutral-500 bg-neutral-100 px-2 py-1 rounded">
-                {formatCurrency(cost / 100, "USD")}
+                US${cost}
               </span>
             )}
             {statusBadge}

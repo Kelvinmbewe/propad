@@ -2529,12 +2529,31 @@ export class PropertiesService {
       throw new BadRequestException("Property Photos allows max 5 files");
     }
 
+    // Fetch verification costs config - values are in dollars (e.g., 5 = $5)
     const verificationCosts = (await this.pricing.getConfig("pricing.verificationCosts", {
-      PROOF_OF_OWNERSHIP: 500,
-      LOCATION_CONFIRMATION: 2000,
-    })) as any;
-    const baseFee = typeof verificationCosts === 'number' ? verificationCosts : (verificationCosts['LOCATION_CONFIRMATION'] || 2000);
-    const verificationFeeUsdCents = baseFee;
+      PROOF_OF_OWNERSHIP: 5,
+      LOCATION_CONFIRMATION: 5,
+      PROPERTY_PHOTOS: 5,
+      SITE_VISIT_UPGRADE: 15,
+    })) as Record<string, number>;
+
+    // Calculate total fee based on submitted items
+    // Convert dollars to cents for payment ledger
+    let totalFeeUsd = 0;
+    if (dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0) {
+      totalFeeUsd += verificationCosts['PROOF_OF_OWNERSHIP'] || 5;
+    }
+    if (dto.locationGpsLat && dto.locationGpsLng) {
+      totalFeeUsd += verificationCosts['LOCATION_CONFIRMATION'] || 5;
+      if (dto.requestOnSiteVisit) {
+        totalFeeUsd += verificationCosts['SITE_VISIT_UPGRADE'] || 15;
+      }
+    }
+    if (dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0) {
+      totalFeeUsd += verificationCosts['PROPERTY_PHOTOS'] || 5;
+    }
+    // Convert to cents for payment storage
+    const verificationFeeUsdCents = totalFeeUsd * 100;
 
     let verificationRequest: any;
 
