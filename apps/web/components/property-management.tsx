@@ -211,11 +211,12 @@ export function PropertyManagement() {
                         </span>
                       </div>
                     </CardContent>
-                    <CardFooter className="pt-2 flex flex-wrap justify-between gap-2 border-t bg-neutral-50/50">
-                      <div className="flex gap-2 flex-1 flex-wrap">
+                    <CardFooter className="pt-3 border-t bg-neutral-50/50">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
+                        {/* Primary Action: Manage - full width on mobile */}
                         <Link
                           href={`/dashboard/listings/${property.id}`}
-                          className="flex-1"
+                          className="col-span-2 sm:col-span-1"
                         >
                           <Button
                             variant="default"
@@ -225,14 +226,28 @@ export function PropertyManagement() {
                             Manage
                           </Button>
                         </Link>
-                        {/* Publish Button for DRAFT */}
+
+                        {/* Secondary Actions: Edit & Delete */}
+                        <Link href={`/dashboard/listings/${property.id}/edit`}>
+                          <Button variant="outline" size="sm" className="w-full">
+                            Edit
+                          </Button>
+                        </Link>
+                        <Link href={`/dashboard/listings/${property.id}/delete`}>
+                          <Button variant="ghost" size="sm" className="w-full text-red-600 hover:text-red-700 hover:bg-red-50">
+                            Delete
+                          </Button>
+                        </Link>
+
+                        {/* Status Actions: Publish/Pause/Unpause/Restore */}
                         {property.status === "DRAFT" && (
                           <Button
                             variant="secondary"
                             size="sm"
+                            className="w-full"
                             onClick={async (e) => {
                               e.preventDefault();
-                              if (confirm("Publish this listing?")) {
+                              if (confirm("Publish this listing? It will be submitted for verification.")) {
                                 if (!sdk) {
                                   alert("Service unavailable. Please retry.");
                                   return;
@@ -252,40 +267,74 @@ export function PropertyManagement() {
                             Publish
                           </Button>
                         )}
-                        {property.status !== "ARCHIVED" &&
-                          property.status !== "DRAFT" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={async (e) => {
-                                e.preventDefault();
-                                if (!sdk) {
-                                  alert("Service unavailable. Please retry.");
-                                  return;
+
+                        {/* Pause: Available for VERIFIED and PENDING_VERIFY */}
+                        {(property.status === "VERIFIED" || property.status === "PENDING_VERIFY") && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              if (!sdk) {
+                                alert("Service unavailable. Please retry.");
+                                return;
+                              }
+                              if (confirm("Pause this listing? It will be hidden from public search.")) {
+                                try {
+                                  await sdk.request(
+                                    `/properties/${property.id}/status`,
+                                    {
+                                      method: "PATCH",
+                                      body: { status: "PUBLISHED" },
+                                    },
+                                  );
+                                  window.location.reload();
+                                } catch (err) {
+                                  alert("Failed to pause listing");
                                 }
-                                if (confirm("Pause this listing?")) {
-                                  try {
-                                    await sdk.request(
-                                      `/properties/${property.id}/status`,
-                                      {
-                                        method: "PATCH",
-                                        body: { status: "ARCHIVED" },
-                                      },
-                                    );
-                                    window.location.reload();
-                                  } catch (err) {
-                                    alert("Failed to pause listing");
-                                  }
+                              }
+                            }}
+                          >
+                            Pause
+                          </Button>
+                        )}
+
+                        {/* Unpause: Available for PUBLISHED (paused) listings */}
+                        {property.status === "PUBLISHED" && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="w-full"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              if (!sdk) {
+                                alert("Service unavailable. Please retry.");
+                                return;
+                              }
+                              if (confirm("Unpause this listing? It will be resubmitted for verification.")) {
+                                try {
+                                  await sdk.request(
+                                    `/properties/${property.id}/publish`,
+                                    { method: "PATCH" },
+                                  );
+                                  window.location.reload();
+                                } catch (err) {
+                                  alert("Failed to unpause listing");
                                 }
-                              }}
-                            >
-                              Pause
-                            </Button>
-                          )}
+                              }
+                            }}
+                          >
+                            Unpause
+                          </Button>
+                        )}
+
+                        {/* Restore: Available for ARCHIVED listings */}
                         {property.status === "ARCHIVED" && (
                           <Button
                             variant="outline"
                             size="sm"
+                            className="w-full"
                             onClick={async (e) => {
                               e.preventDefault();
                               if (!sdk) {
@@ -311,18 +360,6 @@ export function PropertyManagement() {
                             Restore
                           </Button>
                         )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Link href={`/dashboard/listings/${property.id}/edit`}>
-                          <Button variant="ghost" size="sm">
-                            Edit
-                          </Button>
-                        </Link>
-                        <Link href={`/dashboard/listings/${property.id}/delete`}>
-                          <Button variant="ghost" size="sm">
-                            Delete
-                          </Button>
-                        </Link>
                       </div>
                     </CardFooter>
                   </Card>

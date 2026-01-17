@@ -1614,20 +1614,17 @@ export class PropertiesService {
 
     let newStatus: PropertyStatus = PropertyStatus.PENDING_VERIFY;
 
-    // Auto-publish if already Verified or Admin or has sufficient trust
-    if (
-      property.status === PropertyStatus.VERIFIED ||
-      actor.role === Role.ADMIN
-    ) {
+    // Only keep VERIFIED if property was already VERIFIED (e.g., unpause case)
+    if (property.status === PropertyStatus.VERIFIED) {
       newStatus = PropertyStatus.VERIFIED;
-    }
-
-    if (
+    } else if (
       property.verificationLevel === "VERIFIED" ||
       property.verificationLevel === "TRUSTED"
     ) {
+      // Auto-verify if the property itself has been verified before
       newStatus = PropertyStatus.VERIFIED;
     }
+    // Admin publish should NOT auto-verify - require explicit verification process
 
     const updated = await this.prisma.property.update({
       where: { id },
