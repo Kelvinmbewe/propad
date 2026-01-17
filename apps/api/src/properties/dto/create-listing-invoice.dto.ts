@@ -7,6 +7,7 @@ export const createListingInvoiceSchema = z
     currency: z.enum(["USD", "ZWG"]).optional(),
     description: z.string().max(200).optional(),
     purpose: z.enum(["OTHER", "VERIFICATION", "BOOST"]).optional(),
+    metadata: z.record(z.unknown()).optional(),
   })
   .strict();
 

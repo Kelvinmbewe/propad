@@ -3052,6 +3052,56 @@ export class PropertiesService {
       },
     });
 
+    // Create payment record when item is newly submitted
+    if (newStatus === "SUBMITTED" && item.status !== "SUBMITTED") {
+      // Check if a verification payment already exists for this item type
+      const existingPayment = await this.prisma.listingPayment.findFirst({
+        where: {
+          propertyId,
+          type: ListingPaymentType.VERIFICATION,
+          metadata: {
+            path: ["itemType"],
+            equals: item.type,
+          },
+        },
+      });
+
+      if (!existingPayment) {
+        // Fetch verification costs
+        const verificationCosts = (await this.pricing.getConfig("pricing.verificationCosts", {
+          PROOF_OF_OWNERSHIP: 5,
+          LOCATION_CONFIRMATION: 5,
+          PROPERTY_PHOTOS: 5,
+          SITE_VISIT_UPGRADE: 15,
+        })) as Record<string, number>;
+
+        // Determine the fee for this item type
+        let feeUsd = verificationCosts[item.type] || 5;
+        if (dto.requestOnSiteVisit && item.type === "LOCATION_CONFIRMATION") {
+          feeUsd += verificationCosts["SITE_VISIT_UPGRADE"] || 15;
+        }
+
+        const feeCents = feeUsd * 100;
+
+        // Create a PENDING payment record
+        await this.prisma.listingPayment.create({
+          data: {
+            propertyId,
+            type: ListingPaymentType.VERIFICATION,
+            amountCents: feeCents,
+            currency: Currency.USD,
+            status: ListingPaymentStatus.PENDING,
+            reference: `VERIFICATION_${item.type}_${propertyId}_${Date.now()}`,
+            metadata: {
+              itemType: item.type,
+              itemId: itemId,
+              verificationFee: true,
+            },
+          },
+        });
+      }
+    }
+
     await this.audit.logAction({
       action: "verification.item.update",
       actorId: actor.userId,
@@ -3105,6 +3155,38 @@ export class PropertiesService {
         reviewedAt: new Date(),
       },
     });
+
+    // Write off pending verification payment if Admin approves before payment
+    if (dto.status === "APPROVED") {
+      const pendingPayment = await this.prisma.listingPayment.findFirst({
+        where: {
+          propertyId,
+          type: ListingPaymentType.VERIFICATION,
+          status: ListingPaymentStatus.PENDING,
+          metadata: {
+            path: ["itemType"],
+            equals: item.type,
+          },
+        },
+      });
+
+      if (pendingPayment) {
+        // Write off the payment as waived
+        await this.prisma.listingPayment.update({
+          where: { id: pendingPayment.id },
+          data: {
+            status: ListingPaymentStatus.CANCELLED,
+            metadata: {
+              ...(pendingPayment.metadata as Record<string, unknown> || {}),
+              waivedByAdmin: true,
+              waivedAt: new Date().toISOString(),
+              waivedReason: "Admin approved verification before payment",
+              discountPercent: 100,
+            },
+          },
+        });
+      }
+    }
 
     // Check if all items are reviewed and update request status
     const allItems = await this.prisma.verificationRequestItem.findMany({
@@ -3800,6 +3882,7 @@ export class PropertiesService {
       currency?: Currency;
       description?: string;
       purpose?: "OTHER" | "VERIFICATION" | "BOOST";
+      metadata?: Record<string, unknown>;
     },
     actor: AuthContext,
   ) {
@@ -3843,6 +3926,13 @@ export class PropertiesService {
       },
     });
 
+    // Merge incoming metadata with invoice metadata
+    const combinedMetadata = {
+      invoiceId: invoice.id,
+      invoiceNo: invoice.invoiceNo ?? invoice.id,
+      ...(payload.metadata || {}),
+    };
+
     const payment = await this.prisma.listingPayment.create({
       data: {
         propertyId,
@@ -3852,10 +3942,7 @@ export class PropertiesService {
         status: ListingPaymentStatus.PENDING,
         reference: invoice.invoiceNo ?? invoice.id,
         invoiceId: invoice.id,
-        metadata: {
-          invoiceId: invoice.id,
-          invoiceNo: invoice.invoiceNo ?? invoice.id,
-        },
+        metadata: combinedMetadata,
       },
       include: {
         invoice: {

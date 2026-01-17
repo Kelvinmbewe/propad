@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import {
@@ -147,6 +147,15 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     initialData: [] as any[],
     retry: 1,
     staleTime: 30000,
+  });
+
+  // Fetch property payments for Featured Listing section
+  const { data: propertyPayments } = useQuery({
+    queryKey: ["payments", propertyId],
+    queryFn: async () => sdk!.properties.getPayments(propertyId),
+    enabled: !!sdk && !!propertyId,
+    initialData: [] as any[],
+    staleTime: 10000,
   });
 
   useEffect(() => {
@@ -404,6 +413,11 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
             currency: featuredPricing?.currency ?? "USD",
             description: `${plan.label} featured listing`,
             purpose: "BOOST",
+            metadata: {
+              planLabel: plan.label,
+              planId: plan.id,
+              durationDays: plan.durationDays,
+            },
           }),
         },
       );
@@ -521,6 +535,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
             featuredBasePriceUsd={featuredBasePriceUsd}
             featuredProcessing={featuredProcessing}
             handlePurchaseFeatured={handlePurchaseFeatured}
+            propertyPayments={propertyPayments}
           />
         )}
         {activeTab === "interest" && <InterestTab propertyId={propertyId} />}
@@ -596,6 +611,7 @@ function ManagementTab({
   featuredBasePriceUsd,
   featuredProcessing,
   handlePurchaseFeatured,
+  propertyPayments,
 }: any) {
   const assignment = property.assignments?.[0];
   const selectedAgentData =
@@ -778,6 +794,7 @@ function ManagementTab({
         basePriceUsd={featuredBasePriceUsd}
         isProcessing={featuredProcessing}
         onPurchase={handlePurchaseFeatured}
+        payments={propertyPayments}
       />
     </div>
   );
@@ -791,6 +808,7 @@ function FeaturedSection({
   basePriceUsd,
   isProcessing,
   onPurchase,
+  payments,
 }: {
   propertyId: string;
   plans: Array<{
@@ -806,9 +824,107 @@ function FeaturedSection({
   basePriceUsd: number | null;
   isProcessing: boolean;
   onPurchase: () => void;
+  payments?: any[];
 }) {
   void propertyId;
   const basePriceLabel = basePriceUsd ? `$${basePriceUsd.toFixed(2)}/week` : "";
+
+  // Find active boost from PAID PROMOTION payments
+  const activeBoost = useMemo(() => {
+    if (!payments) return null;
+
+    const promotionPayments = payments.filter(
+      (p: any) => p.type === "PROMOTION" && p.status === "PAID"
+    );
+
+    for (const payment of promotionPayments) {
+      const metadata = payment.metadata as any;
+      const durationDays = metadata?.durationDays || 30;
+      const paidAt = new Date(payment.updatedAt);
+      const expiresAt = new Date(paidAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
+
+      if (expiresAt > new Date()) {
+        return {
+          planLabel: metadata?.planLabel || "Featured Listing",
+          startedAt: paidAt,
+          expiresAt,
+          durationDays,
+          amountPaid: payment.amountCents / 100,
+        };
+      }
+    }
+
+    return null;
+  }, [payments]);
+
+  // Calculate remaining time
+  const remainingTime = useMemo(() => {
+    if (!activeBoost) return null;
+    const now = new Date();
+    const diffMs = activeBoost.expiresAt.getTime() - now.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+    if (diffDays > 0) return `${diffDays} days, ${diffHours} hours`;
+    if (diffHours > 0) return `${diffHours} hours`;
+    return "Less than 1 hour";
+  }, [activeBoost]);
+
+  // Show active boost details if present
+  if (activeBoost) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-emerald-600" />
+            Featured Listing Active
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-emerald-800">{activeBoost.planLabel}</span>
+              <span className="text-xs bg-emerald-600 text-white px-2 py-1 rounded-full">
+                Active
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-neutral-500">Started</p>
+                <p className="font-medium">
+                  {activeBoost.startedAt.toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-neutral-500">Expires</p>
+                <p className="font-medium">
+                  {activeBoost.expiresAt.toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-neutral-500">Time Remaining</p>
+                <p className="font-medium text-emerald-600">{remainingTime}</p>
+              </div>
+              <div>
+                <p className="text-neutral-500">Amount Paid</p>
+                <p className="font-medium">${activeBoost.amountPaid.toFixed(2)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-xs text-neutral-500">
+            <p>
+              Your listing is currently boosted and will appear in featured sections.
+              You can purchase another plan before this one expires to extend your boost.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show plan selection if no active boost
   return (
     <Card>
       <CardHeader>
@@ -889,7 +1005,7 @@ function FeaturedSection({
                     </div>
                   </div>
                   <p className="text-xs text-neutral-500">
-                    {plan.description || `${plan.durationDays} days`}
+                    {plan.description || `${plan.durationDays} days featured placement`}
                   </p>
                 </button>
               );
@@ -2268,10 +2384,26 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
     switch (type) {
       case "AGENT_FEE":
         return `Agent Service Fee${metadata?.agentName ? ` - ${metadata.agentName}` : ""}`;
+      case "PROMOTION":
+        return metadata?.planLabel
+          ? `${metadata.planLabel} Featured Listing`
+          : "Featured Listing Boost";
       case "FEATURED":
-        return "Featured Listing";
-      case "VERIFICATION":
+        return metadata?.planLabel
+          ? `${metadata.planLabel} Featured Listing`
+          : "Featured Listing";
+      case "VERIFICATION": {
+        const itemType = metadata?.itemType;
+        if (itemType) {
+          const labels: Record<string, string> = {
+            PROOF_OF_OWNERSHIP: "Proof of Ownership",
+            LOCATION_CONFIRMATION: "Location Confirmation",
+            PROPERTY_PHOTOS: "Property Photos",
+          };
+          return `Verification - ${labels[itemType] || itemType}`;
+        }
         return "Property Verification";
+      }
       case "OTHER":
         return metadata?.description || "Other Payment";
       default:
