@@ -84,8 +84,8 @@ type RequestOptions = {
   body?: unknown;
   headers?: Record<string, string>;
   searchParams?:
-    | URLSearchParams
-    | Record<string, string | number | boolean | undefined | null>;
+  | URLSearchParams
+  | Record<string, string | number | boolean | undefined | null>;
 };
 
 const createSearchParams = (
@@ -377,6 +377,10 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .patch(`properties/${id}/service-fee`, { json: payload })
           .json<AgentAssignment>()
           .then((data) => AgentAssignmentSchema.parse(data)),
+      resignAgent: async (id: string) =>
+        client
+          .delete(`properties/${id}/agent`)
+          .json<{ success: boolean; resignedAgentId: string }>(),
       updateDealConfirmation: async (
         id: string,
         payload: { confirmed: boolean },
@@ -507,9 +511,9 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           items: Array<{
             id: string;
             type:
-              | "PROOF_OF_OWNERSHIP"
-              | "LOCATION_CONFIRMATION"
-              | "PROPERTY_PHOTOS";
+            | "PROOF_OF_OWNERSHIP"
+            | "LOCATION_CONFIRMATION"
+            | "PROPERTY_PHOTOS";
             status: "PENDING" | "SUBMITTED" | "APPROVED" | "REJECTED";
             evidenceUrls: string[];
             gpsLat: number | null;
@@ -595,10 +599,10 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             rating: number;
             comment: string | null;
             type:
-              | "PREVIOUS_TENANT"
-              | "CURRENT_TENANT"
-              | "VISITOR"
-              | "ANONYMOUS";
+            | "PREVIOUS_TENANT"
+            | "CURRENT_TENANT"
+            | "VISITOR"
+            | "ANONYMOUS";
             isAnonymous: boolean;
             createdAt: string;
             reviewer?: { id: string; name: string; isVerified: boolean } | null;

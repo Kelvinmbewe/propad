@@ -324,6 +324,16 @@ export class PropertiesController {
     return this.propertiesService.updateServiceFee(id, dto, req.user);
   }
 
+  @Delete(":id/agent")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.ADMIN)
+  resignAgent(
+    @Param("id") id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.propertiesService.resignAgent(id, req.user);
+  }
+
   @Patch(":id/deal-confirmation")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.LANDLORD, Role.ADMIN)

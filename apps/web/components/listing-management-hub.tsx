@@ -344,6 +344,17 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     onError: (err: any) => notify.error(err.message || "Failed to update fee"),
   });
 
+  const resignAgentMutation = useMutation({
+    mutationFn: () => sdk!.properties.resignAgent(propertyId),
+    onSuccess: () => {
+      notify.success("Agent resigned successfully. You can now assign a new agent or manage the property yourself.");
+      queryClient.invalidateQueries({ queryKey: ["property", propertyId] });
+      setSelectedAgent(null);
+      setAgentSearchQuery("");
+    },
+    onError: (err: any) => notify.error(err.message || "Failed to resign agent"),
+  });
+
   const resolvePaymentGateway = () => {
     if (enabledPaymentProviders.length === 0) {
       return null;
@@ -536,6 +547,8 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
             featuredProcessing={featuredProcessing}
             handlePurchaseFeatured={handlePurchaseFeatured}
             propertyPayments={propertyPayments}
+            handleResignAgent={() => resignAgentMutation.mutate()}
+            isResigning={resignAgentMutation.isPending}
           />
         )}
         {activeTab === "interest" && <InterestTab propertyId={propertyId} />}
@@ -612,6 +625,8 @@ function ManagementTab({
   featuredProcessing,
   handlePurchaseFeatured,
   propertyPayments,
+  handleResignAgent,
+  isResigning,
 }: any) {
   const assignment = property.assignments?.[0];
   const selectedAgentData =
@@ -737,8 +752,9 @@ function ManagementTab({
                   : "")
               }
               onChange={(e) => setServiceFee(e.target.value)}
+              disabled={!!assignment}
             />
-            {feeLabel && (
+            {feeLabel && !assignment && (
               <p className="text-xs text-neutral-500">
                 Suggested fee: {feeLabel}
               </p>
@@ -754,34 +770,48 @@ function ManagementTab({
             </p>
           </div>
 
-          <PaymentGate
-            featureType={ChargeableItemType.FEATURE}
-            targetId={property.id}
-            featureName="Agent Assignment"
-            featureDescription="Assign a verified agent to manage your property listing"
-          >
-            <Button
-              onClick={
-                assignment
-                  ? () => updateFee({ serviceFeeUsd: Number(serviceFee) })
-                  : handleAssign
-              }
-              disabled={isAssigning || isUpdatingFee}
-            >
-              {assignment ? "Update Fee" : "Assign Agent"}
-            </Button>
-          </PaymentGate>
-
-          {assignment && (
-            <div className="mt-4 p-4 bg-blue-50 text-blue-800 rounded-md text-sm flex items-start gap-2">
-              <CheckCircle2 className="h-5 w-5 shrink-0" />
-              <div>
-                <p className="font-semibold">
-                  Assigned to {property.agentOwner?.name}
-                </p>
-                <p>Service Fee: ${assignment.serviceFeeUsdCents / 100}</p>
+          {assignment ? (
+            <>
+              <div className="p-4 bg-blue-50 text-blue-800 rounded-md text-sm flex items-start gap-3">
+                <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">
+                    Agent Assigned: {property.agentOwner?.name}
+                  </p>
+                  <p className="text-xs mt-1">Service Fee: ${assignment.serviceFeeUsdCents / 100}</p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Search and fee fields are locked. Resign agent to make changes.
+                  </p>
+                </div>
               </div>
-            </div>
+              <Button
+                variant="outline"
+                className="w-full border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                disabled={isResigning}
+                onClick={() => {
+                  if (confirm("Are you sure you want to resign the agent? You can assign a new agent or manage the property yourself.")) {
+                    handleResignAgent();
+                  }
+                }}
+              >
+                {isResigning ? "Resigning..." : "Resign Agent"}
+              </Button>
+            </>
+          ) : (
+            <PaymentGate
+              featureType={ChargeableItemType.FEATURE}
+              targetId={property.id}
+              featureName="Agent Assignment"
+              featureDescription="Assign a verified agent to manage your property listing"
+            >
+              <Button
+                onClick={handleAssign}
+                disabled={isAssigning || !selectedAgent}
+                className="w-full"
+              >
+                {isAssigning ? "Assigning..." : "Assign Agent"}
+              </Button>
+            </PaymentGate>
           )}
         </CardContent>
       </Card>

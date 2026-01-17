@@ -1967,6 +1967,83 @@ export class PropertiesService {
     return updated;
   }
 
+  async resignAgent(id: string, actor: AuthContext) {
+    const property = await this.getPropertyOrThrow(id);
+    this.ensureLandlordAccess(property, actor);
+
+    // Find the latest active assignment
+    const latestAssignment = await this.prisma.agentAssignment.findFirst({
+      where: {
+        propertyId: id,
+        deletedAt: null,
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        agent: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!latestAssignment) {
+      throw new BadRequestException(
+        "No active agent assignment found for this property",
+      );
+    }
+
+    // Soft delete the assignment
+    await this.prisma.agentAssignment.update({
+      where: { id: latestAssignment.id },
+      data: { deletedAt: new Date() },
+    });
+
+    // Clear the agentOwnerId from the property
+    await this.prisma.property.update({
+      where: { id },
+      data: { agentOwnerId: null },
+    });
+
+    // Cancel any pending agent fee payments
+    await this.prisma.listingPayment.updateMany({
+      where: {
+        propertyId: id,
+        type: ListingPaymentType.AGENT_FEE,
+        status: ListingPaymentStatus.PENDING,
+        metadata: {
+          path: ["assignmentId"],
+          equals: latestAssignment.id,
+        },
+      },
+      data: {
+        status: ListingPaymentStatus.CANCELLED,
+      },
+    });
+
+    await this.audit.logAction({
+      action: "property.resignAgent",
+      actorId: actor.userId,
+      targetType: "property",
+      targetId: id,
+      metadata: {
+        assignmentId: latestAssignment.id,
+        agentId: latestAssignment.agentId,
+        agentName: latestAssignment.agent?.name,
+      },
+    });
+
+    // Log activity
+    await this.logActivity(
+      id,
+      ListingActivityType.AGENT_ASSIGNED, // Using AGENT_ASSIGNED with action: resigned in metadata
+      actor.userId,
+      {
+        action: "resigned",
+        agentId: latestAssignment.agentId,
+        agentName: latestAssignment.agent?.name,
+      },
+    );
+
+    return { success: true, resignedAgentId: latestAssignment.agentId };
+  }
+
   async updateDealConfirmation(
     id: string,
     dto: UpdateDealConfirmationDto,
