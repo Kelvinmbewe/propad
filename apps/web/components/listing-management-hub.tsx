@@ -161,6 +161,7 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
           featuredPricingResponse,
           enabledProvidersResponse,
           defaultProviderResponse,
+          verificationCostsResponse,
         ] = await Promise.all([
           fetch(`${apiBaseUrl}/pricing-config/pricing.agentFees`, {
             headers: {
@@ -230,9 +231,9 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
           setDefaultPaymentProvider(provider ?? null);
         }
 
-        // Handle verification costs (response item 6 is index 5)
-        if (results[5]?.ok) {
-          const costs = await results[5].json();
+        // Handle verification costs
+        if (verificationCostsResponse.ok) {
+          const costs = await verificationCostsResponse.json();
           setVerificationCosts(costs.value || costs);
         }
       } catch (err) {
@@ -1734,6 +1735,7 @@ function VerificationStep({
   onSubmit,
   type,
   propertyId,
+  cost,
 }: {
   title: string;
   description: string;
@@ -2586,15 +2588,15 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                   </div>
                 );
               })}
+              {selectedPayments.length > 0 && isAdmin && (
+                <div className="mt-4 p-4 border-t bg-emerald-50 flex justify-between items-center rounded-b-lg">
+                  <span className="text-sm font-medium text-emerald-800">{selectedPayments.length} payments selected</span>
+                  <Button onClick={handleBulkApprove} size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                    Approve Selected
+                  </Button>
+                </div>
+              )}
             </div>
-             {selectedPayments.length > 0 && isAdmin && (
-            <div className="mt-4 p-4 border-t bg-emerald-50 flex justify-between items-center rounded-b-lg -m-4 mb-0 mt-4 rounded-t-none">
-              <span className="text-sm font-medium text-emerald-800">{selectedPayments.length} payments selected</span>
-              <Button onClick={handleBulkApprove} size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-                Approve Selected
-              </Button>
-            </div>
-          )}
           )}
         </CardContent>
       </Card>
