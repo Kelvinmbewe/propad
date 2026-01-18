@@ -279,7 +279,8 @@ export class PropertiesController {
     @Body(new ZodValidationPipe(updatePropertyStatusSchema))
     dto: UpdatePropertyStatusDto,
   ) {
-    return this.propertiesService.updateStatus(id, dto.status, req.user);
+    // dto.status is already typed as PropertyStatus from the DTO
+    return this.propertiesService.updateStatus(id, dto.status as any, req.user);
   }
 
   @Patch(":id")
@@ -332,6 +333,16 @@ export class PropertiesController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.propertiesService.resignAgent(id, req.user);
+  }
+
+  @Post("assignments/:assignmentId/accept")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.AGENT, Role.ADMIN)
+  acceptAssignment(
+    @Param("assignmentId") assignmentId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.propertiesService.acceptAssignment(assignmentId, req.user);
   }
 
   @Patch(":id/deal-confirmation")

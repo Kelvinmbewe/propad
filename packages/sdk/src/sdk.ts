@@ -381,6 +381,11 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         client
           .delete(`properties/${id}/agent`)
           .json<{ success: boolean; resignedAgentId: string }>(),
+      acceptAssignment: async (assignmentId: string) =>
+        client
+          .post(`properties/assignments/${assignmentId}/accept`)
+          .json<AgentAssignment>()
+          .then((data) => AgentAssignmentSchema.parse(data)),
       updateDealConfirmation: async (
         id: string,
         payload: { confirmed: boolean },

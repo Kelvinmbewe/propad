@@ -279,6 +279,7 @@ enum ListingPaymentStatus {
   PENDING
   PAID
   FAILED
+  CANCELLED
 }
 
 enum PayoutMethod {
@@ -414,6 +415,13 @@ enum AdEventType {
   CONVERSION
   VIDEO_START
   VIDEO_COMPLETE
+}
+
+enum AgentAssignmentStatus {
+  PENDING
+  ACCEPTED
+  ACTIVE
+  RESIGNED
 }
 
 model Country {
@@ -807,19 +815,23 @@ model Property {
 }
 
 model AgentAssignment {
-  id                 String   @id @default(cuid())
+  id                 String                  @id @default(cuid())
   propertyId         String
   landlordId         String
   agentId            String
   serviceFeeUsdCents Int?
-  landlordPaysFee    Boolean  @default(true)
-  createdAt          DateTime @default(now())
+  landlordPaysFee    Boolean                 @default(true)
+  status             AgentAssignmentStatus   @default(PENDING)
+  acceptedAt         DateTime?
+  createdAt          DateTime                @default(now())
+  deletedAt          DateTime?
 
   property Property @relation(fields: [propertyId], references: [id])
   landlord User     @relation("LandlordAgentAssignments", fields: [landlordId], references: [id])
   agent    User     @relation("AgentAssignments", fields: [agentId], references: [id])
 
   @@index([propertyId, createdAt(sort: Desc)])
+  @@index([agentId, status])
 }
 
 model PropertyMessage {

@@ -1,6 +1,6 @@
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl"]
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -10,7 +10,6 @@ datasource db {
 
 enum Role {
   ADMIN
-  FINANCE
   VERIFIER
   AGENT
   LANDLORD
@@ -121,6 +120,7 @@ enum PropertyStatus {
   SOLD
   ARCHIVED
   OCCUPIED
+  PUBLISHED
 }
 
 enum MediaKind {
@@ -197,11 +197,6 @@ enum PendingGeoStatus {
 }
 
 enum RewardEventType {
-  VERIFICATION_APPROVAL
-  DEAL_COMPLETION
-  AD_REVENUE_SHARE
-  REFERRAL_BONUS
-  // Legacy support if needed, otherwise we migrate
   LISTING_VERIFIED
   LEAD_VALID
   SALE_CONFIRMED
@@ -248,6 +243,7 @@ enum NotificationType {
   REWARD
   CHAT
   SYSTEM
+  VERIFICATION_UPDATE
 }
 
 enum NotificationStatus {
@@ -283,6 +279,7 @@ enum ListingPaymentStatus {
   PENDING
   PAID
   FAILED
+  CANCELLED
 }
 
 enum PayoutMethod {
@@ -334,9 +331,6 @@ enum WalletTransactionSource {
 enum WalletLedgerType {
   CREDIT
   DEBIT
-  HOLD
-  RELEASE
-  REFUND
 }
 
 enum WalletLedgerSourceType {
@@ -347,10 +341,6 @@ enum WalletLedgerSourceType {
   PAYOUT
   ADJUSTMENT
   AD_SPEND
-  REWARD_EARNED
-  COMMISSION_EARNED
-  AD_REFUND
-  DEPOSIT
 }
 
 enum PromoTier {
@@ -400,6 +390,12 @@ enum AdCampaignStatus {
   ENDED
 }
 
+enum AdCampaignType {
+  PROPERTY_BOOST
+  BANNER
+  SEARCH_SPONSOR
+}
+
 enum ReviewerType {
   PREVIOUS_TENANT
   NEIGHBOR
@@ -419,6 +415,13 @@ enum AdEventType {
   CONVERSION
   VIDEO_START
   VIDEO_COMPLETE
+}
+
+enum AgentAssignmentStatus {
+  PENDING
+  ACCEPTED
+  ACTIVE
+  RESIGNED
 }
 
 model Country {
@@ -552,6 +555,7 @@ model User {
   buyerInvoices               Invoice[]                 @relation("InvoiceBuyerUser")
   paymentMethodStatusLogs     PaymentMethodStatusLog[]  @relation("PaymentMethodStatusActor")
   auditLogs                   AuditLog[]                @relation("AuditLogActor")
+  ownedAdvertisers            Advertiser[]              @relation("AdvertiserOwner")
 
   // New relations
   interestsCreated         Interest[]           @relation("UserInterests")
@@ -566,14 +570,12 @@ model User {
   viewingsAsLandlord       Viewing[]            @relation("ViewingLandlord")
 
   // New Profile Fields
-  profilePhoto        String?
-  bio                 String?
-  location            String?
-  trustScore          Int       @default(0)
-  verificationScore   Int       @default(0)
-  riskScore           Int       @default(0) // Internal only
-  failedLoginAttempts Int       @default(0)
-  lockedUntil         DateTime?
+  profilePhoto      String?
+  bio               String?
+  location          String?
+  trustScore        Int     @default(0)
+  verificationScore Int     @default(0)
+  riskScore         Int     @default(0) // Internal only
 
   // Role Management
   roles         UserRole[]
@@ -592,141 +594,7 @@ model User {
   walletLedgerEntries WalletLedger[]       @relation("WalletLedgerUser")
   adEvents            AdEvent[]            @relation("AdEventUser")
   rewardDistributions RewardDistribution[]
-  riskEvents          RiskEvent[]
-  tenantDeals         Deal[]               @relation("DealTenant")
-  landlordDeals       Deal[]               @relation("DealLandlord")
-  agentDeals          Deal[]               @relation("DealAgent")
-
-  // Growth & Referrals
-  referralCodesOwned ReferralCode[]            @relation("ReferralCodeOwner")
-  referredByCodeId   String?
-  referredByCode     ReferralCode?             @relation("ReferredByCode", fields: [referredByCodeId], references: [id])
-  
-  referralsMade      Referral[]                @relation("Referrer")
-  referralReceived   Referral?                 @relation("Referee")
-
-  promoUsages        PromoUsage[]
-  pushTokens         PushToken[]
-  applications       Application[]
-  commissions        Commission[]              @relation("AgentCommissions")
-  conversations      ConversationParticipant[]
-  messagesSent       Message[]
-
-  @@index([role])
-}
-
-model PushToken {
-  id         String   @id @default(cuid())
-  userId     String
-  deviceId   String // Unique device ID
-  platform   String // IOS, ANDROID, WEB
-  token      String
-  createdAt  DateTime @default(now())
-  lastSeenAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@unique([deviceId])
-  @@index([userId])
-}
-
-model RiskEvent {
-  id        String   @id @default(cuid())
-  userId    String?
-  type      String // LOGIN_FAIL, PAYOUT_SPIKE, IP_VELOCITY
-  severity  String // LOW, MEDIUM, HIGH, CRITICAL
-  metadata  Json?
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
-
-  user User? @relation(fields: [userId], references: [id])
-
-  @@index([userId])
-}
-
-model ReferralCode {
-  id         String    @id @default(cuid())
-  code       String    @unique
-  ownerId    String
-  expiresAt  DateTime?
-  usageLimit Int?
-  usageCount Int       @default(0)
-  createdAt  DateTime  @default(now())
-
-  owner         User   @relation("ReferralCodeOwner", fields: [ownerId], references: [id])
-  usersReferred User[] @relation("ReferredByCode")
-
-  @@index([code])
-  @@index([ownerId])
-}
-
-model PromoCode {
-  id        String    @id @default(cuid())
-  code      String    @unique
-  type      String // CREDIT, DISCOUNT
-  value     Int // amount in cents or percentage
-  appliesTo String[] // [ADS, VERIFICATION]
-  expiresAt DateTime?
-  maxUses   Int?
-  usedCount Int       @default(0)
-  createdAt DateTime  @default(now())
-  active    Boolean   @default(true)
-
-  usages PromoUsage[]
-}
-
-enum ReferralStatus {
-  PENDING
-  QUALIFIED
-  REWARDED
-  CANCELLED
-}
-
-enum ReferralSource {
-  USER_SIGNUP
-  AGENT_SIGNUP
-  ADVERTISER_SIGNUP
-}
-
-model Referral {
-  id          String         @id @default(cuid())
-  referrerId  String
-  refereeId   String         @unique
-  source      ReferralSource
-  status      ReferralStatus @default(PENDING)
-  rewardCents Int            @default(0)
-  rewardId    String? // Link to RewardDistribution
-  
-  // Anti-Fraud
-  ipAddress   String?
-  deviceId    String?
-  metadata    Json?
-
-  triggeredAt DateTime?
-  qualifiedAt DateTime?
-  rewardedAt  DateTime?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-
-  referrer           User                @relation("Referrer", fields: [referrerId], references: [id])
-  referee            User                @relation("Referee", fields: [refereeId], references: [id])
-  rewardDistribution RewardDistribution? @relation("ReferralReward", fields: [rewardId], references: [id])
-
-  @@index([referrerId])
-  @@index([status])
-}
-
-model PromoUsage {
-  id          String   @id @default(cuid())
-  userId      String
-  promoCodeId String
-  usedAt      DateTime @default(now())
-
-  user      User      @relation(fields: [userId], references: [id])
-  promoCode PromoCode @relation(fields: [promoCodeId], references: [id])
-
-  @@unique([userId, promoCodeId])
+  adClicks            AdClick[]            @relation("AdClickUser")
 }
 
 model UserRole {
@@ -908,8 +776,6 @@ model Property {
   metricsDaily    MetricListingDaily[]
   shortLinks      ShortLink[]
   reviews         UserReview[]
-  commissions     Commission[]
-  conversations   Conversation[]
 
   // Role-Aware
   createdByRole String @default("LANDLORD")
@@ -930,8 +796,8 @@ model Property {
   propertyRatings      PropertyRating[]
   activityLogs         ListingActivityLog[]
   siteVisits           SiteVisit[]
-  applications         Application[]
-  deals                Deal[]
+  campaignTargets      AdCampaign[]          @relation("CampaignTargetProperty")
+  adClicks             AdClick[]
 
   @@index([status])
   @@index([countryId])
@@ -949,19 +815,23 @@ model Property {
 }
 
 model AgentAssignment {
-  id                 String   @id @default(cuid())
+  id                 String                  @id @default(cuid())
   propertyId         String
   landlordId         String
   agentId            String
   serviceFeeUsdCents Int?
-  landlordPaysFee    Boolean  @default(true)
-  createdAt          DateTime @default(now())
+  landlordPaysFee    Boolean                 @default(true)
+  status             AgentAssignmentStatus   @default(PENDING)
+  acceptedAt         DateTime?
+  createdAt          DateTime                @default(now())
+  deletedAt          DateTime?
 
   property Property @relation(fields: [propertyId], references: [id])
   landlord User     @relation("LandlordAgentAssignments", fields: [landlordId], references: [id])
   agent    User     @relation("AgentAssignments", fields: [agentId], references: [id])
 
   @@index([propertyId, createdAt(sort: Desc)])
+  @@index([agentId, status])
 }
 
 model PropertyMessage {
@@ -1054,7 +924,6 @@ model Notification {
   logs NotificationLog[]
 
   @@index([userId, createdAt(sort: Desc)])
-  @@index([userId, readAt])
 }
 
 model NotificationLog {
@@ -1174,7 +1043,6 @@ model VerificationRequest {
   @@index([requesterId])
   @@index([status])
   @@index([targetType, targetId]) // Generic lookup
-  @@index([createdAt])
 }
 
 enum VerificationType {
@@ -1458,8 +1326,6 @@ model PayoutRequest {
   payoutAccount      PayoutAccount       @relation(fields: [payoutAccountId], references: [id])
   payoutTransactions PayoutTransaction[] @relation("PayoutTransactionRequest")
   referralEarnings   ReferralEarning[]   @relation("ReferralEarningPayout")
-  commissions        Commission[]        @relation("CommissionPayout")
-  PayoutExecution    PayoutExecution[]
 
   @@index([walletId, status, createdAt(sort: Desc)])
   @@index([txRef])
@@ -1470,86 +1336,23 @@ model Advertiser {
   name         String
   contactEmail String?
   phone        String?
+  companyName  String? // Optional company name
   billingInfo  Json?
+  balanceCents Int              @default(0) // Ad spend balance
   status       AdvertiserStatus @default(ACTIVE)
+  ownerId      String?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
+
+  owner       User?        @relation("AdvertiserOwner", fields: [ownerId], references: [id])
 
   campaigns   AdCampaign[]
   creatives   AdCreative[]
   impressions AdImpression[]
+  balanceLogs AdvertiserBalanceLog[]
+  invoices    Invoice[]
+  fraudEvents FraudEvent[]
 
-  @@index([status])
-}
-
-model Application {
-  id         String              @id @default(cuid())
-  propertyId String
-  userId     String
-  status     ApplicationStatus   @default(SUBMITTED)
-  notes      String?
-  createdAt  DateTime            @default(now())
-  updatedAt  DateTime            @updatedAt
-  paymentId  String?             @unique
-  payment    PaymentTransaction? @relation(fields: [paymentId], references: [id])
-
-  property     Property       @relation(fields: [propertyId], references: [id])
-  user         User           @relation(fields: [userId], references: [id])
-  deal         Deal?
-  Conversation Conversation[]
-
-  @@unique([propertyId, userId])
-  @@index([userId])
-  @@index([propertyId])
-}
-
-enum ApplicationStatus {
-  SUBMITTED
-  SHORTLISTED
-  REVIEWING
-  APPROVED
-  REJECTED
-  CANCELLED
-}
-
-enum DealStatus {
-  ACTIVE
-  COMPLETED
-  TERMINATED
-  CANCELLED
-}
-
-model Deal {
-  id            String  @id @default(cuid())
-  propertyId    String
-  tenantId      String
-  landlordId    String
-  agentId       String?
-  applicationId String  @unique
-
-  status        DealStatus @default(ACTIVE)
-  startDate     DateTime
-  endDate       DateTime?
-  rentAmount    Int // in cents
-  depositAmount Int? // in cents
-  currency      Currency   @default(USD)
-
-  termsJson Json?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  property     Property       @relation(fields: [propertyId], references: [id])
-  tenant       User           @relation("DealTenant", fields: [tenantId], references: [id])
-  landlord     User           @relation("DealLandlord", fields: [landlordId], references: [id])
-  agent        User?          @relation("DealAgent", fields: [agentId], references: [id])
-  application  Application    @relation(fields: [applicationId], references: [id])
-  Conversation Conversation[]
-
-  @@index([propertyId])
-  @@index([tenantId])
-  @@index([landlordId])
-  @@index([agentId])
   @@index([status])
 }
 
@@ -1599,6 +1402,11 @@ model AdCampaign {
   advertiserId        String
   invoiceId           String?          @unique
   name                String
+  type                AdCampaignType? // Campaign type
+  targetPropertyId    String? // For PROPERTY_BOOST campaigns
+  budgetCents         Int? // Total budget limit
+  spentCents          Int              @default(0) // Track spent amount
+  dailyCapCents       Int? // Daily spending limit
   startAt             DateTime
   endAt               DateTime?
   targetingJson       Json?
@@ -1611,16 +1419,21 @@ model AdCampaign {
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
 
-  advertiser  Advertiser     @relation(fields: [advertiserId], references: [id])
-  invoice     Invoice?       @relation("AdCampaignInvoice", fields: [invoiceId], references: [id])
-  rewardPool  RewardPool?    @relation(fields: [rewardPoolId], references: [id])
-  flights     AdFlight[]
-  stats       AdStat[]
-  impressions AdImpression[]
-  adEvents    AdEvent[]
+  advertiser     Advertiser     @relation(fields: [advertiserId], references: [id])
+  invoice        Invoice?       @relation("AdCampaignInvoice", fields: [invoiceId], references: [id])
+  rewardPool     RewardPool?    @relation(fields: [rewardPoolId], references: [id])
+  targetProperty Property?      @relation("CampaignTargetProperty", fields: [targetPropertyId], references: [id])
+  flights        AdFlight[]
+  stats          AdStat[]
+  impressions    AdImpression[]
+  adEvents       AdEvent[]
+  adClicks       AdClick[]
+  fraudEvents    FraudEvent[]
 
   @@index([advertiserId, status])
   @@index([startAt, endAt])
+  @@index([type, status])
+  @@index([targetPropertyId])
 }
 
 model AdFlight {
@@ -1675,6 +1488,10 @@ model AdImpression {
   route         String
   source        String?
   sessionId     String
+  ipAddress     String? // [Fraud]
+  userAgent     String? // [Fraud]
+  countryCode   String? // [Fraud]
+  fingerprint   String? // [Fraud]
   revenueMicros Int
   createdAt     DateTime @default(now())
 
@@ -1740,6 +1557,7 @@ model Invoice {
   id             String         @id @default(cuid())
   buyerUserId    String?
   buyerAgencyId  String?
+  advertiserId   String?
   purpose        InvoicePurpose
   currency       Currency
   amountCents    Int
@@ -1757,6 +1575,7 @@ model Invoice {
 
   buyerUser           User?                @relation("InvoiceBuyerUser", fields: [buyerUserId], references: [id])
   buyerAgency         Agency?              @relation("InvoiceBuyerAgency", fields: [buyerAgencyId], references: [id])
+  advertiser          Advertiser?          @relation(fields: [advertiserId], references: [id])
   lines               InvoiceLine[]
   paymentIntents      PaymentIntent[]
   transactions        Transaction[]
@@ -1786,32 +1605,19 @@ model RewardPool {
 }
 
 model RewardDistribution {
-  id          String          @id @default(cuid())
+  id          String    @id @default(cuid())
   poolId      String
   userId      String
   amountCents Int
   currency    Currency
   reason      String?
-  status      String          @default("PENDING")
-  
-  // Traceability
-  sourceType      RewardEventType   @default(BONUS_TIER) // Legacy field - use incentiveSource for new records
-  sourceId        String?           // ID of the triggering entity (Verification, Deal, etc.)
-  incentiveSource IncentiveSource?  // Canonical incentive source for governance
-  metadata        Json?
-
+  status      String    @default("PENDING")
   processedAt DateTime?
-  createdAt   DateTime        @default(now())
+  createdAt   DateTime  @default(now())
 
   pool          RewardPool     @relation(fields: [poolId], references: [id])
   user          User           @relation(fields: [userId], references: [id])
   ledgerEntries WalletLedger[]
-  referral      Referral[]     @relation("ReferralReward")
-  
-  @@index([poolId])
-  @@index([userId])
-  @@index([sourceType, sourceId])
-  @@index([incentiveSource])
 }
 
 model AdEvent {
@@ -2098,20 +1904,20 @@ model SiteVisit {
   @@index([status])
 }
 
-// model RiskEvent {
-//   id         String   @id @default(cuid())
-//   entityType String
-//   entityId   String
-//   signalType String
-//   scoreDelta Int
-//   notes      String?
-//   timestamp  DateTime @default(now())
-//   resolvedBy String?
-//
-//   @@index([entityType, entityId])
-//   @@index([signalType])
-//   @@index([timestamp])
-// }
+model RiskEvent {
+  id         String   @id @default(cuid())
+  entityType String // USER, AGENCY, PROPERTY
+  entityId   String
+  signalType String // BURST_LISTING, GPS_MISMATCH, etc.
+  scoreDelta Int
+  notes      String?
+  timestamp  DateTime @default(now())
+  resolvedBy String? // Admin User ID
+
+  @@index([entityType, entityId])
+  @@index([signalType])
+  @@index([timestamp])
+}
 
 enum BoostType {
   LISTING_BOOST
@@ -2236,8 +2042,6 @@ model PaymentTransaction {
   user          User           @relation("PaymentTransactionUser", fields: [userId], references: [id])
   invoice       Invoice?       @relation("PaymentTransactionInvoice", fields: [invoiceId], references: [id])
   paymentIntent PaymentIntent? @relation("PaymentTransactionIntent", fields: [paymentIntentId], references: [id])
-  commissions   Commission[]
-  application   Application?
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([featureType, featureId])
@@ -2311,181 +2115,80 @@ model AdSenseDailyStat {
   updatedAt     DateTime @updatedAt
 }
 
-model PricingConfig {
-  key         String   @id
-  value       Json // e.g. { "percent": 10 } or { "amount": 5000 }
-  scope       String   @default("GLOBAL")
-  description String?
-  enabled     Boolean  @default(true)
-  updatedAt   DateTime @updatedAt
+// Phase D8: Ads and Promotions
+
+model AdClick {
+  id          String   @id @default(cuid())
+  campaignId  String
+  flightId    String?
+  placementId String?
+  userId      String?
+  propertyId  String?
+  sessionId   String
+  clickUrl    String?
+  costMicros  Int      @default(0)
+  userAgent   String?
+  ipAddress   String?
+  countryCode String? // [Fraud]
+  fingerprint String? // [Fraud]
   createdAt   DateTime @default(now())
-}
 
-model PayoutExecution {
-  id              String   @id @default(cuid())
-  payoutRequestId String
-  provider        String // paynow, bank
-  providerRef     String?
-  amountCents     Int
-  currency        String
-  status          String // PENDING, SUCCESS, FAILED
-  responseJson    Json?
-  createdAt       DateTime @default(now())
+  campaign AdCampaign @relation(fields: [campaignId], references: [id])
+  user     User?      @relation("AdClickUser", fields: [userId], references: [id])
+  property Property?  @relation(fields: [propertyId], references: [id])
 
-  payoutRequest PayoutRequest @relation(fields: [payoutRequestId], references: [id])
-
-  @@index([payoutRequestId])
-}
-
-model PaymentWebhookEvent {
-  id          String    @id @default(cuid())
-  provider    String
-  payload     Json
-  processed   Boolean   @default(false)
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
-}
-
-model Commission {
-  id              String           @id @default(cuid())
-  agentId         String
-  propertyId      String?
-  transactionId   String?
-  amountCents     Int
-  currency        Currency
-  ratePercent     Decimal          @db.Decimal(5, 2)
-  status          CommissionStatus @default(PENDING) // PENDING, PAID, CANCELLED
-  payoutRequestId String?
-  createdAt       DateTime         @default(now())
-  paidAt          DateTime?
-
-  agent         User                @relation("AgentCommissions", fields: [agentId], references: [id])
-  property      Property?           @relation(fields: [propertyId], references: [id])
-  transaction   PaymentTransaction? @relation(fields: [transactionId], references: [id])
-  payoutRequest PayoutRequest?      @relation("CommissionPayout", fields: [payoutRequestId], references: [id])
-
-  @@index([agentId])
-  @@index([propertyId])
-  @@index([status])
-}
-
-enum CommissionStatus {
-  PENDING
-  PAID
-  CANCELLED
-}
-
-// Messaging & Negotiation Models
-
-model Conversation {
-  id            String   @id @default(cuid())
-  propertyId    String
-  dealId        String?
-  applicationId String?
-  lastMessageAt DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  property     Property                  @relation(fields: [propertyId], references: [id])
-  deal         Deal?                     @relation(fields: [dealId], references: [id])
-  application  Application?              @relation(fields: [applicationId], references: [id])
-  messages     Message[]
-  participants ConversationParticipant[]
-
-  @@index([propertyId])
-  @@index([dealId])
-  @@index([applicationId])
-  @@index([lastMessageAt(sort: Desc)])
-}
-
-model ConversationParticipant {
-  id             String    @id @default(cuid())
-  conversationId String
-  userId         String
-  lastReadAt     DateTime?
-  joinedAt       DateTime  @default(now())
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([conversationId, userId])
+  @@index([campaignId, createdAt])
   @@index([userId])
+  @@index([propertyId])
+  @@index([sessionId])
 }
 
-model Message {
-  id             String   @id @default(cuid())
-  conversationId String
-  senderId       String
-  body           String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender       User         @relation(fields: [senderId], references: [id])
-
-  @@index([conversationId, createdAt])
-}
-
-// =============================================================================
-// PHASE G3: GOVERNANCE & INCENTIVE FINALIZATION
-// =============================================================================
-
-// Canonical incentive sources - frozen enum, no ad-hoc types allowed
-enum IncentiveSource {
-  REWARD
-  COMMISSION
-  REFERRAL
-  AD_REVENUE_SHARE
-}
-
-// Versioned PricingConfig for audit trail and config locking
-model PricingConfigVersion {
-  id            String    @id @default(cuid())
-  key           String
-  value         Json
-  scope         String    @default("GLOBAL")
-  description   String?
-  enabled       Boolean   @default(true)
-  effectiveFrom DateTime  @default(now())
-  effectiveTo   DateTime?
-  version       Int
-  approvedById  String?
-  approvedAt    DateTime?
-  lockedAt      DateTime?
-  auditReason   String?
-  createdAt     DateTime  @default(now())
-
-  @@index([key, effectiveFrom])
-  @@index([key, version])
-}
-
-// Governance approval workflow for sensitive operations
-model GovernanceApproval {
-  id           String    @id @default(cuid())
-  action       String    // REWARD_GRANT, REWARD_RECALC, REFERRAL_OVERRIDE, PAYOUT_MANUAL
-  targetType   String    // Type of entity being acted on
-  targetId     String?   // ID of target entity
-  requesterId  String    // ADMIN who initiated
-  approverId   String?   // FINANCE/other who approved
-  status       String    @default("PENDING") // PENDING, APPROVED, REJECTED
-  auditReason  String    // Required reason for the action
-  metadata     Json?
-  requestedAt  DateTime  @default(now())
-  resolvedAt   DateTime?
-
-  @@index([action, status])
-  @@index([requesterId])
-  @@index([status, requestedAt])
-}
-
-// Incentives manifest snapshot for audit reference
-model IncentivesManifest {
+model AdvertiserBalanceLog {
   id           String   @id @default(cuid())
-  version      Int
-  manifestJson Json     // Full manifest of all reward sources, split rules, caps
-  generatedAt  DateTime @default(now())
-  generatedBy  String?
+  advertiserId String
+  type         String // CREDIT, DEBIT
+  amountCents  Int
+  reason       String // TOPUP, IMPRESSION, CLICK, REFUND
+  referenceId  String? // Link to impression/click/topup
+  balanceAfter Int // Balance after transaction
+  createdAt    DateTime @default(now())
 
-  @@index([version])
-  @@index([generatedAt])
+  advertiser Advertiser @relation(fields: [advertiserId], references: [id])
+
+  @@index([advertiserId, createdAt(sort: Desc)])
+  @@index([reason])
+}
+
+model FraudEvent {
+  id                String          @id @default(cuid())
+  campaignId        String
+  advertiserId      String
+  severity          FraudSeverity
+  reason            FraudReason
+  score             Int // 0-100
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime        @default(now())
+  metadata          Json? // Detailed rule breakdown
+
+  campaign   AdCampaign @relation(fields: [campaignId], references: [id])
+  advertiser Advertiser @relation(fields: [advertiserId], references: [id])
+
+  @@index([advertiserId, createdAt])
+  @@index([ipAddress])
+}
+
+enum FraudSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum FraudReason {
+  RAPID_CLICK
+  SELF_CLICK
+  BOT_BEHAVIOR
+  GEO_MISMATCH
+  AGENT_CONFLICT
+  KNOWN_BAD_IP
 }

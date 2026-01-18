@@ -1848,24 +1848,26 @@ export class PropertiesService {
       throw new BadRequestException("Service fee must be positive");
     }
 
-    const [assignment] = await this.prisma.$transaction([
-      this.prisma.agentAssignment.create({
-        data: {
-          propertyId: id,
-          landlordId,
-          agentId: agent.id,
-          serviceFeeUsdCents: serviceFeeUsdCents ?? undefined,
-          landlordPaysFee: true,
-        },
-      }),
-      this.prisma.property.update({
-        where: { id },
-        data: {
-          landlordId,
-          agentOwnerId: agent.id,
-        },
-      }),
-    ]);
+    // Create assignment with PENDING status
+    // Property agentOwnerId will only be set after payment completion or agent acceptance
+    const assignment = await this.prisma.agentAssignment.create({
+      data: {
+        propertyId: id,
+        landlordId,
+        agentId: agent.id,
+        serviceFeeUsdCents: serviceFeeUsdCents ?? undefined,
+        landlordPaysFee: true,
+        status: "PENDING",
+      },
+    });
+
+    // Update property landlordId (but NOT agentOwnerId yet)
+    await this.prisma.property.update({
+      where: { id },
+      data: {
+        landlordId,
+      },
+    });
 
     // Auto-generate payment ledger entry if service fee is set
     if (serviceFeeUsdCents !== null && serviceFeeUsdCents > 0) {
@@ -1968,10 +1970,11 @@ export class PropertiesService {
     const property = await this.getPropertyOrThrow(id);
     this.ensureLandlordAccess(property, actor);
 
-    // Find the latest active assignment
+    // Find the latest active assignment (not RESIGNED)
     const latestAssignment = await this.prisma.agentAssignment.findFirst({
       where: {
         propertyId: id,
+        status: { not: "RESIGNED" },
         deletedAt: null,
       },
       orderBy: { createdAt: "desc" },
@@ -1986,17 +1989,19 @@ export class PropertiesService {
       );
     }
 
-    // Soft delete the assignment
+    // Update assignment status to RESIGNED
     await this.prisma.agentAssignment.update({
       where: { id: latestAssignment.id },
-      data: { deletedAt: new Date() },
+      data: { status: "RESIGNED" },
     });
 
-    // Clear the agentOwnerId from the property
-    await this.prisma.property.update({
-      where: { id },
-      data: { agentOwnerId: null },
-    });
+    // Clear the agentOwnerId from the property if it was set
+    if (property.agentOwnerId === latestAssignment.agentId) {
+      await this.prisma.property.update({
+        where: { id },
+        data: { agentOwnerId: null },
+      });
+    }
 
     // Cancel any pending agent fee payments
     await this.prisma.listingPayment.updateMany({
@@ -2039,6 +2044,124 @@ export class PropertiesService {
     );
 
     return { success: true, resignedAgentId: latestAssignment.agentId };
+  }
+
+  /**
+   * Agent accepts a pending assignment
+   * This activates the assignment and sets the property's agentOwnerId
+   */
+  async acceptAssignment(assignmentId: string, actor: AuthContext) {
+    // Find the assignment
+    const assignment = await this.prisma.agentAssignment.findUnique({
+      where: { id: assignmentId },
+      include: {
+        property: { select: { id: true, title: true, landlordId: true } },
+        landlord: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!assignment) {
+      throw new NotFoundException("Assignment not found");
+    }
+
+    // Verify the actor is the assigned agent
+    if (assignment.agentId !== actor.userId && actor.role !== Role.ADMIN) {
+      throw new ForbiddenException("You are not the assigned agent");
+    }
+
+    // Verify assignment is in PENDING status
+    if (assignment.status !== "PENDING") {
+      throw new BadRequestException(
+        `Cannot accept assignment with status: ${assignment.status}`,
+      );
+    }
+
+    // Update assignment to ACTIVE and set acceptedAt
+    const updated = await this.prisma.agentAssignment.update({
+      where: { id: assignmentId },
+      data: {
+        status: "ACTIVE",
+        acceptedAt: new Date(),
+      },
+    });
+
+    // Set the agentOwnerId on the property
+    await this.prisma.property.update({
+      where: { id: assignment.propertyId },
+      data: { agentOwnerId: actor.userId },
+    });
+
+    await this.audit.logAction({
+      action: "property.acceptAssignment",
+      actorId: actor.userId,
+      targetType: "property",
+      targetId: assignment.propertyId,
+      metadata: {
+        assignmentId: assignment.id,
+        landlordId: assignment.landlordId,
+      },
+    });
+
+    // Log activity
+    await this.logActivity(
+      assignment.propertyId,
+      ListingActivityType.AGENT_ASSIGNED,
+      actor.userId,
+      {
+        action: "accepted",
+        assignmentId: assignment.id,
+        landlordName: assignment.landlord?.name,
+      },
+    );
+
+    return updated;
+  }
+
+  /**
+   * Activate an agent assignment after payment is completed
+   * Called by the payment system when agent fee payment is successful
+   */
+  async activateAssignmentAfterPayment(assignmentId: string) {
+    const assignment = await this.prisma.agentAssignment.findUnique({
+      where: { id: assignmentId },
+    });
+
+    if (!assignment) {
+      throw new NotFoundException("Assignment not found");
+    }
+
+    if (assignment.status !== "PENDING") {
+      // Already activated or resigned
+      return assignment;
+    }
+
+    // Update to ACTIVE
+    const updated = await this.prisma.agentAssignment.update({
+      where: { id: assignmentId },
+      data: {
+        status: "ACTIVE",
+        acceptedAt: new Date(),
+      },
+    });
+
+    // Set the agentOwnerId on the property
+    await this.prisma.property.update({
+      where: { id: assignment.propertyId },
+      data: { agentOwnerId: assignment.agentId },
+    });
+
+    await this.audit.logAction({
+      action: "property.assignmentActivated",
+      actorId: undefined,
+      targetType: "property",
+      targetId: assignment.propertyId,
+      metadata: {
+        assignmentId: assignment.id,
+        trigger: "payment_completed",
+      },
+    });
+
+    return updated;
   }
 
   async updateDealConfirmation(
