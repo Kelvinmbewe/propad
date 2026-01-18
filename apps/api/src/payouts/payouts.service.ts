@@ -6,7 +6,8 @@ import {
     Prisma,
     WalletLedgerSourceType,
     PayoutTransaction,
-    Wallet
+    Wallet,
+    PayoutMethod as PrismaPayoutMethod
 } from '@prisma/client';
 import { ChargeableItemType, PaymentProvider, PayoutMethod } from '@propad/config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -271,7 +272,7 @@ export class PayoutsService {
 
         const { payoutRequest } = payoutTransaction;
         // ... Provider logic (same as before) ...
-        const provider = this.determineProvider(payoutRequest.method);
+        const provider = this.determineProvider(payoutRequest.method as PayoutMethod);
         if (!provider) throw new BadRequestException('No provider found');
 
         const providerSettings = await this.providerSettings.findOne(provider);
@@ -291,7 +292,7 @@ export class PayoutsService {
         );
 
         // Validate Recipient
-        if (!await gateway.validateRecipient(payoutRequest.method, recipientDetails)) {
+        if (!await gateway.validateRecipient(payoutRequest.method as PayoutMethod, recipientDetails)) {
             throw new BadRequestException('Invalid recipient details');
         }
 
@@ -415,7 +416,7 @@ export class PayoutsService {
             data: {
                 ownerType,
                 ownerId,
-                type,
+                type: type as PrismaPayoutMethod,
                 displayName,
                 detailsJson: details as Prisma.JsonObject
             }

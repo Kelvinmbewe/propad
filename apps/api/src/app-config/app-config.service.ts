@@ -35,7 +35,7 @@ export class AppConfigService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-  ) {}
+  ) { }
 
   async onModuleInit(): Promise<void> {
     await this.reloadFromStore();
@@ -62,23 +62,22 @@ export class AppConfigService implements OnModuleInit, OnModuleDestroy {
   async updateConfig(input: unknown, actorId: string): Promise<AppConfig> {
     const parsed = this.normalizeConfig(input);
 
-    await this.prisma.$transaction([
-      this.prisma.appConfig.upsert({
-        where: { key: GLOBAL_CONFIG_KEY },
-        create: {
-          key: GLOBAL_CONFIG_KEY,
-          jsonValue: parsed as unknown as Prisma.JsonObject,
-        },
-        update: { jsonValue: parsed as unknown as Prisma.JsonObject },
-      }),
-      this.audit.logAction({
-        action: "config.updated",
-        actorId,
-        targetType: "app_config",
-        targetId: GLOBAL_CONFIG_KEY,
-        metadata: parsed as Record<string, unknown>,
-      }),
-    ]);
+    await this.prisma.appConfig.upsert({
+      where: { key: GLOBAL_CONFIG_KEY },
+      create: {
+        key: GLOBAL_CONFIG_KEY,
+        jsonValue: parsed as unknown as Prisma.JsonObject,
+      },
+      update: { jsonValue: parsed as unknown as Prisma.JsonObject },
+    });
+
+    await this.audit.logAction({
+      action: "config.updated",
+      actorId,
+      targetType: "app_config",
+      targetId: GLOBAL_CONFIG_KEY,
+      metadata: parsed as Record<string, unknown>,
+    });
 
     this.setCache(parsed);
     return this.getConfig();

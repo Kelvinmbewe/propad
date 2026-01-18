@@ -1,0 +1,1711 @@
+﻿node.exe : [96msrc/payments
+/payment-provider-settings.s
+ervice.ts[0m:[93m128[0m:
+[93m9[0m - 
+[91merror[0m[90m TS2322: 
+[0mType 'Record<string, 
+unknown> | undefined' is 
+not assignable to type 
+'NullableJsonNullValueInput 
+| InputJsonValue | 
+undefined'.
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: ([96m  
+  src/paymen...e | undefi   
+ ned'.:String) [], Remot    
+eException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+  Type 'Record<string, 
+unknown>' is not assignable 
+to type 
+'NullableJsonNullValueInput 
+| InputJsonValue | 
+undefined'.
+    Type 'Record<string, 
+unknown>' is missing the 
+following properties from 
+type 'readonly 
+(InputJsonValue | null)[]': 
+length, concat, join, 
+slice, and 20 more.
+
+[7m128[0m         
+configJson: 
+mergedData.configJson,
+[7m   [0m [91m        
+~~~~~~~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m126950[0m:[93m5[0m
+    [7m126950[0m     
+configJson?: 
+NullableJsonNullValueInput 
+| InputJsonValue
+    [7m      [0m [96m    
+~~~~~~~~~~[0m
+    The expected type comes 
+from property 'configJson' 
+which is declared here on 
+type '(Without<PaymentProvid
+erSettingsCreateInput, Payme
+ntProviderSettingsUncheckedC
+reateInput> & PaymentProvide
+rSettingsUncheckedCreateInpu
+t) | (Without<...> & Payment
+ProviderSettingsCreateInput)
+'
+[96msrc/payments/payment-pr
+ovider-settings.service.ts[
+0m:[93m141[0m:[93m9[0m 
+- [91merror[0m[90m 
+TS2322: [0mType 
+'Record<string, unknown> | 
+undefined' is not 
+assignable to type 
+'NullableJsonNullValueInput 
+| InputJsonValue | 
+undefined'.
+
+[7m141[0m         
+configJson: 
+mergedData.configJson,
+[7m   [0m [91m        
+~~~~~~~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m126986[0m:[93m5[0m
+    [7m126986[0m     
+configJson?: 
+NullableJsonNullValueInput 
+| InputJsonValue
+    [7m      [0m [96m    
+~~~~~~~~~~[0m
+    The expected type comes 
+from property 'configJson' 
+which is declared here on 
+type '(Without<PaymentProvid
+erSettingsUpdateInput, Payme
+ntProviderSettingsUncheckedU
+pdateInput> & PaymentProvide
+rSettingsUncheckedUpdateInpu
+t) | (Without<...> & Payment
+ProviderSettingsUpdateInput)
+'
+[96msrc/payments/payments.s
+ervice.ts[0m:[93m319[0m:
+[93m11[0m - 
+[91merror[0m[90m TS2322: 
+[0mType '{ sku: string; 
+description: string; qty: 
+number; unitPriceCents: 
+number; totalCents: number; 
+metaJson: Record<string, 
+unknown>; }[]' is not 
+assignable to type '(Without
+<InvoiceLineCreateWithoutInv
+oiceInput, InvoiceLineUnchec
+kedCreateWithoutInvoiceInput
+> & InvoiceLineUncheckedCrea
+teWithoutInvoiceInput) | 
+(Without<...> & InvoiceLineC
+reateWithoutInvoiceInput) | 
+InvoiceLineCreateWithoutInvo
+iceInput[] | InvoiceLineUnch
+eckedCreateWithoutInvoiceInp
+ut[] | undefined'.
+  Type '{ sku: string; 
+description: string; qty: 
+number; unitPriceCents: 
+number; totalCents: number; 
+metaJson: Record<string, 
+unknown>; }[]' is not 
+assignable to type 'InvoiceL
+ineCreateWithoutInvoiceInput
+[]'.
+    Type '{ sku: string; 
+description: string; qty: 
+number; unitPriceCents: 
+number; totalCents: number; 
+metaJson: Record<string, 
+unknown>; }' is not 
+assignable to type 'InvoiceL
+ineCreateWithoutInvoiceInput
+'.
+      Types of property 
+'metaJson' are incompatible.
+        Type 
+'Record<string, unknown>' 
+is not assignable to type 
+'NullableJsonNullValueInput 
+| InputJsonValue | 
+undefined'.
+
+[7m319[0m           
+create: 
+options.lines.map((line: 
+InvoiceLineInput) => {
+[7m   [0m [91m          
+~~~~~~[0m
+[96msrc/payments/payments.s
+ervice.ts[0m:[93m604[0m:
+[93m59[0m - 
+[91merror[0m[90m TS2345: 
+[0mArgument of type 'Omit<P
+rismaClient<PrismaClientOpti
+ons, never, DefaultArgs>, 
+"$on" | "$connect" | 
+"$disconnect" | "$use" | 
+"$transaction" | 
+"$extends">' is not 
+assignable to parameter of 
+type 'PrismaTx'.
+
+[7m604[0m         const 
+updatedInvoice = await 
+this.finalizeInvoice(tx, 
+intent.invoice);
+[7m   [0m [91m           
+                            
+                   ~~[0m
+[96msrc/payments/payments.s
+ervice.ts[0m:[93m670[0m:
+[93m57[0m - 
+[91merror[0m[90m TS2345: 
+[0mArgument of type 'Omit<P
+rismaClient<PrismaClientOpti
+ons, never, DefaultArgs>, 
+"$on" | "$connect" | 
+"$disconnect" | "$use" | 
+"$transaction" | 
+"$extends">' is not 
+assignable to parameter of 
+type 'PrismaTx'.
+
+[7m670[0m       const 
+updatedInvoice = await 
+this.finalizeInvoice(tx, 
+invoice);
+[7m   [0m [91m           
+                            
+                 ~~[0m
+[96msrc/payments/payments.s
+ervice.ts[0m:[93m745[0m:
+[93m11[0m - 
+[91merror[0m[90m TS2554: 
+[0mExpected 1 arguments, 
+but got 2.
+
+[7m745[0m           
+"ADVERTISER_SIGNUP" as any,
+[7m   [0m [91m          ~
+~~~~~~~~~~~~~~~~~~~~~~~~~[0
+m
+[96msrc/payments/referrals.
+service.ts[0m:[93m141[0m:
+[93m57[0m - 
+[91merror[0m[90m TS2345: 
+[0mArgument of type 
+'string' is not assignable 
+to parameter of type 
+'ChargeableItemType'.
+
+[7m141[0m       const 
+pricing = await this.pricing
+.calculatePrice(payment.feat
+ureType);
+[7m   [0m [91m           
+                            
+                 
+~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/payouts/payouts.ser
+vice.ts[0m:[93m274[0m:[9
+3m49[0m - 
+[91merror[0m[90m TS2345: 
+[0mArgument of type 'import
+("C:/projects/propad/node_mo
+dules/.pnpm/@prisma+client@5
+.22.0_prisma@5.22.0/node_mod
+ules/.prisma/client/index").
+$Enums.PayoutMethod' is not 
+assignable to parameter of 
+type 'import("C:/projects/pr
+opad/packages/config/dist/en
+ums").PayoutMethod'.
+  Type '"OTHER"' is not 
+assignable to type 
+'PayoutMethod'.
+
+[7m274[0m         const 
+provider = this.determinePro
+vider(payoutRequest.method);
+[7m   [0m [91m           
+                            
+         
+~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/payouts/payouts.ser
+vice.ts[0m:[93m294[0m:[9
+3m46[0m - 
+[91merror[0m[90m TS2345: 
+[0mArgument of type 'import
+("C:/projects/propad/node_mo
+dules/.pnpm/@prisma+client@5
+.22.0_prisma@5.22.0/node_mod
+ules/.prisma/client/index").
+$Enums.PayoutMethod' is not 
+assignable to parameter of 
+type 'import("C:/projects/pr
+opad/packages/config/dist/en
+ums").PayoutMethod'.
+
+[7m294[0m         if 
+(!await gateway.validateReci
+pient(payoutRequest.method, 
+recipientDetails)) {
+[7m   [0m [91m           
+                            
+      
+~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/payouts/payouts.ser
+vice.ts[0m:[93m418[0m:[9
+3m17[0m - 
+[91merror[0m[90m TS2322: 
+[0mType 'string' is not 
+assignable to type 
+'PayoutMethod'.
+
+[7m418[0m                 
+type,
+[7m   [0m [91m           
+     ~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m123624[0m:[93m5[0m
+    [7m123624[0m     
+type: $Enums.PayoutMethod
+    [7m      [0m [96m    
+~~~~[0m
+    The expected type comes 
+from property 'type' which 
+is declared here on type '(W
+ithout<PayoutAccountCreateIn
+put, PayoutAccountUncheckedC
+reateInput> & PayoutAccountU
+ncheckedCreateInput) | 
+(Without<...> & 
+PayoutAccountCreateInput)'
+[96msrc/pricing/pricing.ser
+vice.ts[0m:[93m29[0m:[93
+m42[0m - 
+[91merror[0m[90m TS2339: 
+[0mProperty 
+'pricingConfig' does not 
+exist on type 
+'PrismaService'.
+
+[7m29[0m         const 
+config = await this.prisma.p
+ricingConfig.findUnique({
+[7m  [0m [91m            
+                            
+ ~~~~~~~~~~~~~[0m
+[96msrc/pricing/pricing.ser
+vice.ts[0m:[93m47[0m:[93
+m43[0m - 
+[91merror[0m[90m TS2339: 
+[0mProperty 
+'pricingConfigVersion' does 
+not exist on type 
+'PrismaService'.
+
+[7m47[0m         const 
+version = await this.prisma.
+pricingConfigVersion.findFir
+st({
+[7m  [0m [91m            
+                            
+  ~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/pricing/pricing.ser
+vice.ts[0m:[93m70[0m:[93
+m49[0m - 
+[91merror[0m[90m TS2339: 
+[0mProperty 
+'pricingConfigVersion' does 
+not exist on type 
+'PrismaService'.
+
+[7m70[0m         const 
+latestVersion = await this.p
+risma.pricingConfigVersion.f
+indFirst({
+[7m  [0m [91m            
+                            
+        
+~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/pricing/pricing.ser
+vice.ts[0m:[93m98[0m:[93
+m27[0m - 
+[91merror[0m[90m TS2339: 
+[0mProperty 
+'pricingConfig' does not 
+exist on type 
+'PrismaService'.
+
+[7m98[0m         await thi
+s.prisma.pricingConfig.upser
+t({
+[7m  [0m [91m            
+              
+~~~~~~~~~~~~~[0m
+[96msrc/pricing/pricing.ser
+vice.ts[0m:[93m124[0m:[9
+3m49[0m - 
+[91merror[0m[90m TS2339: 
+[0mProperty 
+'pricingConfigVersion' does 
+not exist on type 
+'PrismaService'.
+
+[7m124[0m         const 
+latestVersion = await this.p
+risma.pricingConfigVersion.f
+indFirst({
+[7m   [0m [91m           
+                            
+         
+~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/pricing/pricing.ser
+vice.ts[0m:[93m132[0m:[9
+3m31[0m - 
+[91merror[0m[90m TS2339: 
+[0mProperty 
+'pricingConfigVersion' does 
+not exist on type 
+'PrismaService'.
+
+[7m132[0m             
+await this.prisma.pricingCon
+figVersion.update({
+[7m   [0m [91m           
+                   
+~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/pricing/pricing.ser
+vice.ts[0m:[93m139[0m:[9
+3m27[0m - 
+[91merror[0m[90m TS2339: 
+[0mProperty 
+'pricingConfigVersion' does 
+not exist on type 
+'PrismaService'.
+
+[7m139[0m         await th
+is.prisma.pricingConfigVersi
+on.create({
+[7m   [0m [91m           
+               
+~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/pricing/pricing.ser
+vice.ts[0m:[93m154[0m:[9
+3m27[0m - 
+[91merror[0m[90m TS2339: 
+[0mProperty 
+'pricingConfig' does not 
+exist on type 
+'PrismaService'.
+
+[7m154[0m         await th
+is.prisma.pricingConfig.upse
+rt({
+[7m   [0m [91m           
+               
+~~~~~~~~~~~~~[0m
+[96msrc/pricing/pricing.ser
+vice.ts[0m:[93m185[0m:[9
+3m42[0m - 
+[91merror[0m[90m TS2339: 
+[0mProperty 
+'pricingConfig' does not 
+exist on type 
+'PrismaService'.
+
+[7m185[0m         const 
+config = await this.prisma.p
+ricingConfig.findUnique({ 
+where: { key } });
+[7m   [0m [91m           
+                            
+  ~~~~~~~~~~~~~[0m
+[96msrc/pricing/pricing.ser
+vice.ts[0m:[93m193[0m:[9
+3m49[0m - 
+[91merror[0m[90m TS2339: 
+[0mProperty 
+'pricingConfigVersion' does 
+not exist on type 
+'PrismaService'.
+
+[7m193[0m         const 
+latestVersion = await this.p
+risma.pricingConfigVersion.f
+indFirst({
+[7m   [0m [91m           
+                            
+         
+~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/pricing/pricing.ser
+vice.ts[0m:[93m199[0m:[9
+3m31[0m - 
+[91merror[0m[90m TS2339: 
+[0mProperty 
+'pricingConfigVersion' does 
+not exist on type 
+'PrismaService'.
+
+[7m199[0m             
+await this.prisma.pricingCon
+figVersion.update({
+[7m   [0m [91m           
+                   
+~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/pricing/pricing.ser
+vice.ts[0m:[93m205[0m:[9
+3m31[0m - 
+[91merror[0m[90m TS2339: 
+[0mProperty 
+'pricingConfigVersion' does 
+not exist on type 
+'PrismaService'.
+
+[7m205[0m             
+await this.prisma.pricingCon
+figVersion.create({
+[7m   [0m [91m           
+                   
+~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/pricing/pricing.ser
+vice.ts[0m:[93m233[0m:[9
+3m28[0m - 
+[91merror[0m[90m TS2339: 
+[0mProperty 
+'pricingConfigVersion' does 
+not exist on type 
+'PrismaService'.
+
+[7m233[0m         return t
+his.prisma.pricingConfigVers
+ion.findMany({
+[7m   [0m [91m           
+                
+~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/pricing/pricing.ser
+vice.ts[0m:[93m241[0m:[9
+3m28[0m - 
+[91merror[0m[90m TS2339: 
+[0mProperty 
+'pricingConfig' does not 
+exist on type 
+'PrismaService'.
+
+[7m241[0m         return t
+his.prisma.pricingConfig.fin
+dMany({
+[7m   [0m [91m           
+                
+~~~~~~~~~~~~~[0m
+[96msrc/prisma/prisma.servi
+ce.ts[0m:[93m44[0m:[93m1
+4[0m - [91merror[0m[90m 
+TS2345: [0mArgument of 
+type 'string' is not 
+assignable to parameter of 
+type 'never'.
+
+[7m44[0m     
+this.$on('query', (event) 
+=> {
+[7m  [0m [91m            
+ ~~~~~~~[0m
+[96msrc/prisma/prisma.servi
+ce.ts[0m:[93m45[0m:[93m1
+7[0m - [91merror[0m[90m 
+TS2339: [0mProperty 
+'duration' does not exist 
+on type 'never'.
+
+[7m45[0m       if 
+(event.duration > 200) {
+[7m  [0m [91m            
+    ~~~~~~~~[0m
+[96msrc/prisma/prisma.servi
+ce.ts[0m:[93m46[0m:[93m4
+7[0m - [91merror[0m[90m 
+TS2339: [0mProperty 
+'duration' does not exist 
+on type 'never'.
+
+[7m46[0m         
+this.logger.warn(`Slow 
+query (${event.duration} 
+ms): ${event.query} -- 
+params: ${event.params}`);
+[7m  [0m [91m            
+                            
+      ~~~~~~~~[0m
+[96msrc/prisma/prisma.servi
+ce.ts[0m:[93m46[0m:[93m7
+0[0m - [91merror[0m[90m 
+TS2339: [0mProperty 
+'query' does not exist on 
+type 'never'.
+
+[7m46[0m         
+this.logger.warn(`Slow 
+query (${event.duration} 
+ms): ${event.query} -- 
+params: ${event.params}`);
+[7m  [0m [91m            
+                            
+                            
+ ~~~~~[0m
+[96msrc/prisma/prisma.servi
+ce.ts[0m:[93m46[0m:[93m9
+6[0m - [91merror[0m[90m 
+TS2339: [0mProperty 
+'params' does not exist on 
+type 'never'.
+
+[7m46[0m         
+this.logger.warn(`Slow 
+query (${event.duration} 
+ms): ${event.query} -- 
+params: ${event.params}`);
+[7m  [0m [91m            
+                            
+                            
+                           
+~~~~~~[0m
+[96msrc/promos/promos.servi
+ce.ts[0m:[93m47[0m:[93m9
+[0m - [91merror[0m[90m 
+TS2345: [0mArgument of 
+type 'Omit<PrismaClient<Pris
+maClientOptions, never, 
+DefaultArgs>, "$on" | 
+"$connect" | "$disconnect" 
+| "$use" | "$transaction" | 
+"$extends">' is not 
+assignable to parameter of 
+type 'PrismaClient<PrismaCli
+entOptions, never, 
+DefaultArgs>'.
+
+[7m47[0m         tx
+[7m  [0m [91m        
+~~[0m
+[96msrc/properties/properti
+es.service.ts[0m:[93m1378
+[0m:[93m9[0m - 
+[91merror[0m[90m TS2322: 
+[0mType '"PLATFORM"' is 
+not assignable to type 
+'LeadSource'.
+
+[7m1378[0m         
+source: "PLATFORM",
+[7m    [0m [91m        
+~~~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m123198[0m:[93m5[0m
+    [7m123198[0m     
+source: $Enums.LeadSource
+    [7m      [0m [96m    
+~~~~~~[0m
+    The expected type comes 
+from property 'source' 
+which is declared here on 
+type 
+'(Without<LeadCreateInput, 
+LeadUncheckedCreateInput> & 
+LeadUncheckedCreateInput) | 
+(Without<...> & 
+LeadCreateInput)'
+[96msrc/properties/properti
+es.service.ts[0m:[93m2800
+[0m:[93m76[0m - 
+[91merror[0m[90m TS2345: 
+[0mArgument of type '{}' 
+is not assignable to 
+parameter of type '{ 
+select?: VerificationRequest
+ItemSelect<DefaultArgs> | 
+null | undefined; include?: 
+VerificationRequestItemInclu
+de<DefaultArgs> | null | 
+undefined; data: 
+(Without<...> & Verification
+RequestItemUncheckedCreateIn
+put) | (Without<...> & Verif
+icationRequestItemCreateInpu
+t); }'.
+  Property 'data' is 
+missing in type '{}' but 
+required in type '{ 
+select?: VerificationRequest
+ItemSelect<DefaultArgs> | 
+null | undefined; include?: 
+VerificationRequestItemInclu
+de<DefaultArgs> | null | 
+undefined; data: 
+(Without<...> & Verification
+RequestItemUncheckedCreateIn
+put) | (Without<...> & Verif
+icationRequestItemCreateInpu
+t); }'.
+
+[7m2800[0m           
+const newItem = await this.p
+risma.verificationRequestIte
+m.create({
+[7m    [0m [91m          
+                            
+                            
+         ~[0m
+[7m2801[0m             // 
+...
+[7m    [0m 
+[91m~~~~~~~~~~~~~~~~~~[0m
+[7m2802[0m           });
+[7m    [0m 
+[91m~~~~~~~~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m42488[0m:[93m5[0m
+    [7m42488[0m     data: 
+XOR<VerificationRequestItemC
+reateInput, VerificationRequ
+estItemUncheckedCreateInput>
+    [7m     [0m [96m    
+~~~~[0m
+    'data' is declared here.
+[96msrc/properties/properti
+es.service.ts[0m:[93m3449
+[0m:[93m7[0m - 
+[91merror[0m[90m TS2322: 
+[0mType '{ type?: string | 
+undefined; status: 
+"VERIFIED"; lat: { gte: 
+number; lte: number; }; 
+lng: { gte: number; lte: 
+number; }; }' is not 
+assignable to type 
+'PropertyWhereInput'.
+  Types of property 'type' 
+are incompatible.
+    Type 'string | 
+undefined' is not 
+assignable to type 
+'PropertyType | EnumProperty
+TypeFilter<"Property"> | 
+undefined'.
+      Type 'string' is not 
+assignable to type 
+'PropertyType | EnumProperty
+TypeFilter<"Property"> | 
+undefined'.
+
+[7m3449[0m       where: {
+[7m    [0m [91m      
+~~~~~[0m
+[96msrc/properties/properti
+es.service.ts[0m:[93m4452
+[0m:[93m11[0m - 
+[91merror[0m[90m TS2322: 
+[0mType 'string' is not 
+assignable to type 
+'ListingActivityType'.
+
+[7m4452[0m           type,
+[7m    [0m [91m          
+~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m122950[0m:[93m5[0m
+    [7m122950[0m     
+type: 
+$Enums.ListingActivityType
+    [7m      [0m [96m    
+~~~~[0m
+    The expected type comes 
+from property 'type' which 
+is declared here on type '(W
+ithout<ListingActivityLogCre
+ateInput, ListingActivityLog
+UncheckedCreateInput> & List
+ingActivityLogUncheckedCreat
+eInput) | (Without<...> & Li
+stingActivityLogCreateInput)
+'
+[96msrc/ranking/ranking.ser
+vice.ts[0m:[93m2[0m:[93m
+54[0m - 
+[91merror[0m[90m TS2305: 
+[0mModule 
+'"@prisma/client"' has no 
+exported member 
+'PowerPhase'.
+
+[7m2[0m import { 
+Property, PropertyType, 
+PropertyFurnishing, 
+PowerPhase } from 
+'@prisma/client';
+[7m [0m [91m             
+                            
+            ~~~~~~~~~~[0m
+[96msrc/security/risk.servi
+ce.ts[0m:[93m21[0m:[93m2
+1[0m - [91merror[0m[90m 
+TS2353: [0mObject literal 
+may only specify known 
+properties, and 'userId' 
+does not exist in type '(Wit
+hout<RiskEventCreateInput, R
+iskEventUncheckedCreateInput
+> & RiskEventUncheckedCreate
+Input) | (Without<...> & 
+RiskEventCreateInput)'.
+
+[7m21[0m                  
+   userId,
+[7m  [0m [91m            
+        ~~~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m89731[0m:[93m5[0m
+    [7m89731[0m     data: 
+XOR<RiskEventCreateInput, Ri
+skEventUncheckedCreateInput>
+    [7m     [0m [96m    
+~~~~[0m
+    The expected type comes 
+from property 'data' which 
+is declared here on type '{ 
+select?: RiskEventSelect<Def
+aultArgs> | null | 
+undefined; data: (Without<Ri
+skEventCreateInput, RiskEven
+tUncheckedCreateInput> & Ris
+kEventUncheckedCreateInput) 
+| (Without<...> & 
+RiskEventCreateInput); }'
+[96msrc/security/risk.servi
+ce.ts[0m:[93m39[0m:[93m2
+4[0m - [91merror[0m[90m 
+TS2353: [0mObject literal 
+may only specify known 
+properties, and 'createdAt' 
+does not exist in type 'Risk
+EventOrderByWithRelationInpu
+t | RiskEventOrderByWithRela
+tionInput[]'.
+
+[7m39[0m             
+orderBy: { createdAt: 
+'desc' },
+[7m  [0m [91m            
+           ~~~~~~~~~[0m
+[96msrc/site-visits/site-vi
+sits.service.ts[0m:[93m255
+[0m:[93m67[0m - 
+[91merror[0m[90m TS2345: 
+[0mArgument of type 'Role' 
+is not assignable to 
+parameter of type '"ADMIN" 
+| "VERIFIER" | "MODERATOR"'.
+  Type '"AGENT"' is not 
+assignable to type '"ADMIN" 
+| "VERIFIER" | "MODERATOR"'.
+
+[7m255[0m         if 
+(![Role.ADMIN, 
+Role.MODERATOR, Role.VERIFIE
+R].includes(moderator.role))
+ {
+[7m   [0m [91m           
+                            
+                           
+~~~~~~~~~~~~~~[0m
+[96msrc/site-visits/site-vi
+sits.service.ts[0m:[93m463
+[0m:[93m69[0m - 
+[91merror[0m[90m 
+TS18047: [0m'visit.verifica
+tionItem' is possibly 
+'null'.
+
+[7m463[0m                 
+    await this.recalculateVe
+rificationRequestStatus(visi
+t.verificationItem.verificat
+ionRequestId, tx);
+[7m   [0m [91m           
+                            
+                            
+ ~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/site-visits/site-vi
+sits.service.ts[0m:[93m487
+[0m:[93m69[0m - 
+[91merror[0m[90m 
+TS18047: [0m'visit.verifica
+tionItem' is possibly 
+'null'.
+
+[7m487[0m                 
+    await this.recalculateVe
+rificationRequestStatus(visi
+t.verificationItem.verificat
+ionRequestId, tx);
+[7m   [0m [91m           
+                            
+                            
+ ~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/trust/trust.service
+.ts[0m:[93m84[0m:[93m9[
+0m - [91merror[0m[90m 
+TS2561: [0mObject literal 
+may only specify known 
+properties, but 
+'verificationRequests' does 
+not exist in type 
+'UserInclude<DefaultArgs>'. 
+Did you mean to write 
+'verificationsRequested'?
+
+[7m84[0m         
+verificationRequests: { 
+where: { status: "APPROVED" 
+} }, // Simplified
+[7m  [0m [91m        
+~~~~~~~~~~~~~~~~~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m17792[0m:[93m5[0m
+    [7m17792[0m     
+include?: 
+UserInclude<ExtArgs> | null
+    [7m     [0m [96m    
+~~~~~~~[0m
+    The expected type comes 
+from property 'include' 
+which is declared here on 
+type '{ select?: 
+UserSelect<DefaultArgs> | 
+null | undefined; include?: 
+UserInclude<DefaultArgs> | 
+null | undefined; where: 
+UserWhereUniqueInput; }'
+[96msrc/trust/trust.service
+.ts[0m:[93m97[0m:[93m14
+[0m - [91merror[0m[90m 
+TS2339: [0mProperty 
+'reviewsReceived' does not 
+exist on type '{ status: 
+string | null; createdAt: 
+Date; name: string | null; 
+id: string; role: Role; 
+phone: string | null; 
+email: string | null; 
+passwordHash: string | 
+null; kycStatus: string | 
+null; ... 7 more ...; 
+riskScore: number; }'.
+
+[7m97[0m     if (user.revi
+ewsReceived.length > 0) {
+[7m  [0m [91m            
+ ~~~~~~~~~~~~~~~[0m
+[96msrc/trust/trust.service
+.ts[0m:[93m99[0m:[93m14
+[0m - [91merror[0m[90m 
+TS2339: [0mProperty 
+'reviewsReceived' does not 
+exist on type '{ status: 
+string | null; createdAt: 
+Date; name: string | null; 
+id: string; role: Role; 
+phone: string | null; 
+email: string | null; 
+passwordHash: string | 
+null; kycStatus: string | 
+null; ... 7 more ...; 
+riskScore: number; }'.
+
+[7m99[0m         user.revi
+ewsReceived.reduce((a: 
+number, b: any) => a + 
+b.rating, 0) /
+[7m  [0m [91m            
+ ~~~~~~~~~~~~~~~[0m
+[96msrc/trust/trust.service
+.ts[0m:[93m100[0m:[93m14
+[0m - [91merror[0m[90m 
+TS2339: [0mProperty 
+'reviewsReceived' does not 
+exist on type '{ status: 
+string | null; createdAt: 
+Date; name: string | null; 
+id: string; role: Role; 
+phone: string | null; 
+email: string | null; 
+passwordHash: string | 
+null; kycStatus: string | 
+null; ... 7 more ...; 
+riskScore: number; }'.
+
+[7m100[0m         
+user.reviewsReceived.length;
+[7m   [0m [91m           
+  ~~~~~~~~~~~~~~~[0m
+[96msrc/verifications/verif
+ications.service.ts[0m:[93
+m520[0m:[93m45[0m - 
+[91merror[0m[90m TS2353: 
+[0mObject literal may only 
+specify known properties, 
+and 'reviewedAt' does not 
+exist in type '(Without<Veri
+ficationRequestUpdateInput, 
+VerificationRequestUnchecked
+UpdateInput> & VerificationR
+equestUncheckedUpdateInput) 
+| (Without<...> & Verificati
+onRequestUpdateInput)'.
+
+[7m520[0m                 
+data: { status: "APPROVED", 
+reviewedAt: new Date() },
+[7m   [0m [91m           
+                            
+     ~~~~~~~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m41434[0m:[93m5[0m
+    [7m41434[0m     data: 
+XOR<VerificationRequestUpdat
+eInput, VerificationRequestU
+ncheckedUpdateInput>
+    [7m     [0m [96m    
+~~~~[0m
+    The expected type comes 
+from property 'data' which 
+is declared here on type '{ 
+select?: VerificationRequest
+Select<DefaultArgs> | null 
+| undefined; include?: Verif
+icationRequestInclude<Defaul
+tArgs> | null | undefined; 
+data: (Without<...> & Verifi
+cationRequestUncheckedUpdate
+Input) | (Without<...> & Ver
+ificationRequestUpdateInput)
+; where: VerificationRequest
+WhereUniqueInput; }'
+[96msrc/verifications/verif
+ications.service.ts[0m:[93
+m732[0m:[93m25[0m - 
+[91merror[0m[90m TS2353: 
+[0mObject literal may only 
+specify known properties, 
+and 'reviewedAt' does not 
+exist in type '(Without<Veri
+ficationRequestUpdateInput, 
+VerificationRequestUnchecked
+UpdateInput> & VerificationR
+equestUncheckedUpdateInput) 
+| (Without<...> & Verificati
+onRequestUpdateInput)'.
+
+[7m732[0m         data: { 
+status, reviewedAt: new 
+Date(), notes },
+[7m   [0m [91m           
+             ~~~~~~~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m41434[0m:[93m5[0m
+    [7m41434[0m     data: 
+XOR<VerificationRequestUpdat
+eInput, VerificationRequestU
+ncheckedUpdateInput>
+    [7m     [0m [96m    
+~~~~[0m
+    The expected type comes 
+from property 'data' which 
+is declared here on type '{ 
+select?: VerificationRequest
+Select<DefaultArgs> | null 
+| undefined; include?: Verif
+icationRequestInclude<Defaul
+tArgs> | null | undefined; 
+data: (Without<...> & Verifi
+cationRequestUncheckedUpdate
+Input) | (Without<...> & Ver
+ificationRequestUpdateInput)
+; where: VerificationRequest
+WhereUniqueInput; }'
+[96msrc/wallets/ledger-inte
+grity.service.ts[0m:[93m83
+[0m:[93m17[0m - 
+[91merror[0m[90m TS2322: 
+[0mType '"REWARD_EARNED"' 
+is not assignable to type 
+'WalletLedgerSourceType | En
+umWalletLedgerSourceTypeFilt
+er<"WalletLedger"> | 
+undefined'.
+
+[7m83[0m                 
+sourceType: 'REWARD_EARNED',
+[7m  [0m [91m            
+    ~~~~~~~~~~[0m
+[96msrc/wallets/ledger-inte
+grity.service.ts[0m:[93m14
+6[0m:[93m17[0m - 
+[91merror[0m[90m TS2353: 
+[0mObject literal may only 
+specify known properties, 
+and 'sourceId' does not 
+exist in type 'RewardDistrib
+utionWhereInput'.
+
+[7m146[0m                 
+sourceId: null,
+[7m   [0m [91m           
+     ~~~~~~~~[0m
+[96msrc/wallets/wallets.ser
+vice.ts[0m:[93m99[0m:[93
+m39[0m - 
+[91merror[0m[90m TS2769: 
+[0mNo overload matches 
+this call.
+  Overload 1 of 2, '(arg: 
+PrismaPromise<any>[], 
+options?: { 
+isolationLevel?: 
+TransactionIsolationLevel | 
+undefined; } | undefined): 
+Promise<any[]>', gave the 
+following error.
+    Argument of type '(tx: 
+PrismaClientOrTx) => 
+Promise<{ reservedCents: 
+number; availableCents: 
+number; latestKyc: { 
+status: $Enums.KycStatus; 
+createdAt: Date; updatedAt: 
+Date; id: string; notes: 
+string | null; ... 4 more 
+...; ownerType: 
+$Enums.OwnerType; } | null; 
+... 8 more ...; ownerType: 
+$Enums.OwnerType; }>' is 
+not assignable to parameter 
+of type 
+'PrismaPromise<any>[]'.
+  Overload 2 of 2, '(fn: 
+(prisma: Omit<PrismaClient<P
+rismaClientOptions, never, 
+DefaultArgs>, "$on" | 
+"$connect" | "$disconnect" 
+| "$use" | "$transaction" | 
+"$extends">) => 
+Promise<...>, options?: { 
+...; } | undefined): 
+Promise<...>', gave the 
+following error.
+    Argument of type '(tx: 
+PrismaClientOrTx) => 
+Promise<{ reservedCents: 
+number; availableCents: 
+number; latestKyc: { 
+status: $Enums.KycStatus; 
+createdAt: Date; updatedAt: 
+Date; id: string; notes: 
+string | null; ... 4 more 
+...; ownerType: 
+$Enums.OwnerType; } | null; 
+... 8 more ...; ownerType: 
+$Enums.OwnerType; }>' is 
+not assignable to parameter 
+of type '(prisma: Omit<Prism
+aClient<PrismaClientOptions,
+ never, DefaultArgs>, "$on" 
+| "$connect" | 
+"$disconnect" | "$use" | 
+"$transaction" | 
+"$extends">) => 
+Promise<...>'.
+      Types of parameters 
+'tx' and 'prisma' are 
+incompatible.
+        Type 'Omit<PrismaCli
+ent<PrismaClientOptions, 
+never, DefaultArgs>, "$on" 
+| "$connect" | 
+"$disconnect" | "$use" | 
+"$transaction" | 
+"$extends">' is missing the 
+following properties from 
+type 'PrismaClient<PrismaCli
+entOptions, never, 
+DefaultArgs>': $on, 
+$connect, $disconnect, 
+$use, and 2 more.
+
+[7m99[0m       return this
+.prisma.$transaction(async 
+(tx: PrismaClientOrTx) => {
+[7m  [0m [91m            
+                          ~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~[0m
+
+[96msrc/wallets/wallets.ser
+vice.ts[0m:[93m151[0m:[9
+3m37[0m - 
+[91merror[0m[90m TS2769: 
+[0mNo overload matches 
+this call.
+  Overload 1 of 2, '(arg: 
+PrismaPromise<any>[], 
+options?: { 
+isolationLevel?: 
+TransactionIsolationLevel | 
+undefined; } | undefined): 
+Promise<any[]>', gave the 
+following error.
+    Argument of type '(tx: 
+PrismaClientOrTx) => 
+Promise<{ walletId: string; 
+transactions: { type: $Enums
+.WalletTransactionType; 
+createdAt: Date; id: 
+string; amountCents: 
+number; walletId: string; 
+description: string | null; 
+sourceId: string | null; 
+source: $Enums.WalletTransac
+tionSource; availableAt: 
+Date | null; 
+appliedToBalance: 
+boolea...' is not 
+assignable to parameter of 
+type 'PrismaPromise<any>[]'.
+  Overload 2 of 2, '(fn: 
+(prisma: Omit<PrismaClient<P
+rismaClientOptions, never, 
+DefaultArgs>, "$on" | 
+"$connect" | "$disconnect" 
+| "$use" | "$transaction" | 
+"$extends">) => 
+Promise<...>, options?: { 
+...; } | undefined): 
+Promise<...>', gave the 
+following error.
+    Argument of type '(tx: 
+PrismaClientOrTx) => 
+Promise<{ walletId: string; 
+transactions: { type: $Enums
+.WalletTransactionType; 
+createdAt: Date; id: 
+string; amountCents: 
+number; walletId: string; 
+description: string | null; 
+sourceId: string | null; 
+source: $Enums.WalletTransac
+tionSource; availableAt: 
+Date | null; 
+appliedToBalance: 
+boolea...' is not 
+assignable to parameter of 
+type '(prisma: Omit<PrismaCl
+ient<PrismaClientOptions, 
+never, DefaultArgs>, "$on" 
+| "$connect" | 
+"$disconnect" | "$use" | 
+"$transaction" | 
+"$extends">) => 
+Promise<...>'.
+      Types of parameters 
+'tx' and 'prisma' are 
+incompatible.
+        Type 'Omit<PrismaCli
+ent<PrismaClientOptions, 
+never, DefaultArgs>, "$on" 
+| "$connect" | 
+"$disconnect" | "$use" | 
+"$transaction" | 
+"$extends">' is not 
+assignable to type 
+'PrismaClientOrTx'.
+
+[7m151[0m     return this.
+prisma.$transaction(async 
+(tx: PrismaClientOrTx) => {
+[7m   [0m [91m           
+                         ~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~[0m
+
+[96msrc/wallets/wallets.ser
+vice.ts[0m:[93m169[0m:[9
+3m37[0m - 
+[91merror[0m[90m TS2769: 
+[0mNo overload matches 
+this call.
+  Overload 1 of 2, '(arg: 
+PrismaPromise<any>[], 
+options?: { 
+isolationLevel?: 
+TransactionIsolationLevel | 
+undefined; } | undefined): 
+Promise<any[]>', gave the 
+following error.
+    Argument of type '(tx: 
+PrismaClientOrTx) => 
+Promise<{ type: 
+$Enums.PayoutMethod; 
+createdAt: Date; updatedAt: 
+Date; id: string; walletId: 
+string | null; ownerId: 
+string; verifiedAt: Date | 
+null; displayName: string; 
+ownerType: 
+$Enums.OwnerType; 
+detailsJson: 
+Prisma.JsonValue; }>' is 
+not assignable to parameter 
+of type 
+'PrismaPromise<any>[]'.
+  Overload 2 of 2, '(fn: 
+(prisma: Omit<PrismaClient<P
+rismaClientOptions, never, 
+DefaultArgs>, "$on" | 
+"$connect" | "$disconnect" 
+| "$use" | "$transaction" | 
+"$extends">) => 
+Promise<...>, options?: { 
+...; } | undefined): 
+Promise<...>', gave the 
+following error.
+    Argument of type '(tx: 
+PrismaClientOrTx) => 
+Promise<{ type: 
+$Enums.PayoutMethod; 
+createdAt: Date; updatedAt: 
+Date; id: string; walletId: 
+string | null; ownerId: 
+string; verifiedAt: Date | 
+null; displayName: string; 
+ownerType: 
+$Enums.OwnerType; 
+detailsJson: 
+Prisma.JsonValue; }>' is 
+not assignable to parameter 
+of type '(prisma: Omit<Prism
+aClient<PrismaClientOptions,
+ never, DefaultArgs>, "$on" 
+| "$connect" | 
+"$disconnect" | "$use" | 
+"$transaction" | 
+"$extends">) => 
+Promise<...>'.
+      Types of parameters 
+'tx' and 'prisma' are 
+incompatible.
+        Type 'Omit<PrismaCli
+ent<PrismaClientOptions, 
+never, DefaultArgs>, "$on" 
+| "$connect" | 
+"$disconnect" | "$use" | 
+"$transaction" | 
+"$extends">' is not 
+assignable to type 
+'PrismaClientOrTx'.
+
+[7m169[0m     return this.
+prisma.$transaction(async 
+(tx: PrismaClientOrTx) => {
+[7m   [0m [91m           
+                         ~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~[0m
+
+[96msrc/wallets/wallets.ser
+vice.ts[0m:[93m293[0m:[9
+3m37[0m - 
+[91merror[0m[90m TS2769: 
+[0mNo overload matches 
+this call.
+  Overload 1 of 2, '(arg: 
+PrismaPromise<any>[], 
+options?: { 
+isolationLevel?: 
+TransactionIsolationLevel | 
+undefined; } | undefined): 
+Promise<any[]>', gave the 
+following error.
+    Argument of type '(tx: 
+PrismaClientOrTx) => 
+Promise<{ status: 
+$Enums.PayoutStatus; 
+createdAt: Date; updatedAt: 
+Date; id: string; 
+amountCents: number; 
+walletId: string; method: 
+$Enums.PayoutMethod; 
+payoutAccountId: string; 
+scheduledFor: Date | null; 
+txRef: string | null; 
+receiptPdfUrl: string | 
+null; }>' is not assignable 
+to parameter of type 
+'PrismaPromise<any>[]'.
+  Overload 2 of 2, '(fn: 
+(prisma: Omit<PrismaClient<P
+rismaClientOptions, never, 
+DefaultArgs>, "$on" | 
+"$connect" | "$disconnect" 
+| "$use" | "$transaction" | 
+"$extends">) => 
+Promise<...>, options?: { 
+...; } | undefined): 
+Promise<...>', gave the 
+following error.
+    Argument of type '(tx: 
+PrismaClientOrTx) => 
+Promise<{ status: 
+$Enums.PayoutStatus; 
+createdAt: Date; updatedAt: 
+Date; id: string; 
+amountCents: number; 
+walletId: string; method: 
+$Enums.PayoutMethod; 
+payoutAccountId: string; 
+scheduledFor: Date | null; 
+txRef: string | null; 
+receiptPdfUrl: string | 
+null; }>' is not assignable 
+to parameter of type 
+'(prisma: Omit<PrismaClient<
+PrismaClientOptions, never, 
+DefaultArgs>, "$on" | 
+"$connect" | "$disconnect" 
+| "$use" | "$transaction" | 
+"$extends">) => 
+Promise<...>'.
+      Types of parameters 
+'tx' and 'prisma' are 
+incompatible.
+        Type 'Omit<PrismaCli
+ent<PrismaClientOptions, 
+never, DefaultArgs>, "$on" 
+| "$connect" | 
+"$disconnect" | "$use" | 
+"$transaction" | 
+"$extends">' is not 
+assignable to type 
+'PrismaClientOrTx'.
+
+[7m293[0m     return this.
+prisma.$transaction(async 
+(tx: PrismaClientOrTx) => {
+[7m   [0m [91m           
+                         ~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~[0m
+
+[96msrc/wallets/wallets.ser
+vice.ts[0m:[93m378[0m:[9
+3m37[0m - 
+[91merror[0m[90m TS2769: 
+[0mNo overload matches 
+this call.
+  Overload 1 of 2, '(arg: 
+PrismaPromise<any>[], 
+options?: { 
+isolationLevel?: 
+TransactionIsolationLevel | 
+undefined; } | undefined): 
+Promise<any[]>', gave the 
+following error.
+    Argument of type '(tx: 
+PrismaClientOrTx) => 
+Promise<{ status: 
+$Enums.PayoutStatus; 
+createdAt: Date; updatedAt: 
+Date; id: string; 
+amountCents: number; 
+walletId: string; method: 
+$Enums.PayoutMethod; 
+payoutAccountId: string; 
+scheduledFor: Date | null; 
+txRef: string | null; 
+receiptPdfUrl: string | 
+null; }>' is not assignable 
+to parameter of type 
+'PrismaPromise<any>[]'.
+  Overload 2 of 2, '(fn: 
+(prisma: Omit<PrismaClient<P
+rismaClientOptions, never, 
+DefaultArgs>, "$on" | 
+"$connect" | "$disconnect" 
+| "$use" | "$transaction" | 
+"$extends">) => 
+Promise<...>, options?: { 
+...; } | undefined): 
+Promise<...>', gave the 
+following error.
+Found 55 error(s).
+
+    Argument of type '(tx: 
+PrismaClientOrTx) => 
+Promise<{ status: 
+$Enums.PayoutStatus; 
+createdAt: Date; updatedAt: 
+Date; id: string; 
+amountCents: number; 
+walletId: string; method: 
+$Enums.PayoutMethod; 
+payoutAccountId: string; 
+scheduledFor: Date | null; 
+txRef: string | null; 
+receiptPdfUrl: string | 
+null; }>' is not assignable 
+to parameter of type 
+'(prisma: Omit<PrismaClient<
+PrismaClientOptions, never, 
+DefaultArgs>, "$on" | 
+"$connect" | "$disconnect" 
+| "$use" | "$transaction" | 
+"$extends">) => 
+Promise<...>'.
+      Types of parameters 
+'tx' and 'prisma' are 
+incompatible.
+        Type 'Omit<PrismaCli
+ent<PrismaClientOptions, 
+never, DefaultArgs>, "$on" 
+| "$connect" | 
+"$disconnect" | "$use" | 
+"$transaction" | 
+"$extends">' is not 
+assignable to type 
+'PrismaClientOrTx'.
+
+[7m378[0m     return this.
+prisma.$transaction(async 
+(tx: PrismaClientOrTx) => {
+[7m   [0m [91m           
+                         ~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~[0m
+
+[96msrc/wallets/wallets.ser
+vice.ts[0m:[93m436[0m:[9
+3m51[0m - 
+[91merror[0m[90m TS2769: 
+[0mNo overload matches 
+this call.
+  Overload 1 of 2, '(arg: 
+PrismaPromise<any>[], 
+options?: { 
+isolationLevel?: 
+TransactionIsolationLevel | 
+undefined; } | undefined): 
+Promise<any[]>', gave the 
+following error.
+    Argument of type '(tx: 
+PrismaClientOrTx) => 
+Promise<{ wallet: { 
+createdAt: Date; updatedAt: 
+Date; id: string; currency: 
+$Enums.Currency; 
+balanceCents: number; 
+pendingCents: number; 
+ownerId: string; ownerType: 
+$Enums.OwnerType; }; } & { 
+...; }>' is not assignable 
+to parameter of type 
+'PrismaPromise<any>[]'.
+  Overload 2 of 2, '(fn: 
+(prisma: Omit<PrismaClient<P
+rismaClientOptions, never, 
+DefaultArgs>, "$on" | 
+"$connect" | "$disconnect" 
+| "$use" | "$transaction" | 
+"$extends">) => 
+Promise<...>, options?: { 
+...; } | undefined): 
+Promise<...>', gave the 
+following error.
+    Argument of type '(tx: 
+PrismaClientOrTx) => 
+Promise<{ wallet: { 
+createdAt: Date; updatedAt: 
+Date; id: string; currency: 
+$Enums.Currency; 
+balanceCents: number; 
+pendingCents: number; 
+ownerId: string; ownerType: 
+$Enums.OwnerType; }; } & { 
+...; }>' is not assignable 
+to parameter of type 
+'(prisma: Omit<PrismaClient<
+PrismaClientOptions, never, 
+DefaultArgs>, "$on" | 
+"$connect" | "$disconnect" 
+| "$use" | "$transaction" | 
+"$extends">) => 
+Promise<...>'.
+      Types of parameters 
+'tx' and 'prisma' are 
+incompatible.
+        Type 'Omit<PrismaCli
+ent<PrismaClientOptions, 
+never, DefaultArgs>, "$on" 
+| "$connect" | 
+"$disconnect" | "$use" | 
+"$transaction" | 
+"$extends">' is not 
+assignable to type 
+'PrismaClientOrTx'.
+
+[7m436[0m     const 
+result = await this.prisma.$
+transaction(async (tx: 
+PrismaClientOrTx) => {
+[7m   [0m [91m           
+                            
+           ~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~[0m
+
+[96msrc/wallets/wallets.ser
+vice.ts[0m:[93m505[0m:[9
+3m37[0m - 
+[91merror[0m[90m TS2769: 
+[0mNo overload matches 
+this call.
+  Overload 1 of 2, '(arg: 
+PrismaPromise<any>[], 
+options?: { 
+isolationLevel?: 
+TransactionIsolationLevel | 
+undefined; } | undefined): 
+Promise<any[]>', gave the 
+following error.
+    Argument of type '(tx: 
+PrismaClientOrTx) => 
+Promise<{ createdAt: Date; 
+updatedAt: Date; id: 
+string; currency: 
+$Enums.Currency; 
+balanceCents: number; 
+pendingCents: number; 
+ownerId: string; ownerType: 
+$Enums.OwnerType; }>' is 
+not assignable to parameter 
+of type 
+'PrismaPromise<any>[]'.
+  Overload 2 of 2, '(fn: 
+(prisma: Omit<PrismaClient<P
+rismaClientOptions, never, 
+DefaultArgs>, "$on" | 
+"$connect" | "$disconnect" 
+| "$use" | "$transaction" | 
+"$extends">) => 
+Promise<...>, options?: { 
+...; } | undefined): 
+Promise<...>', gave the 
+following error.
+    Argument of type '(tx: 
+PrismaClientOrTx) => 
+Promise<{ createdAt: Date; 
+updatedAt: Date; id: 
+string; currency: 
+$Enums.Currency; 
+balanceCents: number; 
+pendingCents: number; 
+ownerId: string; ownerType: 
+$Enums.OwnerType; }>' is 
+not assignable to parameter 
+of type '(prisma: Omit<Prism
+aClient<PrismaClientOptions,
+ never, DefaultArgs>, "$on" 
+| "$connect" | 
+"$disconnect" | "$use" | 
+"$transaction" | 
+"$extends">) => 
+Promise<...>'.
+      Types of parameters 
+'tx' and 'prisma' are 
+incompatible.
+        Type 'Omit<PrismaCli
+ent<PrismaClientOptions, 
+never, DefaultArgs>, "$on" 
+| "$connect" | 
+"$disconnect" | "$use" | 
+"$transaction" | 
+"$extends">' is not 
+assignable to type 
+'PrismaClientOrTx'.
+
+[7m505[0m     return this.
+prisma.$transaction(async 
+(tx: PrismaClientOrTx) => {
+[7m   [0m [91m           
+                         ~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~[0m
+
+

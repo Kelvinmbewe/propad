@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Property, PropertyType, PropertyFurnishing, PowerPhase } from '@prisma/client';
+import { Property, PropertyType, PropertyFurnishing } from '@prisma/client';
 import { RiskService } from '../trust/risk.service';
 import { MonetizationService } from '../monetization/monetization.service';
 
@@ -11,7 +11,7 @@ export interface RankingParams {
     bathrooms?: number;
     type?: PropertyType;
     furnished?: PropertyFurnishing;
-    powerPhase?: PowerPhase;
+    powerPhase?: string; // Phase type not in schema, using string
     minFloorArea?: number;
     userTrustLevel?: number; // For personalization later?
 }

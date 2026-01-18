@@ -29,7 +29,7 @@ export class AdsService {
     private audit: AuditService,
     private invoices: AdsInvoicesService,
     private fraud: FraudDetectionService,
-  ) {}
+  ) { }
 
   // ========== EXISTING METHODS ==========
 
@@ -291,37 +291,6 @@ export class AdsService {
         );
       }
     }
-
-    const data: any = {
-      name: dto.name,
-      budgetCents: dto.budgetCents,
-      dailyCapCents: dto.dailyCapCents,
-      dailyCapImpressions: dto.dailyCapImpressions,
-      endAt:
-        dto.endAt !== undefined
-          ? dto.endAt
-            ? new Date(dto.endAt)
-            : null
-          : undefined,
-      cpmUsdCents: dto.cpmUsdCents,
-      cpcUsdCents: dto.cpcUsdCents,
-      status: dto.status as any,
-    };
-
-    if (dto.targetingJson !== undefined) {
-      data.targetingJson = dto.targetingJson;
-    }
-
-    const data: any = {
-      name: dto.name,
-      budgetCents: dto.budgetCents,
-      dailyCapCents: dto.dailyCapCents,
-      dailyCapImpressions: dto.dailyCapImpressions,
-      endAt: dto.endAt !== undefined ? new Date(dto.endAt) : null,
-      cpmUsdCents: dto.cpmUsdCents,
-      cpcUsdCents: dto.cpcUsdCents,
-      status: dto.status as any,
-    };
 
     const data: any = {
       name: dto.name,

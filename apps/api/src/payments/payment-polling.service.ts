@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PaymentGateway, PaymentIntentStatus, PaymentStatus, InvoiceLine } from '@prisma/client';
+import { PaymentGateway, PaymentIntentStatus, InvoiceLine } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentGatewayRegistry } from './payment-gateway.registry';
 
@@ -142,14 +142,14 @@ export class PaymentPollingService {
               paymentIntentId: intentId,
               amountCents: result.amountCents,
               currency: result.currency,
-              status: PaymentStatus.PAID,
+              status: 'PAID', // Use string literal instead of PaymentStatus enum
               gateway: intent.gateway,
               gatewayRef: result.externalRef,
               transactionRef,
               metadata: { polled: true, polledAt: new Date().toISOString() }
             },
             update: {
-              status: PaymentStatus.PAID,
+              status: 'PAID',
               gatewayRef: result.externalRef
             }
           });

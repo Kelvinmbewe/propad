@@ -11,7 +11,7 @@ type TrustTier = (typeof TrustTier)[keyof typeof TrustTier];
 
 @Injectable()
 export class TrustService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   // --- Main Calculation Methods ---
 
@@ -81,8 +81,7 @@ export class TrustService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
-        verificationRequests: { where: { status: "APPROVED" } }, // Simplified
-        reviewsReceived: true,
+        verificationsRequested: { where: { status: "APPROVED" } }, // Correct field name
       },
     });
 
@@ -92,14 +91,9 @@ export class TrustService {
     // User already has verificationScore (0-100)
     const verifScore = Math.min(40, (user.verificationScore || 0) * 0.4);
 
-    // 2. Reviews (Max 30)
-    let reviewScore = 0;
-    if (user.reviewsReceived.length > 0) {
-      const avg =
-        user.reviewsReceived.reduce((a: number, b: any) => a + b.rating, 0) /
-        user.reviewsReceived.length;
-      reviewScore = (avg / 5) * 30;
-    }
+    // 2. Reviews (Max 30) - Review model doesn't exist, stub to 0
+    const reviewScore = 0;
+    // TODO: Implement when Review model is added to schema
 
     // 3. Activity/History (Max 30) - Combining others for simplicity for User
     const createdAt = user.createdAt

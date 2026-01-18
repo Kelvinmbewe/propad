@@ -1,29 +1,32 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 
+/**
+ * Push notification service (stub)
+ * 
+ * Note: The PushToken model doesn't exist in the schema yet.
+ * This is a placeholder that logs push notifications. To enable push notifications:
+ * 1. Add PushToken model to the Prisma schema
+ * 2. Generate the Prisma client
+ * 3. Implement the actual push logic
+ */
 @Injectable()
 export class PushService {
     private readonly logger = new Logger(PushService.name);
 
-    constructor(private prisma: PrismaService) { }
-
     async registerToken(userId: string, deviceId: string, platform: string, token: string) {
-        return this.prisma.pushToken.upsert({
-            where: { deviceId },
-            update: { userId, token, lastSeenAt: new Date() },
-            create: { userId, deviceId, platform, token }
-        });
+        // TODO: Implement when PushToken model is added to schema
+        this.logger.log(`[MOCK] Registering push token for user ${userId}, device ${deviceId}`);
+        return { userId, deviceId, platform, token };
     }
 
     async unregisterToken(deviceId: string) {
-        return this.prisma.pushToken.deleteMany({ where: { deviceId } });
+        // TODO: Implement when PushToken model is added to schema
+        this.logger.log(`[MOCK] Unregistering push token for device ${deviceId}`);
+        return { count: 0 };
     }
 
     async sendToUser(userId: string, title: string, body: string, data?: any) {
-        const tokens = await this.prisma.pushToken.findMany({ where: { userId } });
-        if (tokens.length === 0) return;
-
-        this.logger.log(`[MOCK PUSH] Sending to ${tokens.length} devices for User ${userId}: ${title} - ${body}`);
-        // In real impl: Iterate platform (FCM/APNS) and send.
+        // TODO: Implement when PushToken model is added to schema
+        this.logger.log(`[MOCK PUSH] Sending to User ${userId}: ${title} - ${body}`);
     }
 }

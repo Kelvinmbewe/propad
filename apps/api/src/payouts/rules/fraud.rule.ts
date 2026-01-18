@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { PayoutRequest } from '@prisma/client';
+import { PayoutRequest, OwnerType } from '@prisma/client';
 import { IPayoutRule } from './payout-rule.interface';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -34,11 +34,17 @@ export class FraudRule implements IPayoutRule {
             // Let's check User.trustScore < 0 (if exists) or status === SUSPENDED
             const wallet = await this.prisma.wallet.findUnique({
                 where: { id: request.walletId },
-                include: { user: true },
             });
 
-            if (wallet?.user?.status === 'SUSPENDED' || (wallet?.user?.trustScore ?? 10) < 0) {
-                throw new BadRequestException('Account flagged for review');
+            if (wallet && wallet.ownerType === OwnerType.USER) {
+                const user = await this.prisma.user.findUnique({
+                    where: { id: wallet.ownerId },
+                    select: { status: true, trustScore: true }
+                });
+
+                if (user?.status === 'SUSPENDED' || (user?.trustScore ?? 10) < 0) {
+                    throw new BadRequestException('Account flagged for review');
+                }
             }
         }
     }

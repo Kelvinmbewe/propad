@@ -130,7 +130,6 @@ export class LeadsService {
           select: {
             id: true,
             title: true,
-            address: false, // Don't expose private address unless needed
             suburb: true,
             city: true
           }

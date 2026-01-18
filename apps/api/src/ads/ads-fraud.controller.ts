@@ -22,7 +22,7 @@ export class AdsFraudController {
             orderBy: { createdAt: 'desc' },
             include: {
                 campaign: { select: { name: true, id: true } },
-                advertiser: { select: { businessName: true, id: true } }
+                advertiser: { select: { name: true, id: true } }
             }
         });
     }

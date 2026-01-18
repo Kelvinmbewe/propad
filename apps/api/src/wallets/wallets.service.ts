@@ -59,7 +59,7 @@ type WalletThresholdEntry = {
   updatedAt: Date | null;
 };
 
-type PrismaClientOrTx = PrismaClient;
+type PrismaClientOrTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$use' | '$transaction' | '$extends'>;
 
 interface AuthContext {
   userId: string;

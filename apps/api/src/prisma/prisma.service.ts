@@ -41,14 +41,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       return next(params);
     });
 
-    this.$on('query', (event) => {
-      if (event.duration > 200) {
-        this.logger.warn(`Slow query (${event.duration} ms): ${event.query} -- params: ${event.params}`);
-      }
-    });
+    // Note: Slow query logging requires specific PrismaClient configuration with log: ['query']
+    // which is not available in this setup. Consider adding it to the PrismaClient constructor if needed.
   }
 
   async onModuleDestroy() {
     await this.$disconnect();
   }
 }
+

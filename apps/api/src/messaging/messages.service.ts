@@ -70,11 +70,14 @@ export class MessagesService {
     }
 
     async markRead(conversationId: string, userId: string) {
-        await this.prisma.conversationParticipant.update({
+        // Mark all unread messages in this conversation as read
+        await this.prisma.message.updateMany({
             where: {
-                conversationId_userId: { conversationId, userId }
+                conversationId,
+                readAt: null,
+                senderId: { not: userId } // Only mark messages from others as read
             },
-            data: { lastReadAt: new Date() }
+            data: { readAt: new Date() }
         });
     }
 }

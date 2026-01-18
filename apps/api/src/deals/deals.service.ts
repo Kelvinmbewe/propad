@@ -96,13 +96,13 @@ export class DealsService {
             // Growth: Qualify Referral for Agent (First Deal)
             if (agentId) {
                 try {
-                    await this.referralsService.qualifyReferral(agentId, 'AGENT_SIGNUP' as any);
+                    await this.referralsService.qualifyReferral(agentId);
                 } catch (e) { /* ignore */ }
             }
 
             // Growth: Qualify Referral for Tenant (First Deal is also a success)
             try {
-                await this.referralsService.qualifyReferral(tenantId, 'USER_SIGNUP' as any);
+                await this.referralsService.qualifyReferral(tenantId);
             } catch (e) { /* ignore */ }
 
             return deal;

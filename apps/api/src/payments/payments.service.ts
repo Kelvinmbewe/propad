@@ -40,8 +40,8 @@ import { PaymentProviderSettingsService } from "./payment-provider-settings.serv
 const VAT_SCALE = 100;
 const MICRO_SCALE = 1_000_000;
 
-type PrismaTx = PrismaClient;
-type PrismaClientOrTx = PrismaClient;
+type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$use' | '$transaction' | '$extends'>;
+type PrismaClientOrTx = PrismaTx;
 
 type InvoiceWithRelations = Invoice & {
   lines: InvoiceLine[];
@@ -123,7 +123,7 @@ export class PaymentsService {
     private readonly referrals: ReferralsService,
     private readonly providerSettings: PaymentProviderSettingsService,
     private readonly appConfig: AppConfigService,
-  ) {}
+  ) { }
 
   // Property injection to avoid constructor overload if preferred, but standard is constructor.
   // Actually, let's use ModuleRef later if circular.
@@ -335,7 +335,7 @@ export class PaymentsService {
               qty: line.qty,
               unitPriceCents: convertedUnit,
               totalCents: convertedTotal,
-              metaJson: meta,
+              metaJson: meta as Prisma.InputJsonValue,
             };
           }),
         },
@@ -740,10 +740,7 @@ export class PaymentsService {
     // Growth: Qualify Referral for Advertiser (First Paid Invoice)
     if (updated.buyerUserId) {
       try {
-        await this.referrals.qualifyReferral(
-          updated.buyerUserId,
-          "ADVERTISER_SIGNUP" as any,
-        );
+        await this.referrals.qualifyReferral(updated.buyerUserId);
       } catch (e) {
         /* ignore */
       }

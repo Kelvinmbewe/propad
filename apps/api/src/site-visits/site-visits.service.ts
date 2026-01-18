@@ -252,7 +252,7 @@ export class SiteVisitsService {
             throw new NotFoundException('Officer not found');
         }
 
-        if (![Role.ADMIN, Role.MODERATOR, Role.VERIFIER].includes(moderator.role)) {
+        if (moderator.role !== Role.ADMIN && moderator.role !== Role.MODERATOR && moderator.role !== Role.VERIFIER) {
             throw new BadRequestException('Officer must have role ADMIN, MODERATOR, or VERIFIER');
         }
 
@@ -460,7 +460,9 @@ export class SiteVisitsService {
                     });
 
                     // Recalculate parent VerificationRequest status
-                    await this.recalculateVerificationRequestStatus(visit.verificationItem.verificationRequestId, tx);
+                    if (visit.verificationItem) {
+                        await this.recalculateVerificationRequestStatus(visit.verificationItem.verificationRequestId, tx);
+                    }
 
                 } else {
                     // Else → REJECTED + create RiskEvent
@@ -484,7 +486,9 @@ export class SiteVisitsService {
                     });
 
                     // Recalculate parent VerificationRequest status
-                    await this.recalculateVerificationRequestStatus(visit.verificationItem.verificationRequestId, tx);
+                    if (visit.verificationItem) {
+                        await this.recalculateVerificationRequestStatus(visit.verificationItem.verificationRequestId, tx);
+                    }
                 }
             }
 

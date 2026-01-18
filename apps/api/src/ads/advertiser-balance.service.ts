@@ -222,7 +222,7 @@ export class AdvertiserBalanceService {
             ownerId,
             amountCents,
             Currency.USD,
-            WalletLedgerSourceType.AD_REFUND,
+            WalletLedgerSourceType.ADJUSTMENT, // AD_REFUND doesn't exist, use ADJUSTMENT
             referenceId || `REFUND-${Date.now()}`,
             'Refund'
         );

@@ -1,0 +1,467 @@
+﻿node.exe : [96msrc/admin/in
+centives-manifest.service.ts
+[0m:[93m97[0m:[93m9[0m 
+- [91merror[0m[90m 
+TS2345: [0mArgument of 
+type '(c: {    key: string; 
+   value: any;    scope: 
+string;    description: 
+string | null;}) => { key: 
+string; value: any; scope: 
+string; description: string 
+| undefined; }' is not 
+assignable to parameter of 
+type '(value: { key: 
+string; value: JsonValue; 
+enabled: boolean; }, index: 
+number, array: { key: 
+string; value: JsonValue; 
+enabled: boolean; }[]) => { 
+key: string; value: any; 
+scope: string; description: 
+string | undefined; }'.
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: ([96m  
+  src/admin/... undefined   
+ ; }'.:String) [], Remot    
+eException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+  Types of parameters 'c' 
+and 'value' are 
+incompatible.
+    Type '{ key: string; 
+value: JsonValue; enabled: 
+boolean; }' is missing the 
+following properties from 
+type '{ key: string; value: 
+any; scope: string; 
+description: string | null; 
+}': scope, description
+
+[7m 97[0m         (c: {
+[7m   [0m [91m        
+~~~~~[0m
+[7m 98[0m           key: 
+string;
+[7m   [0m [91m~~~~~~~~~~~
+~~~~~~~~~~~[0m
+[7m...[0m 
+[7m106[0m           
+description: c.description 
+|| undefined,
+[7m   [0m [91m~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~[0m
+[7m107[0m         }),
+[7m   [0m 
+[91m~~~~~~~~~~[0m
+[96msrc/payments/payment-pr
+ovider-settings.service.ts[
+0m:[93m128[0m:[93m9[0m 
+- [91merror[0m[90m 
+TS2322: [0mType 
+'Record<string, unknown> | 
+undefined' is not 
+assignable to type 
+'NullableJsonNullValueInput 
+| InputJsonValue | 
+undefined'.
+  Type 'Record<string, 
+unknown>' is not assignable 
+to type 
+'NullableJsonNullValueInput 
+| InputJsonValue | 
+undefined'.
+    Type 'Record<string, 
+unknown>' is missing the 
+following properties from 
+type 'readonly 
+(InputJsonValue | null)[]': 
+length, concat, join, 
+slice, and 20 more.
+
+[7m128[0m         
+configJson: 
+mergedData.configJson,
+[7m   [0m [91m        
+~~~~~~~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m126950[0m:[93m5[0m
+    [7m126950[0m     
+configJson?: 
+NullableJsonNullValueInput 
+| InputJsonValue
+    [7m      [0m [96m    
+~~~~~~~~~~[0m
+    The expected type comes 
+from property 'configJson' 
+which is declared here on 
+type '(Without<PaymentProvid
+erSettingsCreateInput, Payme
+ntProviderSettingsUncheckedC
+reateInput> & PaymentProvide
+rSettingsUncheckedCreateInpu
+t) | (Without<...> & Payment
+ProviderSettingsCreateInput)
+'
+[96msrc/payments/payment-pr
+ovider-settings.service.ts[
+0m:[93m141[0m:[93m9[0m 
+- [91merror[0m[90m 
+TS2322: [0mType 
+'Record<string, unknown> | 
+undefined' is not 
+assignable to type 
+'NullableJsonNullValueInput 
+| InputJsonValue | 
+undefined'.
+
+[7m141[0m         
+configJson: 
+mergedData.configJson,
+[7m   [0m [91m        
+~~~~~~~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m126986[0m:[93m5[0m
+    [7m126986[0m     
+configJson?: 
+NullableJsonNullValueInput 
+| InputJsonValue
+    [7m      [0m [96m    
+~~~~~~~~~~[0m
+    The expected type comes 
+from property 'configJson' 
+which is declared here on 
+type '(Without<PaymentProvid
+erSettingsUpdateInput, Payme
+ntProviderSettingsUncheckedU
+pdateInput> & PaymentProvide
+rSettingsUncheckedUpdateInpu
+t) | (Without<...> & Payment
+ProviderSettingsUpdateInput)
+'
+[96msrc/payments/payments.s
+ervice.ts[0m:[93m319[0m:
+[93m11[0m - 
+[91merror[0m[90m TS2322: 
+[0mType '{ sku: string; 
+description: string; qty: 
+number; unitPriceCents: 
+number; totalCents: number; 
+metaJson: Record<string, 
+unknown>; }[]' is not 
+assignable to type '(Without
+<InvoiceLineCreateWithoutInv
+oiceInput, InvoiceLineUnchec
+kedCreateWithoutInvoiceInput
+> & InvoiceLineUncheckedCrea
+teWithoutInvoiceInput) | 
+(Without<...> & InvoiceLineC
+reateWithoutInvoiceInput) | 
+InvoiceLineCreateWithoutInvo
+iceInput[] | InvoiceLineUnch
+eckedCreateWithoutInvoiceInp
+ut[] | undefined'.
+  Type '{ sku: string; 
+description: string; qty: 
+number; unitPriceCents: 
+number; totalCents: number; 
+metaJson: Record<string, 
+unknown>; }[]' is not 
+assignable to type 'InvoiceL
+ineCreateWithoutInvoiceInput
+[]'.
+    Type '{ sku: string; 
+description: string; qty: 
+number; unitPriceCents: 
+number; totalCents: number; 
+metaJson: Record<string, 
+unknown>; }' is not 
+assignable to type 'InvoiceL
+ineCreateWithoutInvoiceInput
+'.
+      Types of property 
+'metaJson' are incompatible.
+        Type 
+'Record<string, unknown>' 
+is not assignable to type 
+'NullableJsonNullValueInput 
+| InputJsonValue | 
+undefined'.
+
+[7m319[0m           
+create: 
+options.lines.map((line: 
+InvoiceLineInput) => {
+[7m   [0m [91m          
+~~~~~~[0m
+[96msrc/payments/referrals.
+service.ts[0m:[93m141[0m:
+[93m57[0m - 
+[91merror[0m[90m TS2345: 
+[0mArgument of type 
+'string' is not assignable 
+to parameter of type 
+'ChargeableItemType'.
+
+[7m141[0m       const 
+pricing = await this.pricing
+.calculatePrice(payment.feat
+ureType);
+[7m   [0m [91m           
+                            
+                 
+~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/payouts/payouts.ser
+vice.ts[0m:[93m274[0m:[9
+3m49[0m - 
+[91merror[0m[90m TS2345: 
+[0mArgument of type 'import
+("C:/projects/propad/node_mo
+dules/.pnpm/@prisma+client@5
+.22.0_prisma@5.22.0/node_mod
+ules/.prisma/client/index").
+$Enums.PayoutMethod' is not 
+assignable to parameter of 
+type 'import("C:/projects/pr
+opad/packages/config/dist/en
+ums").PayoutMethod'.
+  Type '"OTHER"' is not 
+assignable to type 
+'PayoutMethod'.
+
+[7m274[0m         const 
+provider = this.determinePro
+vider(payoutRequest.method);
+[7m   [0m [91m           
+                            
+         
+~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/payouts/payouts.ser
+vice.ts[0m:[93m294[0m:[9
+3m46[0m - 
+[91merror[0m[90m TS2345: 
+[0mArgument of type 'import
+("C:/projects/propad/node_mo
+dules/.pnpm/@prisma+client@5
+.22.0_prisma@5.22.0/node_mod
+ules/.prisma/client/index").
+$Enums.PayoutMethod' is not 
+assignable to parameter of 
+type 'import("C:/projects/pr
+opad/packages/config/dist/en
+ums").PayoutMethod'.
+
+[7m294[0m         if 
+(!await gateway.validateReci
+pient(payoutRequest.method, 
+recipientDetails)) {
+[7m   [0m [91m           
+                            
+      
+~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/payouts/payouts.ser
+vice.ts[0m:[93m418[0m:[9
+3m17[0m - 
+[91merror[0m[90m TS2322: 
+[0mType 'string' is not 
+assignable to type 
+'PayoutMethod'.
+
+[7m418[0m                 
+type,
+[7m   [0m [91m           
+     ~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m123624[0m:[93m5[0m
+    [7m123624[0m     
+type: $Enums.PayoutMethod
+    [7m      [0m [96m    
+~~~~[0m
+    The expected type comes 
+from property 'type' which 
+is declared here on type '(W
+ithout<PayoutAccountCreateIn
+put, PayoutAccountUncheckedC
+reateInput> & PayoutAccountU
+ncheckedCreateInput) | 
+(Without<...> & 
+PayoutAccountCreateInput)'
+[96msrc/properties/properti
+es.service.ts[0m:[93m1378
+[0m:[93m9[0m - 
+[91merror[0m[90m TS2322: 
+[0mType '"PLATFORM"' is 
+not assignable to type 
+'LeadSource'.
+
+[7m1378[0m         
+source: "PLATFORM",
+[7m    [0m [91m        
+~~~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m123198[0m:[93m5[0m
+    [7m123198[0m     
+source: $Enums.LeadSource
+    [7m      [0m [96m    
+~~~~~~[0m
+    The expected type comes 
+from property 'source' 
+which is declared here on 
+type 
+'(Without<LeadCreateInput, 
+LeadUncheckedCreateInput> & 
+LeadUncheckedCreateInput) | 
+(Without<...> & 
+LeadCreateInput)'
+[96msrc/properties/properti
+es.service.ts[0m:[93m2800
+[0m:[93m76[0m - 
+[91merror[0m[90m TS2345: 
+[0mArgument of type '{}' 
+is not assignable to 
+parameter of type '{ 
+select?: VerificationRequest
+ItemSelect<DefaultArgs> | 
+null | undefined; include?: 
+VerificationRequestItemInclu
+de<DefaultArgs> | null | 
+undefined; data: 
+(Without<...> & Verification
+RequestItemUncheckedCreateIn
+put) | (Without<...> & Verif
+icationRequestItemCreateInpu
+t); }'.
+  Property 'data' is 
+missing in type '{}' but 
+required in type '{ 
+select?: VerificationRequest
+ItemSelect<DefaultArgs> | 
+null | undefined; include?: 
+VerificationRequestItemInclu
+de<DefaultArgs> | null | 
+undefined; data: 
+(Without<...> & Verification
+RequestItemUncheckedCreateIn
+put) | (Without<...> & Verif
+icationRequestItemCreateInpu
+t); }'.
+
+[7m2800[0m           
+const newItem = await this.p
+risma.verificationRequestIte
+m.create({
+[7m    [0m [91m          
+                            
+                            
+         ~[0m
+[7m2801[0m             // 
+...
+[7m    [0m 
+[91m~~~~~~~~~~~~~~~~~~[0m
+[7m2802[0m           });
+[7m    [0m 
+[91m~~~~~~~~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m42488[0m:[93m5[0m
+    [7m42488[0m     data: 
+XOR<VerificationRequestItemC
+reateInput, VerificationRequ
+estItemUncheckedCreateInput>
+    [7m     [0m [96m    
+~~~~[0m
+    'data' is declared here.
+[96msrc/properties/properti
+es.service.ts[0m:[93m3449
+[0m:[93m7[0m - 
+[91merror[0m[90m TS2322: 
+[0mType '{ type?: string | 
+undefined; status: 
+"VERIFIED"; lat: { gte: 
+number; lte: number; }; 
+lng: { gte: number; lte: 
+number; }; }' is not 
+assignable to type 
+'PropertyWhereInput'.
+  Types of property 'type' 
+are incompatible.
+    Type 'string | 
+undefined' is not 
+assignable to type 
+'PropertyType | EnumProperty
+TypeFilter<"Property"> | 
+undefined'.
+      Type 'string' is not 
+assignable to type 
+'PropertyType | EnumProperty
+TypeFilter<"Property"> | 
+undefined'.
+
+[7m3449[0m       where: {
+[7m    [0m [91m      
+~~~~~[0m
+[96msrc/properties/properti
+es.service.ts[0m:[93m4452
+[0m:[93m11[0m - 
+[91merror[0m[90m TS2322: 
+[0mType 'string' is not 
+assignable to type 
+'ListingActivityType'.
+
+[7m4452[0m           type,
+[7m    [0m [91m          
+~~~~[0m
+
+  [96m../../node_modules/.p
+npm/@prisma+client@5.22.0_pr
+isma@5.22.0/node_modules/.pr
+isma/client/index.d.ts[0m:
+[93m122950[0m:[93m5[0m
+    [7m122950[0m     
+type: 
+$Enums.ListingActivityType
+    [7m      [0m [96m    
+~~~~[0m
+    The expected type comes 
+from property 'type' which 
+is declared here on type '(W
+ithout<ListingActivityLogCre
+ateInput, ListingActivityLog
+UncheckedCreateInput> & List
+ingActivityLogUncheckedCreat
+eInput) | (Without<...> & Li
+stingActivityLogCreateInput)
+'
+
+Found 12 error(s).
+

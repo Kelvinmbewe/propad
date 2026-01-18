@@ -7,7 +7,7 @@ import { AuthContext } from "../auth/interfaces/auth-context.interface";
 export class InterestsService {
   private readonly logger = new Logger(InterestsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async toggleInterest(userId: string, propertyId: string) {
     // Check if interest exists
@@ -60,7 +60,8 @@ export class InterestsService {
         property: {
           include: {
             media: { take: 1 },
-            location: { include: { city: true, suburb: true } },
+            city: true,
+            suburb: true,
           },
         },
       },

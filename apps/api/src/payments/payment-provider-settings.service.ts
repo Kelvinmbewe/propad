@@ -14,7 +14,7 @@ export class PaymentProviderSettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-  ) {}
+  ) { }
 
   async findAll() {
     return this.prisma.paymentProviderSettings.findMany({
@@ -125,7 +125,7 @@ export class PaymentProviderSettingsService {
         returnUrl: mergedData.returnUrl,
         webhookUrl: mergedData.webhookUrl,
         webhookSecret: mergedData.webhookSecret,
-        configJson: mergedData.configJson,
+        configJson: mergedData.configJson as Prisma.InputJsonValue,
         validatedAt: mergedData.enabled ? new Date() : null,
         validatedBy: mergedData.enabled ? actorId : null,
       },
@@ -138,7 +138,7 @@ export class PaymentProviderSettingsService {
         returnUrl: mergedData.returnUrl,
         webhookUrl: mergedData.webhookUrl,
         webhookSecret: mergedData.webhookSecret,
-        configJson: mergedData.configJson,
+        configJson: mergedData.configJson as Prisma.InputJsonValue,
         validatedAt: mergedData.enabled
           ? new Date()
           : mergedData.enabled === false

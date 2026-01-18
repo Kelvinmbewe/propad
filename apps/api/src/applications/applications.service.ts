@@ -85,7 +85,7 @@ export class ApplicationsService {
 
         // Growth: Qualify Referral for first application
         try {
-            await this.referralsService.qualifyReferral(userId, 'USER_SIGNUP' as any);
+            await this.referralsService.qualifyReferral(userId);
         } catch (e) {
             // Log but don't fail registration/application
         }

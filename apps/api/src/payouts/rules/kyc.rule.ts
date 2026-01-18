@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { PayoutRequest } from '@prisma/client';
+import { PayoutRequest, OwnerType } from '@prisma/client';
 import { IPayoutRule } from './payout-rule.interface';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -10,16 +10,27 @@ export class KycRule implements IPayoutRule {
     async validate(request: PayoutRequest): Promise<void> {
         const wallet = await this.prisma.wallet.findUnique({
             where: { id: request.walletId },
-            include: { user: true },
         });
 
-        if (!wallet || !wallet.user) {
-            throw new BadRequestException('Wallet owner not found');
+        if (!wallet) {
+            throw new BadRequestException('Wallet not found');
         }
 
-        // Check if verified. Assuming isVerified or kycStatus on User.
-        if (!wallet.user.isVerified) {
-            throw new BadRequestException('User must be verified to request payouts');
+        // Check if owner is a USER - only then check verification status
+        if (wallet.ownerType === OwnerType.USER) {
+            const user = await this.prisma.user.findUnique({
+                where: { id: wallet.ownerId },
+                select: { isVerified: true }
+            });
+
+            if (!user) {
+                throw new BadRequestException('Wallet owner not found');
+            }
+
+            // Check if verified. Assuming isVerified or kycStatus on User.
+            if (!user.isVerified) {
+                throw new BadRequestException('User must be verified to request payouts');
+            }
         }
     }
 }

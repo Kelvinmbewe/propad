@@ -91,7 +91,7 @@ export class VerificationsService {
     private readonly riskService: RiskService,
     private readonly notifications: NotificationsService,
     private readonly referralsService: ReferralsService,
-  ) {}
+  ) { }
 
   async refreshPropertyVerification(propertyId: string) {
     await this.recalculatePropertyScore(propertyId);
@@ -170,15 +170,15 @@ export class VerificationsService {
       const [users, agencies] = await Promise.all([
         userIds.length
           ? this.prisma.user.findMany({
-              where: { id: { in: userIds } },
-              select: { id: true, name: true, email: true },
-            })
+            where: { id: { in: userIds } },
+            select: { id: true, name: true, email: true },
+          })
           : [],
         agencyIds.length
           ? this.prisma.agency.findMany({
-              where: { id: { in: agencyIds } },
-              select: { id: true, name: true },
-            })
+            where: { id: { in: agencyIds } },
+            select: { id: true, name: true },
+          })
           : [],
       ]);
 
@@ -381,10 +381,10 @@ export class VerificationsService {
       const hasEvidence =
         item.type === "LOCATION_CONFIRMATION"
           ? (item.gpsLat && item.gpsLng) ||
-            item.notes?.includes("On-site visit requested")
+          item.notes?.includes("On-site visit requested")
           : item.evidenceUrls &&
-            Array.isArray(item.evidenceUrls) &&
-            item.evidenceUrls.length > 0;
+          Array.isArray(item.evidenceUrls) &&
+          item.evidenceUrls.length > 0;
 
       if (!hasEvidence) {
         throw new BadRequestException("No evidence submitted");
@@ -517,7 +517,7 @@ export class VerificationsService {
             if (req && req.status !== "APPROVED") {
               await tx.verificationRequest.update({
                 where: { id: requestId },
-                data: { status: "APPROVED", reviewedAt: new Date() },
+                data: { status: "APPROVED" },
               });
 
               if (req.targetType === "PROPERTY" && req.propertyId) {
@@ -671,10 +671,7 @@ export class VerificationsService {
 
     if (isVerified) {
       try {
-        await this.referralsService.qualifyReferral(
-          userId,
-          "USER_SIGNUP" as any,
-        );
+        await this.referralsService.qualifyReferral(userId);
       } catch (e) {
         this.logger.error(
           `Referral qualification failed for user ${userId}`,
@@ -732,7 +729,7 @@ export class VerificationsService {
     await this.prisma.$transaction(async (tx) => {
       await tx.verificationRequest.update({
         where: { id: requestId },
-        data: { status, reviewedAt: new Date(), notes },
+        data: { status, notes },
       });
 
       if (status === "APPROVED") {
@@ -831,9 +828,9 @@ export class VerificationsService {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(this.deg2rad(lat1)) *
-        Math.cos(this.deg2rad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+      Math.cos(this.deg2rad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const d = R * c; // Distance in km
     return d;

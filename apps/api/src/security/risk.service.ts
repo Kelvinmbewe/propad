@@ -1,11 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 
+/**
+ * Security Risk Service (stub)
+ * 
+ * Note: The RiskEvent model doesn't exist in the current Prisma schema.
+ * This is a placeholder that logs risk events. To enable full risk tracking:
+ * 1. Add RiskEvent model to the Prisma schema
+ * 2. Generate the Prisma client
+ * 3. Implement the actual risk logic
+ */
 @Injectable()
 export class RiskService {
     private readonly logger = new Logger(RiskService.name);
-
-    constructor(private prisma: PrismaService) { }
 
     async logEvent(
         userId: string | undefined,
@@ -15,30 +21,17 @@ export class RiskService {
         ipAddress?: string,
         userAgent?: string
     ) {
-        try {
-            await this.prisma.riskEvent.create({
-                data: {
-                    userId,
-                    type,
-                    severity,
-                    metadata: metadata ?? {},
-                    ipAddress,
-                    userAgent
-                }
-            });
-            if (severity === 'CRITICAL' || severity === 'HIGH') {
-                this.logger.warn(`Risk Event: [${severity}] ${type} User:${userId}`);
-            }
-        } catch (error) {
-            this.logger.error(`Failed to log risk event: ${error}`);
+        // TODO: Implement when RiskEvent model is added to schema
+        if (severity === 'CRITICAL' || severity === 'HIGH') {
+            this.logger.warn(`[MOCK] Risk Event: [${severity}] ${type} User:${userId}`);
+        } else {
+            this.logger.log(`[MOCK] Risk Event: [${severity}] ${type} User:${userId}`);
         }
     }
 
     async getRecentEvents(limit: number = 50) {
-        return this.prisma.riskEvent.findMany({
-            orderBy: { createdAt: 'desc' },
-            take: limit,
-            include: { user: { select: { email: true, id: true } } }
-        });
+        // TODO: Implement when RiskEvent model is added to schema
+        this.logger.log(`[MOCK] Getting recent risk events (limit: ${limit})`);
+        return [];
     }
 }

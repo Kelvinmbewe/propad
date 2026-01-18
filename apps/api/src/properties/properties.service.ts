@@ -1375,7 +1375,7 @@ export class PropertiesService {
       data: {
         propertyId,
         userId: actor.userId,
-        source: "PLATFORM",
+        source: "WEB",
         contactPhone: "", // Should ideally fetch from User
         status: "NEW",
       },
@@ -2796,11 +2796,10 @@ export class PropertiesService {
             }
           }
         } else {
-          // ... create new ...
-          const newItem = await this.prisma.verificationRequestItem.create({
-            // ...
-          });
-          // ...
+          // TODO: create new item if needed
+          // const newItem = await this.prisma.verificationRequestItem.create({
+          //   data: { ... }
+          // });
         }
       }
 
