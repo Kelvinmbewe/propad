@@ -1,11 +1,16 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { AdvertiserBalanceService } from './advertiser-balance.service';
-import { AuditService } from '../audit/audit.service';
-import { CreateCampaignDto } from './dto/create-campaign.dto';
-import { UpdateCampaignDto } from './dto/update-campaign.dto';
-import { TrackClickDto } from './dto/track-click.dto';
-import { Role } from '@propad/config';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { AdvertiserBalanceService } from "./advertiser-balance.service";
+import { AuditService } from "../audit/audit.service";
+import { CreateCampaignDto } from "./dto/create-campaign.dto";
+import { UpdateCampaignDto } from "./dto/update-campaign.dto";
+import { TrackClickDto } from "./dto/track-click.dto";
+import { Role } from "@propad/config";
 
 interface AuthContext {
   userId: string;
@@ -13,8 +18,8 @@ interface AuthContext {
   email?: string | null;
 }
 
-import { AdsInvoicesService } from './ads-invoices.service';
-import { FraudDetectionService } from './fraud/fraud-detection.service';
+import { AdsInvoicesService } from "./ads-invoices.service";
+import { FraudDetectionService } from "./fraud/fraud-detection.service";
 
 @Injectable()
 export class AdsService {
@@ -24,13 +29,13 @@ export class AdsService {
     private audit: AuditService,
     private invoices: AdsInvoicesService,
     private fraud: FraudDetectionService,
-  ) { }
+  ) {}
 
   // ========== EXISTING METHODS ==========
 
   async getActiveCampaigns() {
     return this.prisma.adCampaign.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: "ACTIVE" },
       include: {
         flights: {
           include: {
@@ -105,7 +110,7 @@ export class AdsService {
     if (advertiser && !advertiser.ownerId) {
       await this.prisma.advertiser.update({
         where: { id: advertiser.id },
-        data: { ownerId: user.userId }
+        data: { ownerId: user.userId },
       });
     }
 
@@ -120,18 +125,20 @@ export class AdsService {
       // Create advertiser for this user
       const advertiser = await this.prisma.advertiser.create({
         data: {
-          name: user.email || 'Unknown',
+          name: user.email || "Unknown",
           contactEmail: user.email,
           ownerId: user.userId,
-          status: 'ACTIVE',
+          status: "ACTIVE",
         },
       });
       advertiserId = advertiser.id;
     }
 
     // Validate PROPERTY_BOOST has targetPropertyId
-    if (dto.type === 'PROPERTY_BOOST' && !dto.targetPropertyId) {
-      throw new BadRequestException('PROPERTY_BOOST campaigns require targetPropertyId');
+    if (dto.type === "PROPERTY_BOOST" && !dto.targetPropertyId) {
+      throw new BadRequestException(
+        "PROPERTY_BOOST campaigns require targetPropertyId",
+      );
     }
 
     // Validate property ownership for PROPERTY_BOOST
@@ -140,31 +147,38 @@ export class AdsService {
         where: { id: dto.targetPropertyId },
       });
       if (!property) {
-        throw new NotFoundException('Target property not found');
+        throw new NotFoundException("Target property not found");
       }
       // Allow owner or admin
-      const isOwner = property.landlordId === user.userId || property.agentOwnerId === user.userId;
+      const isOwner =
+        property.landlordId === user.userId ||
+        property.agentOwnerId === user.userId;
       if (!isOwner && user.role !== Role.ADMIN) {
-        throw new ForbiddenException('You do not own this property');
+        throw new ForbiddenException("You do not own this property");
       }
     }
 
+    const data: any = {
+      advertiserId,
+      name: dto.name,
+      type: dto.type as any,
+      targetPropertyId: dto.targetPropertyId,
+      budgetCents: dto.budgetCents,
+      dailyCapCents: dto.dailyCapCents,
+      dailyCapImpressions: dto.dailyCapImpressions,
+      startAt: new Date(dto.startAt),
+      endAt: dto.endAt ? new Date(dto.endAt) : null,
+      cpmUsdCents: dto.cpmUsdCents,
+      cpcUsdCents: dto.cpcUsdCents,
+      status: "DRAFT",
+    };
+
+    if (dto.targetingJson !== null && dto.targetingJson !== undefined) {
+      data.targetingJson = dto.targetingJson;
+    }
+
     const campaign = await this.prisma.adCampaign.create({
-      data: {
-        advertiserId,
-        name: dto.name,
-        type: dto.type as any,
-        targetPropertyId: dto.targetPropertyId,
-        budgetCents: dto.budgetCents,
-        dailyCapCents: dto.dailyCapCents,
-        dailyCapImpressions: dto.dailyCapImpressions,
-        startAt: new Date(dto.startAt),
-        endAt: dto.endAt ? new Date(dto.endAt) : null,
-        cpmUsdCents: dto.cpmUsdCents,
-        cpcUsdCents: dto.cpcUsdCents,
-        targetingJson: dto.targetingJson ?? null,
-        status: 'DRAFT',
-      },
+      data,
       include: {
         advertiser: true,
         targetProperty: true,
@@ -172,9 +186,9 @@ export class AdsService {
     });
 
     await this.audit.logAction({
-      action: 'ads.campaign.create',
+      action: "ads.campaign.create",
       actorId: user.userId,
-      targetType: 'adCampaign',
+      targetType: "adCampaign",
       targetId: campaign.id,
       metadata: { type: dto.type, name: dto.name },
     });
@@ -193,7 +207,7 @@ export class AdsService {
           targetProperty: { select: { id: true, title: true } },
           stats: true,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         take: 100,
       });
     }
@@ -209,7 +223,7 @@ export class AdsService {
         targetProperty: { select: { id: true, title: true } },
         stats: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
@@ -227,7 +241,7 @@ export class AdsService {
     });
 
     if (!campaign) {
-      throw new NotFoundException('Campaign not found');
+      throw new NotFoundException("Campaign not found");
     }
 
     // Check access
@@ -243,59 +257,107 @@ export class AdsService {
     });
 
     if (!campaign) {
-      throw new NotFoundException('Campaign not found');
+      throw new NotFoundException("Campaign not found");
     }
 
     await this.assertCampaignAccess(campaign, user);
 
     // [Hardening] Restrict editing ACTIVE campaigns
-    if (campaign.status === 'ACTIVE') {
-      const allowedKeys = ['name', 'dailyCapCents', 'endAt', 'status'];
+    if (campaign.status === "ACTIVE") {
+      const allowedKeys = ["name", "dailyCapCents", "endAt", "status"];
       const attemptKeys = Object.keys(dto);
-      const invalidKeys = attemptKeys.filter(k => !allowedKeys.includes(k) && dto[k as keyof UpdateCampaignDto] !== undefined);
+      const invalidKeys = attemptKeys.filter(
+        (k) =>
+          !allowedKeys.includes(k) &&
+          dto[k as keyof UpdateCampaignDto] !== undefined,
+      );
 
       if (invalidKeys.length > 0 && user.role !== Role.ADMIN) {
-        throw new BadRequestException(`Cannot edit ${invalidKeys.join(', ')} on an ACTIVE campaign`);
+        throw new BadRequestException(
+          `Cannot edit ${invalidKeys.join(", ")} on an ACTIVE campaign`,
+        );
       }
     }
 
     // Prevent activating with zero balance
-    if (dto.status === 'ACTIVE' && campaign.status !== 'ACTIVE') {
+    if (dto.status === "ACTIVE" && campaign.status !== "ACTIVE") {
       const canAfford = await this.balanceService.canAfford(
         campaign.advertiserId,
         dto.dailyCapCents ?? campaign.dailyCapCents ?? 100,
       );
       if (!canAfford) {
-        throw new BadRequestException('Cannot activate campaign with insufficient balance');
+        throw new BadRequestException(
+          "Cannot activate campaign with insufficient balance",
+        );
       }
+    }
+
+    const data: any = {
+      name: dto.name,
+      budgetCents: dto.budgetCents,
+      dailyCapCents: dto.dailyCapCents,
+      dailyCapImpressions: dto.dailyCapImpressions,
+      endAt:
+        dto.endAt !== undefined
+          ? dto.endAt
+            ? new Date(dto.endAt)
+            : null
+          : undefined,
+      cpmUsdCents: dto.cpmUsdCents,
+      cpcUsdCents: dto.cpcUsdCents,
+      status: dto.status as any,
+    };
+
+    if (dto.targetingJson !== undefined) {
+      data.targetingJson = dto.targetingJson;
+    }
+
+    const data: any = {
+      name: dto.name,
+      budgetCents: dto.budgetCents,
+      dailyCapCents: dto.dailyCapCents,
+      dailyCapImpressions: dto.dailyCapImpressions,
+      endAt: dto.endAt !== undefined ? new Date(dto.endAt) : null,
+      cpmUsdCents: dto.cpmUsdCents,
+      cpcUsdCents: dto.cpcUsdCents,
+      status: dto.status as any,
+    };
+
+    const data: any = {
+      name: dto.name,
+      budgetCents: dto.budgetCents,
+      dailyCapCents: dto.dailyCapCents,
+      dailyCapImpressions: dto.dailyCapImpressions,
+      endAt:
+        dto.endAt !== undefined
+          ? dto.endAt
+            ? new Date(dto.endAt)
+            : null
+          : undefined,
+      cpmUsdCents: dto.cpmUsdCents,
+      cpcUsdCents: dto.cpcUsdCents,
+      status: dto.status as any,
+    };
+
+    if (dto.targetingJson !== undefined) {
+      data.targetingJson = dto.targetingJson;
     }
 
     const updated = await this.prisma.adCampaign.update({
       where: { id },
-      data: {
-        name: dto.name,
-        budgetCents: dto.budgetCents,
-        dailyCapCents: dto.dailyCapCents,
-        dailyCapImpressions: dto.dailyCapImpressions,
-        endAt: dto.endAt !== undefined ? (dto.endAt ? new Date(dto.endAt) : null) : undefined,
-        cpmUsdCents: dto.cpmUsdCents,
-        cpcUsdCents: dto.cpcUsdCents,
-
-        targetingJson: dto.targetingJson ?? undefined,
-        status: dto.status as any,
-      },
+      data,
       include: { advertiser: true, targetProperty: true },
     });
 
     // [Billing] Generate Invoice if activating and not linked
-    if (updated.status === 'ACTIVE' && !updated.invoiceId) {
+    if (updated.status === "ACTIVE" && !updated.invoiceId) {
       await this.invoices.createCampaignInvoice(updated);
     }
 
     await this.audit.logAction({
-      action: 'ads.campaign.update',
+      action: "ads.campaign.update",
       actorId: user.userId,
-      targetType: 'adCampaign',
+      targetType: "adCampaign",
       targetId: id,
       metadata: dto,
     });
@@ -304,7 +366,7 @@ export class AdsService {
   }
 
   async pauseCampaign(id: string, user: AuthContext) {
-    return this.updateCampaign(id, { status: 'PAUSED' }, user);
+    return this.updateCampaign(id, { status: "PAUSED" }, user);
   }
 
   async resumeCampaign(id: string, user: AuthContext) {
@@ -314,12 +376,12 @@ export class AdsService {
     });
 
     if (!campaign) {
-      throw new NotFoundException('Campaign not found');
+      throw new NotFoundException("Campaign not found");
     }
 
     // [Hardening] Prevent resume if expired
     if (campaign.endAt && campaign.endAt < new Date()) {
-      throw new BadRequestException('Cannot resume an expired campaign');
+      throw new BadRequestException("Cannot resume an expired campaign");
     }
 
     // Check balance before allowing resume
@@ -328,10 +390,12 @@ export class AdsService {
       campaign.dailyCapCents ?? 100,
     );
     if (!canAfford) {
-      throw new BadRequestException('Cannot resume campaign with insufficient balance');
+      throw new BadRequestException(
+        "Cannot resume campaign with insufficient balance",
+      );
     }
 
-    return this.updateCampaign(id, { status: 'ACTIVE' }, user);
+    return this.updateCampaign(id, { status: "ACTIVE" }, user);
   }
 
   // ========== BALANCE MANAGEMENT ==========
@@ -343,13 +407,13 @@ export class AdsService {
     });
 
     if (!advertiser) {
-      throw new NotFoundException('Advertiser not found');
+      throw new NotFoundException("Advertiser not found");
     }
 
     // Check ownership or admin
     const userAdvertiserId = await this.getAdvertiserIdForUser(user);
     if (userAdvertiserId !== advertiserId && user.role !== Role.ADMIN) {
-      throw new ForbiddenException('Cannot top up this advertiser account');
+      throw new ForbiddenException("Cannot top up this advertiser account");
     }
 
     // Create Invoice for transparency
@@ -382,8 +446,8 @@ export class AdsService {
       include: { advertiser: true },
     });
 
-    if (!campaign || campaign.status !== 'ACTIVE') {
-      return { success: false, reason: 'Campaign not active' };
+    if (!campaign || campaign.status !== "ACTIVE") {
+      return { success: false, reason: "Campaign not active" };
     }
 
     // [Fraud] Start - Basic check (Impression fraud is harder to real-time block without latency)
@@ -392,7 +456,7 @@ export class AdsService {
     // We can reuse evaluateClick logic effectively if applied to impression context
     // But for now, let's keep it simple and just proceed, as impressions are high volume.
     // If strict requirement:
-    // const fraud = await this.fraud.evaluateImpression(...) 
+    // const fraud = await this.fraud.evaluateImpression(...)
 
     // Proceed with deduction
     const cpmMicros = (campaign.cpmUsdCents ?? 0) * 10;
@@ -406,7 +470,7 @@ export class AdsService {
     );
 
     if (!deductResult.success) {
-      return { success: false, reason: 'Insufficient balance' };
+      return { success: false, reason: "Insufficient balance" };
     }
 
     // Record impression
@@ -421,8 +485,8 @@ export class AdsService {
         route: dto.route,
         revenueMicros: costMicros,
         advertiserId: campaign.advertiserId,
-        ipAddress: '127.0.0.1', // Placeholder
-        userAgent: 'Unknown'    // Placeholder
+        ipAddress: "127.0.0.1", // Placeholder
+        userAgent: "Unknown", // Placeholder
       },
     });
 
@@ -435,29 +499,29 @@ export class AdsService {
       include: { advertiser: true },
     });
 
-    if (!campaign || campaign.status !== 'ACTIVE') {
-      return { success: false, reason: 'Campaign not active' };
+    if (!campaign || campaign.status !== "ACTIVE") {
+      return { success: false, reason: "Campaign not active" };
     }
 
     // [Fraud] Evaluate Click
     const fraudResult = await this.fraud.evaluateClick({
       campaignId: dto.campaignId,
       advertiserId: campaign.advertiserId,
-      ipAddress: '127.0.0.1', // [TODO] Extract from request context
-      userAgent: 'Unknown',   // [TODO] Extract from request context
+      ipAddress: "127.0.0.1", // [TODO] Extract from request context
+      userAgent: "Unknown", // [TODO] Extract from request context
       userId,
     });
 
-    if (fraudResult.severity === 'HIGH') {
+    if (fraudResult.severity === "HIGH") {
       await this.fraud.logFraudEvent({
         campaignId: dto.campaignId,
         advertiserId: campaign.advertiserId,
         severity: fraudResult.severity,
         reason: fraudResult.reason!,
         score: fraudResult.score,
-        metadata: fraudResult.metadata
+        metadata: fraudResult.metadata,
       });
-      return { success: false, reason: 'FRAUD_DETECTED' };
+      return { success: false, reason: "FRAUD_DETECTED" };
     }
 
     const cpcMicros = (campaign.cpcUsdCents ?? 0) * 10000;
@@ -470,7 +534,7 @@ export class AdsService {
     );
 
     if (!deductResult.success) {
-      return { success: false, reason: 'Insufficient balance' };
+      return { success: false, reason: "Insufficient balance" };
     }
 
     // Record click
@@ -484,8 +548,8 @@ export class AdsService {
         sessionId: dto.sessionId,
         clickUrl: dto.clickUrl,
         costMicros: cpcMicros,
-        ipAddress: '127.0.0.1', // Placeholder
-        userAgent: 'Unknown'    // Placeholder
+        ipAddress: "127.0.0.1", // Placeholder
+        userAgent: "Unknown", // Placeholder
       },
     });
 
@@ -506,13 +570,10 @@ export class AdsService {
     // Get active PROPERTY_BOOST and SEARCH_SPONSOR campaigns
     const campaigns = await this.prisma.adCampaign.findMany({
       where: {
-        status: 'ACTIVE',
-        type: { in: ['PROPERTY_BOOST', 'SEARCH_SPONSOR'] },
+        status: "ACTIVE",
+        type: { in: ["PROPERTY_BOOST", "SEARCH_SPONSOR"] },
         startAt: { lte: now },
-        OR: [
-          { endAt: null },
-          { endAt: { gte: now } },
-        ],
+        OR: [{ endAt: null }, { endAt: { gte: now } }],
         advertiser: {
           balanceCents: { gt: 0 },
         },
@@ -522,14 +583,14 @@ export class AdsService {
           include: {
             city: true,
             suburb: true,
-            media: { take: 1, orderBy: { order: 'asc' } },
+            media: { take: 1, orderBy: { order: "asc" } },
           },
         },
         advertiser: { select: { balanceCents: true } },
       },
       orderBy: [
-        { dailyCapCents: 'desc' }, // Higher budget first
-        { createdAt: 'asc' },
+        { dailyCapCents: "desc" }, // Higher budget first
+        { createdAt: "asc" },
       ],
       take: limit * 2, // Get extra to filter
     });
@@ -540,8 +601,10 @@ export class AdsService {
       if (c.budgetCents > 0 && c.spentCents >= c.budgetCents) return false;
 
       if (!c.targetProperty) return false;
-      if (params?.cityId && c.targetProperty.cityId !== params.cityId) return false;
-      if (params?.suburbId && c.targetProperty.suburbId !== params.suburbId) return false;
+      if (params?.cityId && c.targetProperty.cityId !== params.cityId)
+        return false;
+      if (params?.suburbId && c.targetProperty.suburbId !== params.suburbId)
+        return false;
       if (params?.type && c.targetProperty.type !== params.type) return false;
       return true;
     });
@@ -570,15 +633,30 @@ export class AdsService {
     previousPeriodStart.setDate(currentPeriodStart.getDate() - rangeDays);
 
     // Aggregate everything
-    const currentStats = await this.aggregateMetrics(undefined, currentPeriodStart, now);
-    const previousStats = await this.aggregateMetrics(undefined, previousPeriodStart, currentPeriodStart);
+    const currentStats = await this.aggregateMetrics(
+      undefined,
+      currentPeriodStart,
+      now,
+    );
+    const previousStats = await this.aggregateMetrics(
+      undefined,
+      previousPeriodStart,
+      currentPeriodStart,
+    );
 
     // Aggregate by campaign type
-    const types = ['PROPERTY_BOOST', 'SEARCH_SPONSOR', 'DISPLAY_BANNER'];
-    const typeBreakdown = await Promise.all(types.map(async (type) => {
-      const stats = await this.aggregateMetrics(undefined, currentPeriodStart, now, type as any);
-      return { type, ...stats };
-    }));
+    const types = ["PROPERTY_BOOST", "SEARCH_SPONSOR", "DISPLAY_BANNER"];
+    const typeBreakdown = await Promise.all(
+      types.map(async (type) => {
+        const stats = await this.aggregateMetrics(
+          undefined,
+          currentPeriodStart,
+          now,
+          type as any,
+        );
+        return { type, ...stats };
+      }),
+    );
 
     return {
       summary: {
@@ -591,7 +669,10 @@ export class AdsService {
     };
   }
 
-  async getAdvertiserAnalyticsSummary(advertiserId: string, rangeDays: number = 30) {
+  async getAdvertiserAnalyticsSummary(
+    advertiserId: string,
+    rangeDays: number = 30,
+  ) {
     const now = new Date();
     const currentPeriodStart = new Date(now);
     currentPeriodStart.setDate(now.getDate() - rangeDays);
@@ -601,31 +682,49 @@ export class AdsService {
 
     // 1. Get Campaign Counts
     const campaignStats = await this.prisma.adCampaign.groupBy({
-      by: ['status'],
+      by: ["status"],
       where: { advertiserId },
       _count: true,
     });
 
     // 2. Aggregate Current Period
-    const currentStats = await this.aggregateMetrics(advertiserId, currentPeriodStart, now);
+    const currentStats = await this.aggregateMetrics(
+      advertiserId,
+      currentPeriodStart,
+      now,
+    );
 
     // 3. Aggregate Previous Period for Trends
-    const previousStats = await this.aggregateMetrics(advertiserId, previousPeriodStart, currentPeriodStart);
+    const previousStats = await this.aggregateMetrics(
+      advertiserId,
+      previousPeriodStart,
+      currentPeriodStart,
+    );
 
     // 4. Group by Campaign for breakdown
-    const campaignBreakdown = await this.getCampaignBreakdown(advertiserId, currentPeriodStart, now);
+    const campaignBreakdown = await this.getCampaignBreakdown(
+      advertiserId,
+      currentPeriodStart,
+      now,
+    );
 
     // 5. Daily Time-series
-    const dailyStats = await this.getDailyStats(advertiserId, currentPeriodStart, now);
+    const dailyStats = await this.getDailyStats(
+      advertiserId,
+      currentPeriodStart,
+      now,
+    );
 
     // 6. [Fraud] Protected Spend
     const fraudEvents = await this.prisma.fraudEvent.findMany({
       where: {
         advertiserId,
         createdAt: { gte: currentPeriodStart, lt: now },
-        severity: 'HIGH' // Only blocked ones count as "Saved" money
+        severity: "HIGH", // Only blocked ones count as "Saved" money
       },
-      include: { campaign: { select: { cpcUsdCents: true, cpmUsdCents: true } } }
+      include: {
+        campaign: { select: { cpcUsdCents: true, cpmUsdCents: true } },
+      },
     });
 
     let protectedSpendCents = 0;
@@ -633,7 +732,8 @@ export class AdsService {
 
     fraudEvents.forEach((e: any) => {
       // Estimate saved cost. Most fraud is Clicks.
-      if (e.reason !== 'BOT_BEHAVIOR') { // Assuming Bot behavior might be impression or click, but usually click logic blocks
+      if (e.reason !== "BOT_BEHAVIOR") {
+        // Assuming Bot behavior might be impression or click, but usually click logic blocks
         // Simplified: Assume CPC for now as that's the main risk
         const cpc = e.campaign.cpcUsdCents || 0;
         protectedSpendCents += cpc;
@@ -647,13 +747,16 @@ export class AdsService {
         trends: this.calculateTrends(currentStats, previousStats),
         fraud: {
           blockedCount: fraudBlockedCount,
-          protectedSpendCents
-        }
+          protectedSpendCents,
+        },
       },
       campaigns: {
-        active: campaignStats.find((s: any) => s.status === 'ACTIVE')?._count ?? 0,
-        paused: campaignStats.find((s: any) => s.status === 'PAUSED')?._count ?? 0,
-        ended: campaignStats.find((s: any) => s.status === 'ENDED')?._count ?? 0,
+        active:
+          campaignStats.find((s: any) => s.status === "ACTIVE")?._count ?? 0,
+        paused:
+          campaignStats.find((s: any) => s.status === "PAUSED")?._count ?? 0,
+        ended:
+          campaignStats.find((s: any) => s.status === "ENDED")?._count ?? 0,
       },
       breakdown: campaignBreakdown,
       timeSeries: dailyStats,
@@ -670,7 +773,7 @@ export class AdsService {
       this.prisma.adImpression.count({ where: { campaignId } }),
       this.prisma.adClick.count({ where: { campaignId } }),
       this.prisma.advertiserBalanceLog.aggregate({
-        where: { referenceId: campaignId, type: 'DEBIT' },
+        where: { referenceId: campaignId, type: "DEBIT" },
         _sum: { amountCents: true },
       }),
       this.getDailyStats(undefined, thirtyDaysAgo, now, campaignId),
@@ -679,7 +782,7 @@ export class AdsService {
     const totalImpressions = impressions;
     const totalClicks = clicks;
     const totalSpendCents = spendData._sum.amountCents ?? 0;
-    const ctr = totalImpressions > 0 ? (totalClicks / totalImpressions) : 0;
+    const ctr = totalImpressions > 0 ? totalClicks / totalImpressions : 0;
 
     return {
       campaign: {
@@ -694,19 +797,29 @@ export class AdsService {
         ctr: parseFloat(ctr.toFixed(4)),
         totalSpendCents,
         budgetCents: campaign.budgetCents,
-        remainingBudget: campaign.budgetCents ? campaign.budgetCents - totalSpendCents : null,
+        remainingBudget: campaign.budgetCents
+          ? campaign.budgetCents - totalSpendCents
+          : null,
       },
       timeSeries: dailyStats,
     };
   }
 
-  private async aggregateMetrics(advertiserId: string | undefined, start: Date, end: Date, campaignType?: any) {
+  private async aggregateMetrics(
+    advertiserId: string | undefined,
+    start: Date,
+    end: Date,
+    campaignType?: any,
+  ) {
     const where: any = { createdAt: { gte: start, lt: end } };
     if (advertiserId) where.advertiserId = advertiserId;
 
     const [impressions, clicks, spend] = await Promise.all([
       this.prisma.adImpression.count({
-        where: { ...where, campaign: campaignType ? { type: campaignType } : undefined },
+        where: {
+          ...where,
+          campaign: campaignType ? { type: campaignType } : undefined,
+        },
       }),
       this.prisma.adClick.count({
         where: {
@@ -714,13 +827,13 @@ export class AdsService {
           campaign: {
             advertiserId: advertiserId || undefined,
             type: campaignType || undefined,
-          }
+          },
         },
       }),
       this.prisma.advertiserBalanceLog.aggregate({
         where: {
           advertiserId: advertiserId || undefined,
-          type: 'DEBIT',
+          type: "DEBIT",
           createdAt: { gte: start, lt: end },
         },
         _sum: { amountCents: true },
@@ -737,27 +850,37 @@ export class AdsService {
     };
   }
 
-  private async getCampaignBreakdown(advertiserId: string, start: Date, end: Date) {
+  private async getCampaignBreakdown(
+    advertiserId: string,
+    start: Date,
+    end: Date,
+  ) {
     const campaigns = await this.prisma.adCampaign.findMany({
       where: { advertiserId },
       select: { id: true, name: true, type: true, status: true },
     });
 
-    const breakdown = await Promise.all(campaigns.map(async (c: any) => {
-      const stats = await this.getCampaignStatsForPeriod(c.id, start, end);
-      return {
-        id: c.id,
-        name: c.name,
-        type: c.type,
-        status: c.status,
-        ...stats,
-      };
-    }));
+    const breakdown = await Promise.all(
+      campaigns.map(async (c: any) => {
+        const stats = await this.getCampaignStatsForPeriod(c.id, start, end);
+        return {
+          id: c.id,
+          name: c.name,
+          type: c.type,
+          status: c.status,
+          ...stats,
+        };
+      }),
+    );
 
     return breakdown;
   }
 
-  private async getCampaignStatsForPeriod(campaignId: string, start: Date, end: Date) {
+  private async getCampaignStatsForPeriod(
+    campaignId: string,
+    start: Date,
+    end: Date,
+  ) {
     const [impressions, clicks, spend] = await Promise.all([
       this.prisma.adImpression.count({
         where: { campaignId, createdAt: { gte: start, lt: end } },
@@ -766,7 +889,11 @@ export class AdsService {
         where: { campaignId, createdAt: { gte: start, lt: end } },
       }),
       this.prisma.advertiserBalanceLog.aggregate({
-        where: { referenceId: campaignId, type: 'DEBIT', createdAt: { gte: start, lt: end } },
+        where: {
+          referenceId: campaignId,
+          type: "DEBIT",
+          createdAt: { gte: start, lt: end },
+        },
         _sum: { amountCents: true },
       }),
     ]);
@@ -781,52 +908,59 @@ export class AdsService {
     };
   }
 
-  private async getDailyStats(advertiserId: string | undefined, start: Date, end: Date, campaignId?: string) {
+  private async getDailyStats(
+    advertiserId: string | undefined,
+    start: Date,
+    end: Date,
+    campaignId?: string,
+  ) {
     const days: string[] = [];
     const date = new Date(start);
     while (date < end) {
-      days.push(date.toISOString().split('T')[0]);
+      days.push(date.toISOString().split("T")[0]);
       date.setDate(date.getDate() + 1);
     }
 
-    const dailyData = await Promise.all(days.map(async (day) => {
-      const dayStart = new Date(day);
-      const dayEnd = new Date(day);
-      dayEnd.setDate(dayEnd.getDate() + 1);
+    const dailyData = await Promise.all(
+      days.map(async (day) => {
+        const dayStart = new Date(day);
+        const dayEnd = new Date(day);
+        dayEnd.setDate(dayEnd.getDate() + 1);
 
-      const [impressions, clicks, spend] = await Promise.all([
-        this.prisma.adImpression.count({
-          where: {
-            advertiserId: advertiserId || undefined,
-            campaignId: campaignId || undefined,
-            createdAt: { gte: dayStart, lt: dayEnd }
-          },
-        }),
-        this.prisma.adClick.count({
-          where: {
-            campaignId: campaignId || undefined,
-            campaign: advertiserId ? { advertiserId } : undefined,
-            createdAt: { gte: dayStart, lt: dayEnd }
-          },
-        }),
-        this.prisma.advertiserBalanceLog.aggregate({
-          where: {
-            advertiserId: advertiserId || undefined,
-            referenceId: campaignId || undefined,
-            type: 'DEBIT',
-            createdAt: { gte: dayStart, lt: dayEnd }
-          },
-          _sum: { amountCents: true },
-        }),
-      ]);
+        const [impressions, clicks, spend] = await Promise.all([
+          this.prisma.adImpression.count({
+            where: {
+              advertiserId: advertiserId || undefined,
+              campaignId: campaignId || undefined,
+              createdAt: { gte: dayStart, lt: dayEnd },
+            },
+          }),
+          this.prisma.adClick.count({
+            where: {
+              campaignId: campaignId || undefined,
+              campaign: advertiserId ? { advertiserId } : undefined,
+              createdAt: { gte: dayStart, lt: dayEnd },
+            },
+          }),
+          this.prisma.advertiserBalanceLog.aggregate({
+            where: {
+              advertiserId: advertiserId || undefined,
+              referenceId: campaignId || undefined,
+              type: "DEBIT",
+              createdAt: { gte: dayStart, lt: dayEnd },
+            },
+            _sum: { amountCents: true },
+          }),
+        ]);
 
-      return {
-        date: day,
-        impressions,
-        clicks,
-        spendCents: spend._sum.amountCents ?? 0,
-      };
-    }));
+        return {
+          date: day,
+          impressions,
+          clicks,
+          spendCents: spend._sum.amountCents ?? 0,
+        };
+      }),
+    );
 
     return dailyData;
   }
@@ -848,14 +982,17 @@ export class AdsService {
   // ========== HELPERS ==========
 
   private async assertCampaignAccess(
-    campaign: { advertiserId: string; advertiser?: { contactEmail?: string | null } },
+    campaign: {
+      advertiserId: string;
+      advertiser?: { contactEmail?: string | null };
+    },
     user: AuthContext,
   ) {
     if (user.role === Role.ADMIN) return;
 
     const userAdvertiserId = await this.getAdvertiserIdForUser(user);
     if (userAdvertiserId !== campaign.advertiserId) {
-      throw new ForbiddenException('You do not have access to this campaign');
+      throw new ForbiddenException("You do not have access to this campaign");
     }
   }
 }

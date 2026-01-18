@@ -1,62 +1,65 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { WalletLedgerService } from '../../wallets/wallet-ledger.service';
-import { WalletLedgerType, WalletLedgerSourceType } from '../../wallet/enums';
+import { Injectable, BadRequestException, Logger } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
+import { WalletLedgerService } from "../../wallets/wallet-ledger.service";
+import { WalletLedgerType, WalletLedgerSourceType } from "../../wallet/enums";
 
 @Injectable()
 export class PromosService {
-    constructor(
-        private prisma: PrismaService,
-        private ledgerService: WalletLedgerService
-    ) { }
+  private readonly logger = new Logger(PromosService.name);
 
-    async redeemCode(userId: string, code: string) {
-        const promo = await this.prisma.promoCode.findUnique({ where: { code } });
+  constructor(
+    private prisma: PrismaService,
+    private ledgerService: WalletLedgerService,
+  ) {}
 
-        if (!promo || !promo.active) {
-            throw new BadRequestException('Invalid or inactive code');
-        }
-        if (promo.expiresAt && promo.expiresAt < new Date()) {
-            throw new BadRequestException('Code expired');
-        }
-        if (promo.maxUses && promo.usedCount >= promo.maxUses) {
-            throw new BadRequestException('Code fully redeemed');
-        }
+  async redeemCode(userId: string, code: string) {
+    // Note: promoCode and promoUsage models don't exist in schema
+    // For now, this is a simplified version that validates codes against AppConfig
+    this.logger.warn(
+      `promoCode model not found in schema, using AppConfig instead`,
+    );
 
-        const usage = await this.prisma.promoUsage.findUnique({
-            where: { userId_promoCodeId: { userId, promoCodeId: promo.id } }
-        });
-        if (usage) {
-            throw new BadRequestException('You have already used this code');
-        }
+    const promoConfig = await this.prisma.appConfig.findUnique({
+      where: { key: `PROMO_${code}` },
+    });
 
-        // Processing
-        if (promo.type === 'CREDIT') {
-            const wallet = await this.prisma.wallet.findFirst({ where: { ownerId: userId } });
-            if (!wallet) throw new BadRequestException('No wallet found');
-
-            await this.ledgerService.recordTransaction(
-                userId,
-                promo.value,
-                WalletLedgerType.CREDIT,
-                WalletLedgerSourceType.REWARD, // or PROMO specific source if existing
-                `PROMO-${code}-${userId}`,
-                wallet.currency,
-                wallet.id
-            );
-        }
-
-        // Record Usage
-        await this.prisma.$transaction([
-            this.prisma.promoUsage.create({
-                data: { userId, promoCodeId: promo.id }
-            }),
-            this.prisma.promoCode.update({
-                where: { id: promo.id },
-                data: { usedCount: { increment: 1 } }
-            })
-        ]);
-
-        return { success: true, message: `Redeemed ${promo.value / 100} ${promo.type}` };
+    if (!promoConfig) {
+      throw new BadRequestException("Invalid code");
     }
+
+    const promo = promoConfig.jsonValue as any;
+
+    if (!promo || !promo.active) {
+      throw new BadRequestException("Invalid or inactive code");
+    }
+    if (promo.expiresAt && new Date(promo.expiresAt) < new Date()) {
+      throw new BadRequestException("Code expired");
+    }
+    // Note: Max uses tracking not available without promoUsage model
+
+    // Processing
+    if (promo.type === "CREDIT") {
+      const wallet = await this.prisma.wallet.findFirst({
+        where: { ownerId: userId },
+      });
+      if (!wallet) throw new BadRequestException("No wallet found");
+
+      await this.ledgerService.recordTransaction(
+        userId,
+        promo.value,
+        WalletLedgerType.CREDIT,
+        WalletLedgerSourceType.REWARD,
+        `PROMO-${code}-${userId}`,
+        wallet.currency,
+        wallet.id,
+      );
+    }
+
+    // Note: Usage tracking not available without promoUsage model
+
+    return {
+      success: true,
+      message: `Redeemed ${promo.value / 100} ${promo.type}`,
+    };
+  }
 }
