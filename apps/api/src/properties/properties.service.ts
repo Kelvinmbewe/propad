@@ -13,6 +13,7 @@ import {
   PropertyStatus,
   PropertyType,
   RewardEventType,
+  ListingActivityType,
 } from "@prisma/client";
 import { Role, PowerPhase } from "@propad/config";
 
@@ -83,7 +84,7 @@ const PropertyRatingType = {
 type PropertyRatingType =
   (typeof PropertyRatingType)[keyof typeof PropertyRatingType];
 
-const ListingActivityType = {
+const LocalListingActivityType = {
   CREATED: "CREATED",
   UPDATED: "UPDATED",
   VIEWED: "VIEWED",
@@ -112,7 +113,7 @@ const ListingActivityType = {
   RATING_SUBMITTED: "RATING_SUBMITTED",
   PROPERTY_VIEWED: "PROPERTY_VIEWED",
 } as const;
-type ListingActivityType = string;
+
 
 const ListingPaymentStatus = {
   PENDING: "PENDING",
@@ -3455,7 +3456,7 @@ export class PropertiesService {
           gte: westLng,
           lte: eastLng,
         },
-        ...(dto.type ? { type: dto.type } : {}),
+        ...(dto.type ? { type: dto.type as any } : {}),
       },
       include: {
         media: { take: 3 },

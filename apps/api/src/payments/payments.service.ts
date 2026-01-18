@@ -314,7 +314,7 @@ export class PaymentsService {
         taxUsdCents: taxUsd,
         status: InvoiceStatus.OPEN,
         dueAt: options.dueAt ?? this.defaultDueDate(),
-        fxRate: fxRate ? { connect: { id: fxRate.id } } : undefined,
+        fxRateId: fxRate?.id,
         lines: {
           create: options.lines.map((line: InvoiceLineInput) => {
             const baseUnit = line.unitPriceCents;

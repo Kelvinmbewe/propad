@@ -37,7 +37,7 @@ export class IncentivesManifestService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pricingService: PricingService,
-  ) {}
+  ) { }
 
   /**
    * Generate current incentives manifest
@@ -97,13 +97,12 @@ export class IncentivesManifestService {
         (c: {
           key: string;
           value: any;
-          scope: string;
-          description: string | null;
+          enabled: boolean;
         }) => ({
           key: c.key,
           value: c.value,
-          scope: c.scope,
-          description: c.description || undefined,
+          scope: 'GLOBAL', // Default scope since not available in config
+          description: undefined, // Description unavailable
         }),
       ),
       capsAndLimits: [
