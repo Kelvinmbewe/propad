@@ -331,11 +331,15 @@ enum WalletTransactionSource {
 enum WalletLedgerType {
   CREDIT
   DEBIT
+  HOLD
+  RELEASE
+  REFUND
 }
 
 enum WalletLedgerSourceType {
   VERIFICATION
   AGENT_COMMISSION
+  COMMISSION_EARNED
   REFERRAL
   REWARD
   PAYOUT
@@ -595,6 +599,15 @@ model User {
   adEvents            AdEvent[]            @relation("AdEventUser")
   rewardDistributions RewardDistribution[]
   adClicks            AdClick[]            @relation("AdClickUser")
+
+  // Application, Deal, Conversation, and Message Relations
+  applications             Application[]             @relation("UserApplications")
+  tenantDeals              Deal[]                    @relation("TenantDeals")
+  landlordDeals            Deal[]                    @relation("LandlordDeals")
+  agentDeals               Deal[]                    @relation("AgentDeals")
+  commissions              Commission[]              @relation("UserCommissions")
+  conversationParticipants ConversationParticipant[] @relation("ConversationParticipants")
+  sentConversationMessages Message[]                 @relation("UserMessages")
 }
 
 model UserRole {
@@ -798,6 +811,12 @@ model Property {
   siteVisits           SiteVisit[]
   campaignTargets      AdCampaign[]          @relation("CampaignTargetProperty")
   adClicks             AdClick[]
+
+  // Application, Deal, and Conversation Relations
+  applications  Application[]
+  deals         Deal[]
+  conversations Conversation[]
+  commissions   Commission[]
 
   @@index([status])
   @@index([countryId])
@@ -1243,6 +1262,7 @@ model WalletLedger {
   sourceId    String? // Reference to source entity (PaymentTransaction, PayoutRequest, etc.)
   amountCents Int
   currency    Currency
+  metadata    Json?
   createdAt   DateTime               @default(now())
 
   user                 User                @relation("WalletLedgerUser", fields: [userId], references: [id], onDelete: Cascade)
@@ -2191,4 +2211,154 @@ enum FraudReason {
   GEO_MISMATCH
   AGENT_CONFLICT
   KNOWN_BAD_IP
+}
+
+// ========================================
+// Supporting Models for Applications & Deals
+// ========================================
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum DealStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum CommissionStatus {
+  PENDING
+  EARNED
+  PAID
+  CANCELLED
+}
+
+model Application {
+  id          String            @id @default(cuid())
+  propertyId  String
+  userId      String
+  notes       String?
+  status      ApplicationStatus @default(SUBMITTED)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id])
+  user     User     @relation("UserApplications", fields: [userId], references: [id])
+  deals    Deal[]
+
+  @@unique([propertyId, userId])
+  @@index([userId, status])
+  @@index([propertyId, status])
+}
+
+model Deal {
+  id            String     @id @default(cuid())
+  propertyId    String
+  tenantId      String
+  landlordId    String
+  agentId       String?
+  applicationId String?
+  status        DealStatus @default(PENDING)
+  startDate     DateTime?
+  endDate       DateTime?
+  rentAmount    Int?
+  depositAmount Int?
+  currency      Currency   @default(USD)
+  notes         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  property      Property     @relation(fields: [propertyId], references: [id])
+  tenant        User         @relation("TenantDeals", fields: [tenantId], references: [id])
+  landlord      User         @relation("LandlordDeals", fields: [landlordId], references: [id])
+  agent         User?        @relation("AgentDeals", fields: [agentId], references: [id])
+  application   Application? @relation(fields: [applicationId], references: [id])
+  conversations Conversation[]
+  commissions   Commission[]
+
+  @@index([propertyId])
+  @@index([tenantId])
+  @@index([landlordId])
+  @@index([agentId])
+  @@index([status])
+}
+
+model Commission {
+  id            String           @id @default(cuid())
+  agentId       String
+  propertyId    String?
+  transactionId String?
+  dealId        String?
+  amountCents   Int
+  currency      Currency         @default(USD)
+  ratePercent   Decimal          @default(0) @db.Decimal(5, 2)
+  status        CommissionStatus @default(PENDING)
+  paidAt        DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  agent    User      @relation("UserCommissions", fields: [agentId], references: [id])
+  property Property? @relation(fields: [propertyId], references: [id])
+  deal     Deal?     @relation(fields: [dealId], references: [id])
+
+  @@index([agentId, status])
+  @@index([dealId])
+  @@index([propertyId])
+}
+
+model Conversation {
+  id            String    @id @default(cuid())
+  propertyId    String?
+  dealId        String?
+  applicationId String?
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  property     Property?               @relation(fields: [propertyId], references: [id])
+  deal         Deal?                   @relation(fields: [dealId], references: [id])
+  messages     Message[]
+  participants ConversationParticipant[]
+
+  @@index([propertyId])
+  @@index([dealId])
+  @@index([applicationId])
+  @@index([lastMessageAt(sort: Desc)])
+}
+
+model ConversationParticipant {
+  id             String   @id @default(cuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime @default(now())
+  leftAt         DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  user         User         @relation("ConversationParticipants", fields: [userId], references: [id])
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String
+  createdAt      DateTime @default(now())
+  readAt         DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  sender       User         @relation("UserMessages", fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
 }

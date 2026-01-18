@@ -122,7 +122,8 @@ export class ApplicationsService {
                 property: {
                     include: {
                         media: { take: 1, orderBy: { order: 'asc' } },
-                        location: { include: { city: true, suburb: true } }
+                        city: true,
+                        suburb: true
                     }
                 },
             },

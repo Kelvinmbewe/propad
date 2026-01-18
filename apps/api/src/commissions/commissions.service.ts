@@ -1,8 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletLedgerService } from '../wallets/wallet-ledger.service';
-import { PaymentTransaction, Invoice, CommissionStatus, Currency, WalletLedgerSourceType } from '@prisma/client';
+import { CommissionStatus, Currency, WalletLedgerSourceType } from '@prisma/client';
 import { PricingBreakdown } from '../payments/pricing.service';
+
+// Generic type for payment transaction since model may not exist
+type PaymentTransactionLike = { id: string };
 
 @Injectable()
 export class CommissionsService {
@@ -13,7 +16,7 @@ export class CommissionsService {
         private readonly ledger: WalletLedgerService
     ) { }
 
-    async distribute(transaction: PaymentTransaction, invoice: Invoice & { lines: any[] }) {
+    async distribute(transaction: PaymentTransactionLike, invoice: { id: string; currency: Currency; lines: any[] }) {
         this.logger.log(`Distributing commissions for transaction ${transaction.id}`);
 
         // Find lines with pricing breakdown

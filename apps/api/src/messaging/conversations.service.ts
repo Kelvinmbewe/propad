@@ -62,7 +62,7 @@ export class ConversationsService {
             },
             include: {
                 property: {
-                    select: { id: true, title: true, address: true, photos: true }
+                    select: { id: true, title: true, media: { take: 1 } }
                 },
                 participants: {
                     include: {
