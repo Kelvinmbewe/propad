@@ -46,6 +46,8 @@ export function PropertyManagement() {
     },
     enabled: status === "ready",
     retry: 1,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   // Group properties by status/type
@@ -117,7 +119,7 @@ export function PropertyManagement() {
       <div className="flex flex-col items-center justify-center space-y-4 py-12 border-2 border-dashed rounded-xl bg-neutral-50/50">
         <Home className="h-12 w-12 text-neutral-300" />
         <p className="text-sm text-neutral-600">
-          You have not published any listings yet.
+          No listings yet. Drafts and submitted listings show here too.
         </p>
         <Link href="/dashboard/listings/new">
           <Button>List New Property</Button>
@@ -229,12 +231,22 @@ export function PropertyManagement() {
 
                         {/* Secondary Actions: Edit & Delete */}
                         <Link href={`/dashboard/listings/${property.id}/edit`}>
-                          <Button variant="outline" size="sm" className="w-full">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                          >
                             Edit
                           </Button>
                         </Link>
-                        <Link href={`/dashboard/listings/${property.id}/delete`}>
-                          <Button variant="ghost" size="sm" className="w-full text-red-600 hover:text-red-700 hover:bg-red-50">
+                        <Link
+                          href={`/dashboard/listings/${property.id}/delete`}
+                        >
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
                             Delete
                           </Button>
                         </Link>
@@ -247,7 +259,11 @@ export function PropertyManagement() {
                             className="w-full"
                             onClick={async (e) => {
                               e.preventDefault();
-                              if (confirm("Publish this listing? It will be submitted for verification.")) {
+                              if (
+                                confirm(
+                                  "Publish this listing? It will be submitted for verification.",
+                                )
+                              ) {
                                 if (!sdk) {
                                   alert("Service unavailable. Please retry.");
                                   return;
@@ -269,7 +285,8 @@ export function PropertyManagement() {
                         )}
 
                         {/* Pause: Available for VERIFIED and PENDING_VERIFY */}
-                        {(property.status === "VERIFIED" || property.status === "PENDING_VERIFY") && (
+                        {(property.status === "VERIFIED" ||
+                          property.status === "PENDING_VERIFY") && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -280,7 +297,11 @@ export function PropertyManagement() {
                                 alert("Service unavailable. Please retry.");
                                 return;
                               }
-                              if (confirm("Pause this listing? It will be hidden from public search.")) {
+                              if (
+                                confirm(
+                                  "Pause this listing? It will be hidden from public search.",
+                                )
+                              ) {
                                 try {
                                   await sdk.request(
                                     `/properties/${property.id}/status`,
@@ -312,7 +333,11 @@ export function PropertyManagement() {
                                 alert("Service unavailable. Please retry.");
                                 return;
                               }
-                              if (confirm("Unpause this listing? It will be resubmitted for verification.")) {
+                              if (
+                                confirm(
+                                  "Unpause this listing? It will be resubmitted for verification.",
+                                )
+                              ) {
                                 try {
                                   await sdk.request(
                                     `/properties/${property.id}/publish`,

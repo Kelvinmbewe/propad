@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Label, notify } from '@propad/ui';
 import { Loader2, Search, X, Upload, Plus, MapPin, Image as ImageIcon } from 'lucide-react';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import type { GeoSearchResult, PendingGeo } from '@propad/sdk';
+
 
 const PROPERTY_TYPES = [
     { value: 'ROOM', label: 'Room' },
@@ -45,8 +47,10 @@ interface UploadedImage {
 export default function CreatePropertyPage() {
     const router = useRouter();
     const sdk = useAuthenticatedSDK();
+    const queryClient = useQueryClient();
     const [isLoading, setIsLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
 
     // Geo search state
     const [geoQuery, setGeoQuery] = useState('');
@@ -421,8 +425,10 @@ export default function CreatePropertyPage() {
                 notify.success('Property listed successfully!');
             }
 
+            await queryClient.invalidateQueries({ queryKey: ['properties:owned'] });
             router.push('/dashboard/listings');
             router.refresh();
+
         } catch (error: any) {
             console.error('Create property error:', error);
             // Extract more detailed error message
