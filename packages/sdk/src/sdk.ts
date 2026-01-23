@@ -1177,6 +1177,11 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .get("site-visits/my-assignments")
           .json<SiteVisit[]>()
           .then((data) => SiteVisitSchema.array().parse(data)),
+      get: async (visitId: string) =>
+        client
+          .get(`site-visits/${visitId}`)
+          .json<SiteVisit>()
+          .then((data) => SiteVisitSchema.parse(data)),
       assign: async (visitId: string, moderatorId: string) =>
         client
           .post(`site-visits/${visitId}/assign`, { json: { moderatorId } })

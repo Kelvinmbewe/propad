@@ -667,6 +667,7 @@ export const SiteVisitSchema = z
     updatedAt: z.string(),
     property: PropertySchema.nullish(),
     requestedBy: UserSummarySchema.nullish(),
+    assignedModerator: UserSummarySchema.nullish(),
   })
   .passthrough();
 

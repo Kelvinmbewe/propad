@@ -7,7 +7,8 @@ import { Loader2, MapPin, Clock, User, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Badge } from '@propad/ui';
 import type { SiteVisit } from '@propad/sdk';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useSdkClient } from '@/hooks/use-sdk-client';
 import { ClientState } from '@/components/client-state';
@@ -16,6 +17,8 @@ export default function SiteVisitsPage() {
     const { sdk, status, message, accessToken, apiBaseUrl } = useSdkClient();
     const { data: session } = useSession();
     const queryClient = useQueryClient();
+    const searchParams = useSearchParams();
+    const focusedVisitId = searchParams.get('visitId');
     const role = session?.user?.role;
     const isAdmin = role === 'ADMIN';
 
@@ -33,6 +36,25 @@ export default function SiteVisitsPage() {
             return sdk.siteVisits.listMyAssignments();
         }
     });
+
+    const { data: focusedVisit, isLoading: loadingFocused } = useQuery({
+        queryKey: ['site-visits', 'focus', focusedVisitId],
+        enabled: status === 'ready' && !!focusedVisitId && !!sdk,
+        queryFn: async () => {
+            if (!sdk || !focusedVisitId) {
+                return null;
+            }
+            return sdk.siteVisits.get(focusedVisitId);
+        }
+    });
+
+    const combinedVisits = useMemo(() => {
+        const list = Array.isArray(visits) ? visits : [];
+        if (focusedVisit && !list.some((visit) => visit.id === focusedVisit.id)) {
+            return [focusedVisit, ...list];
+        }
+        return list;
+    }, [visits, focusedVisit]);
 
     const assignMutation = useMutation({
         mutationFn: async ({ visitId, moderatorId }: { visitId: string; moderatorId: string }) => {
@@ -117,7 +139,7 @@ export default function SiteVisitsPage() {
                 )}
             </header>
 
-            {isLoading ? (
+            {isLoading || loadingFocused ? (
                 <div className="flex h-64 items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
                 </div>
@@ -125,11 +147,11 @@ export default function SiteVisitsPage() {
                 <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-600">
                     Unable to load site visits right now. Please try again.
                 </div>
-            ) : !visits?.length ? (
+            ) : !combinedVisits.length ? (
                 <EmptyState viewMode={viewMode} />
             ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {visits.map((visit) => (
+                    {combinedVisits.map((visit) => (
                         <VisitCard
                             key={visit.id}
                             visit={visit}
