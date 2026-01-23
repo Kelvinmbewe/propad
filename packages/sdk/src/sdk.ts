@@ -1190,6 +1190,11 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .post(`site-visits/${visitId}/complete`, { json: payload })
           .json<SiteVisit>()
           .then((data) => SiteVisitSchema.parse(data)),
+      decline: async (visitId: string, payload: { reason?: string } = {}) =>
+        client
+          .post(`site-visits/${visitId}/decline`, { json: payload })
+          .json<SiteVisit>()
+          .then((data) => SiteVisitSchema.parse(data)),
     },
     wallets: {
       me: async () => client.get("wallets/me").json<any>(),

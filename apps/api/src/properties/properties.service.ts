@@ -2752,6 +2752,15 @@ export class PropertiesService {
     if (dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0) {
       totalFeeUsd += verificationCosts["PROOF_OF_OWNERSHIP"] || 5;
     }
+    if (
+      dto.requestOnSiteVisit &&
+      (!dto.locationGpsLat || !dto.locationGpsLng)
+    ) {
+      throw new BadRequestException(
+        "Location GPS is required when requesting an on-site visit",
+      );
+    }
+
     if (dto.locationGpsLat && dto.locationGpsLng) {
       totalFeeUsd += verificationCosts["LOCATION_CONFIRMATION"] || 5;
       if (dto.requestOnSiteVisit) {
@@ -2825,6 +2834,15 @@ export class PropertiesService {
       const locationItem = existingRequest.items.find(
         (i: { type: string }) => i.type === "LOCATION_CONFIRMATION",
       );
+      if (
+        dto.requestOnSiteVisit &&
+        (!dto.locationGpsLat || !dto.locationGpsLng)
+      ) {
+        throw new BadRequestException(
+          "Location GPS is required when requesting an on-site visit",
+        );
+      }
+
       if (dto.locationGpsLat && dto.locationGpsLng) {
         let updatedLocationItem;
         if (locationItem) {
@@ -3147,6 +3165,14 @@ export class PropertiesService {
             verifier: {
               select: { id: true, name: true },
             },
+            siteVisits: {
+              include: {
+                assignedModerator: {
+                  select: { id: true, name: true, email: true, role: true },
+                },
+              },
+              orderBy: { createdAt: "desc" },
+            },
           },
           orderBy: { type: "asc" },
         },
@@ -3223,8 +3249,16 @@ export class PropertiesService {
       }
     }
 
+    const resolvedGpsLat = dto.gpsLat ?? item.gpsLat;
+    const resolvedGpsLng = dto.gpsLng ?? item.gpsLng;
+
     let notes = dto.notes ?? item.notes;
     if (dto.requestOnSiteVisit) {
+      if (!resolvedGpsLat || !resolvedGpsLng) {
+        throw new BadRequestException(
+          "Location GPS is required when requesting an on-site visit",
+        );
+      }
       const visitNote = "On-site visit requested";
       if (!notes) {
         notes = visitNote;
@@ -3237,7 +3271,7 @@ export class PropertiesService {
     let newStatus = item.status;
     const hasEvidence = dto.evidenceUrls && dto.evidenceUrls.length > 0;
     const hasLocation =
-      (dto.gpsLat !== undefined && dto.gpsLng !== undefined) ||
+      (resolvedGpsLat !== undefined && resolvedGpsLng !== undefined) ||
       dto.requestOnSiteVisit;
 
     if (item.status === "PENDING" || item.status === "REJECTED") {
@@ -3266,14 +3300,31 @@ export class PropertiesService {
       where: { id: itemId },
       data: {
         evidenceUrls: dto.evidenceUrls ?? item.evidenceUrls,
-        gpsLat: dto.gpsLat ?? item.gpsLat,
-        gpsLng: dto.gpsLng ?? item.gpsLng,
+        gpsLat: resolvedGpsLat,
+        gpsLng: resolvedGpsLng,
         notes: notes,
         status: newStatus,
         verifierId: newStatus === "SUBMITTED" ? null : item.verifierId, // Reset verifier on resubmit
         reviewedAt: newStatus === "SUBMITTED" ? null : item.reviewedAt,
       },
     });
+
+    if (dto.requestOnSiteVisit && item.type === "LOCATION_CONFIRMATION") {
+      const existingSiteVisit = await this.prisma.siteVisit.findFirst({
+        where: { verificationItemId: itemId },
+      });
+      if (!existingSiteVisit) {
+        await this.prisma.siteVisit.create({
+          data: {
+            propertyId,
+            verificationItemId: itemId,
+            requestedByUserId: actor.userId,
+            status: "PENDING_ASSIGNMENT",
+            notes: "Auto-created from verification update",
+          },
+        });
+      }
+    }
 
     // Create payment record when item is newly submitted
     if (newStatus === "SUBMITTED" && item.status !== "SUBMITTED") {

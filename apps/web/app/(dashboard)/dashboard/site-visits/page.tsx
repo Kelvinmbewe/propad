@@ -71,6 +71,20 @@ export default function SiteVisitsPage() {
         onError: () => toast.error('Failed to complete visit')
     });
 
+    const declineMutation = useMutation({
+        mutationFn: async ({ visitId, reason }: { visitId: string; reason?: string }) => {
+            if (!sdk) {
+                throw new Error('Site visit client not ready');
+            }
+            return sdk.siteVisits.decline(visitId, { reason });
+        },
+        onSuccess: () => {
+            toast.success('Visit declined');
+            queryClient.invalidateQueries({ queryKey: ['site-visits'] });
+        },
+        onError: () => toast.error('Failed to decline visit')
+    });
+
     if (status !== 'ready') {
         return <ClientState status={status} message={message} title="Site visits" />;
     }
@@ -121,7 +135,12 @@ export default function SiteVisitsPage() {
                             visit={visit}
                             onAssign={(modId) => assignMutation.mutate({ visitId: visit.id, moderatorId: modId })}
                             onComplete={(lat, lng, notes) => completeMutation.mutate({ visitId: visit.id, lat, lng, notes })}
-                            isProcessing={assignMutation.isPending || completeMutation.isPending}
+                            onDecline={(reason) => declineMutation.mutate({ visitId: visit.id, reason })}
+                            isProcessing={
+                                assignMutation.isPending ||
+                                completeMutation.isPending ||
+                                declineMutation.isPending
+                            }
                         />
                     ))}
                 </div>
@@ -130,10 +149,11 @@ export default function SiteVisitsPage() {
     );
 }
 
-function VisitCard({ visit, onAssign, onComplete, isProcessing }: {
+function VisitCard({ visit, onAssign, onComplete, onDecline, isProcessing }: {
     visit: SiteVisit;
     onAssign: (id: string) => void;
     onComplete: (lat: number, lng: number, notes?: string) => void;
+    onDecline: (reason?: string) => void;
     isProcessing: boolean;
 }) {
     // For demo simplicity, assigning self if pending
@@ -142,6 +162,7 @@ function VisitCard({ visit, onAssign, onComplete, isProcessing }: {
         ASSIGNED: 'bg-blue-100 text-blue-700',
         IN_PROGRESS: 'bg-blue-100 text-blue-700',
         COMPLETED: 'bg-green-100 text-green-700',
+        FAILED: 'bg-red-100 text-red-700',
         CANCELLED: 'bg-red-100 text-red-700',
     }[visit.status] || 'bg-neutral-100 text-neutral-700';
 
@@ -212,47 +233,61 @@ function VisitCard({ visit, onAssign, onComplete, isProcessing }: {
                     )}
 
                     {visit.status === 'ASSIGNED' && visit.assignedModeratorId === currentUserId && (
-                        <Button
-                            size="sm"
-                            className="w-full bg-green-600 hover:bg-green-700"
-                            disabled={isProcessing}
-                            onClick={async () => {
-                                // "Start Visit" → upload GPS
-                                const getGPS = (): Promise<{ lat: number; lng: number }> => {
-                                    return new Promise((resolve) => {
-                                        if (navigator.geolocation) {
-                                            navigator.geolocation.getCurrentPosition(
-                                                (position) => {
-                                                    resolve({
-                                                        lat: position.coords.latitude,
-                                                        lng: position.coords.longitude
-                                                    });
-                                                },
-                                                () => {
-                                                    // Fallback if GPS fails
-                                                    resolve({
-                                                        lat: visit.property?.lat || -17.824858,
-                                                        lng: visit.property?.lng || 31.053028
-                                                    });
-                                                }
-                                            );
-                                        } else {
-                                            // Fallback if geolocation not available
-                                            resolve({
-                                                lat: visit.property?.lat || -17.824858,
-                                                lng: visit.property?.lng || 31.053028
-                                            });
-                                        }
-                                    });
-                                };
+                        <>
+                            <Button
+                                size="sm"
+                                className="w-full bg-green-600 hover:bg-green-700"
+                                disabled={isProcessing}
+                                onClick={async () => {
+                                    // "Start Visit" → upload GPS
+                                    const getGPS = (): Promise<{ lat: number; lng: number }> => {
+                                        return new Promise((resolve) => {
+                                            if (navigator.geolocation) {
+                                                navigator.geolocation.getCurrentPosition(
+                                                    (position) => {
+                                                        resolve({
+                                                            lat: position.coords.latitude,
+                                                            lng: position.coords.longitude
+                                                        });
+                                                    },
+                                                    () => {
+                                                        // Fallback if GPS fails
+                                                        resolve({
+                                                            lat: visit.property?.lat || -17.824858,
+                                                            lng: visit.property?.lng || 31.053028
+                                                        });
+                                                    }
+                                                );
+                                            } else {
+                                                // Fallback if geolocation not available
+                                                resolve({
+                                                    lat: visit.property?.lat || -17.824858,
+                                                    lng: visit.property?.lng || 31.053028
+                                                });
+                                            }
+                                        });
+                                    };
 
-                                const { lat, lng } = await getGPS();
-                                const notes = prompt('Visit Notes (optional):') || undefined;
-                                onComplete(lat, lng, notes);
-                            }}
-                        >
-                            Start Visit
-                        </Button>
+                                    const { lat, lng } = await getGPS();
+                                    const notes = prompt('Visit Notes (optional):') || undefined;
+                                    onComplete(lat, lng, notes);
+                                }}
+                            >
+                                Start Visit
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full text-red-600 border-red-200 hover:bg-red-50"
+                                disabled={isProcessing}
+                                onClick={() => {
+                                    const reason = prompt('Reason for decline (optional):') || undefined;
+                                    onDecline(reason);
+                                }}
+                            >
+                                Unable to Complete
+                            </Button>
+                        </>
                     )}
                 </div>
             </CardContent>
