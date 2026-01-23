@@ -1,4 +1,5 @@
 'use client';
+"use client";
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
@@ -132,7 +133,9 @@ export default function SiteVisitsPage() {
                 <div>
                     <h1 className="text-2xl font-semibold text-neutral-900">Site Visits</h1>
                     <p className="text-sm text-neutral-600">
-                        {viewMode === 'PENDING' ? 'Pending verification requests awaiting assignment' : 'My assigned active visits'}
+                        {viewMode === 'PENDING'
+                            ? 'Pending and active visits awaiting completion'
+                            : 'My assigned active visits'}
                     </p>
                 </div>
 

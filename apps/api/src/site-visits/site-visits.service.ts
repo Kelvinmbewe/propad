@@ -320,10 +320,21 @@ export class SiteVisitsService {
   // ... implementation defaults for dashboard ...
   async getPendingVisits() {
     return this.prisma.siteVisit.findMany({
-      where: { status: SiteVisitStatus.PENDING_ASSIGNMENT },
+      where: {
+        status: {
+          in: [
+            SiteVisitStatus.PENDING_ASSIGNMENT,
+            SiteVisitStatus.ASSIGNED,
+            SiteVisitStatus.IN_PROGRESS,
+          ],
+        },
+      },
       include: {
         property: true,
         requestedBy: true,
+        assignedModerator: {
+          select: { id: true, name: true, email: true, role: true },
+        },
         verificationItem: {
           select: {
             id: true,
@@ -332,6 +343,7 @@ export class SiteVisitsService {
           },
         },
       },
+      orderBy: { createdAt: "desc" },
     });
   }
 
