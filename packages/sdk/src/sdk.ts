@@ -84,8 +84,8 @@ type RequestOptions = {
   body?: unknown;
   headers?: Record<string, string>;
   searchParams?:
-  | URLSearchParams
-  | Record<string, string | number | boolean | undefined | null>;
+    | URLSearchParams
+    | Record<string, string | number | boolean | undefined | null>;
 };
 
 const createSearchParams = (
@@ -116,7 +116,11 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
       options: RequestOptions = {},
     ): Promise<T> => {
       const { method = "GET", body, headers, searchParams } = options;
-      const requestOptions: Record<string, unknown> = { method, headers };
+      const requestOptions: Record<string, unknown> = { method };
+
+      if (headers && Object.keys(headers).length > 0) {
+        requestOptions.headers = headers;
+      }
 
       if (body !== undefined) {
         requestOptions.json = body;
@@ -516,9 +520,9 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           items: Array<{
             id: string;
             type:
-            | "PROOF_OF_OWNERSHIP"
-            | "LOCATION_CONFIRMATION"
-            | "PROPERTY_PHOTOS";
+              | "PROOF_OF_OWNERSHIP"
+              | "LOCATION_CONFIRMATION"
+              | "PROPERTY_PHOTOS";
             status: "PENDING" | "SUBMITTED" | "APPROVED" | "REJECTED";
             evidenceUrls: string[];
             gpsLat: number | null;
@@ -604,10 +608,10 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             rating: number;
             comment: string | null;
             type:
-            | "PREVIOUS_TENANT"
-            | "CURRENT_TENANT"
-            | "VISITOR"
-            | "ANONYMOUS";
+              | "PREVIOUS_TENANT"
+              | "CURRENT_TENANT"
+              | "VISITOR"
+              | "ANONYMOUS";
             isAnonymous: boolean;
             createdAt: string;
             reviewer?: { id: string; name: string; isVerified: boolean } | null;
