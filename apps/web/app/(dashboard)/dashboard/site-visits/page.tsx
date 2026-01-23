@@ -36,15 +36,30 @@ export default function SiteVisitsPage() {
             return sdk.siteVisits.listMyAssignments();
         }
     });
+"use client";
 
     const { data: focusedVisit, isLoading: loadingFocused } = useQuery({
         queryKey: ['site-visits', 'focus', focusedVisitId],
-        enabled: status === 'ready' && !!focusedVisitId && !!sdk,
+        enabled: status === 'ready' && !!focusedVisitId,
         queryFn: async () => {
-            if (!sdk || !focusedVisitId) {
+            if (!focusedVisitId) {
                 return null;
             }
-            return sdk.siteVisits.get(focusedVisitId);
+            if (sdk && 'get' in sdk.siteVisits) {
+                return sdk.siteVisits.get(focusedVisitId);
+            }
+            if (!apiBaseUrl || !accessToken) {
+                return null;
+            }
+            const res = await fetch(`${apiBaseUrl}/site-visits/${focusedVisitId}`, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`
+                }
+            });
+            if (!res.ok) {
+                throw new Error('Failed to load site visit');
+            }
+            return res.json();
         }
     });
 
@@ -146,6 +161,10 @@ export default function SiteVisitsPage() {
             ) : isError ? (
                 <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-600">
                     Unable to load site visits right now. Please try again.
+                </div>
+            ) : focusedVisitId && !focusedVisit && !combinedVisits.length ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-sm text-amber-700">
+                    We could not load that site visit. Make sure you have access or refresh the page.
                 </div>
             ) : !combinedVisits.length ? (
                 <EmptyState viewMode={viewMode} />
