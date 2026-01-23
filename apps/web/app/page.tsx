@@ -1,19 +1,25 @@
-import nextDynamic from 'next/dynamic';
-import { LandingNav } from '@/components/landing-nav';
-import { LandingHero, type FloatingHeroCard } from '@/components/landing-hero';
-import { LandingPropertyCard, type LandingProperty } from '@/components/landing-property-card';
-import { LandingAuroraPalette } from '@/components/landing-aurora-palette';
-import { Instagram, Linkedin, Twitter } from 'lucide-react';
-import type { LandingMapSectionProps } from '@/components/landing-map-section';
-import { serverPublicApiRequest } from '@/lib/server-api';
-import { getImageUrl } from '@/lib/image-url';
+import nextDynamic from "next/dynamic";
+import { LandingNav } from "@/components/landing-nav";
+import { LandingHero, type FloatingHeroCard } from "@/components/landing-hero";
+import {
+  LandingPropertyCard,
+  type LandingProperty,
+} from "@/components/landing-property-card";
+import { LandingAuroraPalette } from "@/components/landing-aurora-palette";
+import { Instagram, Linkedin, Twitter } from "lucide-react";
+import type { LandingMapSectionProps } from "@/components/landing-map-section";
+import { serverPublicApiRequest } from "@/lib/server-api";
+import { getImageUrl } from "@/lib/image-url";
 
 const LandingMapSection = nextDynamic<LandingMapSectionProps>(
-  () => import('@/components/landing-map-section').then((mod) => mod.LandingMapSection),
-  { ssr: false }
+  () =>
+    import("@/components/landing-map-section").then(
+      (mod) => mod.LandingMapSection,
+    ),
+  { ssr: false },
 );
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface ShowcaseProperty extends LandingProperty {
   coordinates: [number, number];
@@ -30,6 +36,10 @@ interface FeaturedListing {
   lat: number | null;
   lng: number | null;
   listingIntent: string | null;
+  status: string | null;
+  verificationLevel: string | null;
+  verificationScore: number | null;
+  isFeatured: boolean | null;
   media: Array<{ url: string }>;
   city?: { name: string } | null;
   suburb?: { name: string } | null;
@@ -37,43 +47,53 @@ interface FeaturedListing {
 
 const heroCards: FloatingHeroCard[] = [
   {
-    accent: 'CURATED AGENTS',
-    title: 'Verified storytellers',
-    description: 'Partnered agents trained on PropAd showing rituals and concierge-style onboarding.'
+    accent: "CURATED AGENTS",
+    title: "Verified storytellers",
+    description:
+      "Partnered agents trained on PropAd showing rituals and concierge-style onboarding.",
   },
   {
-    accent: 'SEAMLESS JOURNEY',
-    title: 'Framer powered motion',
-    description: 'Micro-animations guide renters from enquiry to offer with zero static friction.'
+    accent: "SEAMLESS JOURNEY",
+    title: "Framer powered motion",
+    description:
+      "Micro-animations guide renters from enquiry to offer with zero static friction.",
   },
   {
-    accent: 'MARKET INTELLIGENCE',
-    title: 'Live rate telemetry',
-    description: 'Pricing heatmaps pull from PropAd market data to keep valuations precise and aspirational.'
-  }
+    accent: "MARKET INTELLIGENCE",
+    title: "Live rate telemetry",
+    description:
+      "Pricing heatmaps pull from PropAd market data to keep valuations precise and aspirational.",
+  },
 ];
 
 async function getFeaturedProperties(): Promise<ShowcaseProperty[]> {
   try {
-    const properties = await serverPublicApiRequest<FeaturedListing[]>('/properties/featured');
+    const properties = await serverPublicApiRequest<FeaturedListing[]>(
+      "/properties/featured",
+    );
 
     return properties.map((property) => {
-      const location = property.suburb?.name || property.city?.name || 'Zimbabwe';
-      const statusTone = property.listingIntent === 'SELL' ? 'sale' : 'rent';
-      const statusLabel = statusTone === 'sale' ? 'FOR SALE' : 'FOR RENT';
+      const location =
+        property.suburb?.name || property.city?.name || "Zimbabwe";
+      const isRent = property.listingIntent === "TO_RENT";
+      const statusTone = isRent ? "rent" : "sale";
+      const statusLabel = isRent ? "FOR RENT" : "FOR SALE";
       const imageUrl = property.media?.[0]?.url
         ? getImageUrl(property.media[0].url)
-        : '/icons/icon-512.svg';
-      const priceValue = typeof property.price === 'string' ? Number(property.price) : property.price;
-      const priceLabel = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: property.currency || 'USD',
-        maximumFractionDigits: 0
+        : "/icons/icon-512.svg";
+      const priceValue =
+        typeof property.price === "string"
+          ? Number(property.price)
+          : property.price;
+      const priceLabel = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: property.currency || "USD",
+        maximumFractionDigits: 0,
       }).format(priceValue ?? 0);
 
       const coordinates: [number, number] = [
         property.lat ?? 0,
-        property.lng ?? 0
+        property.lng ?? 0,
       ];
 
       return {
@@ -83,15 +103,18 @@ async function getFeaturedProperties(): Promise<ShowcaseProperty[]> {
         price: priceLabel,
         status: statusLabel,
         statusTone,
+        verificationStatus: property.status,
+        verificationLevel: property.verificationLevel,
+        isFeatured: property.isFeatured ?? false,
         imageUrl,
         beds: property.bedrooms ?? 0,
         baths: property.bathrooms ?? 0,
         area: property.areaSqm ?? 0,
-        coordinates
+        coordinates,
       };
     });
   } catch (error) {
-    console.error('Failed to fetch featured properties:', error);
+    console.error("Failed to fetch featured properties:", error);
     return [];
   }
 }
@@ -112,13 +135,16 @@ export default async function HomePage() {
           className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 sm:px-12 lg:px-16"
         >
           <div className="flex flex-col gap-4">
-            <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">Signature portfolio</span>
+            <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">
+              Signature portfolio
+            </span>
             <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
               Featured addresses crafted for modern Zimbabwean living
             </h2>
             <p className="max-w-2xl text-base text-slate-600">
-              Cinematic cards reveal the essentials at a glance. Tap through to unlock immersive tours, agent
-              chat, and PropAd verified documentation.
+              Cinematic cards reveal the essentials at a glance. Tap through to
+              unlock immersive tours, agent chat, and PropAd verified
+              documentation.
             </p>
           </div>
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -126,7 +152,6 @@ export default async function HomePage() {
               <LandingPropertyCard key={property.id} property={property} />
             ))}
           </div>
-
         </section>
 
         <LandingMapSection properties={showcaseProperties} />
@@ -138,23 +163,40 @@ export default async function HomePage() {
       >
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 sm:flex-row sm:items-center sm:justify-between sm:px-12 lg:px-16">
           <div className="flex flex-col gap-2">
-            <p className="text-sm uppercase tracking-[0.35em] text-emerald-200">PropAd Zimbabwe</p>
-            <p className="text-lg font-semibold">Aspirational real estate, choreographed end-to-end.</p>
-            <p className="text-sm text-emerald-100/80">hello@propad.co.zw · +263 77 000 1234</p>
+            <p className="text-sm uppercase tracking-[0.35em] text-emerald-200">
+              PropAd Zimbabwe
+            </p>
+            <p className="text-lg font-semibold">
+              Aspirational real estate, choreographed end-to-end.
+            </p>
+            <p className="text-sm text-emerald-100/80">
+              hello@propad.co.zw · +263 77 000 1234
+            </p>
           </div>
           <div className="flex flex-col items-start gap-4 text-sm text-emerald-100/80 sm:items-end">
             <div className="flex items-center gap-3">
-              <a href="https://twitter.com" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20">
+              <a
+                href="https://twitter.com"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20"
+              >
                 <Twitter className="h-4 w-4" />
               </a>
-              <a href="https://instagram.com" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20">
+              <a
+                href="https://instagram.com"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20"
+              >
                 <Instagram className="h-4 w-4" />
               </a>
-              <a href="https://linkedin.com" className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20">
+              <a
+                href="https://linkedin.com"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20"
+              >
                 <Linkedin className="h-4 w-4" />
               </a>
             </div>
-            <p className="text-xs">© {new Date().getFullYear()} PropAd. All rights reserved.</p>
+            <p className="text-xs">
+              © {new Date().getFullYear()} PropAd. All rights reserved.
+            </p>
           </div>
         </div>
       </footer>

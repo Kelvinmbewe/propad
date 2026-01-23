@@ -610,7 +610,7 @@ export default function EditPropertyPage() {
                                     }
                                     setIsAddingExternalImage(true);
                                     try {
-                                        await sdk.request(`/properties/${propertyId}/media/link`, {
+                                        await sdk.request(`properties/${propertyId}/media/link`, {
                                             method: 'POST',
                                             body: { url: externalImageUrl.trim() }
                                         });

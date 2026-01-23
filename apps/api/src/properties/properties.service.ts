@@ -114,7 +114,6 @@ const LocalListingActivityType = {
   PROPERTY_VIEWED: "PROPERTY_VIEWED",
 } as const;
 
-
 const ListingPaymentStatus = {
   PENDING: "PENDING",
   PAID: "PAID",
@@ -252,7 +251,7 @@ export class PropertiesService {
     private readonly pricing: PricingService,
     private readonly paymentsService: PaymentsService,
     private readonly verificationsService: VerificationsService,
-  ) { }
+  ) {}
 
   /**
    * Recursively convert Prisma Decimal types and Date objects for JSON serialization
@@ -347,8 +346,8 @@ export class PropertiesService {
           runId: "run1",
           hypothesisId,
         }) + "\n";
-      await mkdir(".cursor", { recursive: true }).catch(() => { });
-      await appendFile(".cursor/debug.log", logEntry).catch(() => { });
+      await mkdir(".cursor", { recursive: true }).catch(() => {});
+      await appendFile(".cursor/debug.log", logEntry).catch(() => {});
     } catch {
       // Ignore logging errors
     }
@@ -393,7 +392,7 @@ export class PropertiesService {
         priceType: typeof property?.price,
       },
       "A",
-    ).catch(() => { });
+    ).catch(() => {});
     // #endregion
     try {
       // Safely extract location data with proper null checks
@@ -428,7 +427,7 @@ export class PropertiesService {
           provinceType: typeof province,
         },
         "A",
-      ).catch(() => { });
+      ).catch(() => {});
       // #endregion
 
       // Exclude Prisma relation objects from the spread to avoid serialization issues
@@ -453,7 +452,7 @@ export class PropertiesService {
           priceValue: cleanProperty?.price?.toString?.()?.substring(0, 20),
         },
         "B",
-      ).catch(() => { });
+      ).catch(() => {});
       // #endregion
 
       // Use pending geo's proposed name as suburb name if no regular suburb exists
@@ -507,18 +506,18 @@ export class PropertiesService {
           countryId: property.countryId ?? null,
           country: country
             ? {
-              id: String(country.id ?? ""),
-              name: String(country.name ?? ""),
-              iso2: String(country.iso2 ?? ""),
-              phoneCode: String(country.phoneCode ?? ""),
-            }
+                id: String(country.id ?? ""),
+                name: String(country.name ?? ""),
+                iso2: String(country.iso2 ?? ""),
+                phoneCode: String(country.phoneCode ?? ""),
+              }
             : null,
           provinceId: property.provinceId ?? null,
           province: province
             ? {
-              id: String(province.id ?? ""),
-              name: String(province.name ?? ""),
-            }
+                id: String(province.id ?? ""),
+                name: String(province.name ?? ""),
+              }
             : null,
           cityId: property.cityId ?? null,
           city: city
@@ -531,11 +530,11 @@ export class PropertiesService {
           pendingGeoId: property.pendingGeoId ?? null,
           pendingGeo: pendingGeo
             ? {
-              id: String(pendingGeo.id ?? ""),
-              proposedName: String(pendingGeo.proposedName ?? ""),
-              level: String(pendingGeo.level ?? ""),
-              status: String(pendingGeo.status ?? ""),
-            }
+                id: String(pendingGeo.id ?? ""),
+                proposedName: String(pendingGeo.proposedName ?? ""),
+                level: String(pendingGeo.level ?? ""),
+                status: String(pendingGeo.status ?? ""),
+              }
             : null,
           lat: typeof property.lat === "number" ? property.lat : null,
           lng: typeof property.lng === "number" ? property.lng : null,
@@ -555,7 +554,7 @@ export class PropertiesService {
           resultAreaSqmType: typeof convertedResult?.areaSqm,
         },
         "B",
-      ).catch(() => { });
+      ).catch(() => {});
       // #endregion
 
       return convertedResult;
@@ -611,7 +610,7 @@ export class PropertiesService {
       "attachLocationToMany entry",
       { propertyCount: properties.length },
       "C",
-    ).catch(() => { });
+    ).catch(() => {});
     // #endregion
     return properties
       .map((property, index) => {
@@ -622,7 +621,7 @@ export class PropertiesService {
             "attachLocationToMany processing property",
             { index, propertyId: property?.id },
             "C",
-          ).catch(() => { });
+          ).catch(() => {});
           // #endregion
           return this.attachLocation(property);
         } catch (error) {
@@ -681,7 +680,7 @@ export class PropertiesService {
             isDecimal: result?.price?.constructor?.name === "Decimal",
           },
           "B",
-        ).catch(() => { });
+        ).catch(() => {});
         // #endregion
         // Convert all Decimal types recursively
         const converted = this.convertDecimalsToNumbers(result);
@@ -695,7 +694,7 @@ export class PropertiesService {
             newPriceType: typeof converted?.price,
           },
           "B",
-        ).catch(() => { });
+        ).catch(() => {});
         // #endregion
         return converted;
       });
@@ -1750,12 +1749,12 @@ export class PropertiesService {
         ...filtered,
         ...(isUpdatingLocation
           ? {
-            countryId: location.country?.id ?? null,
-            provinceId: location.province?.id ?? null,
-            cityId: location.city?.id ?? null,
-            suburbId: location.suburb?.id ?? null,
-            pendingGeoId: location.pendingGeo?.id ?? null,
-          }
+              countryId: location.country?.id ?? null,
+              provinceId: location.province?.id ?? null,
+              cityId: location.city?.id ?? null,
+              suburbId: location.suburb?.id ?? null,
+              pendingGeoId: location.pendingGeo?.id ?? null,
+            }
           : {}),
         ...(lat !== undefined ? { lat } : {}),
         ...(lng !== undefined ? { lng } : {}),
@@ -2553,8 +2552,16 @@ export class PropertiesService {
     const useRanking = !dto.sort || dto.sort === "RELEVANCE";
 
     // Build Where Clause
+    const activeStatuses = dto.verifiedOnly
+      ? [PropertyStatus.VERIFIED]
+      : [
+          PropertyStatus.VERIFIED,
+          PropertyStatus.PENDING_VERIFY,
+          PropertyStatus.PUBLISHED,
+        ];
+
     const where: Prisma.PropertyWhereInput = {
-      status: PropertyStatus.VERIFIED,
+      status: { in: activeStatuses },
       // Exact Filters
       ...(filters.type ? { type: filters.type } : {}),
       ...(filters.countryId ? { countryId: filters.countryId } : {}),
@@ -2565,26 +2572,26 @@ export class PropertiesService {
       // Range Filters
       ...(filters.priceMin || filters.priceMax
         ? {
-          price: {
-            ...(filters.priceMin ? { gte: filters.priceMin } : {}),
-            ...(filters.priceMax ? { lte: filters.priceMax } : {}),
-          },
-        }
+            price: {
+              ...(filters.priceMin ? { gte: filters.priceMin } : {}),
+              ...(filters.priceMax ? { lte: filters.priceMax } : {}),
+            },
+          }
         : {}),
       ...(filters.bedrooms ? { bedrooms: { gte: filters.bedrooms } } : {}),
       ...(filters.bathrooms ? { bathrooms: { gte: filters.bathrooms } } : {}),
       ...(filters.minFloorArea
         ? {
-          OR: [
-            { areaSqm: { gte: filters.minFloorArea } },
-            {
-              commercialFields: {
-                path: ["floorAreaSqm"],
-                gte: filters.minFloorArea,
+            OR: [
+              { areaSqm: { gte: filters.minFloorArea } },
+              {
+                commercialFields: {
+                  path: ["floorAreaSqm"],
+                  gte: filters.minFloorArea,
+                },
               },
-            },
-          ],
-        }
+            ],
+          }
         : {}),
 
       // Boolean / Enum Filters
@@ -2600,33 +2607,33 @@ export class PropertiesService {
       // JSON Array Filter (Amenities)
       ...(filters.amenities && filters.amenities.length > 0
         ? {
-          amenities: { hasSome: filters.amenities },
-        }
+            amenities: { hasSome: filters.amenities },
+          }
         : {}),
 
       // Geo Bounds
       ...(filters.bounds
         ? {
-          lat: {
-            gte: filters.bounds.southWest.lat,
-            lte: filters.bounds.northEast.lat,
-          },
-          lng: {
-            gte: filters.bounds.southWest.lng,
-            lte: filters.bounds.northEast.lng,
-          },
-        }
+            lat: {
+              gte: filters.bounds.southWest.lat,
+              lte: filters.bounds.northEast.lat,
+            },
+            lng: {
+              gte: filters.bounds.southWest.lng,
+              lte: filters.bounds.northEast.lng,
+            },
+          }
         : {}),
 
       // --- SMART RANKING FILTERS ---
       // Verified Only Support
       ...(dto.verifiedOnly
         ? {
-          OR: [
-            { verificationLevel: "VERIFIED" },
-            { verificationLevel: "TRUSTED" },
-          ],
-        }
+            OR: [
+              { verificationLevel: "VERIFIED" },
+              { verificationLevel: "TRUSTED" },
+            ],
+          }
         : {}),
     };
 
@@ -2658,6 +2665,7 @@ export class PropertiesService {
           pendingGeo: true,
           propertyRatings: { select: { rating: true } },
           listingPayments: { where: { status: "PAID" } },
+          featuredListing: true,
         },
         orderBy,
         take: fetchLimit,
@@ -2728,27 +2736,30 @@ export class PropertiesService {
     }
 
     // Fetch verification costs config - values are in dollars (e.g., 5 = $5)
-    const verificationCosts = (await this.pricing.getConfig("pricing.verificationCosts", {
-      PROOF_OF_OWNERSHIP: 5,
-      LOCATION_CONFIRMATION: 5,
-      PROPERTY_PHOTOS: 5,
-      SITE_VISIT_UPGRADE: 15,
-    })) as Record<string, number>;
+    const verificationCosts = (await this.pricing.getConfig(
+      "pricing.verificationCosts",
+      {
+        PROOF_OF_OWNERSHIP: 5,
+        LOCATION_CONFIRMATION: 5,
+        PROPERTY_PHOTOS: 5,
+        SITE_VISIT_UPGRADE: 15,
+      },
+    )) as Record<string, number>;
 
     // Calculate total fee based on submitted items
     // Convert dollars to cents for payment ledger
     let totalFeeUsd = 0;
     if (dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0) {
-      totalFeeUsd += verificationCosts['PROOF_OF_OWNERSHIP'] || 5;
+      totalFeeUsd += verificationCosts["PROOF_OF_OWNERSHIP"] || 5;
     }
     if (dto.locationGpsLat && dto.locationGpsLng) {
-      totalFeeUsd += verificationCosts['LOCATION_CONFIRMATION'] || 5;
+      totalFeeUsd += verificationCosts["LOCATION_CONFIRMATION"] || 5;
       if (dto.requestOnSiteVisit) {
-        totalFeeUsd += verificationCosts['SITE_VISIT_UPGRADE'] || 15;
+        totalFeeUsd += verificationCosts["SITE_VISIT_UPGRADE"] || 15;
       }
     }
     if (dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0) {
-      totalFeeUsd += verificationCosts['PROPERTY_PHOTOS'] || 5;
+      totalFeeUsd += verificationCosts["PROPERTY_PHOTOS"] || 5;
     }
     // Convert to cents for payment storage
     const verificationFeeUsdCents = totalFeeUsd * 100;
@@ -2777,8 +2788,11 @@ export class PropertiesService {
       if (dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0) {
         if (proofItem) {
           // Editability Window Check: Allow edit if < 6 hours since review OR if status is NOT Approved
-          const hoursSinceReview = proofItem.reviewedAt ? differenceInHours(new Date(), proofItem.reviewedAt) : 0;
-          const isEditable = proofItem.status !== "APPROVED" || hoursSinceReview < 6;
+          const hoursSinceReview = proofItem.reviewedAt
+            ? differenceInHours(new Date(), proofItem.reviewedAt)
+            : 0;
+          const isEditable =
+            proofItem.status !== "APPROVED" || hoursSinceReview < 6;
 
           if (isEditable) {
             // ... logic ...
@@ -2793,7 +2807,10 @@ export class PropertiesService {
                 },
               });
               // Fingerprint
-              void this.fingerprintService.processItemEvidence(proofItem.id, dto.proofOfOwnershipUrls);
+              void this.fingerprintService.processItemEvidence(
+                proofItem.id,
+                dto.proofOfOwnershipUrls,
+              );
             }
           }
         } else {
@@ -2811,9 +2828,16 @@ export class PropertiesService {
       if (dto.locationGpsLat && dto.locationGpsLng) {
         let updatedLocationItem;
         if (locationItem) {
-          const hoursSinceReview = locationItem.reviewedAt ? differenceInHours(new Date(), locationItem.reviewedAt) : 0;
-          const isUpgrade = dto.requestOnSiteVisit && !locationItem.notes?.includes("On-site visit");
-          const isEditable = locationItem.status !== "APPROVED" || hoursSinceReview < 6 || isUpgrade;
+          const hoursSinceReview = locationItem.reviewedAt
+            ? differenceInHours(new Date(), locationItem.reviewedAt)
+            : 0;
+          const isUpgrade =
+            dto.requestOnSiteVisit &&
+            !locationItem.notes?.includes("On-site visit");
+          const isEditable =
+            locationItem.status !== "APPROVED" ||
+            hoursSinceReview < 6 ||
+            isUpgrade;
 
           if (isEditable) {
             updatedLocationItem =
@@ -2825,7 +2849,9 @@ export class PropertiesService {
                   gpsLng: dto.locationGpsLng,
                   notes: dto.requestOnSiteVisit
                     ? "On-site visit requested"
-                    : (isUpgrade ? "On-site visit requested" : locationItem.notes),
+                    : isUpgrade
+                      ? "On-site visit requested"
+                      : locationItem.notes,
                   verifierId: null,
                   reviewedAt: null,
                 },
@@ -2950,18 +2976,18 @@ export class PropertiesService {
             create: [
               ...(hasProofOfOwnership
                 ? [
-                  {
-                    type: "PROOF_OF_OWNERSHIP" as const,
-                    status: "SUBMITTED" as const,
-                    evidenceUrls: dto.proofOfOwnershipUrls!,
-                  },
-                ]
+                    {
+                      type: "PROOF_OF_OWNERSHIP" as const,
+                      status: "SUBMITTED" as const,
+                      evidenceUrls: dto.proofOfOwnershipUrls!,
+                    },
+                  ]
                 : [
-                  {
-                    type: "PROOF_OF_OWNERSHIP" as const,
-                    status: "PENDING" as const,
-                  },
-                ]),
+                    {
+                      type: "PROOF_OF_OWNERSHIP" as const,
+                      status: "PENDING" as const,
+                    },
+                  ]),
               {
                 type: "LOCATION_CONFIRMATION" as const,
                 status: hasLocation
@@ -2975,18 +3001,18 @@ export class PropertiesService {
               },
               ...(hasPropertyPhotos
                 ? [
-                  {
-                    type: "PROPERTY_PHOTOS" as const,
-                    status: "SUBMITTED" as const,
-                    evidenceUrls: dto.propertyPhotoUrls!,
-                  },
-                ]
+                    {
+                      type: "PROPERTY_PHOTOS" as const,
+                      status: "SUBMITTED" as const,
+                      evidenceUrls: dto.propertyPhotoUrls!,
+                    },
+                  ]
                 : [
-                  {
-                    type: "PROPERTY_PHOTOS" as const,
-                    status: "PENDING" as const,
-                  },
-                ]),
+                    {
+                      type: "PROPERTY_PHOTOS" as const,
+                      status: "PENDING" as const,
+                    },
+                  ]),
             ],
           },
         },
@@ -3265,12 +3291,15 @@ export class PropertiesService {
 
       if (!existingPayment) {
         // Fetch verification costs
-        const verificationCosts = (await this.pricing.getConfig("pricing.verificationCosts", {
-          PROOF_OF_OWNERSHIP: 5,
-          LOCATION_CONFIRMATION: 5,
-          PROPERTY_PHOTOS: 5,
-          SITE_VISIT_UPGRADE: 15,
-        })) as Record<string, number>;
+        const verificationCosts = (await this.pricing.getConfig(
+          "pricing.verificationCosts",
+          {
+            PROOF_OF_OWNERSHIP: 5,
+            LOCATION_CONFIRMATION: 5,
+            PROPERTY_PHOTOS: 5,
+            SITE_VISIT_UPGRADE: 15,
+          },
+        )) as Record<string, number>;
 
         // Determine the fee for this item type
         let feeUsd = verificationCosts[item.type] || 5;
@@ -3374,7 +3403,7 @@ export class PropertiesService {
           data: {
             status: ListingPaymentStatus.CANCELLED,
             metadata: {
-              ...(pendingPayment.metadata as Record<string, unknown> || {}),
+              ...((pendingPayment.metadata as Record<string, unknown>) || {}),
               waivedByAdmin: true,
               waivedAt: new Date().toISOString(),
               waivedReason: "Admin approved verification before payment",
@@ -3473,15 +3502,22 @@ export class PropertiesService {
 
   async listFeatured() {
     const now = new Date();
-    const properties: Prisma.PropertyGetPayload<{
+    const featuredProperties: Prisma.PropertyGetPayload<{
       include: {
         media: true;
         city: true;
         suburb: true;
+        featuredListing: true;
       };
     }>[] = await this.prisma.property.findMany({
       where: {
-        status: PropertyStatus.VERIFIED,
+        status: {
+          in: [
+            PropertyStatus.VERIFIED,
+            PropertyStatus.PENDING_VERIFY,
+            PropertyStatus.PUBLISHED,
+          ],
+        },
         featuredListing: {
           status: "ACTIVE",
           startsAt: { lte: now },
@@ -3492,6 +3528,7 @@ export class PropertiesService {
         media: { take: 1 },
         city: true,
         suburb: true,
+        featuredListing: true,
       },
       orderBy: [
         { featuredListing: { priorityLevel: "desc" } },
@@ -3500,7 +3537,71 @@ export class PropertiesService {
       take: 12,
     });
 
-    return properties.map((property) => ({
+    const remainingSlots = Math.max(0, 12 - featuredProperties.length);
+    const fallbackProperties = remainingSlots
+      ? await this.prisma.property.findMany({
+          where: {
+            status: {
+              in: [
+                PropertyStatus.VERIFIED,
+                PropertyStatus.PENDING_VERIFY,
+                PropertyStatus.PUBLISHED,
+              ],
+            },
+            id: featuredProperties.length
+              ? { notIn: featuredProperties.map((property) => property.id) }
+              : undefined,
+          },
+          include: {
+            media: { take: 1 },
+            city: true,
+            suburb: true,
+            featuredListing: true,
+          },
+          orderBy: [{ verificationScore: "desc" }, { updatedAt: "desc" }],
+          take: remainingSlots,
+        })
+      : [];
+
+    const properties = [...featuredProperties, ...fallbackProperties];
+
+    const sorted = [...properties].sort((a, b) => {
+      const aPriority =
+        (a.featuredListing?.priorityLevel ?? 0) + (a.featuredListing ? 100 : 0);
+      const bPriority =
+        (b.featuredListing?.priorityLevel ?? 0) + (b.featuredListing ? 100 : 0);
+      if (aPriority !== bPriority) {
+        return bPriority - aPriority;
+      }
+
+      const verificationWeight = (property: typeof a) => {
+        if (property.status === PropertyStatus.PENDING_VERIFY) {
+          return 0;
+        }
+        if (property.verificationLevel === "VERIFIED") {
+          return 3;
+        }
+        if (property.verificationLevel === "TRUSTED") {
+          return 2;
+        }
+        if (property.verificationLevel === "BASIC") {
+          return 1;
+        }
+        return 0;
+      };
+
+      const aWeight = verificationWeight(a);
+      const bWeight = verificationWeight(b);
+      if (aWeight !== bWeight) {
+        return bWeight - aWeight;
+      }
+
+      const aStartsAt = a.featuredListing?.startsAt?.getTime?.() ?? 0;
+      const bStartsAt = b.featuredListing?.startsAt?.getTime?.() ?? 0;
+      return bStartsAt - aStartsAt;
+    });
+
+    return sorted.map((property) => ({
       id: property.id,
       title: property.title,
       price: property.price,
@@ -3511,6 +3612,10 @@ export class PropertiesService {
       lat: property.lat,
       lng: property.lng,
       listingIntent: property.listingIntent,
+      status: property.status,
+      verificationLevel: property.verificationLevel,
+      verificationScore: property.verificationScore,
+      isFeatured: Boolean(property.featuredListing),
       media: property.media,
       city: property.city,
       suburb: property.suburb,

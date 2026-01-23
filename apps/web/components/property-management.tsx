@@ -270,7 +270,7 @@ export function PropertyManagement() {
                                 }
                                 try {
                                   await sdk.request(
-                                    `/properties/${property.id}/publish`,
+                                    `properties/${property.id}/publish`,
                                     { method: "PATCH" },
                                   );
                                   window.location.reload();
@@ -299,15 +299,15 @@ export function PropertyManagement() {
                               }
                               if (
                                 confirm(
-                                  "Pause this listing? It will be hidden from public search.",
+                                  "Pause this listing? It will be archived and hidden from public search. You can restore it later.",
                                 )
                               ) {
                                 try {
                                   await sdk.request(
-                                    `/properties/${property.id}/status`,
+                                    `properties/${property.id}/status`,
                                     {
                                       method: "PATCH",
-                                      body: { status: "PUBLISHED" },
+                                      body: { status: "ARCHIVED" },
                                     },
                                   );
                                   window.location.reload();
@@ -340,7 +340,7 @@ export function PropertyManagement() {
                               ) {
                                 try {
                                   await sdk.request(
-                                    `/properties/${property.id}/publish`,
+                                    `properties/${property.id}/publish`,
                                     { method: "PATCH" },
                                   );
                                   window.location.reload();
@@ -369,7 +369,7 @@ export function PropertyManagement() {
                               if (confirm("Restore this listing to draft?")) {
                                 try {
                                   await sdk.request(
-                                    `/properties/${property.id}/status`,
+                                    `properties/${property.id}/status`,
                                     {
                                       method: "PATCH",
                                       body: { status: "DRAFT" },
