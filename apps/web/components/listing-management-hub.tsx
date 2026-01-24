@@ -221,8 +221,13 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
           }
         }
 
+        const parseJson = async (response: Response) => {
+          const text = await response.text();
+          return text ? JSON.parse(text) : null;
+        };
+
         if (featuredPricingResponse.ok) {
-          const pricing = await featuredPricingResponse.json();
+          const pricing = await parseJson(featuredPricingResponse);
           setFeaturedPricing(pricing);
           if (pricing?.basePriceUsdCents) {
             setFeaturedBasePriceUsd(pricing.basePriceUsdCents / 100);
@@ -238,18 +243,18 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
         }
 
         if (enabledProvidersResponse.ok) {
-          const providers = await enabledProvidersResponse.json();
+          const providers = await parseJson(enabledProvidersResponse);
           setEnabledPaymentProviders(Array.isArray(providers) ? providers : []);
         }
 
         if (defaultProviderResponse.ok) {
-          const provider = await defaultProviderResponse.json();
+          const provider = await parseJson(defaultProviderResponse);
           setDefaultPaymentProvider(provider ?? null);
         }
 
         // Handle verification costs
         if (verificationCostsResponse.ok) {
-          const costs = await verificationCostsResponse.json();
+          const costs = await parseJson(verificationCostsResponse);
           setVerificationCosts(costs.value || costs);
         }
       } catch (err) {
@@ -347,12 +352,15 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
   const resignAgentMutation = useMutation({
     mutationFn: () => sdk!.properties.resignAgent(propertyId),
     onSuccess: () => {
-      notify.success("Agent resigned successfully. You can now assign a new agent or manage the property yourself.");
+      notify.success(
+        "Agent resigned successfully. You can now assign a new agent or manage the property yourself.",
+      );
       queryClient.invalidateQueries({ queryKey: ["property", propertyId] });
       setSelectedAgent(null);
       setAgentSearchQuery("");
     },
-    onError: (err: any) => notify.error(err.message || "Failed to resign agent"),
+    onError: (err: any) =>
+      notify.error(err.message || "Failed to resign agent"),
   });
 
   const resolvePaymentGateway = () => {
@@ -399,7 +407,9 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
       }
 
       if (!amountUsd || amountUsd <= 0) {
-        throw new Error("Unable to calculate payment amount. Please contact support.");
+        throw new Error(
+          "Unable to calculate payment amount. Please contact support.",
+        );
       }
 
       const gateway = resolvePaymentGateway();
@@ -509,10 +519,11 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
             key={tab.id}
             data-tab={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${activeTab === tab.id
-              ? "border-emerald-600 text-emerald-600"
-              : "border-transparent text-neutral-500 hover:text-neutral-700"
-              }`}
+            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+              activeTab === tab.id
+                ? "border-emerald-600 text-emerald-600"
+                : "border-transparent text-neutral-500 hover:text-neutral-700"
+            }`}
           >
             {tab.label}
           </button>
@@ -778,9 +789,12 @@ function ManagementTab({
                   <p className="font-semibold">
                     Agent Assigned: {property.agentOwner?.name}
                   </p>
-                  <p className="text-xs mt-1">Service Fee: ${assignment.serviceFeeUsdCents / 100}</p>
+                  <p className="text-xs mt-1">
+                    Service Fee: ${assignment.serviceFeeUsdCents / 100}
+                  </p>
                   <p className="text-xs text-blue-600 mt-1">
-                    Search and fee fields are locked. Resign agent to make changes.
+                    Search and fee fields are locked. Resign agent to make
+                    changes.
                   </p>
                 </div>
               </div>
@@ -789,7 +803,11 @@ function ManagementTab({
                 className="w-full border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
                 disabled={isResigning}
                 onClick={() => {
-                  if (confirm("Are you sure you want to resign the agent? You can assign a new agent or manage the property yourself.")) {
+                  if (
+                    confirm(
+                      "Are you sure you want to resign the agent? You can assign a new agent or manage the property yourself.",
+                    )
+                  ) {
                     handleResignAgent();
                   }
                 }}
@@ -864,14 +882,16 @@ function FeaturedSection({
     if (!payments) return null;
 
     const promotionPayments = payments.filter(
-      (p: any) => p.type === "PROMOTION" && p.status === "PAID"
+      (p: any) => p.type === "PROMOTION" && p.status === "PAID",
     );
 
     for (const payment of promotionPayments) {
       const metadata = payment.metadata as any;
       const durationDays = metadata?.durationDays || 30;
       const paidAt = new Date(payment.updatedAt);
-      const expiresAt = new Date(paidAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
+      const expiresAt = new Date(
+        paidAt.getTime() + durationDays * 24 * 60 * 60 * 1000,
+      );
 
       if (expiresAt > new Date()) {
         return {
@@ -893,7 +913,9 @@ function FeaturedSection({
     const now = new Date();
     const diffMs = activeBoost.expiresAt.getTime() - now.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const diffHours = Math.floor(
+      (diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+    );
 
     if (diffDays > 0) return `${diffDays} days, ${diffHours} hours`;
     if (diffHours > 0) return `${diffHours} hours`;
@@ -913,7 +935,9 @@ function FeaturedSection({
         <CardContent className="space-y-4">
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="font-medium text-emerald-800">{activeBoost.planLabel}</span>
+              <span className="font-medium text-emerald-800">
+                {activeBoost.planLabel}
+              </span>
               <span className="text-xs bg-emerald-600 text-white px-2 py-1 rounded-full">
                 Active
               </span>
@@ -938,15 +962,18 @@ function FeaturedSection({
               </div>
               <div>
                 <p className="text-neutral-500">Amount Paid</p>
-                <p className="font-medium">${activeBoost.amountPaid.toFixed(2)}</p>
+                <p className="font-medium">
+                  ${activeBoost.amountPaid.toFixed(2)}
+                </p>
               </div>
             </div>
           </div>
 
           <div className="text-xs text-neutral-500">
             <p>
-              Your listing is currently boosted and will appear in featured sections.
-              You can purchase another plan before this one expires to extend your boost.
+              Your listing is currently boosted and will appear in featured
+              sections. You can purchase another plan before this one expires to
+              extend your boost.
             </p>
           </div>
         </CardContent>
@@ -997,7 +1024,7 @@ function FeaturedSection({
               const isActive = selectedPlan === plan.id;
               const discount = plan.discountPercent ?? 0;
               // Calculate fee: use plan's feeUsdCents if available, else calculate from base
-              let displayFee = '';
+              let displayFee = "";
               if (plan.feeUsdCents) {
                 const baseFee = plan.feeUsdCents / 100;
                 const discountedFee = baseFee * (1 - discount / 100);
@@ -1012,10 +1039,11 @@ function FeaturedSection({
                   key={plan.id}
                   type="button"
                   onClick={() => onSelectPlan(plan.id)}
-                  className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${isActive
-                    ? "border-emerald-500 bg-emerald-50"
-                    : "border-neutral-200 hover:border-neutral-300"
-                    }`}
+                  className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                    isActive
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-neutral-200 hover:border-neutral-300"
+                  }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-neutral-800">
@@ -1035,7 +1063,8 @@ function FeaturedSection({
                     </div>
                   </div>
                   <p className="text-xs text-neutral-500">
-                    {plan.description || `${plan.durationDays} days featured placement`}
+                    {plan.description ||
+                      `${plan.durationDays} days featured placement`}
                   </p>
                 </button>
               );
@@ -1396,10 +1425,11 @@ function ChatThreadView({
               className={`flex ${isMe ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[80%] rounded-lg p-3 ${isMe
-                  ? "bg-emerald-600 text-white"
-                  : "bg-neutral-100 text-neutral-800"
-                  }`}
+                className={`max-w-[80%] rounded-lg p-3 ${
+                  isMe
+                    ? "bg-emerald-600 text-white"
+                    : "bg-neutral-100 text-neutral-800"
+                }`}
               >
                 <p className="text-sm">{msg.body}</p>
                 <p
@@ -1591,11 +1621,14 @@ function VerificationTab({
   const photosItem = items.find((i: any) => i.type === "PROPERTY_PHOTOS");
 
   // Calculate dynamic verification status for the heading
-  const approvedItems = items.filter((i: any) => i.status === "APPROVED").length;
+  const approvedItems = items.filter(
+    (i: any) => i.status === "APPROVED",
+  ).length;
   const totalItems = items.length;
   const getVerificationStatusLabel = () => {
     if (approvedItems === 0) return "Verification Pending";
-    if (approvedItems > 0 && approvedItems < totalItems) return "Partially Verified";
+    if (approvedItems > 0 && approvedItems < totalItems)
+      return "Partially Verified";
     if (approvedItems === totalItems && totalItems > 0) return "Verified";
     return "Verification Pending";
   };
@@ -1617,24 +1650,24 @@ function VerificationTab({
 
   const getStatusBadge = (status: string) => {
     const config: Record<string, { bg: string; text: string; label: string }> =
-    {
-      PENDING: {
-        bg: "bg-neutral-100",
-        text: "text-neutral-700",
-        label: "Pending",
-      },
-      SUBMITTED: {
-        bg: "bg-blue-100",
-        text: "text-blue-700",
-        label: "Submitted",
-      },
-      APPROVED: {
-        bg: "bg-emerald-100",
-        text: "text-emerald-700",
-        label: "Approved",
-      },
-      REJECTED: { bg: "bg-red-100", text: "text-red-700", label: "Rejected" },
-    };
+      {
+        PENDING: {
+          bg: "bg-neutral-100",
+          text: "text-neutral-700",
+          label: "Pending",
+        },
+        SUBMITTED: {
+          bg: "bg-blue-100",
+          text: "text-blue-700",
+          label: "Submitted",
+        },
+        APPROVED: {
+          bg: "bg-emerald-100",
+          text: "text-emerald-700",
+          label: "Approved",
+        },
+        REJECTED: { bg: "bg-red-100", text: "text-red-700", label: "Rejected" },
+      };
     const style = config[status] || config.PENDING;
     return (
       <span
@@ -1661,8 +1694,8 @@ function VerificationTab({
                     Verification payment required
                   </p>
                   <p className="text-sm text-amber-700">
-                    You have submitted verification items. Please complete payment
-                    to proceed.
+                    You have submitted verification items. Please complete
+                    payment to proceed.
                   </p>
                 </div>
                 <Button
@@ -1705,14 +1738,15 @@ function VerificationTab({
         <CardContent>
           <div className="flex items-center gap-4 mb-6">
             <div
-              className={`h-12 w-12 rounded-full flex items-center justify-center ${verificationLevel === "VERIFIED"
-                ? "bg-emerald-100 text-emerald-600"
-                : overallStatus === "PENDING"
-                  ? "bg-yellow-100 text-yellow-600"
-                  : overallStatus === "REJECTED"
-                    ? "bg-red-100 text-red-600"
-                    : "bg-neutral-100 text-neutral-600"
-                }`}
+              className={`h-12 w-12 rounded-full flex items-center justify-center ${
+                verificationLevel === "VERIFIED"
+                  ? "bg-emerald-100 text-emerald-600"
+                  : overallStatus === "PENDING"
+                    ? "bg-yellow-100 text-yellow-600"
+                    : overallStatus === "REJECTED"
+                      ? "bg-red-100 text-red-600"
+                      : "bg-neutral-100 text-neutral-600"
+              }`}
             >
               {verificationLevel === "VERIFIED" ? (
                 <ShieldCheck className="h-6 w-6" />
@@ -2089,29 +2123,30 @@ function VerificationStep({
         {(item?.notes ||
           item?.status === "APPROVED" ||
           item?.status === "REJECTED") && (
-            <div
-              className={`mb-4 p-3 rounded-lg ${item?.status === "APPROVED"
+          <div
+            className={`mb-4 p-3 rounded-lg ${
+              item?.status === "APPROVED"
                 ? "bg-emerald-50 border border-emerald-200"
                 : item?.status === "REJECTED"
                   ? "bg-red-50 border border-red-200"
                   : "bg-neutral-50 border border-neutral-200"
-                }`}
-            >
-              <p className="text-sm font-medium mb-1">
-                {item?.status === "APPROVED"
-                  ? item?.notes?.includes("On-site visit")
-                    ? "Site Visit Verified"
-                    : "Verified"
-                  : item?.status === "REJECTED"
-                    ? "Rejected"
-                    : "Note"}
-                {item?.verifier ? ` by ${item.verifier.name}` : ""}
-                {item?.reviewedAt &&
-                  ` on ${new Date(item.reviewedAt).toLocaleDateString()}`}
-              </p>
-              <p className="text-xs text-neutral-600">{item?.notes}</p>
-            </div>
-          )}
+            }`}
+          >
+            <p className="text-sm font-medium mb-1">
+              {item?.status === "APPROVED"
+                ? item?.notes?.includes("On-site visit")
+                  ? "Site Visit Verified"
+                  : "Verified"
+                : item?.status === "REJECTED"
+                  ? "Rejected"
+                  : "Note"}
+              {item?.verifier ? ` by ${item.verifier.name}` : ""}
+              {item?.reviewedAt &&
+                ` on ${new Date(item.reviewedAt).toLocaleDateString()}`}
+            </p>
+            <p className="text-xs text-neutral-600">{item?.notes}</p>
+          </div>
+        )}
 
         {evidenceUrls.length > 0 && (
           <div className="mb-4 grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -2366,7 +2401,7 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
           headers: {
             Authorization: `Bearer ${session.accessToken}`,
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -2443,15 +2478,15 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
 
   const getStatusBadge = (status: string) => {
     const config: Record<string, { bg: string; text: string; label: string }> =
-    {
-      PENDING: {
-        bg: "bg-yellow-100",
-        text: "text-yellow-700",
-        label: "Pending",
-      },
-      PAID: { bg: "bg-emerald-100", text: "text-emerald-700", label: "Paid" },
-      FAILED: { bg: "bg-red-100", text: "text-red-700", label: "Failed" },
-    };
+      {
+        PENDING: {
+          bg: "bg-yellow-100",
+          text: "text-yellow-700",
+          label: "Pending",
+        },
+        PAID: { bg: "bg-emerald-100", text: "text-emerald-700", label: "Paid" },
+        FAILED: { bg: "bg-red-100", text: "text-red-700", label: "Failed" },
+      };
     const style = config[status] || config.PENDING;
     return (
       <span
@@ -2616,7 +2651,7 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                 return (
                   <div
                     key={payment.id}
-                    className={`flex justify-between items-start p-4 border rounded-lg transition-colors ${isSelected ? 'bg-blue-50 border-blue-200' : 'hover:bg-neutral-50'}`}
+                    className={`flex justify-between items-start p-4 border rounded-lg transition-colors ${isSelected ? "bg-blue-50 border-blue-200" : "hover:bg-neutral-50"}`}
                   >
                     <div className="flex gap-3 items-start flex-1 min-w-0">
                       <div className="pt-1">
@@ -2625,9 +2660,16 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                           checked={isSelected}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setSelectedPayments([...selectedPayments, payment.id]);
+                              setSelectedPayments([
+                                ...selectedPayments,
+                                payment.id,
+                              ]);
                             } else {
-                              setSelectedPayments(selectedPayments.filter(id => id !== payment.id));
+                              setSelectedPayments(
+                                selectedPayments.filter(
+                                  (id) => id !== payment.id,
+                                ),
+                              );
                             }
                           }}
                           className="rounded border-neutral-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer h-4 w-4"
@@ -2669,22 +2711,22 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                         )}
                         {(payment.metadata?.proofUrl ||
                           payment.metadata?.method) && (
-                            <div className="flex gap-2 text-xs text-neutral-400 mt-1">
-                              {payment.metadata.method && (
-                                <span>via {payment.metadata.method}</span>
-                              )}
-                              {payment.metadata.proofUrl && (
-                                <a
-                                  href={getImageUrl(payment.metadata.proofUrl)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-500 hover:underline"
-                                >
-                                  View Proof
-                                </a>
-                              )}
-                            </div>
-                          )}
+                          <div className="flex gap-2 text-xs text-neutral-400 mt-1">
+                            {payment.metadata.method && (
+                              <span>via {payment.metadata.method}</span>
+                            )}
+                            {payment.metadata.proofUrl && (
+                              <a
+                                href={getImageUrl(payment.metadata.proofUrl)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:underline"
+                              >
+                                View Proof
+                              </a>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-4 ml-4">
@@ -2724,7 +2766,8 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                           </Button>
                         ) : (
                           isPending &&
-                          payment.invoice?.id && !isAdmin && (
+                          payment.invoice?.id &&
+                          !isAdmin && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -2753,8 +2796,14 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
               })}
               {selectedPayments.length > 0 && isAdmin && (
                 <div className="mt-4 p-4 border-t bg-emerald-50 flex justify-between items-center rounded-b-lg">
-                  <span className="text-sm font-medium text-emerald-800">{selectedPayments.length} payments selected</span>
-                  <Button onClick={handleBulkApprove} size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                  <span className="text-sm font-medium text-emerald-800">
+                    {selectedPayments.length} payments selected
+                  </span>
+                  <Button
+                    onClick={handleBulkApprove}
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                  >
                     Approve Selected
                   </Button>
                 </div>
@@ -3023,7 +3072,7 @@ function RatingsTab({ propertyId }: { propertyId: string }) {
                   {[5, 4, 3, 2, 1].map((starValue) => {
                     const count =
                       aggregate.ratingCounts[
-                      starValue as keyof typeof aggregate.ratingCounts
+                        starValue as keyof typeof aggregate.ratingCounts
                       ] || 0;
                     const percentage =
                       aggregate.totalCount > 0
@@ -3084,10 +3133,11 @@ function RatingsTab({ propertyId }: { propertyId: string }) {
                       onClick={() => setRating(star)}
                     >
                       <Star
-                        className={`h-8 w-8 transition-colors ${star <= (hoverRating || rating)
-                          ? "fill-yellow-400 text-yellow-400"
-                          : "text-neutral-300"
-                          }`}
+                        className={`h-8 w-8 transition-colors ${
+                          star <= (hoverRating || rating)
+                            ? "fill-yellow-400 text-yellow-400"
+                            : "text-neutral-300"
+                        }`}
                       />
                     </button>
                   ))}

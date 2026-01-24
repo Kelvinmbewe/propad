@@ -35,6 +35,7 @@ type VerificationItemStatus =
   (typeof VerificationItemStatus)[keyof typeof VerificationItemStatus];
 import { TrustService } from "../trust/trust.service";
 import { RiskService, RiskSignalType } from "../trust/risk.service";
+import { VerificationsService } from "../verifications/verifications.service";
 
 @Injectable()
 export class SiteVisitsService {
@@ -46,6 +47,7 @@ export class SiteVisitsService {
     private prisma: PrismaService,
     private trustService: TrustService,
     private riskService: RiskService,
+    private verificationsService: VerificationsService,
   ) {}
 
   /**
@@ -502,7 +504,7 @@ export class SiteVisitsService {
       : SiteVisitStatus.FAILED;
 
     // Save officer GPS and completedAt in a transaction
-    return await this.prisma.$transaction(async (tx) => {
+    const updatedVisit = await this.prisma.$transaction(async (tx) => {
       const updatedVisit = await tx.siteVisit.update({
         where: { id: visitId },
         data: {
@@ -546,7 +548,7 @@ export class SiteVisitsService {
             );
           }
         } else {
-          // Else → REJECTED + create RiskEvent
+          // Else → REJECTED
           await tx.verificationRequestItem.update({
             where: { id: visit.verificationItemId },
             data: {
@@ -555,15 +557,6 @@ export class SiteVisitsService {
               verifierId: moderatorId,
               reviewedAt: new Date(),
             },
-          });
-
-          // Create RiskEvent for GPS mismatch
-          await this.riskService.recordRiskEvent({
-            entityType: "PROPERTY",
-            entityId: visit.propertyId,
-            signalType: RiskSignalType.GPS_MISMATCH,
-            scoreDelta: 15,
-            notes: `Site visit distance mismatch: ${distanceKm.toFixed(2)}km (threshold: ${this.GPS_THRESHOLD_KM}km)`,
           });
 
           // Recalculate parent VerificationRequest status
@@ -576,21 +569,46 @@ export class SiteVisitsService {
         }
       }
 
-      // Restore site visit trust score: APPROVED site visit adds high trust weight
-      if (isCloseEnough) {
-        // Update Trust Intelligence summary immediately
+      return updatedVisit;
+    });
+
+    if (isCloseEnough) {
+      try {
         await this.trustService.calculatePropertyTrust(visit.propertyId);
 
-        // Boost Owner Trust
         const ownerId =
           visit.property.landlordId || visit.property.agentOwnerId;
         if (ownerId) {
           await this.trustService.calculateUserTrust(ownerId);
         }
-      }
 
-      return updatedVisit;
-    });
+        await this.verificationsService.refreshPropertyVerification(
+          visit.propertyId,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Post-visit trust refresh failed for ${visit.propertyId}`,
+          error as Error,
+        );
+      }
+    } else {
+      try {
+        await this.riskService.recordRiskEvent({
+          entityType: "PROPERTY",
+          entityId: visit.propertyId,
+          signalType: RiskSignalType.GPS_MISMATCH,
+          scoreDelta: 15,
+          notes: `Site visit distance mismatch: ${distanceKm.toFixed(2)}km (threshold: ${this.GPS_THRESHOLD_KM}km)`,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Risk event creation failed for ${visit.propertyId}`,
+          error as Error,
+        );
+      }
+    }
+
+    return updatedVisit;
   }
 
   async declineVisit(visitId: string, moderatorId: string, reason?: string) {
@@ -626,30 +644,15 @@ export class SiteVisitsService {
       const updatedVisit = await tx.siteVisit.update({
         where: { id: visitId },
         data: {
-          status: SiteVisitStatus.FAILED,
+          status: SiteVisitStatus.PENDING_ASSIGNMENT,
+          assignedModeratorId: null,
           notes: declineNote,
-          completedAt: new Date(),
+          completedAt: null,
+          visitGpsLat: null,
+          visitGpsLng: null,
+          distanceFromSubmittedGps: null,
         },
       });
-
-      if (visit.verificationItemId) {
-        await tx.verificationRequestItem.update({
-          where: { id: visit.verificationItemId },
-          data: {
-            status: VerificationItemStatus.REJECTED,
-            notes: declineNote,
-            verifierId: moderatorId,
-            reviewedAt: new Date(),
-          },
-        });
-
-        if (visit.verificationItem?.verificationRequestId) {
-          await this.recalculateVerificationRequestStatus(
-            visit.verificationItem.verificationRequestId,
-            tx,
-          );
-        }
-      }
 
       return updatedVisit;
     });

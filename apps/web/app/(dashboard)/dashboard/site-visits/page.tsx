@@ -30,11 +30,29 @@ export default function SiteVisitsPage() {
         queryKey: ['site-visits', viewMode],
         enabled: status === 'ready',
         queryFn: async () => {
-            if (!sdk) {
+            if (!apiBaseUrl || !accessToken) {
                 return [];
             }
-            if (viewMode === 'PENDING') return sdk.siteVisits.listPending();
-            return sdk.siteVisits.listMyAssignments();
+
+            const endpoint = viewMode === 'PENDING'
+                ? `${apiBaseUrl}/site-visits/pending`
+                : `${apiBaseUrl}/site-visits/my-assignments`;
+            const res = await fetch(endpoint, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`
+                }
+            });
+
+            if (!res.ok) {
+                throw new Error('Failed to load site visits');
+            }
+
+            const text = await res.text();
+            if (!text) {
+                return [];
+            }
+
+            return JSON.parse(text);
         }
     });
 "use client";
@@ -45,9 +63,6 @@ export default function SiteVisitsPage() {
         queryFn: async () => {
             if (!focusedVisitId) {
                 return null;
-            }
-            if (sdk && 'get' in sdk.siteVisits) {
-                return sdk.siteVisits.get(focusedVisitId);
             }
             if (!apiBaseUrl || !accessToken) {
                 return null;
@@ -60,7 +75,11 @@ export default function SiteVisitsPage() {
             if (!res.ok) {
                 throw new Error('Failed to load site visit');
             }
-            return res.json();
+            const text = await res.text();
+            if (!text) {
+                return null;
+            }
+            return JSON.parse(text);
         }
     });
 
