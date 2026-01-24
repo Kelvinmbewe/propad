@@ -284,7 +284,18 @@ export class WalletsService {
       select: { kycStatus: true },
     });
     if (existingUser?.kycStatus === KycStatus.VERIFIED) {
-      throw new BadRequestException("KYC already verified");
+      const latest = await this.prisma.kycRecord.findFirst({
+        where: { ownerId: owner.ownerId, ownerType: OwnerType.USER },
+        orderBy: { createdAt: "desc" },
+      });
+      const latestTypes = latest?.docTypes ?? [];
+      const newTypes = dto.docTypes ?? [];
+      const hasNewTypes = newTypes.some(
+        (value) => !latestTypes.includes(value),
+      );
+      if (!hasNewTypes) {
+        throw new BadRequestException("KYC already verified");
+      }
     }
     const record = await this.prisma.kycRecord.create({
       data: {
@@ -486,27 +497,23 @@ export class WalletsService {
     return updated;
   }
 
-  async requestAgencyKycUpdate(agencyId: string, actor: AuthContext) {
-    const owner = await this.resolveAgencyOwner(agencyId, actor.userId);
-    await this.prisma.agency.update({
-      where: { id: owner.ownerId },
-      data: { kycStatus: KycStatus.PENDING },
-    });
-    await this.audit.logAction({
-      action: "wallet.kyc.request_update",
-      actorId: actor.userId,
-      targetType: "agency",
-      targetId: owner.ownerId,
-      metadata: { reason: "company_update" },
-    });
-    return { status: "PENDING" };
-  }
-
   async requestUserKycUpdate(actor: AuthContext) {
     const owner = this.resolveOwner(actor);
     await this.prisma.user.update({
       where: { id: owner.ownerId },
       data: { kycStatus: KycStatus.PENDING },
+    });
+    await this.prisma.kycRecord.create({
+      data: {
+        ownerType: OwnerType.USER,
+        ownerId: owner.ownerId,
+        idType: "NATIONAL_ID",
+        idNumber: "UPDATE_REQUEST",
+        docUrls: [],
+        docTypes: [],
+        notes: "KYC update requested",
+        status: KycStatus.PENDING,
+      } as any,
     });
     await this.audit.logAction({
       action: "wallet.kyc.request_update",
@@ -514,6 +521,34 @@ export class WalletsService {
       targetType: "user",
       targetId: owner.ownerId,
       metadata: { reason: "profile_update" },
+    });
+    return { status: "PENDING" };
+  }
+
+  async requestAgencyKycUpdate(agencyId: string, actor: AuthContext) {
+    const owner = await this.resolveAgencyOwner(agencyId, actor.userId);
+    await this.prisma.agency.update({
+      where: { id: owner.ownerId },
+      data: { kycStatus: KycStatus.PENDING },
+    });
+    await this.prisma.kycRecord.create({
+      data: {
+        ownerType: OwnerType.AGENCY,
+        ownerId: owner.ownerId,
+        idType: "CERT_OF_INC",
+        idNumber: "UPDATE_REQUEST",
+        docUrls: [],
+        docTypes: [],
+        notes: "KYC update requested",
+        status: KycStatus.PENDING,
+      } as any,
+    });
+    await this.audit.logAction({
+      action: "wallet.kyc.request_update",
+      actorId: actor.userId,
+      targetType: "agency",
+      targetId: owner.ownerId,
+      metadata: { reason: "company_update" },
     });
     return { status: "PENDING" };
   }
@@ -546,7 +581,18 @@ export class WalletsService {
       select: { kycStatus: true },
     });
     if (existingAgency?.kycStatus === KycStatus.VERIFIED) {
-      throw new BadRequestException("KYC already verified");
+      const latest = await this.prisma.kycRecord.findFirst({
+        where: { ownerId: owner.ownerId, ownerType: OwnerType.AGENCY },
+        orderBy: { createdAt: "desc" },
+      });
+      const latestTypes = latest?.docTypes ?? [];
+      const newTypes = dto.docTypes ?? [];
+      const hasNewTypes = newTypes.some(
+        (value) => !latestTypes.includes(value),
+      );
+      if (!hasNewTypes) {
+        throw new BadRequestException("KYC already verified");
+      }
     }
     const record = await this.prisma.kycRecord.create({
       data: {

@@ -31,7 +31,7 @@ export class AgenciesController {
 
   @Get("my")
   async getMyAgency(@Req() req: any) {
-    return this.agenciesService.getMyAgency(req.user.id);
+    return this.agenciesService.getMyAgency(req.user.userId);
   }
 
   @Get(":id")
@@ -40,7 +40,7 @@ export class AgenciesController {
   }
 
   @Patch(":id")
-  @Roles(Role.ADMIN, Role.COMPANY_ADMIN)
+  @Roles(Role.ADMIN, Role.COMPANY_ADMIN, Role.AGENT, Role.LANDLORD)
   async updateProfile(
     @Param("id") id: string,
     @Body(new ZodValidationPipe(updateAgencyProfileSchema))
@@ -49,10 +49,10 @@ export class AgenciesController {
   ) {
     // Enforce Ownership if not ADMIN
     if (req.user.role !== Role.ADMIN) {
-      const myAgency = await this.agenciesService.getMyAgency(req.user.id);
+      const myAgency = await this.agenciesService.getMyAgency(req.user.userId);
       if (myAgency?.id !== id) throw new ForbiddenException("Not your agency");
     }
-    return this.agenciesService.updateProfile(id, body, req.user.id);
+    return this.agenciesService.updateProfile(id, body, req.user.userId);
   }
 
   @Patch(":id/status")
@@ -71,7 +71,7 @@ export class AgenciesController {
   }
 
   @Post(":id/logo")
-  @Roles(Role.ADMIN, Role.COMPANY_ADMIN)
+  @Roles(Role.ADMIN, Role.COMPANY_ADMIN, Role.AGENT, Role.LANDLORD)
   @UseInterceptors(
     FileInterceptor("file", {
       limits: { fileSize: 5 * 1024 * 1024 },
@@ -95,7 +95,7 @@ export class AgenciesController {
       throw new BadRequestException("No file provided");
     }
     if (req.user.role !== Role.ADMIN) {
-      const myAgency = await this.agenciesService.getMyAgency(req.user.id);
+      const myAgency = await this.agenciesService.getMyAgency(req.user.userId);
       if (myAgency?.id !== id) throw new ForbiddenException("Not your agency");
     }
     return this.agenciesService.uploadLogo(
@@ -105,14 +105,14 @@ export class AgenciesController {
         mimetype: file.mimetype,
         buffer: file.buffer,
       },
-      req.user.id,
+      req.user.userId,
     );
   }
 
   @Post()
   @Roles(Role.COMPANY_ADMIN) // Or maybe USER who wants to start one? Assuming COMPANY_ADMIN for now based on Plan.
   async create(@Body() body: { name: string }, @Req() req: any) {
-    return this.agenciesService.create(body.name, req.user.id);
+    return this.agenciesService.create(body.name, req.user.userId);
   }
 
   @Post(":id/reviews")

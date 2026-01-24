@@ -128,7 +128,17 @@ export function KycSubmissionPanel({
         new Date(latestRecord.idExpiryDate).toISOString().slice(0, 10),
       );
     }
-  }, [latestRecord?.idExpiryDate]);
+    if (latestRecord?.idNumber && !idNumber) {
+      setIdNumber(latestRecord.idNumber);
+    }
+    if (latestRecord?.idType && idType !== latestRecord.idType) {
+      setIdType(latestRecord.idType);
+    }
+  }, [
+    latestRecord?.idExpiryDate,
+    latestRecord?.idNumber,
+    latestRecord?.idType,
+  ]);
 
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -159,7 +169,7 @@ export function KycSubmissionPanel({
         },
         body: JSON.stringify({
           idType,
-          idNumber,
+          idNumber: effectiveIdNumber,
           idExpiryDate: idExpiryDate || undefined,
           docUrls,
           docTypes,
@@ -348,8 +358,9 @@ export function KycSubmissionPanel({
           ),
         )
     : true;
+  const effectiveIdNumber = idNumber.trim() || latestRecord?.idNumber || "";
   const canSubmit =
-    idNumber.trim().length > 2 &&
+    effectiveIdNumber.trim().length > 2 &&
     uploads.some((item) => item.status === "uploaded") &&
     requiredSlotsMet &&
     (idType !== "PASSPORT" || idExpiryDate.trim().length > 0);
@@ -368,7 +379,7 @@ export function KycSubmissionPanel({
             Only the profile owner can submit verification documents.
           </p>
         )}
-        {latestStatus === "VERIFIED" && (
+        {isLocked && (
           <p className="text-xs font-medium text-emerald-600">
             Your KYC has been verified. Documents are locked.
           </p>

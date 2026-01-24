@@ -64,7 +64,7 @@ export class ProfilesController {
     if (!file) {
       throw new BadRequestException("No file provided");
     }
-    return this.profilesService.updateUserPhoto(req.user.id, {
+    return this.profilesService.updateUserPhoto(req.user.userId, {
       filename: file.originalname,
       mimetype: file.mimetype,
       buffer: file.buffer,
@@ -75,7 +75,7 @@ export class ProfilesController {
   @Roles(Role.USER, Role.AGENT, Role.LANDLORD, Role.COMPANY_ADMIN)
   @Get("me")
   async getMyProfile(@Req() req: any) {
-    return this.profilesService.getMyProfile(req.user.id);
+    return this.profilesService.getMyProfile(req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -86,6 +86,6 @@ export class ProfilesController {
     @Body(new ZodValidationPipe(updateUserProfileSchema))
     body: UpdateUserProfileDto,
   ) {
-    return this.profilesService.updateUserProfile(req.user.id, body);
+    return this.profilesService.updateUserProfile(req.user.userId, body);
   }
 }

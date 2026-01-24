@@ -180,18 +180,20 @@ export class ProfilesService {
       throw new BadRequestException("Verified profile details are locked");
     }
 
+    const cleaned = {
+      name: data.name?.trim() || undefined,
+      phone: data.phone?.trim() || undefined,
+      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
+      idNumber: data.idNumber?.trim() || undefined,
+      addressLine1: data.addressLine1?.trim() || undefined,
+      addressCity: data.addressCity?.trim() || undefined,
+      addressProvince: data.addressProvince?.trim() || undefined,
+      addressCountry: data.addressCountry?.trim() || undefined,
+    };
+
     const updated = await this.prisma.user.update({
       where: { id: userId },
-      data: {
-        name: data.name ?? undefined,
-        phone: data.phone ?? undefined,
-        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
-        idNumber: data.idNumber ?? undefined,
-        addressLine1: data.addressLine1 ?? undefined,
-        addressCity: data.addressCity ?? undefined,
-        addressProvince: data.addressProvince ?? undefined,
-        addressCountry: data.addressCountry ?? undefined,
-      } as any,
+      data: cleaned as any,
     });
 
     await this.audit.logAction({
