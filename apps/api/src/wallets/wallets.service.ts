@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
+  AgencyStatus,
   Currency,
   KycStatus,
   OwnerType,
@@ -285,9 +286,15 @@ export class WalletsService {
         idType: dto.idType,
         idNumber: dto.idNumber,
         docUrls: dto.docUrls,
+        docTypes: dto.docTypes ?? [],
         notes: dto.notes ?? null,
         status: KycStatus.PENDING,
-      },
+      } as any,
+    });
+
+    await this.prisma.user.update({
+      where: { id: owner.ownerId },
+      data: { kycStatus: KycStatus.PENDING },
     });
 
     await this.audit.logAction({
@@ -353,6 +360,84 @@ export class WalletsService {
       metadata: { status: dto.status },
     });
 
+    const docTypes = Array.from(
+      new Set(((record as any).docTypes ?? []) as string[]),
+    );
+    const docScoreWeights: Record<string, number> = {
+      NATIONAL_ID: 20,
+      PASSPORT: 20,
+      PROOF_ADDRESS: 10,
+      AGENT_CERT: 20,
+      REA_CERT: 20,
+      CERT_OF_INC: 25,
+      CR6: 15,
+      CR5: 15,
+      MEM_ARTICLES: 10,
+      DIRECTOR_ID: 10,
+      OTHER: 5,
+    };
+    const docScore = docTypes.reduce((total, docType) => {
+      const key = docType as keyof typeof docScoreWeights;
+      return total + (docScoreWeights[key] ?? 5);
+    }, 0);
+
+    if (dto.status === KycStatus.VERIFIED) {
+      const docCount = record.docUrls?.length ?? 0;
+
+      if (record.ownerType === OwnerType.USER) {
+        const user = await this.prisma.user.findUnique({
+          where: { id: record.ownerId },
+          select: { role: true },
+        });
+        const independentBonus =
+          user?.role === Role.INDEPENDENT_AGENT &&
+          docTypes.includes("AGENT_CERT")
+            ? 10
+            : 0;
+        const verificationScore = Math.min(
+          100,
+          40 + docScore + independentBonus,
+        );
+        await this.prisma.user.update({
+          where: { id: record.ownerId },
+          data: {
+            kycStatus: KycStatus.VERIFIED,
+            isVerified: true,
+            verificationScore,
+          },
+        });
+        await this.trust.calculateUserTrust(record.ownerId);
+      }
+
+      if (record.ownerType === OwnerType.AGENCY) {
+        const verificationScore = Math.min(100, 50 + docScore);
+        await this.prisma.agency.update({
+          where: { id: record.ownerId },
+          data: {
+            kycStatus: KycStatus.VERIFIED,
+            verificationScore,
+            status: AgencyStatus.ACTIVE,
+          },
+        });
+        await this.trust.calculateCompanyTrust(record.ownerId);
+      }
+    }
+
+    if (dto.status === KycStatus.REJECTED) {
+      if (record.ownerType === OwnerType.USER) {
+        await this.prisma.user.update({
+          where: { id: record.ownerId },
+          data: { kycStatus: KycStatus.REJECTED },
+        });
+      }
+      if (record.ownerType === OwnerType.AGENCY) {
+        await this.prisma.agency.update({
+          where: { id: record.ownerId },
+          data: { kycStatus: KycStatus.REJECTED },
+        });
+      }
+    }
+
     return updated;
   }
 
@@ -386,9 +471,15 @@ export class WalletsService {
         idType: dto.idType,
         idNumber: dto.idNumber,
         docUrls: dto.docUrls,
+        docTypes: dto.docTypes ?? [],
         notes: dto.notes ?? null,
         status: KycStatus.PENDING,
-      },
+      } as any,
+    });
+
+    await this.prisma.agency.update({
+      where: { id: owner.ownerId },
+      data: { kycStatus: KycStatus.PENDING },
     });
 
     await this.audit.logAction({

@@ -102,6 +102,12 @@ const links = [
     icon: <Wallet2 className="h-4 w-4" />,
   },
   {
+    href: "/dashboard/admin/wallet",
+    label: "KYC Queue",
+    roles: ["ADMIN", "VERIFIER"] as Role[],
+    icon: <ShieldCheck className="h-4 w-4" />,
+  },
+  {
     href: "/dashboard/admin/activity",
     label: "Activity Logs",
     roles: ["ADMIN"] as Role[],

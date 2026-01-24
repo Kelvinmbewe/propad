@@ -140,6 +140,28 @@ export default async function AgencyProfilePage({
                   ownerId={params.id}
                   title="Compliance & KYC"
                   description="Upload company registration documents to keep your agency verified."
+                  documentChecklist={[
+                    {
+                      title: "Certificate of Incorporation",
+                      description: "Official registration certificate.",
+                    },
+                    {
+                      title: "CR6 (Directors Register)",
+                      description: "Formerly CR14 showing directors.",
+                    },
+                    {
+                      title: "CR5 (Company Address)",
+                      description: "Formerly CR6 showing registered address.",
+                    },
+                    {
+                      title: "Memorandum & Articles",
+                      description: "Company constitution documents.",
+                    },
+                    {
+                      title: "Real Estate Certification",
+                      description: "Industry certification for your agency.",
+                    },
+                  ]}
                 />
               </div>
             </div>

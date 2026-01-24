@@ -1327,6 +1327,7 @@ model KycRecord {
   idType    KycIdType
   idNumber  String
   docUrls   String[]
+  docTypes  String[]  @default([])
   status    KycStatus @default(PENDING)
   notes     String?
   updatedAt DateTime  @updatedAt

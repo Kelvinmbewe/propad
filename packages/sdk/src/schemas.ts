@@ -535,6 +535,7 @@ export const KycRecordSchema = z
     idType: z.string(),
     idNumber: z.string(),
     docUrls: z.array(z.string()),
+    docTypes: z.array(z.string()).nullish(),
     status: z.string(),
     notes: z.string().nullish(),
     createdAt: z.string(),

@@ -64,6 +64,9 @@ export function KycSubmissionPanel({
   const [idNumber, setIdNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [uploads, setUploads] = useState<UploadState[]>([]);
+  const [docTypeSelections, setDocTypeSelections] = useState<
+    Record<string, string>
+  >({});
 
   const isOwner =
     ownerType === "USER" ? data?.user?.id === ownerId || !ownerId : true;
@@ -102,6 +105,9 @@ export function KycSubmissionPanel({
           return `${uploadsBase}${item.url}`;
         })
         .filter(Boolean) as string[];
+      const docTypes = uploads
+        .filter((item) => item.status === "uploaded" && item.url)
+        .map((item) => docTypeSelections[item.url ?? ""] || "UNKNOWN");
       if (docUrls.length === 0) {
         throw new Error("Upload at least one document.");
       }
@@ -119,6 +125,7 @@ export function KycSubmissionPanel({
           idType,
           idNumber,
           docUrls,
+          docTypes,
           notes: notes || undefined,
         }),
       });
@@ -179,6 +186,10 @@ export function KycSubmissionPanel({
                 : item,
             ),
           );
+          setDocTypeSelections((current) => ({
+            ...current,
+            [response.url]: current[response.url] || "UNKNOWN",
+          }));
         } else {
           setUploads((current) =>
             current.map((item) =>
@@ -315,6 +326,44 @@ export function KycSubmissionPanel({
                     style={{ width: `${upload.progress}%` }}
                   />
                 </div>
+                {upload.status === "uploaded" && upload.url && (
+                  <div className="mt-3">
+                    <label className="text-xs font-medium text-neutral-600">
+                      Document type
+                    </label>
+                    <select
+                      value={docTypeSelections[upload.url] || "UNKNOWN"}
+                      onChange={(event) =>
+                        setDocTypeSelections((current) => ({
+                          ...current,
+                          [upload.url!]: event.target.value,
+                        }))
+                      }
+                      className="mt-1 w-full rounded-md border border-neutral-200 px-2 py-2 text-xs"
+                    >
+                      <option value="UNKNOWN">Unknown</option>
+                      <option value="NATIONAL_ID">National ID</option>
+                      <option value="PASSPORT">Passport</option>
+                      <option value="CERT_OF_INC">
+                        Certificate of Incorporation
+                      </option>
+                      <option value="CR6">CR6 (Directors Register)</option>
+                      <option value="CR5">CR5 (Company Address)</option>
+                      <option value="MEM_ARTICLES">
+                        Memorandum & Articles
+                      </option>
+                      <option value="REA_CERT">
+                        Real Estate Certification
+                      </option>
+                      <option value="DIRECTOR_ID">Director ID</option>
+                      <option value="PROOF_ADDRESS">Proof of Address</option>
+                      <option value="AGENT_CERT">
+                        Independent Agent Certificate
+                      </option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+                )}
               </div>
             ))}
           </div>

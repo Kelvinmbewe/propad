@@ -51,8 +51,8 @@ function KycQueueSection() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, nextStatus }: { id: string; nextStatus: string }) =>
-      sdk!.wallets.kyc.updateStatus(id, { status: nextStatus }),
+    mutationFn: ({ id, nextStatus, notes }: { id: string; nextStatus: string; notes?: string }) =>
+      sdk!.wallets.kyc.updateStatus(id, { status: nextStatus, notes }),
     onSuccess: () => {
       notify.success('KYC status updated');
       queryClient.invalidateQueries({ queryKey: ['wallet:kyc'] });
@@ -96,6 +96,7 @@ function KycQueueSection() {
                 <tr>
                   <th className="px-3 py-2">Owner</th>
                   <th className="px-3 py-2">ID type</th>
+                  <th className="px-3 py-2">Documents</th>
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Updated</th>
                   <th className="px-3 py-2 text-right">Actions</th>
@@ -103,12 +104,12 @@ function KycQueueSection() {
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {data.map((record) => (
-                  <KycRow
-                    key={record.id}
-                    record={record}
-                    onUpdate={(nextStatus) => updateMutation.mutate({ id: record.id, nextStatus })}
-                    disabled={updateMutation.isPending}
-                  />
+                    <KycRow
+                      key={record.id}
+                      record={record}
+                      onUpdate={(nextStatus, notes) => updateMutation.mutate({ id: record.id, nextStatus, notes })}
+                      disabled={updateMutation.isPending}
+                    />
                 ))}
               </tbody>
             </table>
@@ -125,15 +126,31 @@ function KycRow({
   disabled
 }: {
   record: KycRecord;
-  onUpdate: (status: string) => void;
+  onUpdate: (status: string, notes?: string) => void;
   disabled: boolean;
 }) {
+  const [notes, setNotes] = useState('');
   return (
     <tr className="bg-white">
       <td className="px-3 py-2 font-medium text-neutral-900">
         {record.ownerType} • {record.ownerId}
       </td>
       <td className="px-3 py-2 text-neutral-500">{record.idType}</td>
+      <td className="px-3 py-2 text-neutral-500">
+        <div className="space-y-1">
+          {record.docUrls.map((url, index) => (
+            <a
+              key={url}
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-xs text-emerald-600 hover:underline"
+            >
+              {record.docTypes?.[index] || 'Document'}
+            </a>
+          ))}
+        </div>
+      </td>
       <td className="px-3 py-2 text-neutral-500">{record.status}</td>
       <td className="px-3 py-2 text-neutral-500">{formatDate(record.updatedAt)}</td>
       <td className="px-3 py-2 text-right">
@@ -141,7 +158,7 @@ function KycRow({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => onUpdate('VERIFIED')}
+            onClick={() => onUpdate('VERIFIED', notes)}
             className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
             Approve
@@ -149,12 +166,18 @@ function KycRow({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => onUpdate('REJECTED')}
+            onClick={() => onUpdate('REJECTED', notes)}
             className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
             Reject
           </button>
         </div>
+        <input
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Review notes"
+          className="mt-2 w-full rounded-md border border-neutral-200 px-2 py-1 text-xs"
+        />
       </td>
     </tr>
   );
