@@ -248,7 +248,7 @@ export class WalletsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.VERIFIER)
   @Get("kyc")
   listKyc(
     @Query(new ZodValidationPipe(listKycRecordsSchema))
@@ -258,7 +258,7 @@ export class WalletsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.VERIFIER)
   @Post("kyc/:id/status")
   updateKycStatus(
     @Param("id") id: string,

@@ -20,6 +20,7 @@ export default function ProfilePage() {
     // In a real app, we'd update types/next-auth.d.ts. 
     // For now, access them safely.
     const trustScore = (user as any).trustScore ?? 0;
+    const role = (user as any).role ?? 'USER';
     const verificationScore = (user as any).verificationScore ?? 0;
     const isVerified = (user as any).isVerified ?? false;
     const kycStatus = (user as any).kycStatus || 'PENDING';
@@ -323,6 +324,31 @@ export default function ProfilePage() {
                         ownerId={user.id}
                         title="KYC Verification"
                         description="Submit identity documents to unlock higher limits and agency access."
+                        documentChecklist={role === 'INDEPENDENT_AGENT'
+                            ? [
+                                {
+                                    title: 'National ID or Passport',
+                                    description: 'Government-issued ID with clear photo.'
+                                },
+                                {
+                                    title: 'Real Estate Certificate',
+                                    description: 'Upload your current estate agent certification.'
+                                },
+                                {
+                                    title: 'Proof of Address',
+                                    description: 'Utility bill or bank statement (3 months).' 
+                                }
+                            ]
+                            : [
+                                {
+                                    title: 'National ID or Passport',
+                                    description: 'Government-issued ID with clear photo.'
+                                },
+                                {
+                                    title: 'Proof of Address',
+                                    description: 'Utility bill or bank statement (3 months).' 
+                                }
+                            ]}
                     />
 
                     <Card>

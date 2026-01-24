@@ -31,11 +31,12 @@ export default function SignInPage() {
         email,
         password,
         otp: mfaRequired ? otp : undefined,
+        callbackUrl: "/",
         redirect: false,
       });
 
       if (result?.ok) {
-        router.push("/");
+        router.push(result.url || "/");
         return;
       }
 
@@ -46,12 +47,12 @@ export default function SignInPage() {
         return;
       }
 
-      setError("Invalid credentials");
+      setError(result?.error ? "Invalid credentials" : "Unable to sign in");
       setIsLoading(false);
     } catch (error) {
       // NextAuth v5 throws on failed auth even with redirect:true
       console.error("SignIn exception:", error);
-      setError("Invalid credentials");
+      setError("Unable to reach the authentication server.");
       setIsLoading(false);
     }
   }

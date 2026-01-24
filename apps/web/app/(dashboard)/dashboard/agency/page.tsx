@@ -226,6 +226,32 @@ export default function AgencyDashboardPage() {
                 ownerId={agency.id}
                 title="Company KYC"
                 description="Provide company registration and director documents for verification."
+                documentChecklist={[
+                    {
+                        title: 'Certificate of Incorporation',
+                        description: 'Official registration certificate.'
+                    },
+                    {
+                        title: 'CR6 (Directors Register)',
+                        description: 'Formerly CR14 showing directors.'
+                    },
+                    {
+                        title: 'CR5 (Company Address)',
+                        description: 'Formerly CR6 showing registered address.'
+                    },
+                    {
+                        title: 'Memorandum & Articles',
+                        description: 'Company constitution documents.'
+                    },
+                    {
+                        title: 'Real Estate Certification',
+                        description: 'Industry certification for your agency.'
+                    },
+                    {
+                        title: 'Director IDs',
+                        description: 'IDs for all directors or signatories.'
+                    }
+                ]}
             />
 
             <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>

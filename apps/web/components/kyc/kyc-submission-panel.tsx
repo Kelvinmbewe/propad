@@ -31,6 +31,8 @@ interface KycSubmissionPanelProps {
   ownerId?: string;
   title?: string;
   description?: string;
+  idTypeOptions?: Array<{ value: string; label: string }>;
+  documentChecklist?: Array<{ title: string; description: string }>;
 }
 
 export function KycSubmissionPanel({
@@ -38,13 +40,27 @@ export function KycSubmissionPanel({
   ownerId,
   title = "KYC Verification",
   description = "Submit identity documents for compliance review.",
+  idTypeOptions,
+  documentChecklist,
 }: KycSubmissionPanelProps) {
   const { data } = useSession();
   const apiBaseUrl = getRequiredPublicApiBaseUrl();
   const token = data?.accessToken as string | undefined;
   const queryClient = useQueryClient();
 
-  const [idType, setIdType] = useState("NATIONAL_ID");
+  const defaultIdTypes =
+    ownerType === "AGENCY"
+      ? [
+          { value: "CERT_OF_INC", label: "Certificate of Incorporation" },
+          { value: "NATIONAL_ID", label: "National ID" },
+          { value: "PASSPORT", label: "Passport" },
+        ]
+      : [
+          { value: "NATIONAL_ID", label: "National ID" },
+          { value: "PASSPORT", label: "Passport" },
+        ];
+  const idTypes = idTypeOptions ?? defaultIdTypes;
+  const [idType, setIdType] = useState(idTypes[0]?.value ?? "NATIONAL_ID");
   const [idNumber, setIdNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [uploads, setUploads] = useState<UploadState[]>([]);
@@ -77,9 +93,15 @@ export function KycSubmissionPanel({
 
   const submitMutation = useMutation({
     mutationFn: async () => {
+      const uploadsBase = apiBaseUrl.replace(/\/v1$/, "");
       const docUrls = uploads
         .filter((item) => item.status === "uploaded" && item.url)
-        .map((item) => item.url!);
+        .map((item) => {
+          if (!item.url) return item.url;
+          if (item.url.startsWith("http")) return item.url;
+          return `${uploadsBase}${item.url}`;
+        })
+        .filter(Boolean) as string[];
       if (docUrls.length === 0) {
         throw new Error("Upload at least one document.");
       }
@@ -209,13 +231,11 @@ export function KycSubmissionPanel({
               className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
               disabled={!isOwner}
             >
-              <option value="NATIONAL_ID">National ID</option>
-              <option value="PASSPORT">Passport</option>
-              {ownerType === "AGENCY" && (
-                <option value="CERT_OF_INC">
-                  Certificate of Incorporation
+              {idTypes.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
-              )}
+              ))}
             </select>
           </div>
           <div className="space-y-2">
@@ -255,6 +275,22 @@ export function KycSubmissionPanel({
             />
           </div>
         </div>
+
+        {documentChecklist && documentChecklist.length > 0 && (
+          <div className="rounded-md border border-neutral-100 bg-neutral-50 p-4 text-xs text-neutral-600">
+            <p className="mb-2 font-semibold text-neutral-700">
+              Recommended documents
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {documentChecklist.map((doc) => (
+                <div key={doc.title} className="rounded-md bg-white p-3">
+                  <p className="font-medium text-neutral-800">{doc.title}</p>
+                  <p className="text-neutral-500">{doc.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {uploads.length > 0 && (
           <div className="space-y-3">

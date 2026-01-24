@@ -23,6 +23,7 @@ import { existsSync } from "fs";
 import { mkdir, writeFile } from "fs/promises";
 import { join, resolve } from "path";
 import { env, Role, PayoutMethod } from "@propad/config";
+import { TrustService } from "../trust/trust.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { RequestPayoutDto } from "./dto/request-payout.dto";
@@ -113,6 +114,7 @@ export class WalletsService {
     private readonly audit: AuditService,
     private readonly mail: MailService,
     private readonly ledger: WalletLedgerService,
+    private readonly trust: TrustService,
   ) {}
 
   async getMyWallet(actor: AuthContext) {
