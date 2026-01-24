@@ -219,6 +219,21 @@ export default async function UserProfilePage({
               ownerId={params.id}
               title="Verification Portal"
               description="Submit KYC documents to unlock higher trust tiers."
+              documentSlots={[
+                {
+                  key: "identity",
+                  label: "ID or Passport",
+                  description: "Used to verify your name and date of birth.",
+                  docType: "IDENTITY",
+                  required: true,
+                },
+                {
+                  key: "address",
+                  label: "Proof of Address",
+                  description: "Utility bill or bank statement (optional).",
+                  docType: "PROOF_ADDRESS",
+                },
+              ]}
             />
           </div>
         </div>

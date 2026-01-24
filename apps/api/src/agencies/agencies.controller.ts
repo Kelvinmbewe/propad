@@ -14,6 +14,11 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { AgenciesService } from "./agencies.service";
+import { ZodValidationPipe } from "../common/zod-validation.pipe";
+import {
+  UpdateAgencyProfileDto,
+  updateAgencyProfileSchema,
+} from "./dto/update-agency-profile.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
@@ -38,7 +43,8 @@ export class AgenciesController {
   @Roles(Role.ADMIN, Role.COMPANY_ADMIN)
   async updateProfile(
     @Param("id") id: string,
-    @Body() body: any,
+    @Body(new ZodValidationPipe(updateAgencyProfileSchema))
+    body: UpdateAgencyProfileDto,
     @Req() req: any,
   ) {
     // Enforce Ownership if not ADMIN

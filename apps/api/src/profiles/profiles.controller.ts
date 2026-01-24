@@ -15,6 +15,12 @@ import { ProfilesService } from "./profiles.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
+import { Patch, Body } from "@nestjs/common";
+import { ZodValidationPipe } from "../common/zod-validation.pipe";
+import {
+  UpdateUserProfileDto,
+  updateUserProfileSchema,
+} from "./dto/update-user-profile.dto";
 
 @Controller("profiles")
 export class ProfilesController {
@@ -63,5 +69,23 @@ export class ProfilesController {
       mimetype: file.mimetype,
       buffer: file.buffer,
     });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.USER, Role.AGENT, Role.LANDLORD, Role.COMPANY_ADMIN)
+  @Get("me")
+  async getMyProfile(@Req() req: any) {
+    return this.profilesService.getMyProfile(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.USER, Role.AGENT, Role.LANDLORD, Role.COMPANY_ADMIN)
+  @Patch("me")
+  async updateProfile(
+    @Req() req: any,
+    @Body(new ZodValidationPipe(updateUserProfileSchema))
+    body: UpdateUserProfileDto,
+  ) {
+    return this.profilesService.updateUserProfile(req.user.id, body);
   }
 }

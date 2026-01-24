@@ -279,12 +279,20 @@ export class WalletsService {
 
   async submitKyc(dto: SubmitKycDto, actor: AuthContext) {
     const owner = this.resolveOwner(actor);
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id: owner.ownerId },
+      select: { kycStatus: true },
+    });
+    if (existingUser?.kycStatus === KycStatus.VERIFIED) {
+      throw new BadRequestException("KYC already verified");
+    }
     const record = await this.prisma.kycRecord.create({
       data: {
         ownerType: owner.ownerType,
         ownerId: owner.ownerId,
         idType: dto.idType,
         idNumber: dto.idNumber,
+        idExpiryDate: dto.idExpiryDate ? new Date(dto.idExpiryDate) : null,
         docUrls: dto.docUrls,
         docTypes: dto.docTypes ?? [],
         notes: dto.notes ?? null,
@@ -309,14 +317,51 @@ export class WalletsService {
   }
 
   listKycRecords(filters: ListKycRecordsDto) {
-    return this.prisma.kycRecord.findMany({
-      where: {
-        status: filters.status ?? undefined,
-        ownerId: filters.ownerId ?? undefined,
-      },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
+    return this.prisma.kycRecord
+      .findMany({
+        where: {
+          status: filters.status ?? undefined,
+          ownerId: filters.ownerId ?? undefined,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      })
+      .then(async (records) => {
+        const enriched = await Promise.all(
+          records.map(async (record) => {
+            if (record.ownerType === OwnerType.USER) {
+              const user = await this.prisma.user.findUnique({
+                where: { id: record.ownerId },
+                select: {
+                  name: true,
+                  email: true,
+                  dateOfBirth: true,
+                  idNumber: true,
+                  addressLine1: true,
+                  addressCity: true,
+                  addressProvince: true,
+                  addressCountry: true,
+                },
+              });
+              return { ...record, ownerDetails: user };
+            }
+            if (record.ownerType === OwnerType.AGENCY) {
+              const agency = await this.prisma.agency.findUnique({
+                where: { id: record.ownerId },
+                select: {
+                  name: true,
+                  registrationNumber: true,
+                  address: true,
+                  directorsJson: true,
+                },
+              });
+              return { ...record, ownerDetails: agency };
+            }
+            return record;
+          }),
+        );
+        return enriched;
+      });
   }
 
   async listMyKycRecords(actor: AuthContext) {
@@ -441,6 +486,38 @@ export class WalletsService {
     return updated;
   }
 
+  async requestAgencyKycUpdate(agencyId: string, actor: AuthContext) {
+    const owner = await this.resolveAgencyOwner(agencyId, actor.userId);
+    await this.prisma.agency.update({
+      where: { id: owner.ownerId },
+      data: { kycStatus: KycStatus.PENDING },
+    });
+    await this.audit.logAction({
+      action: "wallet.kyc.request_update",
+      actorId: actor.userId,
+      targetType: "agency",
+      targetId: owner.ownerId,
+      metadata: { reason: "company_update" },
+    });
+    return { status: "PENDING" };
+  }
+
+  async requestUserKycUpdate(actor: AuthContext) {
+    const owner = this.resolveOwner(actor);
+    await this.prisma.user.update({
+      where: { id: owner.ownerId },
+      data: { kycStatus: KycStatus.PENDING },
+    });
+    await this.audit.logAction({
+      action: "wallet.kyc.request_update",
+      actorId: actor.userId,
+      targetType: "user",
+      targetId: owner.ownerId,
+      metadata: { reason: "profile_update" },
+    });
+    return { status: "PENDING" };
+  }
+
   async uploadKycDocument(
     file: { filename: string; mimetype: string; buffer: Buffer },
     actor: AuthContext,
@@ -464,12 +541,20 @@ export class WalletsService {
     actor: AuthContext,
   ) {
     const owner = await this.resolveAgencyOwner(agencyId, actor.userId);
+    const existingAgency = await this.prisma.agency.findUnique({
+      where: { id: owner.ownerId },
+      select: { kycStatus: true },
+    });
+    if (existingAgency?.kycStatus === KycStatus.VERIFIED) {
+      throw new BadRequestException("KYC already verified");
+    }
     const record = await this.prisma.kycRecord.create({
       data: {
         ownerType: owner.ownerType,
         ownerId: owner.ownerId,
         idType: dto.idType,
         idNumber: dto.idNumber,
+        idExpiryDate: dto.idExpiryDate ? new Date(dto.idExpiryDate) : null,
         docUrls: dto.docUrls,
         docTypes: dto.docTypes ?? [],
         notes: dto.notes ?? null,

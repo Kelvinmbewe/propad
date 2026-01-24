@@ -148,16 +148,17 @@ export class WalletsController {
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (req, file, cb) => {
         const allowedMimes = [
-          "image/jpeg",
-          "image/png",
-          "image/webp",
           "application/pdf",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         ];
-        if (allowedMimes.includes(file.mimetype)) {
+        if (
+          file.mimetype.startsWith("image/") ||
+          allowedMimes.includes(file.mimetype)
+        ) {
           cb(null, true);
         } else {
           cb(
-            new Error("Only JPEG, PNG, WebP, and PDF documents are allowed"),
+            new Error("Only image files, PDF, and DOCX documents are allowed"),
             false,
           );
         }
@@ -180,6 +181,13 @@ export class WalletsController {
       },
       req.user,
     );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.AGENT, Role.LANDLORD, Role.USER)
+  @Post("kyc/request-update")
+  requestUserUpdate(@Req() req: AuthenticatedRequest) {
+    return this.walletsService.requestUserKycUpdate(req.user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -211,16 +219,17 @@ export class WalletsController {
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (req, file, cb) => {
         const allowedMimes = [
-          "image/jpeg",
-          "image/png",
-          "image/webp",
           "application/pdf",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         ];
-        if (allowedMimes.includes(file.mimetype)) {
+        if (
+          file.mimetype.startsWith("image/") ||
+          allowedMimes.includes(file.mimetype)
+        ) {
           cb(null, true);
         } else {
           cb(
-            new Error("Only JPEG, PNG, WebP, and PDF documents are allowed"),
+            new Error("Only image files, PDF, and DOCX documents are allowed"),
             false,
           );
         }
@@ -245,6 +254,16 @@ export class WalletsController {
       },
       req.user,
     );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.COMPANY_ADMIN, Role.AGENT, Role.LANDLORD)
+  @Post("kyc/agency/:agencyId/request-update")
+  requestAgencyUpdate(
+    @Param("agencyId") agencyId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.walletsService.requestAgencyKycUpdate(agencyId, req.user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

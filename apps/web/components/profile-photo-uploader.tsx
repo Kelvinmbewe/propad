@@ -23,9 +23,11 @@ export function ProfilePhotoUploader({
   const token = data?.accessToken as string | undefined;
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const handleUpload = (file: File | null) => {
-    if (!file || !token) return;
+  const handleUpload = () => {
+    if (!selectedFile || !token) return;
+    const file = selectedFile;
     const xhr = new XMLHttpRequest();
     const formData = new FormData();
     formData.append("file", file);
@@ -43,6 +45,7 @@ export function ProfilePhotoUploader({
         const response = JSON.parse(xhr.responseText) as { url: string };
         onUploaded?.(response.url);
         setProgress(0);
+        setSelectedFile(null);
       }
     };
     xhr.onerror = () => {
@@ -79,12 +82,17 @@ export function ProfilePhotoUploader({
         <Input
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          onChange={(event) => handleUpload(event.target.files?.[0] ?? null)}
+          onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
           disabled={uploading}
         />
-        <div className="text-xs text-neutral-500">
-          {uploading ? `Uploading ${progress}%` : "Select an image to upload"}
-        </div>
+        <button
+          type="button"
+          onClick={handleUpload}
+          disabled={uploading || !selectedFile}
+          className="rounded-md border border-neutral-200 px-3 py-2 text-xs font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {uploading ? `Uploading ${progress}%` : "Save photo"}
+        </button>
       </div>
       {uploading && (
         <div className="h-1.5 w-full rounded-full bg-neutral-100">

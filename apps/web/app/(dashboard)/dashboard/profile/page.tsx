@@ -1,8 +1,9 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Button, Input } from '@propad/ui';
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Button, Input, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@propad/ui';
 import { User, Shield, CreditCard, MapPin, CheckCircle2, LockKeyhole } from 'lucide-react';
 import { format } from 'date-fns';
 import { KycSubmissionPanel } from '@/components/kyc/kyc-submission-panel';
@@ -11,7 +12,20 @@ import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 export default function ProfilePage() {
     const { data: session } = useSession();
-    const user = session?.user;
+    const apiBaseUrl = getRequiredPublicApiBaseUrl();
+    const { data: profileData } = useQuery({
+        queryKey: ['profile', 'me'],
+        enabled: !!session?.accessToken,
+        queryFn: async () => {
+            const res = await fetch(`${apiBaseUrl}/profiles/me`, {
+                headers: { Authorization: `Bearer ${session?.accessToken}` }
+            });
+            if (!res.ok) throw new Error('Failed to load profile');
+            return res.json();
+        }
+    });
+
+    const user = profileData || session?.user;
 
     if (!user) return null;
 
@@ -24,14 +38,55 @@ export default function ProfilePage() {
     const verificationScore = (user as any).verificationScore ?? 0;
     const isVerified = (user as any).isVerified ?? false;
     const kycStatus = (user as any).kycStatus || 'PENDING';
-    const profilePhoto = (user as any).profilePhoto ?? null;
+    const [profilePhoto, setProfilePhoto] = useState<string | null>((user as any).profilePhoto ?? null);
     const [mfaEnabled, setMfaEnabled] = useState<boolean>((user as any).mfaEnabled ?? false);
     const [mfaSecret, setMfaSecret] = useState<string | null>(null);
     const [mfaQrCode, setMfaQrCode] = useState<string | null>(null);
     const [mfaToken, setMfaToken] = useState('');
     const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
     const [mfaLoading, setMfaLoading] = useState(false);
-    const apiBaseUrl = getRequiredPublicApiBaseUrl();
+    const [editOpen, setEditOpen] = useState(false);
+    const [profileForm, setProfileForm] = useState({
+        name: user.name ?? '',
+        phone: (user as any).phone ?? '',
+        dateOfBirth: (user as any).dateOfBirth ? new Date((user as any).dateOfBirth).toISOString().slice(0, 10) : '',
+        idNumber: (user as any).idNumber ?? '',
+        addressLine1: (user as any).addressLine1 ?? '',
+        addressCity: (user as any).addressCity ?? '',
+        addressProvince: (user as any).addressProvince ?? '',
+        addressCountry: (user as any).addressCountry ?? ''
+    });
+
+    useEffect(() => {
+        if (!profileData) return;
+        setProfilePhoto((profileData as any).profilePhoto ?? null);
+        setProfileForm({
+            name: profileData.name ?? '',
+            phone: profileData.phone ?? '',
+            dateOfBirth: profileData.dateOfBirth ? new Date(profileData.dateOfBirth).toISOString().slice(0, 10) : '',
+            idNumber: profileData.idNumber ?? '',
+            addressLine1: profileData.addressLine1 ?? '',
+            addressCity: profileData.addressCity ?? '',
+            addressProvince: profileData.addressProvince ?? '',
+            addressCountry: profileData.addressCountry ?? ''
+        });
+    }, [profileData]);
+
+    const { data: kycHistory } = useQuery({
+        queryKey: ['kyc-history', 'me'],
+        enabled: !!session?.accessToken,
+        queryFn: async () => {
+            const res = await fetch(`${apiBaseUrl}/wallets/kyc/history`, {
+                headers: { Authorization: `Bearer ${session?.accessToken}` }
+            });
+            if (!res.ok) return [];
+            return res.json();
+        }
+    });
+    const passportExpiry = kycHistory?.find((record: any) => record.idType === 'PASSPORT')?.idExpiryDate;
+    const passportExpiringSoon = passportExpiry
+        ? new Date(passportExpiry).getTime() - Date.now() < 1000 * 60 * 60 * 24 * 30
+        : false;
 
     const setupMfa = async () => {
         setMfaLoading(true);
@@ -120,10 +175,16 @@ export default function ProfilePage() {
                     </p>
                 </div>
                 {/* Placeholder Edit Button */}
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditOpen(true)}>
                     <User className="w-4 h-4" /> Edit Profile
                 </Button>
             </header>
+
+            {passportExpiringSoon && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                    Your passport verification is expiring soon. Request a KYC update and upload a renewed passport.
+                </div>
+            )}
 
             <div className="grid gap-6 md:grid-cols-[320px_1fr]">
                 {/* Identity Card */}
@@ -244,7 +305,11 @@ export default function ProfilePage() {
                             <CardDescription>Update your public avatar.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <ProfilePhotoUploader endpoint="/profiles/me/photo" currentUrl={profilePhoto} />
+                            <ProfilePhotoUploader
+                                endpoint="/profiles/me/photo"
+                                currentUrl={profilePhoto}
+                                onUploaded={(url) => setProfilePhoto(url)}
+                            />
                         </CardContent>
                     </Card>
 
@@ -324,6 +389,44 @@ export default function ProfilePage() {
                         ownerId={user.id}
                         title="KYC Verification"
                         description="Submit identity documents to unlock higher limits and agency access."
+                        requestUpdateEndpoint="/wallets/kyc/request-update"
+                        documentSlots={role === 'INDEPENDENT_AGENT'
+                            ? [
+                                {
+                                    key: 'identity',
+                                    label: 'ID or Passport',
+                                    description: 'Used to verify your name and date of birth.',
+                                    docType: 'IDENTITY',
+                                    required: true
+                                },
+                                {
+                                    key: 'address',
+                                    label: 'Proof of Address',
+                                    description: 'Utility bill or bank statement (optional).',
+                                    docType: 'PROOF_ADDRESS'
+                                },
+                                {
+                                    key: 'agent-cert',
+                                    label: 'Independent Agent Certificate',
+                                    description: 'Adds extra weight to your trust score.',
+                                    docType: 'AGENT_CERT'
+                                }
+                            ]
+                            : [
+                                {
+                                    key: 'identity',
+                                    label: 'ID or Passport',
+                                    description: 'Used to verify your name and date of birth.',
+                                    docType: 'IDENTITY',
+                                    required: true
+                                },
+                                {
+                                    key: 'address',
+                                    label: 'Proof of Address',
+                                    description: 'Utility bill or bank statement (optional).',
+                                    docType: 'PROOF_ADDRESS'
+                                }
+                            ]}
                         documentChecklist={role === 'INDEPENDENT_AGENT'
                             ? [
                                 {
@@ -350,6 +453,80 @@ export default function ProfilePage() {
                                 }
                             ]}
                     />
+
+                    <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                        <DialogContent className="max-w-xl">
+                            <DialogHeader>
+                                <DialogTitle>Edit Profile</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <Input
+                                    placeholder="Full name"
+                                    value={profileForm.name}
+                                    onChange={(event) => setProfileForm({ ...profileForm, name: event.target.value })}
+                                    disabled={kycStatus === 'VERIFIED'}
+                                />
+                                <Input
+                                    placeholder="Phone"
+                                    value={profileForm.phone}
+                                    onChange={(event) => setProfileForm({ ...profileForm, phone: event.target.value })}
+                                />
+                                <Input
+                                    type="date"
+                                    value={profileForm.dateOfBirth}
+                                    onChange={(event) => setProfileForm({ ...profileForm, dateOfBirth: event.target.value })}
+                                    disabled={kycStatus === 'VERIFIED'}
+                                />
+                                <Input
+                                    placeholder="National ID / Passport"
+                                    value={profileForm.idNumber}
+                                    onChange={(event) => setProfileForm({ ...profileForm, idNumber: event.target.value })}
+                                    disabled={kycStatus === 'VERIFIED'}
+                                />
+                                <Input
+                                    placeholder="Address line"
+                                    value={profileForm.addressLine1}
+                                    onChange={(event) => setProfileForm({ ...profileForm, addressLine1: event.target.value })}
+                                />
+                                <Input
+                                    placeholder="City"
+                                    value={profileForm.addressCity}
+                                    onChange={(event) => setProfileForm({ ...profileForm, addressCity: event.target.value })}
+                                />
+                                <Input
+                                    placeholder="Province"
+                                    value={profileForm.addressProvince}
+                                    onChange={(event) => setProfileForm({ ...profileForm, addressProvince: event.target.value })}
+                                />
+                                <Input
+                                    placeholder="Country"
+                                    value={profileForm.addressCountry}
+                                    onChange={(event) => setProfileForm({ ...profileForm, addressCountry: event.target.value })}
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
+                                <Button
+                                    onClick={async () => {
+                                        const res = await fetch(`${apiBaseUrl}/profiles/me`, {
+                                            method: 'PATCH',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                Authorization: `Bearer ${session?.accessToken}`
+                                            },
+                                            body: JSON.stringify(profileForm)
+                                        });
+                                        if (res.ok) {
+                                            setEditOpen(false);
+                                            window.location.reload();
+                                        }
+                                    }}
+                                >
+                                    Save changes
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
 
                     <Card>
                         <CardHeader>

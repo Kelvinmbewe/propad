@@ -119,10 +119,24 @@ export class AgenciesService {
       logoUrl?: string;
       slug?: string;
       name?: string;
+      email?: string;
+      phone?: string;
+      address?: string;
+      directorsJson?: unknown;
     },
     userId: string,
   ) {
     const agency = await this.findOne(id);
+
+    if (
+      agency.kycStatus === "VERIFIED" &&
+      (data.registrationNumber ||
+        data.address ||
+        data.name ||
+        data.directorsJson)
+    ) {
+      throw new BadRequestException("Verified company details are locked");
+    }
 
     await this.audit.logAction({
       action: "AGENCY_UPDATE",
@@ -134,7 +148,7 @@ export class AgenciesService {
 
     return this.prisma.agency.update({
       where: { id },
-      data,
+      data: data as any,
     });
   }
 
@@ -171,6 +185,7 @@ export class AgenciesService {
   ) {
     const agency = await this.findOne(id);
     const uploadsRoot = this.resolveUploadsRoot();
+    await mkdir(uploadsRoot, { recursive: true });
     const uploadsDir = resolve(uploadsRoot, "agencies", id);
     await mkdir(uploadsDir, { recursive: true });
 

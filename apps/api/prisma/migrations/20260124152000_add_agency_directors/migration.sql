@@ -1,0 +1,1 @@
+ALTER TABLE "Agency" ADD COLUMN IF NOT EXISTS "directorsJson" JSONB;

@@ -95,7 +95,7 @@ function KycQueueSection() {
               <thead className="bg-neutral-50 text-left text-xs font-medium uppercase tracking-wide text-neutral-500">
                 <tr>
                   <th className="px-3 py-2">Owner</th>
-                  <th className="px-3 py-2">ID type</th>
+                  <th className="px-3 py-2">Identity</th>
                   <th className="px-3 py-2">Documents</th>
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Updated</th>
@@ -133,9 +133,30 @@ function KycRow({
   return (
     <tr className="bg-white">
       <td className="px-3 py-2 font-medium text-neutral-900">
-        {record.ownerType} • {record.ownerId}
+        <div>
+          {record.ownerType} • {record.ownerId}
+        </div>
+        <div className="text-xs text-neutral-500">
+          {(record as any).ownerDetails?.name || (record as any).ownerDetails?.email || '—'}
+        </div>
       </td>
-      <td className="px-3 py-2 text-neutral-500">{record.idType}</td>
+      <td className="px-3 py-2 text-neutral-500">
+        <div>{record.idType}</div>
+        <div className="text-xs">
+          {(record as any).ownerDetails?.idNumber || (record as any).ownerDetails?.registrationNumber || '—'}
+        </div>
+        <div className="text-xs text-neutral-400">
+          {(record as any).ownerDetails?.dateOfBirth ? new Date((record as any).ownerDetails?.dateOfBirth).toLocaleDateString() : ''}
+        </div>
+        {record.idExpiryDate && (
+          <div className="text-xs text-amber-600">
+            Expires {new Date(record.idExpiryDate).toLocaleDateString()}
+          </div>
+        )}
+        <div className="text-xs text-neutral-400">
+          {(record as any).ownerDetails?.addressLine1 || (record as any).ownerDetails?.address || '—'}
+        </div>
+      </td>
       <td className="px-3 py-2 text-neutral-500">
         <div className="space-y-1">
           {record.docUrls.map((url, index) => (

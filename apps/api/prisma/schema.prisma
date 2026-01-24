@@ -531,6 +531,12 @@ model User {
   mfaSecret    String?
   mfaTempSecret String?
   mfaRecoveryCodes String[] @default([])
+  dateOfBirth  DateTime?
+  idNumber     String?
+  addressLine1 String?
+  addressCity  String?
+  addressProvince String?
+  addressCountry String?
   trustTier    String   @default("NORMAL")
   isVerified   Boolean  @default(false)
   createdAt    DateTime @default(now())
@@ -678,6 +684,7 @@ model Agency {
 
   // Company Profile Fields
   registrationNumber String?
+  directorsJson      Json?
   bio                String?
   trustScore         Int       @default(0)
   verificationScore  Int       @default(0)
@@ -1328,6 +1335,7 @@ model KycRecord {
   idNumber  String
   docUrls   String[]
   docTypes  String[]  @default([])
+  idExpiryDate DateTime?
   status    KycStatus @default(PENDING)
   notes     String?
   updatedAt DateTime  @updatedAt

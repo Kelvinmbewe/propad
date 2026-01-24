@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { BadgesHelper, TrustBadge } from "../trust/badges.helper";
 import { AuditService } from "../audit/audit.service";
@@ -128,6 +132,79 @@ export class ProfilesService {
     };
   }
 
+  async getMyProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        trustScore: true,
+        verificationScore: true,
+        kycStatus: true,
+        isVerified: true,
+        profilePhoto: true,
+        dateOfBirth: true,
+        idNumber: true,
+        addressLine1: true,
+        addressCity: true,
+        addressProvince: true,
+        addressCountry: true,
+        createdAt: true,
+      },
+    });
+    if (!user) throw new NotFoundException("User not found");
+    return user;
+  }
+
+  async updateUserProfile(
+    userId: string,
+    data: {
+      name?: string;
+      phone?: string;
+      dateOfBirth?: string;
+      idNumber?: string;
+      addressLine1?: string;
+      addressCity?: string;
+      addressProvince?: string;
+      addressCountry?: string;
+    },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException("User not found");
+
+    const isVerified = user.kycStatus === "VERIFIED";
+    if (isVerified && (data.name || data.idNumber || data.dateOfBirth)) {
+      throw new BadRequestException("Verified profile details are locked");
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: data.name ?? undefined,
+        phone: data.phone ?? undefined,
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
+        idNumber: data.idNumber ?? undefined,
+        addressLine1: data.addressLine1 ?? undefined,
+        addressCity: data.addressCity ?? undefined,
+        addressProvince: data.addressProvince ?? undefined,
+        addressCountry: data.addressCountry ?? undefined,
+      } as any,
+    });
+
+    await this.audit.logAction({
+      action: "profile.update",
+      actorId: userId,
+      targetType: "user",
+      targetId: userId,
+      metadata: { fields: Object.keys(data) },
+    });
+
+    return updated;
+  }
+
   async updateUserPhoto(
     userId: string,
     file: { filename: string; mimetype: string; buffer: Buffer },
@@ -136,6 +213,7 @@ export class ProfilesService {
     if (!user) throw new NotFoundException("User not found");
 
     const uploadsRoot = this.resolveUploadsRoot();
+    await mkdir(uploadsRoot, { recursive: true });
     const uploadsDir = join(uploadsRoot, "profiles", "users", userId);
     await mkdir(uploadsDir, { recursive: true });
 

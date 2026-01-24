@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -33,6 +33,15 @@ interface KycSubmissionPanelProps {
   description?: string;
   idTypeOptions?: Array<{ value: string; label: string }>;
   documentChecklist?: Array<{ title: string; description: string }>;
+  documentSlots?: Array<{
+    key: string;
+    label: string;
+    description?: string;
+    docType: string;
+    required?: boolean;
+    multiple?: boolean;
+  }>;
+  requestUpdateEndpoint?: string;
 }
 
 export function KycSubmissionPanel({
@@ -42,6 +51,8 @@ export function KycSubmissionPanel({
   description = "Submit identity documents for compliance review.",
   idTypeOptions,
   documentChecklist,
+  documentSlots,
+  requestUpdateEndpoint,
 }: KycSubmissionPanelProps) {
   const { data } = useSession();
   const apiBaseUrl = getRequiredPublicApiBaseUrl();
@@ -62,6 +73,7 @@ export function KycSubmissionPanel({
   const idTypes = idTypeOptions ?? defaultIdTypes;
   const [idType, setIdType] = useState(idTypes[0]?.value ?? "NATIONAL_ID");
   const [idNumber, setIdNumber] = useState("");
+  const [idExpiryDate, setIdExpiryDate] = useState("");
   const [notes, setNotes] = useState("");
   const [uploads, setUploads] = useState<UploadState[]>([]);
   const [docTypeSelections, setDocTypeSelections] = useState<
@@ -94,6 +106,30 @@ export function KycSubmissionPanel({
     },
   });
 
+  const latestStatus = historyQuery.data?.[0]?.status ?? "PENDING";
+  const latestRecord = historyQuery.data?.[0];
+  const [updateRequested, setUpdateRequested] = useState(false);
+  const existingDocTypes = latestRecord?.docTypes ?? [];
+  const allowSupplemental =
+    latestStatus === "VERIFIED" &&
+    documentSlots?.some(
+      (slot) =>
+        !slot.required &&
+        !existingDocTypes.includes(
+          slot.docType === "IDENTITY" ? idType : slot.docType,
+        ),
+    );
+  const isLocked =
+    latestStatus === "VERIFIED" && !updateRequested && !allowSupplemental;
+
+  useEffect(() => {
+    if (latestRecord?.idExpiryDate) {
+      setIdExpiryDate(
+        new Date(latestRecord.idExpiryDate).toISOString().slice(0, 10),
+      );
+    }
+  }, [latestRecord?.idExpiryDate]);
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       const uploadsBase = apiBaseUrl.replace(/\/v1$/, "");
@@ -124,6 +160,7 @@ export function KycSubmissionPanel({
         body: JSON.stringify({
           idType,
           idNumber,
+          idExpiryDate: idExpiryDate || undefined,
           docUrls,
           docTypes,
           notes: notes || undefined,
@@ -213,9 +250,109 @@ export function KycSubmissionPanel({
     });
   };
 
+  const handleSlotFiles = (docType: string, files: FileList | null) => {
+    if (!files || !token) return;
+    const resolvedDocType = docType === "IDENTITY" ? idType : docType;
+    const nextUploads: UploadState[] = Array.from(files).map((file) => ({
+      file,
+      progress: 0,
+      status: "uploading",
+    }));
+    setUploads((prev) => [...prev, ...nextUploads]);
+
+    nextUploads.forEach((upload) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData();
+      formData.append("file", upload.file);
+
+      const endpoint =
+        ownerType === "AGENCY" && ownerId
+          ? `${apiBaseUrl}/wallets/kyc/agency/${ownerId}/upload`
+          : `${apiBaseUrl}/wallets/kyc/upload`;
+
+      xhr.open("POST", endpoint);
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const progress = Math.round((event.loaded / event.total) * 100);
+          setUploads((current) =>
+            current.map((item) =>
+              item.file === upload.file ? { ...item, progress } : item,
+            ),
+          );
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const response = JSON.parse(xhr.responseText) as { url: string };
+          setUploads((current) =>
+            current.map((item) =>
+              item.file === upload.file
+                ? {
+                    ...item,
+                    progress: 100,
+                    status: "uploaded",
+                    url: response.url,
+                  }
+                : item,
+            ),
+          );
+          setDocTypeSelections((current) => ({
+            ...current,
+            [response.url]: resolvedDocType,
+          }));
+        } else {
+          setUploads((current) =>
+            current.map((item) =>
+              item.file === upload.file
+                ? { ...item, status: "error", error: "Upload failed" }
+                : item,
+            ),
+          );
+        }
+      };
+      xhr.onerror = () => {
+        setUploads((current) =>
+          current.map((item) =>
+            item.file === upload.file
+              ? { ...item, status: "error", error: "Upload failed" }
+              : item,
+          ),
+        );
+      };
+      xhr.send(formData);
+    });
+  };
+
+  const requestKycUpdate = async () => {
+    if (!requestUpdateEndpoint || !token) return;
+    const res = await fetch(`${apiBaseUrl}${requestUpdateEndpoint}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      setUpdateRequested(true);
+      await queryClient.invalidateQueries({ queryKey: historyQueryKey });
+    }
+  };
+
+  const uploadedDocTypes = uploads
+    .filter((item) => item.status === "uploaded" && item.url)
+    .map((item) => docTypeSelections[item.url ?? ""] || "UNKNOWN");
+  const requiredSlotsMet = documentSlots
+    ? documentSlots
+        .filter((slot) => slot.required)
+        .every((slot) =>
+          uploadedDocTypes.includes(
+            slot.docType === "IDENTITY" ? idType : slot.docType,
+          ),
+        )
+    : true;
   const canSubmit =
     idNumber.trim().length > 2 &&
-    uploads.some((item) => item.status === "uploaded");
+    uploads.some((item) => item.status === "uploaded") &&
+    requiredSlotsMet &&
+    (idType !== "PASSPORT" || idExpiryDate.trim().length > 0);
 
   return (
     <Card>
@@ -231,6 +368,21 @@ export function KycSubmissionPanel({
             Only the profile owner can submit verification documents.
           </p>
         )}
+        {latestStatus === "VERIFIED" && (
+          <p className="text-xs font-medium text-emerald-600">
+            Your KYC has been verified. Documents are locked.
+          </p>
+        )}
+        {latestStatus === "VERIFIED" && requestUpdateEndpoint && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={requestKycUpdate}
+            disabled={updateRequested}
+          >
+            {updateRequested ? "Update requested" : "Request KYC update"}
+          </Button>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <label className="text-xs font-medium text-neutral-600">
@@ -240,7 +392,7 @@ export function KycSubmissionPanel({
               value={idType}
               onChange={(event) => setIdType(event.target.value)}
               className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
-              disabled={!isOwner}
+              disabled={!isOwner || isLocked}
             >
               {idTypes.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -257,23 +409,38 @@ export function KycSubmissionPanel({
               value={idNumber}
               onChange={(event) => setIdNumber(event.target.value)}
               placeholder="Enter the ID number"
-              disabled={!isOwner}
+              disabled={!isOwner || isLocked}
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-neutral-600">
-              Upload documents
-            </label>
-            <Input
-              type="file"
-              multiple
-              onChange={(event) => handleFiles(event.target.files)}
-              disabled={!isOwner}
-            />
-            <p className="text-xs text-neutral-500">
-              Accepted: JPG, PNG, WebP, PDF. Max 10MB.
-            </p>
-          </div>
+          {idType === "PASSPORT" && (
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-neutral-600">
+                Passport expiry date
+              </label>
+              <Input
+                type="date"
+                value={idExpiryDate}
+                onChange={(event) => setIdExpiryDate(event.target.value)}
+                disabled={!isOwner || isLocked}
+              />
+            </div>
+          )}
+          {!documentSlots && (
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-neutral-600">
+                Upload documents
+              </label>
+              <Input
+                type="file"
+                multiple
+                onChange={(event) => handleFiles(event.target.files)}
+                disabled={!isOwner || isLocked}
+              />
+              <p className="text-xs text-neutral-500">
+                Accepted: JPG, PNG, WebP, PDF. Max 10MB.
+              </p>
+            </div>
+          )}
           <div className="space-y-2">
             <label className="text-xs font-medium text-neutral-600">
               Reviewer notes
@@ -282,10 +449,45 @@ export function KycSubmissionPanel({
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               placeholder="Any extra context for the verification team"
-              disabled={!isOwner}
+              disabled={!isOwner || isLocked}
             />
           </div>
         </div>
+
+        {documentSlots && documentSlots.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-neutral-600">
+              Required uploads
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {documentSlots.map((slot) => (
+                <div
+                  key={slot.key}
+                  className="rounded-md border border-neutral-200 p-3"
+                >
+                  <p className="text-sm font-medium text-neutral-800">
+                    {slot.label}
+                    {slot.required ? " *" : ""}
+                  </p>
+                  {slot.description && (
+                    <p className="text-xs text-neutral-500">
+                      {slot.description}
+                    </p>
+                  )}
+                  <Input
+                    type="file"
+                    multiple={slot.multiple}
+                    className="mt-2"
+                    onChange={(event) =>
+                      handleSlotFiles(slot.docType, event.target.files)
+                    }
+                    disabled={!isOwner || isLocked}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {documentChecklist && documentChecklist.length > 0 && (
           <div className="rounded-md border border-neutral-100 bg-neutral-50 p-4 text-xs text-neutral-600">
@@ -339,6 +541,7 @@ export function KycSubmissionPanel({
                           [upload.url!]: event.target.value,
                         }))
                       }
+                      disabled={isLocked}
                       className="mt-1 w-full rounded-md border border-neutral-200 px-2 py-2 text-xs"
                     >
                       <option value="UNKNOWN">Unknown</option>
@@ -373,7 +576,9 @@ export function KycSubmissionPanel({
           <Button
             className="gap-2"
             onClick={() => submitMutation.mutate()}
-            disabled={!canSubmit || submitMutation.isPending || !isOwner}
+            disabled={
+              !canSubmit || submitMutation.isPending || !isOwner || isLocked
+            }
           >
             <UploadCloud className="h-4 w-4" />
             {submitMutation.isPending ? "Submitting..." : "Submit for Review"}
@@ -396,6 +601,7 @@ export function KycSubmissionPanel({
                   <tr>
                     <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2">ID type</th>
+                    <th className="px-3 py-2">Documents</th>
                     <th className="px-3 py-2">Updated</th>
                   </tr>
                 </thead>
@@ -407,6 +613,21 @@ export function KycSubmissionPanel({
                       </td>
                       <td className="px-3 py-2 text-neutral-500">
                         {record.idType}
+                      </td>
+                      <td className="px-3 py-2 text-neutral-500">
+                        <div className="space-y-1">
+                          {record.docUrls?.map((url: string, index: number) => (
+                            <a
+                              key={url}
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block text-xs text-emerald-600 hover:underline"
+                            >
+                              {record.docTypes?.[index] || "Document"}
+                            </a>
+                          ))}
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-neutral-500">
                         {record.updatedAt

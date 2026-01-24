@@ -140,6 +140,47 @@ export default async function AgencyProfilePage({
                   ownerId={params.id}
                   title="Compliance & KYC"
                   description="Upload company registration documents to keep your agency verified."
+                  requestUpdateEndpoint={`/wallets/kyc/agency/${params.id}/request-update`}
+                  documentSlots={[
+                    {
+                      key: "cert-inc",
+                      label: "Certificate of Incorporation",
+                      description: "Official registration certificate.",
+                      docType: "CERT_OF_INC",
+                      required: true,
+                    },
+                    {
+                      key: "cr6",
+                      label: "CR6 (Directors Register)",
+                      description: "Formerly CR14 showing directors.",
+                      docType: "CR6",
+                    },
+                    {
+                      key: "cr5",
+                      label: "CR5 (Company Address)",
+                      description: "Formerly CR6 showing registered address.",
+                      docType: "CR5",
+                    },
+                    {
+                      key: "mem-articles",
+                      label: "Memorandum & Articles",
+                      description: "Company constitution documents.",
+                      docType: "MEM_ARTICLES",
+                    },
+                    {
+                      key: "director-ids",
+                      label: "Director IDs",
+                      description: "Upload director IDs or passports.",
+                      docType: "DIRECTOR_ID",
+                      multiple: true,
+                    },
+                    {
+                      key: "rea-cert",
+                      label: "Real Estate Certification",
+                      description: "Industry certification for your agency.",
+                      docType: "REA_CERT",
+                    },
+                  ]}
                   documentChecklist={[
                     {
                       title: "Certificate of Incorporation",

@@ -33,6 +33,15 @@ export default function AgencyDashboardPage() {
     const [inviteOpen, setInviteOpen] = useState(false);
     const [inviteForm, setInviteForm] = useState({ email: '', role: 'AGENT' });
     const [pendingAction, setPendingAction] = useState<{ type: 'pause' | 'ban' | 'remove'; member: any } | null>(null);
+    const [companyEditOpen, setCompanyEditOpen] = useState(false);
+    const [companyForm, setCompanyForm] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+        registrationNumber: '',
+        directors: ''
+    });
 
     const { data: agency, isLoading } = useQuery({
         queryKey: ['agency', 'my'],
@@ -44,6 +53,36 @@ export default function AgencyDashboardPage() {
             return res.json();
         }
     });
+
+    const saveCompanyProfile = async () => {
+        if (!session?.accessToken || !agency) return;
+        const directorsJson = companyForm.directors
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean)
+            .map(line => {
+                const [name, idNumber] = line.split(' - ').map(part => part.trim());
+                return { name, idNumber };
+            });
+        const payload = {
+            name: companyForm.name || undefined,
+            email: companyForm.email || undefined,
+            phone: companyForm.phone || undefined,
+            address: companyForm.address || undefined,
+            registrationNumber: companyForm.registrationNumber || undefined,
+            directorsJson: directorsJson.length > 0 ? directorsJson : undefined
+        };
+        await fetch(`${apiBaseUrl}/agencies/${agency.id}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.accessToken}`
+            },
+            body: JSON.stringify(payload)
+        });
+        await queryClient.invalidateQueries({ queryKey: ['agency', 'my'] });
+        setCompanyEditOpen(false);
+    };
 
     const inviteMutation = useMutation({
         mutationFn: async () => {
@@ -221,11 +260,74 @@ export default function AgencyDashboardPage() {
                 </CardContent>
             </Card>
 
+            <Card>
+                <CardHeader className="flex items-center justify-between">
+                    <CardTitle>Company Details</CardTitle>
+                    <Button variant="outline" size="sm" onClick={() => {
+                        setCompanyForm({
+                            name: agency.name ?? '',
+                            email: agency.email ?? '',
+                            phone: agency.phone ?? '',
+                            address: agency.address ?? '',
+                            registrationNumber: agency.registrationNumber ?? '',
+                            directors: (agency.directorsJson ?? []).map((director: any) => `${director.name}${director.idNumber ? ` - ${director.idNumber}` : ''}`).join('\n')
+                        });
+                        setCompanyEditOpen(true);
+                    }}>
+                        Edit Company
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-neutral-500">Keep registration and director details up to date for KYC.</p>
+                </CardContent>
+            </Card>
+
             <KycSubmissionPanel
                 ownerType="AGENCY"
                 ownerId={agency.id}
                 title="Company KYC"
                 description="Provide company registration and director documents for verification."
+                requestUpdateEndpoint={`/wallets/kyc/agency/${agency.id}/request-update`}
+                documentSlots={[
+                    {
+                        key: 'cert-inc',
+                        label: 'Certificate of Incorporation',
+                        description: 'Official registration certificate.',
+                        docType: 'CERT_OF_INC',
+                        required: true
+                    },
+                    {
+                        key: 'cr6',
+                        label: 'CR6 (Directors Register)',
+                        description: 'Formerly CR14 showing directors.',
+                        docType: 'CR6'
+                    },
+                    {
+                        key: 'cr5',
+                        label: 'CR5 (Company Address)',
+                        description: 'Formerly CR6 showing registered address.',
+                        docType: 'CR5'
+                    },
+                    {
+                        key: 'mem-articles',
+                        label: 'Memorandum & Articles',
+                        description: 'Company constitution documents.',
+                        docType: 'MEM_ARTICLES'
+                    },
+                    {
+                        key: 'director-ids',
+                        label: 'Director IDs',
+                        description: 'Upload director IDs or passports.',
+                        docType: 'DIRECTOR_ID',
+                        multiple: true
+                    },
+                    {
+                        key: 'rea-cert',
+                        label: 'Real Estate Certification',
+                        description: 'Industry certification for your agency.',
+                        docType: 'REA_CERT'
+                    }
+                ]}
                 documentChecklist={[
                     {
                         title: 'Certificate of Incorporation',
@@ -279,6 +381,57 @@ export default function AgencyDashboardPage() {
                         <Button variant="ghost" onClick={() => setInviteOpen(false)}>Cancel</Button>
                         <Button onClick={() => inviteMutation.mutate()} disabled={inviteMutation.isPending || !inviteForm.email}>
                             {inviteMutation.isPending ? 'Adding...' : 'Add Agent'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={companyEditOpen} onOpenChange={setCompanyEditOpen}>
+                <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Edit Company Details</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <Input
+                            placeholder="Company name"
+                            value={companyForm.name}
+                            onChange={(event) => setCompanyForm({ ...companyForm, name: event.target.value })}
+                            disabled={agency.kycStatus === 'VERIFIED'}
+                        />
+                        <Input
+                            placeholder="Company email"
+                            value={companyForm.email}
+                            onChange={(event) => setCompanyForm({ ...companyForm, email: event.target.value })}
+                        />
+                        <Input
+                            placeholder="Company phone"
+                            value={companyForm.phone}
+                            onChange={(event) => setCompanyForm({ ...companyForm, phone: event.target.value })}
+                        />
+                        <Input
+                            placeholder="Registration number"
+                            value={companyForm.registrationNumber}
+                            onChange={(event) => setCompanyForm({ ...companyForm, registrationNumber: event.target.value })}
+                            disabled={agency.kycStatus === 'VERIFIED'}
+                        />
+                        <Input
+                            placeholder="Company address"
+                            value={companyForm.address}
+                            onChange={(event) => setCompanyForm({ ...companyForm, address: event.target.value })}
+                            disabled={agency.kycStatus === 'VERIFIED'}
+                        />
+                        <textarea
+                            placeholder="Directors (Name - ID per line)"
+                            value={companyForm.directors}
+                            onChange={(event) => setCompanyForm({ ...companyForm, directors: event.target.value })}
+                            disabled={agency.kycStatus === 'VERIFIED'}
+                            className="h-24 w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setCompanyEditOpen(false)}>Cancel</Button>
+                        <Button onClick={saveCompanyProfile} disabled={agency.kycStatus === 'VERIFIED'}>
+                            Save company
                         </Button>
                     </DialogFooter>
                 </DialogContent>
