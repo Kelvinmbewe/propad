@@ -163,6 +163,8 @@ enum AgencyStatus {
   PENDING
   ACTIVE
   SUSPENDED
+  PAUSED
+  BANNED
 }
 
 enum ManagementContractScope {
@@ -524,6 +526,11 @@ model User {
   passwordHash String?
   kycStatus    String?
   status       String?
+  deletedAt    DateTime?
+  mfaEnabled   Boolean  @default(false)
+  mfaSecret    String?
+  mfaTempSecret String?
+  mfaRecoveryCodes String[] @default([])
   trustTier    String   @default("NORMAL")
   isVerified   Boolean  @default(false)
   createdAt    DateTime @default(now())

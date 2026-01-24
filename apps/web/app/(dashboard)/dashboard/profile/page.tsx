@@ -1,9 +1,13 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Button } from '@propad/ui';
-import { User, Shield, Building, CreditCard, Star, MapPin, CheckCircle2, UserCheck } from 'lucide-react';
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Button, Input } from '@propad/ui';
+import { User, Shield, CreditCard, MapPin, CheckCircle2, LockKeyhole } from 'lucide-react';
 import { format } from 'date-fns';
+import { KycSubmissionPanel } from '@/components/kyc/kyc-submission-panel';
+import { ProfilePhotoUploader } from '@/components/profile-photo-uploader';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 export default function ProfilePage() {
     const { data: session } = useSession();
@@ -19,6 +23,91 @@ export default function ProfilePage() {
     const verificationScore = (user as any).verificationScore ?? 0;
     const isVerified = (user as any).isVerified ?? false;
     const kycStatus = (user as any).kycStatus || 'PENDING';
+    const profilePhoto = (user as any).profilePhoto ?? null;
+    const [mfaEnabled, setMfaEnabled] = useState<boolean>((user as any).mfaEnabled ?? false);
+    const [mfaSecret, setMfaSecret] = useState<string | null>(null);
+    const [mfaQrCode, setMfaQrCode] = useState<string | null>(null);
+    const [mfaToken, setMfaToken] = useState('');
+    const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
+    const [mfaLoading, setMfaLoading] = useState(false);
+    const apiBaseUrl = getRequiredPublicApiBaseUrl();
+
+    const setupMfa = async () => {
+        setMfaLoading(true);
+        try {
+            const res = await fetch(`${apiBaseUrl}/auth/mfa/setup`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${session?.accessToken}`
+                }
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.message || 'Failed to start MFA setup');
+            setMfaSecret(data.secret ?? null);
+            setMfaQrCode(data.qrCode ?? null);
+        } finally {
+            setMfaLoading(false);
+        }
+    };
+
+    const verifyMfa = async () => {
+        if (!mfaToken) return;
+        setMfaLoading(true);
+        try {
+            const res = await fetch(`${apiBaseUrl}/auth/mfa/verify`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${session?.accessToken}`
+                },
+                body: JSON.stringify({ token: mfaToken })
+            });
+            if (!res.ok) throw new Error('Unable to verify MFA');
+            setMfaEnabled(true);
+            setMfaSecret(null);
+            setMfaQrCode(null);
+            setMfaToken('');
+        } finally {
+            setMfaLoading(false);
+        }
+    };
+
+    const disableMfa = async () => {
+        if (!mfaToken) return;
+        setMfaLoading(true);
+        try {
+            const res = await fetch(`${apiBaseUrl}/auth/mfa/disable`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${session?.accessToken}`
+                },
+                body: JSON.stringify({ token: mfaToken })
+            });
+            if (!res.ok) throw new Error('Unable to disable MFA');
+            setMfaEnabled(false);
+            setMfaToken('');
+        } finally {
+            setMfaLoading(false);
+        }
+    };
+
+    const generateRecoveryCodes = async () => {
+        setMfaLoading(true);
+        try {
+            const res = await fetch(`${apiBaseUrl}/auth/mfa/recovery-codes`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${session?.accessToken}`
+                }
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error('Unable to generate recovery codes');
+            setRecoveryCodes(data.codes ?? []);
+        } finally {
+            setMfaLoading(false);
+        }
+    };
 
     return (
         <div className="flex flex-col gap-6">
@@ -43,12 +132,13 @@ export default function ProfilePage() {
                         <CardHeader className="relative pt-0 pb-2">
                             <div className="absolute -top-12 left-6">
                                 <div className="h-24 w-24 rounded-full border-4 border-white shadow-sm overflow-hidden bg-neutral-100 flex items-center justify-center">
-                                    <div className="h-24 w-24 rounded-full border-4 border-white shadow-sm overflow-hidden bg-neutral-100 flex items-center justify-center">
-                                        {/* Profile Image TODO: Enable when backend adds image to session */}
+                                    {profilePhoto ? (
+                                        <img src={profilePhoto} alt={user.name || 'Profile'} className="h-full w-full object-cover" />
+                                    ) : (
                                         <span className="text-xl font-bold text-neutral-600">
                                             {user.name?.charAt(0) || 'U'}
                                         </span>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
                             <div className="mt-14 space-y-1">
@@ -146,6 +236,94 @@ export default function ProfilePage() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Profile Photo</CardTitle>
+                            <CardDescription>Update your public avatar.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ProfilePhotoUploader endpoint="/profiles/me/photo" currentUrl={profilePhoto} />
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <LockKeyhole className="h-4 w-4 text-emerald-600" /> Multi-factor Authentication
+                            </CardTitle>
+                            <CardDescription>Secure your account with an authenticator app.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant={mfaEnabled ? 'default' : 'outline'} className={mfaEnabled ? 'bg-emerald-600' : ''}>
+                                    {mfaEnabled ? 'Enabled' : 'Disabled'}
+                                </Badge>
+                                <span className="text-xs text-neutral-500">
+                                    Use a TOTP authenticator like Google Authenticator or Authy.
+                                </span>
+                            </div>
+                            {!mfaEnabled && (
+                                <Button variant="outline" onClick={setupMfa} disabled={mfaLoading}>
+                                    {mfaLoading ? 'Preparing…' : 'Set up MFA'}
+                                </Button>
+                            )}
+                            {mfaQrCode && (
+                                <div className="space-y-3">
+                                    <div className="rounded-md border border-neutral-200 bg-white p-3">
+                                        <img src={mfaQrCode} alt="MFA QR" className="max-w-[180px]" />
+                                    </div>
+                                    <p className="text-xs text-neutral-500">Manual code: {mfaSecret}</p>
+                                    <Input
+                                        placeholder="Enter 6-digit code"
+                                        value={mfaToken}
+                                        onChange={(event) => setMfaToken(event.target.value)}
+                                    />
+                                    <Button onClick={verifyMfa} disabled={mfaLoading || !mfaToken}>
+                                        {mfaLoading ? 'Verifying…' : 'Verify & Enable'}
+                                    </Button>
+                                </div>
+                            )}
+                            {mfaEnabled && (
+                                <div className="space-y-3">
+                                    <Input
+                                        placeholder="Enter authenticator or recovery code"
+                                        value={mfaToken}
+                                        onChange={(event) => setMfaToken(event.target.value)}
+                                    />
+                                    <Button variant="outline" onClick={disableMfa} disabled={mfaLoading || !mfaToken}>
+                                        {mfaLoading ? 'Disabling…' : 'Disable MFA'}
+                                    </Button>
+                                </div>
+                            )}
+                            {mfaEnabled && (
+                                <div className="space-y-3">
+                                    <Button variant="outline" onClick={generateRecoveryCodes} disabled={mfaLoading}>
+                                        {mfaLoading ? 'Generating…' : 'Generate recovery codes'}
+                                    </Button>
+                                    {recoveryCodes.length > 0 && (
+                                        <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
+                                            <p className="mb-2 font-semibold">Store these codes securely:</p>
+                                            <div className="grid gap-2 sm:grid-cols-2">
+                                                {recoveryCodes.map((code) => (
+                                                    <span key={code} className="rounded-md bg-white px-2 py-1 font-mono">
+                                                        {code}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <KycSubmissionPanel
+                        ownerType="USER"
+                        ownerId={user.id}
+                        title="KYC Verification"
+                        description="Submit identity documents to unlock higher limits and agency access."
+                    />
 
                     <Card>
                         <CardHeader>

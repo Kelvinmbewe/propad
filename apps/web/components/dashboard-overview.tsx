@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -27,9 +27,11 @@ import {
   LayoutDashboard,
   Wallet2,
   MessageSquare,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Button,
+  Badge,
   Card,
   CardContent,
   CardDescription,
@@ -126,6 +128,7 @@ export function DashboardOverview() {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const role = (session?.user?.role || "USER") as Role;
+  const kycStatus = ((session?.user as any)?.kycStatus || "PENDING") as string;
 
   // --- Admin Specific State ---
   const toParam = searchParams.get("to");
@@ -579,7 +582,7 @@ export function DashboardOverview() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">My Activity</h1>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-neutral-500">
@@ -608,6 +611,29 @@ export function DashboardOverview() {
                 {scopedMetrics?.savedProperties || 0}
               </div>
               <p className="text-xs text-neutral-500">Favorites & Watchlist</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-neutral-500">
+                KYC Status
+              </CardTitle>
+              <ShieldCheck className="h-4 w-4 text-neutral-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                <Badge
+                  variant={kycStatus === "VERIFIED" ? "default" : "outline"}
+                  className={
+                    kycStatus === "VERIFIED"
+                      ? "bg-emerald-600"
+                      : "text-amber-600 border-amber-200 bg-amber-50"
+                  }
+                >
+                  {kycStatus}
+                </Badge>
+              </div>
+              <p className="text-xs text-neutral-500">Identity verification</p>
             </CardContent>
           </Card>
         </div>

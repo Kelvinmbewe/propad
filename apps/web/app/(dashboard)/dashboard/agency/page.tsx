@@ -1,18 +1,38 @@
 'use client';
 
-import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { useSession } from 'next-auth/react';
-import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Skeleton } from '@propad/ui';
-import { Users, Building, ShieldCheck, UserPlus } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    Button,
+    Badge,
+    Skeleton,
+    Input,
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle
+} from '@propad/ui';
+import { Users, Building, ShieldCheck, UserPlus, Ban, PauseCircle, PlayCircle, UserCog } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
+import { ConfirmActionDialog } from '@/components/confirm-action-dialog';
+import { KycSubmissionPanel } from '@/components/kyc/kyc-submission-panel';
+import { ProfilePhotoUploader } from '@/components/profile-photo-uploader';
+import { useState } from 'react';
 
 export default function AgencyDashboardPage() {
-    const sdk = useAuthenticatedSDK();
     const { data: session } = useSession();
     const router = useRouter();
     const apiBaseUrl = getRequiredPublicApiBaseUrl();
+    const queryClient = useQueryClient();
+    const [inviteOpen, setInviteOpen] = useState(false);
+    const [inviteForm, setInviteForm] = useState({ email: '', role: 'AGENT' });
+    const [pendingAction, setPendingAction] = useState<{ type: 'pause' | 'ban' | 'remove'; member: any } | null>(null);
 
     const { data: agency, isLoading } = useQuery({
         queryKey: ['agency', 'my'],
@@ -22,6 +42,51 @@ export default function AgencyDashboardPage() {
             });
             if (res.status === 404) return null;
             return res.json();
+        }
+    });
+
+    const inviteMutation = useMutation({
+        mutationFn: async () => {
+            if (!session?.accessToken || !agency) throw new Error('Missing session');
+            const res = await fetch(`${apiBaseUrl}/agencies/${agency.id}/members`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${session.accessToken}`
+                },
+                body: JSON.stringify(inviteForm)
+            });
+            if (!res.ok) throw new Error('Failed to add member');
+            return res.json();
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ['agency', 'my'] });
+            setInviteOpen(false);
+            setInviteForm({ email: '', role: 'AGENT' });
+        }
+    });
+
+    const memberStatusMutation = useMutation({
+        mutationFn: async (payload: { memberId: string; action: 'PAUSE' | 'BAN' | 'ACTIVATE' | 'REMOVE'; reason?: string }) => {
+            if (!session?.accessToken || !agency) throw new Error('Missing session');
+            const endpoint = payload.action === 'REMOVE'
+                ? `${apiBaseUrl}/agencies/${agency.id}/members/${payload.memberId}`
+                : `${apiBaseUrl}/agencies/${agency.id}/members/${payload.memberId}/status`;
+            const res = await fetch(endpoint, {
+                method: payload.action === 'REMOVE' ? 'DELETE' : 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${session.accessToken}`
+                },
+                body: JSON.stringify(payload.action === 'REMOVE'
+                    ? { reason: payload.reason }
+                    : { action: payload.action, reason: payload.reason })
+            });
+            if (!res.ok) throw new Error('Failed to update member');
+            return res.json();
+        },
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ['agency', 'my'] });
         }
     });
 
@@ -82,31 +147,140 @@ export default function AgencyDashboardPage() {
             </div>
 
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Team Members</CardTitle>
-                    <Button size="sm" variant="outline">
-                        <UserPlus className="h-4 w-4 mr-2" /> Invite
-                    </Button>
+                <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <CardTitle>Team Members</CardTitle>
+                        <p className="text-xs text-neutral-500">Invite, pause, or ban agents directly from your company hub.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" className="gap-2" onClick={() => setInviteOpen(true)}>
+                            <UserPlus className="h-4 w-4" /> Invite Agent
+                        </Button>
+                        <Button size="sm" className="gap-2" onClick={() => setInviteOpen(true)}>
+                            <UserCog className="h-4 w-4" /> Add Existing Agent
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
-                        {agency.members?.map((m: any) => (
-                            <div key={m.id} className="flex justify-between items-center border-b pb-2">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center font-bold">
-                                        {m.user.name?.[0] || '?'}
+                        {agency.members?.map((m: any) => {
+                            const memberStatus = m.isActive ? 'ACTIVE' : m.revokedAt ? 'BANNED' : 'PAUSED';
+                            return (
+                                <div key={m.id} className="flex flex-col gap-3 border-b pb-4 md:flex-row md:items-center md:justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center font-bold">
+                                            {m.user?.name?.[0] || '?'}
+                                        </div>
+                                        <div>
+                                            <p className="font-medium">{m.user?.name || 'Unknown'}</p>
+                                            <p className="text-xs text-gray-500 capitalize">{m.role?.toLowerCase() || 'agent'}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="font-medium">{m.user.name || 'Unknown'}</p>
-                                        <p className="text-xs text-gray-500 capitalize">{m.role.toLowerCase()}</p>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Badge
+                                            variant="outline"
+                                            className={memberStatus === 'BANNED'
+                                                ? 'border-red-200 bg-red-50 text-red-600'
+                                                : memberStatus === 'PAUSED'
+                                                    ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'}
+                                        >
+                                            {memberStatus}
+                                        </Badge>
+                                        <Button variant="outline" size="sm" className="gap-1" onClick={() => setPendingAction({ type: 'pause', member: m })}>
+                                            <PauseCircle className="h-3.5 w-3.5" /> Pause
+                                        </Button>
+                                        {memberStatus !== 'ACTIVE' && (
+                                            <Button variant="outline" size="sm" className="gap-1" onClick={() => memberStatusMutation.mutate({ memberId: m.userId, action: 'ACTIVATE' })}>
+                                                <PlayCircle className="h-3.5 w-3.5" /> Reactivate
+                                            </Button>
+                                        )}
+                                        <Button variant="outline" size="sm" className="gap-1 text-red-600 border-red-200" onClick={() => setPendingAction({ type: 'ban', member: m })}>
+                                            <Ban className="h-3.5 w-3.5" /> Ban
+                                        </Button>
+                                        <Button variant="ghost" size="sm" className="text-red-500" onClick={() => setPendingAction({ type: 'remove', member: m })}>Remove</Button>
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="sm" className="text-red-500">Remove</Button>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </CardContent>
             </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Company Logo</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <ProfilePhotoUploader
+                        endpoint={`/agencies/${agency.id}/logo`}
+                        currentUrl={agency.logoUrl}
+                        label="Company logo"
+                        onUploaded={() => queryClient.invalidateQueries({ queryKey: ['agency', 'my'] })}
+                    />
+                </CardContent>
+            </Card>
+
+            <KycSubmissionPanel
+                ownerType="AGENCY"
+                ownerId={agency.id}
+                title="Company KYC"
+                description="Provide company registration and director documents for verification."
+            />
+
+            <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Add Agent</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <Input
+                            placeholder="Agent email"
+                            value={inviteForm.email}
+                            onChange={(event) => setInviteForm({ ...inviteForm, email: event.target.value })}
+                        />
+                        <select
+                            className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+                            value={inviteForm.role}
+                            onChange={(event) => setInviteForm({ ...inviteForm, role: event.target.value })}
+                        >
+                            {['OWNER', 'MANAGER', 'AGENT'].map((role) => (
+                                <option key={role} value={role}>{role}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setInviteOpen(false)}>Cancel</Button>
+                        <Button onClick={() => inviteMutation.mutate()} disabled={inviteMutation.isPending || !inviteForm.email}>
+                            {inviteMutation.isPending ? 'Adding...' : 'Add Agent'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <ConfirmActionDialog
+                open={!!pendingAction}
+                title={pendingAction?.type === 'remove'
+                    ? 'Remove agent'
+                    : pendingAction?.type === 'ban'
+                        ? 'Ban agent'
+                        : 'Pause agent'}
+                description={pendingAction ? `This will ${pendingAction.type} ${pendingAction.member?.user?.name || 'agent'}.` : undefined}
+                confirmLabel={pendingAction?.type === 'remove' ? 'Remove' : 'Confirm'}
+                destructive={pendingAction?.type !== 'pause'}
+                onOpenChange={(open) => !open && setPendingAction(null)}
+                onConfirm={(reason) => {
+                    if (!pendingAction) return;
+                    if (pendingAction.type === 'pause') {
+                        memberStatusMutation.mutate({ memberId: pendingAction.member.userId, action: 'PAUSE', reason });
+                    } else if (pendingAction.type === 'ban') {
+                        memberStatusMutation.mutate({ memberId: pendingAction.member.userId, action: 'BAN', reason });
+                    } else {
+                        memberStatusMutation.mutate({ memberId: pendingAction.member.userId, action: 'REMOVE', reason });
+                    }
+                    setPendingAction(null);
+                }}
+            />
         </div>
     );
 }

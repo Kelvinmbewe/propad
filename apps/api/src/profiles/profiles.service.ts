@@ -1,104 +1,170 @@
-
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { BadgesHelper, TrustBadge } from '../trust/badges.helper';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { BadgesHelper, TrustBadge } from "../trust/badges.helper";
+import { AuditService } from "../audit/audit.service";
+import { existsSync } from "fs";
+import { mkdir, writeFile } from "fs/promises";
+import { join, resolve } from "path";
 
 @Injectable()
 export class ProfilesService {
-    constructor(
-        private prisma: PrismaService,
-        private badgesHelper: BadgesHelper
-    ) { }
+  constructor(
+    private prisma: PrismaService,
+    private badgesHelper: BadgesHelper,
+    private audit: AuditService,
+  ) {}
 
-    async getPublicUserProfile(userId: string) {
-        const user = await this.prisma.user.findUnique({
-            where: { id: userId },
-            include: {
-                agentProfile: true,
-                landlordProfile: true,
-                siteVisitsAssigned: { where: { status: 'COMPLETED' } }, // For badge calc
-                reviewsReceived: {
-                    take: 5,
-                    orderBy: { createdAt: 'desc' },
-                    include: { reviewer: { select: { id: true, name: true, profilePhoto: true } } }
-                }
-            }
-        });
+  private resolveUploadsRoot() {
+    const runtimeCwd = process.env.INIT_CWD ?? process.env.PWD ?? ".";
+    const candidates = [
+      process.env.UPLOADS_DIR,
+      resolve(runtimeCwd, "uploads"),
+      resolve(runtimeCwd, "apps", "api", "uploads"),
+      resolve(runtimeCwd, "..", "uploads"),
+      resolve(runtimeCwd, "..", "..", "uploads"),
+    ].filter((value): value is string => !!value);
 
-        if (!user) throw new NotFoundException('User not found');
-
-        // Safe DTO transformation
-        const badges = this.badgesHelper.getUserBadges(user);
-
-        // Hide sensitive risk data
-        const safeReviewCount = user.reviewsReceived.length; // Approximate, or fetch count
-
-        return {
-            id: user.id,
-            name: user.name,
-            profilePhoto: user.profilePhoto,
-            bio: user.bio,
-            location: user.location,
-            roles: [user.role], // Simplify to array
-            stats: {
-                joinedAt: user.createdAt,
-                trustTier: this.mapTrustTierToPublic(user.trustScore),
-                verificationLevel: user.isVerified ? 'VERIFIED' : 'UNVERIFIED',
-                reviewCount: safeReviewCount, // Real app would use _count
-            },
-            badges,
-            recentReviews: user.reviewsReceived.map((r: any) => ({
-                id: r.id,
-                author: r.reviewer.name,
-                rating: r.rating,
-                comment: r.comment,
-                date: r.createdAt
-            }))
-        };
+    for (const candidate of candidates) {
+      if (existsSync(candidate)) {
+        return candidate;
+      }
     }
 
-    async getPublicAgencyProfile(agencyId: string) {
-        const agency = await this.prisma.agency.findUnique({
-            where: { id: agencyId },
-            include: {
-                reviews: { take: 5, orderBy: { createdAt: 'desc' }, include: { reviewer: { select: { name: true } } } },
-                members: { include: { user: { select: { id: true, name: true, profilePhoto: true } } } }
-            }
-        });
+    return resolve(runtimeCwd, "uploads");
+  }
 
-        if (!agency) throw new NotFoundException('Agency not found');
+  async getPublicUserProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        agentProfile: true,
+        landlordProfile: true,
+        siteVisitsAssigned: { where: { status: "COMPLETED" } }, // For badge calc
+        reviewsReceived: {
+          take: 5,
+          orderBy: { createdAt: "desc" },
+          include: {
+            reviewer: { select: { id: true, name: true, profilePhoto: true } },
+          },
+        },
+      },
+    });
 
-        const badges = this.badgesHelper.getAgencyBadges(agency);
+    if (!user) throw new NotFoundException("User not found");
 
-        return {
-            id: agency.id,
-            name: agency.name,
-            logo: agency.logoUrl,
-            bio: agency.bio,
-            stats: {
-                agentCount: agency.members.length,
-                trustTier: this.mapTrustTierToPublic(agency.trustScore),
-                verified: agency.verificationScore > 0
-            },
-            badges,
-            agents: agency.members.map((m: any) => ({
-                id: m.userId,
-                name: m.user.name,
-                photo: m.user.profilePhoto
-            })),
-            recentReviews: agency.reviews.map((r: any) => ({
-                rating: r.rating,
-                comment: r.comment,
-                author: r.reviewer.name,
-                date: r.createdAt
-            }))
-        };
-    }
+    // Safe DTO transformation
+    const badges = this.badgesHelper.getUserBadges(user);
 
-    private mapTrustTierToPublic(score: number): string {
-        if (score >= 90) return 'Elite';
-        if (score >= 70) return 'Trusted';
-        if (score >= 40) return 'Verified';
-        return 'Standard';
-    }
+    // Hide sensitive risk data
+    const safeReviewCount = user.reviewsReceived.length; // Approximate, or fetch count
+
+    return {
+      id: user.id,
+      name: user.name,
+      profilePhoto: user.profilePhoto,
+      bio: user.bio,
+      location: user.location,
+      roles: [user.role], // Simplify to array
+      stats: {
+        joinedAt: user.createdAt,
+        trustTier: this.mapTrustTierToPublic(user.trustScore),
+        verificationLevel: user.isVerified ? "VERIFIED" : "UNVERIFIED",
+        reviewCount: safeReviewCount, // Real app would use _count
+      },
+      badges,
+      recentReviews: user.reviewsReceived.map((r: any) => ({
+        id: r.id,
+        author: r.reviewer.name,
+        rating: r.rating,
+        comment: r.comment,
+        date: r.createdAt,
+      })),
+    };
+  }
+
+  async getPublicAgencyProfile(agencyId: string) {
+    const agency = await this.prisma.agency.findUnique({
+      where: { id: agencyId },
+      include: {
+        reviews: {
+          take: 5,
+          orderBy: { createdAt: "desc" },
+          include: { reviewer: { select: { name: true } } },
+        },
+        members: {
+          include: {
+            user: { select: { id: true, name: true, profilePhoto: true } },
+          },
+        },
+      },
+    });
+
+    if (!agency) throw new NotFoundException("Agency not found");
+
+    const badges = this.badgesHelper.getAgencyBadges(agency);
+
+    return {
+      id: agency.id,
+      name: agency.name,
+      logo: agency.logoUrl,
+      bio: agency.bio,
+      stats: {
+        agentCount: agency.members.length,
+        trustTier: this.mapTrustTierToPublic(agency.trustScore),
+        verified: agency.verificationScore > 0,
+      },
+      badges,
+      agents: agency.members.map((m: any) => ({
+        id: m.userId,
+        name: m.user.name,
+        photo: m.user.profilePhoto,
+      })),
+      recentReviews: agency.reviews.map((r: any) => ({
+        rating: r.rating,
+        comment: r.comment,
+        author: r.reviewer.name,
+        date: r.createdAt,
+      })),
+    };
+  }
+
+  async updateUserPhoto(
+    userId: string,
+    file: { filename: string; mimetype: string; buffer: Buffer },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException("User not found");
+
+    const uploadsRoot = this.resolveUploadsRoot();
+    const uploadsDir = join(uploadsRoot, "profiles", "users", userId);
+    await mkdir(uploadsDir, { recursive: true });
+
+    const safeName = file.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const uniqueName = `${Date.now()}-${safeName}`;
+    const filePath = join(uploadsDir, uniqueName);
+    await writeFile(filePath, file.buffer as Uint8Array);
+
+    const profilePhoto = `/uploads/profiles/users/${userId}/${uniqueName}`;
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { profilePhoto },
+    });
+
+    await this.audit.logAction({
+      action: "profile.photo.update",
+      actorId: userId,
+      targetType: "user",
+      targetId: userId,
+      metadata: { previous: user.profilePhoto, profilePhoto },
+    });
+
+    return { url: profilePhoto, user: updated };
+  }
+
+  private mapTrustTierToPublic(score: number): string {
+    if (score >= 90) return "Elite";
+    if (score >= 70) return "Trusted";
+    if (score >= 40) return "Verified";
+    return "Standard";
+  }
 }

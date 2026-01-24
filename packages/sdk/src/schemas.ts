@@ -698,6 +698,7 @@ export const AdminUserSchema = z.object({
   name: z.string().nullable(),
   email: z.string().nullable(),
   role: z.string(), // Keeping as string to avoid zod enum issues, frontend can cast if needed
+  status: z.string().nullable(),
   isVerified: z.boolean(),
   verificationScore: z.number(),
   trustScore: z.number(),
@@ -717,8 +718,26 @@ export const AdminAgencySchema = z.object({
   }),
 });
 
+export const AuditLogSchema = z.object({
+  id: z.string(),
+  action: z.string(),
+  actorId: z.string().nullable(),
+  targetType: z.string(),
+  targetId: z.string().nullable(),
+  metadata: z.unknown().nullable(),
+  createdAt: z.string(),
+  actor: z
+    .object({
+      id: z.string(),
+      name: z.string().nullable(),
+      email: z.string().nullable(),
+    })
+    .nullable(),
+});
+
 export type AdminUser = z.infer<typeof AdminUserSchema>;
 export type AdminAgency = z.infer<typeof AdminAgencySchema>;
+export type AuditLog = z.infer<typeof AuditLogSchema>;
 
 export const ApplicationStatusSchema = z.enum([
   "SUBMITTED",

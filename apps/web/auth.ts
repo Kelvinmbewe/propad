@@ -1,21 +1,22 @@
-import NextAuth from 'next-auth';
-import type { NextAuthConfig } from 'next-auth';
-import GoogleProvider from 'next-auth/providers/google';
-import CredentialsProvider from 'next-auth/providers/credentials';
-import { env, getServerApiBaseUrl } from '@propad/config';
-import type { Role } from '@propad/sdk';
+import NextAuth from "next-auth";
+import type { NextAuthConfig } from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { env, getServerApiBaseUrl } from "@propad/config";
+import type { Role } from "@propad/sdk";
 
 // =================================================================
 // HARD DEFAULT ENV FALLBACKS - No .env required for local dev
 // =================================================================
-const NEXTAUTH_URL =
-  process.env.NEXTAUTH_URL ?? 'http://localhost:3000';
+const NEXTAUTH_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
 const NEXTAUTH_SECRET =
-  process.env.NEXTAUTH_SECRET ?? 'propad-dev-secret-do-not-use-in-prod';
+  process.env.NEXTAUTH_SECRET ?? "propad-dev-secret-do-not-use-in-prod";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? process.env.INTERNAL_API_BASE_URL ?? 'http://localhost:3001';
+  process.env.NEXT_PUBLIC_API_URL ??
+  process.env.INTERNAL_API_BASE_URL ??
+  "http://localhost:3001";
 
 // NOTE: PrismaAdapter REMOVED - we use JWT strategy and authenticate via API calls only.
 // The web app should NEVER touch the database directly.
@@ -25,78 +26,96 @@ const config: NextAuthConfig = {
   secret: NEXTAUTH_SECRET,
   // NO adapter - using JWT strategy with API-based authentication
   pages: {
-    signIn: '/auth/signin'
+    signIn: "/auth/signin",
   },
   providers: [
     GoogleProvider({
       clientId: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
     }),
     CredentialsProvider({
-      name: 'Credentials',
+      name: "Credentials",
       credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' }
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+        otp: { label: "MFA Code", type: "text" },
       },
       async authorize(
-        credentials: Partial<Record<'email' | 'password', unknown>>
+        credentials: Partial<Record<"email" | "password", unknown>>,
       ) {
         try {
           // Safely narrow types
           const email =
-            typeof credentials?.email === 'string'
-              ? credentials.email
-              : null;
+            typeof credentials?.email === "string" ? credentials.email : null;
 
           const password =
-            typeof credentials?.password === 'string'
+            typeof credentials?.password === "string"
               ? credentials.password
               : null;
+          const otp =
+            typeof (credentials as any)?.otp === "string"
+              ? (credentials as any).otp
+              : undefined;
 
           // TEMP LOGS: for debugging (remove later)
-          console.log('===========================================');
-          console.log('NEXTAUTH CREDENTIALS:', {
+          console.log("===========================================");
+          console.log("NEXTAUTH CREDENTIALS:", {
             email: email,
-            passwordLength: password ? password.length : 0
+            passwordLength: password ? password.length : 0,
           });
 
           if (!email || !password) {
-            console.log('[Auth] Missing credentials');
+            console.log("[Auth] Missing credentials");
             return null;
           }
 
           // Call the API for login - use hard fallback API_URL
-          console.log('[Auth] Calling API at:', `${API_URL}/auth/login`);
+          console.log("[Auth] Calling API at:", `${API_URL}/auth/login`);
 
           const response = await fetch(`${API_URL}/auth/login`, {
-            method: 'POST',
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json'
+              "Content-Type": "application/json",
             },
             body: JSON.stringify({
               email,
-              password
-            })
+              password,
+              otp,
+            }),
           });
 
           // TEMP LOGS: for debugging (remove later)
-          console.log('API LOGIN STATUS:', response.status);
+          console.log("API LOGIN STATUS:", response.status);
           const responseText = await response.clone().text();
-          console.log('API LOGIN BODY:', responseText);
-          console.log('===========================================');
+          console.log("API LOGIN BODY:", responseText);
+          console.log("===========================================");
 
           if (!response.ok) {
             // FAIL LOUDLY IF API IS UNREACHABLE
-            console.error('AUTH API FAILED:', response.status, response.statusText);
-            console.error('AUTH API ERROR BODY:', responseText);
+            console.error(
+              "AUTH API FAILED:",
+              response.status,
+              response.statusText,
+            );
+            console.error("AUTH API ERROR BODY:", responseText);
+            try {
+              const parsed = JSON.parse(responseText);
+              if (parsed?.mfaRequired) {
+                throw new Error("MFA_REQUIRED");
+              }
+            } catch (error) {
+              if (error instanceof Error && error.message === "MFA_REQUIRED") {
+                throw error;
+              }
+            }
             return null;
           }
 
           const data = JSON.parse(responseText);
-          console.log('[Auth] API login success, user id:', data.user?.id);
+          console.log("[Auth] API login success, user id:", data.user?.id);
 
           if (!data.user) {
-            console.log('[Auth] No user in API response');
+            console.log("[Auth] No user in API response");
             return null;
           }
 
@@ -107,28 +126,29 @@ const config: NextAuthConfig = {
             email: data.user.email,
             name: data.user.name,
             role: data.user.role,
+            mfaEnabled: data.user.mfaEnabled,
             accessToken: data.accessToken,
-            refreshToken: data.refreshToken
+            refreshToken: data.refreshToken,
           };
         } catch (error) {
-          console.error('[Auth] Authorize error:', error);
+          console.error("[Auth] Authorize error:", error);
           return null;
         }
-      }
-    })
+      },
+    }),
   ],
   session: {
-    strategy: 'jwt' as const
+    strategy: "jwt" as const,
   },
   trustHost: true,
   // Lock cookie mode for HTTP (local dev)
   cookies: {
     sessionToken: {
-      name: 'next-auth.session-token',
+      name: "next-auth.session-token",
       options: {
         httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
+        sameSite: "lax",
+        path: "/",
         secure: false, // Required for localhost (HTTP, not HTTPS)
       },
     },
@@ -136,13 +156,21 @@ const config: NextAuthConfig = {
   callbacks: {
     async jwt({ token, user }) {
       try {
-        console.log('[Auth] JWT callback called, user:', user?.email);
+        console.log("[Auth] JWT callback called, user:", user?.email);
         const mutableToken = token as Record<string, unknown>;
 
         if (user) {
-          const userData = user as { role?: Role; id?: string; accessToken?: string; refreshToken?: string };
-          mutableToken.role = userData.role ?? (mutableToken.role as Role | undefined) ?? 'USER';
-          mutableToken.userId = userData.id ?? mutableToken.sub ?? mutableToken.userId;
+          const userData = user as {
+            role?: Role;
+            id?: string;
+            accessToken?: string;
+            refreshToken?: string;
+            mfaEnabled?: boolean;
+          };
+          mutableToken.role =
+            userData.role ?? (mutableToken.role as Role | undefined) ?? "USER";
+          mutableToken.userId =
+            userData.id ?? mutableToken.sub ?? mutableToken.userId;
           // Map tokens from API response
           if (userData.accessToken) {
             mutableToken.apiAccessToken = userData.accessToken;
@@ -150,33 +178,47 @@ const config: NextAuthConfig = {
           if (userData.refreshToken) {
             mutableToken.apiRefreshToken = userData.refreshToken;
           }
+          if (typeof userData.mfaEnabled === "boolean") {
+            mutableToken.mfaEnabled = userData.mfaEnabled;
+          }
         }
 
-        console.log('[Auth] JWT callback success, userId:', mutableToken.userId);
+        console.log(
+          "[Auth] JWT callback success, userId:",
+          mutableToken.userId,
+        );
         return mutableToken;
       } catch (error) {
-        console.error('[Auth] JWT callback error:', error);
+        console.error("[Auth] JWT callback error:", error);
         throw error;
       }
     },
     async session({ session, token }) {
       const tokenData = token as Record<string, unknown>;
-      const role: Role = (tokenData.role as Role | undefined) ?? ('USER' as Role);
+      const role: Role =
+        (tokenData.role as Role | undefined) ?? ("USER" as Role);
       const userId =
-        (tokenData.sub as string | undefined) ?? (tokenData.userId as string | undefined) ?? '';
+        (tokenData.sub as string | undefined) ??
+        (tokenData.userId as string | undefined) ??
+        "";
 
       session.user = {
         id: userId,
         role,
         email: session.user?.email ?? undefined,
-        name: session.user?.name ?? undefined
+        name: session.user?.name ?? undefined,
       };
+      (session.user as any).mfaEnabled = tokenData.mfaEnabled as
+        | boolean
+        | undefined;
       session.accessToken =
-        typeof tokenData.apiAccessToken === 'string' ? tokenData.apiAccessToken : undefined;
+        typeof tokenData.apiAccessToken === "string"
+          ? tokenData.apiAccessToken
+          : undefined;
 
       return session;
-    }
-  }
+    },
+  },
 };
 
 const { handlers, auth, signIn, signOut } = NextAuth(config);

@@ -8,6 +8,7 @@ import type { Role } from "@propad/sdk";
 import type { ReactNode } from "react";
 import {
   BarChart3,
+  Activity,
   Compass,
   Globe2,
   LayoutDashboard,
@@ -38,6 +39,12 @@ const links = [
     label: "Listings",
     roles: ["ADMIN", "AGENT", "LANDLORD"] as Role[],
     icon: <Compass className="h-4 w-4" />,
+  },
+  {
+    href: "/dashboard/agency",
+    label: "Company Hub",
+    roles: ["AGENT", "LANDLORD"] as Role[],
+    icon: <Building2 className="h-4 w-4" />,
   },
   {
     href: "/dashboard/verifications",
@@ -93,6 +100,12 @@ const links = [
     label: "System Ledger",
     roles: ["ADMIN"] as Role[],
     icon: <Wallet2 className="h-4 w-4" />,
+  },
+  {
+    href: "/dashboard/admin/activity",
+    label: "Activity Logs",
+    roles: ["ADMIN"] as Role[],
+    icon: <Activity className="h-4 w-4" />,
   },
   {
     href: "/dashboard/admin/geo",

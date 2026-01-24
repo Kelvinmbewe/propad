@@ -62,8 +62,10 @@ import {
   type RiskEntitySummary,
   AdminUserSchema,
   AdminAgencySchema,
+  AuditLogSchema,
   type AdminUser,
   type AdminAgency,
+  type AuditLog,
   DealSchema,
   type Deal,
   ConversationSchema,
@@ -1136,6 +1138,44 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             })
             .json<AdminUser[]>()
             .then((data) => AdminUserSchema.array().parse(data)),
+        create: async (payload: {
+          email: string;
+          name?: string;
+          role?: string;
+          password: string;
+          status?: string;
+        }) =>
+          client
+            .post("admin/users", { json: payload })
+            .json<AdminUser>()
+            .then((data) => AdminUserSchema.parse(data)),
+        update: async (
+          id: string,
+          payload: {
+            email?: string;
+            name?: string;
+            role?: string;
+            status?: string;
+            password?: string;
+          },
+        ) =>
+          client
+            .patch(`admin/users/${id}`, { json: payload })
+            .json<AdminUser>()
+            .then((data) => AdminUserSchema.parse(data)),
+        updateStatus: async (
+          id: string,
+          payload: { status: string; reason?: string },
+        ) =>
+          client
+            .patch(`admin/users/${id}/status`, { json: payload })
+            .json<AdminUser>()
+            .then((data) => AdminUserSchema.parse(data)),
+        remove: async (id: string, payload: { reason?: string }) =>
+          client
+            .delete(`admin/users/${id}`, { json: payload })
+            .json<AdminUser>()
+            .then((data) => AdminUserSchema.parse(data)),
       },
       agencies: {
         list: async () =>
@@ -1143,6 +1183,25 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             .get("admin/agencies")
             .json<AdminAgency[]>()
             .then((data) => AdminAgencySchema.array().parse(data)),
+        create: async (payload: { name: string; ownerEmail?: string }) =>
+          client
+            .post("admin/agencies", { json: payload })
+            .json<AdminAgency>()
+            .then((data) => AdminAgencySchema.parse(data)),
+        updateStatus: async (
+          id: string,
+          payload: { status: string; reason?: string },
+        ) =>
+          client.patch(`agencies/${id}/status`, { json: payload }).json<any>(),
+        updateProfile: async (id: string, payload: any) =>
+          client.patch(`agencies/${id}`, { json: payload }).json<any>(),
+      },
+      auditLogs: {
+        list: async () =>
+          client
+            .get("admin/audit-logs")
+            .json<AuditLog[]>()
+            .then((data) => AuditLogSchema.array().parse(data)),
       },
       verifications: {
         listQueue: async () =>
@@ -1216,12 +1275,45 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             })
             .json<KycRecord[]>()
             .then((data) => KycRecordSchema.array().parse(data)),
+        history: async () =>
+          client
+            .get("wallets/kyc/history")
+            .json<KycRecord[]>()
+            .then((data) => KycRecordSchema.array().parse(data)),
+        historyAgency: async (agencyId: string) =>
+          client
+            .get(`wallets/kyc/agency/${agencyId}/history`)
+            .json<KycRecord[]>()
+            .then((data) => KycRecordSchema.array().parse(data)),
         updateStatus: async (
           id: string,
           payload: { status: string; notes?: string },
         ) =>
           client
             .post(`wallets/kyc/${id}/status`, { json: payload })
+            .json<KycRecord>()
+            .then((data) => KycRecordSchema.parse(data)),
+        submit: async (payload: {
+          idType: string;
+          idNumber: string;
+          docUrls: string[];
+          notes?: string;
+        }) =>
+          client
+            .post("wallets/kyc", { json: payload })
+            .json<KycRecord>()
+            .then((data) => KycRecordSchema.parse(data)),
+        submitAgency: async (
+          agencyId: string,
+          payload: {
+            idType: string;
+            idNumber: string;
+            docUrls: string[];
+            notes?: string;
+          },
+        ) =>
+          client
+            .post(`wallets/kyc/agency/${agencyId}`, { json: payload })
             .json<KycRecord>()
             .then((data) => KycRecordSchema.parse(data)),
       },
