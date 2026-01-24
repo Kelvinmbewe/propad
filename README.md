@@ -104,12 +104,24 @@ docker compose exec api pnpm prisma db seed
 ```
 
 **Default Credentials:**
+
 - **Admin**: `admin@propad.local` / `Admin123!`
 - **Verifier**: `verifier@propad.local` / `Verifier123!`
 - **Agent**: `agent@propad.local` / `Agent123!`
 - **User**: `user@propad.local` / `User123!`
 
-*Note: The seed script generates fresh random data for names and property details each time, but maintains the email addresses listed above for login convenience.*
+**Login notes:**
+
+- If MFA is enabled for a user, sign in requires a 6-digit authenticator code or a recovery code.
+- To reset MFA on a locked account, clear `mfaEnabled`, `mfaSecret`, `mfaTempSecret`, and `mfaRecoveryCodes` in the `User` table.
+- Archived users (status `ARCHIVED` with `deletedAt`) cannot log in until an admin reactivates them.
+
+**Account type selection (sign-up):**
+
+- The sign-up form now lets users choose a role (Company, Agent, Landlord, Advertiser, etc.).
+- Company sign-ups auto-create an agency in `PENDING` status.
+
+_Note: The seed script generates fresh random data for names and property details each time, but maintains the email addresses listed above for login convenience._
 
 ### Create a zipped demo artifact
 
