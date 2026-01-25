@@ -109,6 +109,7 @@ docker compose exec api pnpm prisma db seed
 - **Verifier**: `verifier@propad.local` / `Verifier123!`
 - **Agent**: `agent@propad.local` / `Agent123!`
 - **User**: `user@propad.local` / `User123!`
+- **Advertiser**: `advertiser@propad.local` / `Advertiser123!`
 
 **Login notes:**
 
