@@ -3,17 +3,16 @@ import { TrustBadgeStack } from "@/components/trust/TrustBadgeStack";
 import { KycSubmissionPanel } from "@/components/kyc/kyc-submission-panel";
 import { Star, MapPin, Calendar } from "lucide-react";
 import { getImageUrl } from "@/lib/image-url";
+import { getPublicApiBaseUrl } from "@/lib/api-base-url";
 
 import { Metadata } from "next";
 
 // Mock fetch for now, replace with actual API call helper
 async function getUserProfile(id: string) {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333"}/api/profiles/users/${id}`,
-    {
-      cache: "no-store", // Dynamic data
-    },
-  );
+  const apiBaseUrl = getPublicApiBaseUrl() ?? "http://localhost:3001/v1";
+  const res = await fetch(`${apiBaseUrl}/profiles/users/${id}`, {
+    cache: "no-store", // Dynamic data
+  });
   if (!res.ok) return null;
   return res.json();
 }

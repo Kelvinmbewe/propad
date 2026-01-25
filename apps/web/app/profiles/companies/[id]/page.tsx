@@ -4,14 +4,13 @@ import { TrustBadgeStack } from "@/components/trust/TrustBadgeStack";
 import { KycSubmissionPanel } from "@/components/kyc/kyc-submission-panel";
 import { Building2, User } from "lucide-react";
 import { getImageUrl } from "@/lib/image-url";
+import { getPublicApiBaseUrl } from "@/lib/api-base-url";
 
 async function getAgencyProfile(id: string) {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333"}/api/profiles/companies/${id}`,
-    {
-      cache: "no-store",
-    },
-  );
+  const apiBaseUrl = getPublicApiBaseUrl() ?? "http://localhost:3001/v1";
+  const res = await fetch(`${apiBaseUrl}/profiles/companies/${id}`, {
+    cache: "no-store",
+  });
   if (!res.ok) return null;
   return res.json();
 }

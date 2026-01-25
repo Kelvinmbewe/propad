@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Button, Input, Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, notify } from '@propad/ui';
 import { User, Shield, CreditCard, MapPin, CheckCircle2, LockKeyhole, Search, Plus, X } from 'lucide-react';
 import { KycSubmissionPanel } from '@/components/kyc/kyc-submission-panel';
@@ -16,6 +16,7 @@ export default function ProfilePage() {
     const { data: session } = useSession();
     const apiBaseUrl = getRequiredPublicApiBaseUrl();
     const sdk = useAuthenticatedSDK();
+    const queryClient = useQueryClient();
     const { data: profileData } = useQuery({
         queryKey: ['profile', 'me'],
         enabled: !!session?.accessToken,
@@ -150,6 +151,7 @@ export default function ProfilePage() {
     useEffect(() => {
         if (!sdk || geoQuery.length < 2) {
             setGeoResults([]);
+            setShowDropdown(false);
             return;
         }
 
@@ -158,7 +160,7 @@ export default function ProfilePage() {
             try {
                 const results = await sdk.geo.search(geoQuery);
                 setGeoResults(results);
-                setShowDropdown(true);
+                setShowDropdown(results.length > 0);
             } catch (error) {
                 console.error('Geo search failed:', error);
             } finally {
@@ -422,7 +424,7 @@ export default function ProfilePage() {
                                     )}
                                 </div>
                             </div>
-                            <div className="mt-14 space-y-1">
+                            <div className="mt-14 space-y-1 pl-28">
                                 <div className="flex items-center gap-2">
                                     <h2 className="text-xl font-bold text-neutral-900">{user.name}</h2>
                                     {isVerified && <CheckCircle2 className="w-5 h-5 text-blue-500 fill-blue-50" />}
@@ -728,7 +730,7 @@ export default function ProfilePage() {
                                                 />
                                             </div>
                                             {showDropdown && geoResults.length > 0 && (
-                                                <div className="absolute z-10 mt-2 w-full rounded-md border border-neutral-200 bg-white shadow-lg">
+                                                <div className="absolute z-20 mt-2 max-h-56 w-full overflow-auto rounded-md border border-neutral-200 bg-white shadow-lg">
                                                     {geoResults.map((result) => (
                                                         <button
                                                             key={result.id}
@@ -752,17 +754,19 @@ export default function ProfilePage() {
                                             )}
                                         </div>
                                     )}
-                                    <div className="mt-3">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            className="gap-2"
-                                            onClick={() => setShowNewLocationForm(!showNewLocationForm)}
-                                        >
-                                            <Plus className="h-3.5 w-3.5" /> Add new location
-                                        </Button>
-                                    </div>
+                                    {!showDropdown && geoQuery.length >= 2 && !isSearching && geoResults.length === 0 && (
+                                        <div className="mt-3">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="gap-2"
+                                                onClick={() => setShowNewLocationForm(!showNewLocationForm)}
+                                            >
+                                                <Plus className="h-3.5 w-3.5" /> Add new location
+                                            </Button>
+                                        </div>
+                                    )}
                                     {showNewLocationForm && (
                                         <div className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-3 text-sm">
                                             <div className="grid gap-3 sm:grid-cols-2">
@@ -820,24 +824,52 @@ export default function ProfilePage() {
                             </div>
                             <DialogFooter>
                                 <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
-                                <Button
-                                    onClick={async () => {
-                                        const res = await fetch(`${apiBaseUrl}/profiles/me`, {
-                                            method: 'PATCH',
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                                Authorization: `Bearer ${session?.accessToken}`
-                                            },
-                                            body: JSON.stringify(profileForm)
-                                        });
-                                        if (res.ok) {
-                                            setEditOpen(false);
-                                            window.location.reload();
-                                        }
-                                    }}
-                                >
-                                    Save changes
-                                </Button>
+                                    <Button
+                                        onClick={async () => {
+                                            const payload: Record<string, string> = {};
+                                            const setIfValue = (key: string, value?: string) => {
+                                                const trimmed = value?.trim();
+                                                if (trimmed) {
+                                                    payload[key] = trimmed;
+                                                }
+                                            };
+
+                                            setIfValue('name', profileForm.name);
+                                            setIfValue('phone', profileForm.phone);
+                                            setIfValue('dateOfBirth', profileForm.dateOfBirth);
+                                            setIfValue('idNumber', profileForm.idNumber);
+                                            setIfValue('addressLine1', profileForm.addressLine1);
+                                            setIfValue('addressCity', profileForm.addressCity);
+                                            setIfValue('addressProvince', profileForm.addressProvince);
+                                            setIfValue('addressCountry', profileForm.addressCountry);
+                                            setIfValue('location', profileForm.location);
+
+                                            try {
+                                                const res = await fetch(`${apiBaseUrl}/profiles/me`, {
+                                                    method: 'PATCH',
+                                                    headers: {
+                                                        'Content-Type': 'application/json',
+                                                        Authorization: `Bearer ${session?.accessToken}`
+                                                    },
+                                                    body: JSON.stringify(payload)
+                                                });
+                                                const data = await res.json().catch(() => null);
+                                                if (!res.ok) {
+                                                    notify.error(data?.message || 'Failed to update profile');
+                                                    return;
+                                                }
+                                                await queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
+                                                await queryClient.invalidateQueries({ queryKey: ['kyc-history', 'me'] });
+                                                notify.success('Profile updated');
+                                                setEditOpen(false);
+                                            } catch (error) {
+                                                console.error('Profile update failed', error);
+                                                notify.error('Failed to update profile');
+                                            }
+                                        }}
+                                    >
+                                        Save changes
+                                    </Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
