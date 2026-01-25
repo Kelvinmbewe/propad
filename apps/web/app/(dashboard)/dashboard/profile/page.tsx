@@ -612,6 +612,7 @@ export default function ProfilePage() {
                         description="Submit identity documents to unlock higher limits and agency access."
                         requestUpdateEndpoint="/wallets/kyc/request-update"
                         prefillIdNumber={(user as any).idNumber ?? ''}
+                        ownerUpdatedAt={(profileData as any)?.updatedAt ?? (user as any).updatedAt}
                         prerequisiteMet={profileComplete}
                         prerequisiteMessage="Complete Edit Profile before uploading KYC documents."
                         documentSlots={role === 'INDEPENDENT_AGENT'

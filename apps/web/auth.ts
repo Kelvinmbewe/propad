@@ -2,8 +2,9 @@ import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { env, getServerApiBaseUrl } from "@propad/config";
+import { env } from "@propad/config";
 import type { Role } from "@propad/sdk";
+import { normalizeApiBaseUrl } from "@/lib/api-base-url";
 
 // =================================================================
 // HARD DEFAULT ENV FALLBACKS - No .env required for local dev
@@ -17,6 +18,33 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   process.env.INTERNAL_API_BASE_URL ??
   "http://localhost:3001";
+
+const TOKEN_REFRESH_BUFFER_MS = 60 * 1000;
+
+function decodeJwtPayload(token: string): { exp?: number } | null {
+  const [, payload] = token.split(".");
+  if (!payload) return null;
+  try {
+    const padded = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = Buffer.from(padded, "base64").toString("utf-8");
+    return JSON.parse(decoded) as { exp?: number };
+  } catch {
+    return null;
+  }
+}
+
+async function refreshAccessToken(refreshToken: string) {
+  const apiUrl = normalizeApiBaseUrl(API_URL);
+  const response = await fetch(`${apiUrl}/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refreshToken }),
+  });
+  if (!response.ok) {
+    return null;
+  }
+  return response.json();
+}
 
 // NOTE: PrismaAdapter REMOVED - we use JWT strategy and authenticate via API calls only.
 // The web app should NEVER touch the database directly.
@@ -174,6 +202,10 @@ const config: NextAuthConfig = {
           // Map tokens from API response
           if (userData.accessToken) {
             mutableToken.apiAccessToken = userData.accessToken;
+            const payload = decodeJwtPayload(userData.accessToken);
+            if (payload?.exp) {
+              mutableToken.apiAccessTokenExpires = payload.exp * 1000;
+            }
           }
           if (userData.refreshToken) {
             mutableToken.apiRefreshToken = userData.refreshToken;
@@ -181,13 +213,40 @@ const config: NextAuthConfig = {
           if (typeof userData.mfaEnabled === "boolean") {
             mutableToken.mfaEnabled = userData.mfaEnabled;
           }
+          return mutableToken;
         }
 
-        console.log(
-          "[Auth] JWT callback success, userId:",
-          mutableToken.userId,
-        );
-        return mutableToken;
+        const accessToken = mutableToken.apiAccessToken as string | undefined;
+        const refreshToken = mutableToken.apiRefreshToken as string | undefined;
+        const expiresAt = mutableToken.apiAccessTokenExpires as
+          | number
+          | undefined;
+
+        if (!accessToken || !refreshToken) {
+          return mutableToken;
+        }
+
+        const shouldRefresh =
+          !expiresAt || Date.now() + TOKEN_REFRESH_BUFFER_MS >= expiresAt;
+
+        if (!shouldRefresh) {
+          return mutableToken;
+        }
+
+        const refreshed = await refreshAccessToken(refreshToken);
+        if (!refreshed?.accessToken) {
+          return mutableToken;
+        }
+
+        const payload = decodeJwtPayload(refreshed.accessToken);
+        return {
+          ...mutableToken,
+          apiAccessToken: refreshed.accessToken,
+          apiRefreshToken: refreshed.refreshToken ?? refreshToken,
+          apiAccessTokenExpires: payload?.exp
+            ? payload.exp * 1000
+            : mutableToken.apiAccessTokenExpires,
+        };
       } catch (error) {
         console.error("[Auth] JWT callback error:", error);
         throw error;

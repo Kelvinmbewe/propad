@@ -27,11 +27,13 @@ export default function SignInPage() {
 
     try {
       // Use redirect to let NextAuth handle the flow natively
+      const callbackUrl =
+        typeof window !== "undefined" ? `${window.location.origin}/` : "/";
       const result = await signIn("credentials", {
         email,
         password,
         otp: mfaRequired ? otp : undefined,
-        callbackUrl: "/",
+        callbackUrl,
         redirect: false,
       });
 
