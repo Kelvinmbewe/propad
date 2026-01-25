@@ -9,6 +9,7 @@ export const updateUserProfileSchema = z.object({
   addressCity: z.string().min(2).max(80).optional(),
   addressProvince: z.string().min(2).max(80).optional(),
   addressCountry: z.string().min(2).max(80).optional(),
+  location: z.string().min(2).max(120).optional(),
 });
 
 export type UpdateUserProfileDto = z.infer<typeof updateUserProfileSchema>;

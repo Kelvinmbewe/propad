@@ -686,6 +686,9 @@ model Agency {
   registrationNumber String?
   directorsJson      Json?
   bio                String?
+  shortDescription   String?
+  description        String?
+  servicesOffered    String?
   trustScore         Int       @default(0)
   verificationScore  Int       @default(0)
   riskScore          Int       @default(0) // Internal only

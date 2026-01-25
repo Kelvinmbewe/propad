@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import { TrustBadgeStack } from "@/components/trust/TrustBadgeStack";
 import { KycSubmissionPanel } from "@/components/kyc/kyc-submission-panel";
 import { Star, MapPin, Calendar } from "lucide-react";
+import { getImageUrl } from "@/lib/image-url";
 
 import { Metadata } from "next";
 
@@ -54,11 +54,10 @@ export default async function UserProfilePage({
               <div className="relative">
                 <div className="w-24 h-24 rounded-full border-4 border-white bg-slate-200 overflow-hidden relative shadow-md">
                   {profile.profilePhoto ? (
-                    <Image
-                      src={profile.profilePhoto}
+                    <img
+                      src={getImageUrl(profile.profilePhoto)}
                       alt={profile.name}
-                      fill
-                      className="object-cover"
+                      className="h-full w-full object-cover"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400 text-2xl font-bold">

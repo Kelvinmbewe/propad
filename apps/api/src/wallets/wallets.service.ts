@@ -279,24 +279,6 @@ export class WalletsService {
 
   async submitKyc(dto: SubmitKycDto, actor: AuthContext) {
     const owner = this.resolveOwner(actor);
-    const existingUser = await this.prisma.user.findUnique({
-      where: { id: owner.ownerId },
-      select: { kycStatus: true },
-    });
-    if (existingUser?.kycStatus === KycStatus.VERIFIED) {
-      const latest = await this.prisma.kycRecord.findFirst({
-        where: { ownerId: owner.ownerId, ownerType: OwnerType.USER },
-        orderBy: { createdAt: "desc" },
-      });
-      const latestTypes = latest?.docTypes ?? [];
-      const newTypes = dto.docTypes ?? [];
-      const hasNewTypes = newTypes.some(
-        (value) => !latestTypes.includes(value),
-      );
-      if (!hasNewTypes) {
-        throw new BadRequestException("KYC already verified");
-      }
-    }
     const record = await this.prisma.kycRecord.create({
       data: {
         ownerType: owner.ownerType,
@@ -416,43 +398,29 @@ export class WalletsService {
       metadata: { status: dto.status },
     });
 
-    const docTypes = Array.from(
-      new Set(((record as any).docTypes ?? []) as string[]),
-    );
-    const docScoreWeights: Record<string, number> = {
-      NATIONAL_ID: 20,
-      PASSPORT: 20,
-      PROOF_ADDRESS: 10,
-      AGENT_CERT: 20,
-      REA_CERT: 20,
-      CERT_OF_INC: 25,
-      CR6: 15,
-      CR5: 15,
-      MEM_ARTICLES: 10,
-      DIRECTOR_ID: 10,
-      OTHER: 5,
-    };
-    const docScore = docTypes.reduce((total, docType) => {
-      const key = docType as keyof typeof docScoreWeights;
-      return total + (docScoreWeights[key] ?? 5);
-    }, 0);
-
     if (dto.status === KycStatus.VERIFIED) {
-      const docCount = record.docUrls?.length ?? 0;
+      const verifiedRecords = await this.prisma.kycRecord.findMany({
+        where: {
+          ownerType: record.ownerType,
+          ownerId: record.ownerId,
+          status: KycStatus.VERIFIED,
+        },
+      });
+      const verifiedDocCount = verifiedRecords.reduce((total, item) => {
+        const types = Array.isArray(item.docTypes) ? item.docTypes.length : 0;
+        const urls = Array.isArray(item.docUrls) ? item.docUrls.length : 0;
+        return total + Math.max(types, urls, 0);
+      }, 0);
 
       if (record.ownerType === OwnerType.USER) {
         const user = await this.prisma.user.findUnique({
           where: { id: record.ownerId },
           select: { role: true },
         });
-        const independentBonus =
-          user?.role === Role.INDEPENDENT_AGENT &&
-          docTypes.includes("AGENT_CERT")
-            ? 10
-            : 0;
+        const expectedDocs = user?.role === Role.INDEPENDENT_AGENT ? 3 : 2;
         const verificationScore = Math.min(
           100,
-          40 + docScore + independentBonus,
+          Math.round((verifiedDocCount / expectedDocs) * 100),
         );
         await this.prisma.user.update({
           where: { id: record.ownerId },
@@ -466,7 +434,11 @@ export class WalletsService {
       }
 
       if (record.ownerType === OwnerType.AGENCY) {
-        const verificationScore = Math.min(100, 50 + docScore);
+        const expectedDocs = 6;
+        const verificationScore = Math.min(
+          100,
+          Math.round((verifiedDocCount / expectedDocs) * 100),
+        );
         await this.prisma.agency.update({
           where: { id: record.ownerId },
           data: {
@@ -576,24 +548,6 @@ export class WalletsService {
     actor: AuthContext,
   ) {
     const owner = await this.resolveAgencyOwner(agencyId, actor.userId);
-    const existingAgency = await this.prisma.agency.findUnique({
-      where: { id: owner.ownerId },
-      select: { kycStatus: true },
-    });
-    if (existingAgency?.kycStatus === KycStatus.VERIFIED) {
-      const latest = await this.prisma.kycRecord.findFirst({
-        where: { ownerId: owner.ownerId, ownerType: OwnerType.AGENCY },
-        orderBy: { createdAt: "desc" },
-      });
-      const latestTypes = latest?.docTypes ?? [];
-      const newTypes = dto.docTypes ?? [];
-      const hasNewTypes = newTypes.some(
-        (value) => !latestTypes.includes(value),
-      );
-      if (!hasNewTypes) {
-        throw new BadRequestException("KYC already verified");
-      }
-    }
     const record = await this.prisma.kycRecord.create({
       data: {
         ownerType: owner.ownerType,

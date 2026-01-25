@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { BadgesHelper, TrustBadge } from "../trust/badges.helper";
 import { AuditService } from "../audit/audit.service";
@@ -112,6 +108,9 @@ export class ProfilesService {
       name: agency.name,
       logo: agency.logoUrl,
       bio: agency.bio,
+      shortDescription: (agency as any).shortDescription ?? null,
+      description: (agency as any).description ?? null,
+      servicesOffered: (agency as any).servicesOffered ?? null,
       stats: {
         agentCount: agency.members.length,
         trustTier: this.mapTrustTierToPublic(agency.trustScore),
@@ -152,6 +151,7 @@ export class ProfilesService {
         addressCity: true,
         addressProvince: true,
         addressCountry: true,
+        location: true,
         createdAt: true,
       },
     });
@@ -170,15 +170,11 @@ export class ProfilesService {
       addressCity?: string;
       addressProvince?: string;
       addressCountry?: string;
+      location?: string;
     },
   ) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException("User not found");
-
-    const isVerified = user.kycStatus === "VERIFIED";
-    if (isVerified && (data.name || data.idNumber || data.dateOfBirth)) {
-      throw new BadRequestException("Verified profile details are locked");
-    }
 
     const cleaned = {
       name: data.name?.trim() || undefined,
@@ -189,6 +185,7 @@ export class ProfilesService {
       addressCity: data.addressCity?.trim() || undefined,
       addressProvince: data.addressProvince?.trim() || undefined,
       addressCountry: data.addressCountry?.trim() || undefined,
+      location: data.location?.trim() || undefined,
     };
 
     const updated = await this.prisma.user.update({

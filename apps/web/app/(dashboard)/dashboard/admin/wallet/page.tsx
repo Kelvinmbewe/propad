@@ -130,6 +130,18 @@ function KycRow({
   disabled: boolean;
 }) {
   const [notes, setNotes] = useState('');
+  const [overrideClicks, setOverrideClicks] = useState(0);
+  const isFinal = record.status === 'VERIFIED' || record.status === 'REJECTED';
+  const overrideEnabled = overrideClicks >= 5;
+  const actionLocked = isFinal && !overrideEnabled;
+  const profileLink =
+    record.ownerType === 'USER'
+      ? `/profiles/users/${record.ownerId}`
+      : `/profiles/companies/${record.ownerId}`;
+  const handleLockedClick = () => {
+    if (!actionLocked) return;
+    setOverrideClicks((current) => Math.min(current + 1, 5));
+  };
   return (
     <tr className="bg-white">
       <td className="px-3 py-2 font-medium text-neutral-900">
@@ -138,6 +150,16 @@ function KycRow({
         </div>
         <div className="text-xs text-neutral-500">
           {(record as any).ownerDetails?.name || (record as any).ownerDetails?.email || '—'}
+        </div>
+        <div className="text-xs">
+          <a
+            href={profileLink}
+            target="_blank"
+            rel="noreferrer"
+            className="text-emerald-600 hover:underline"
+          >
+            View profile
+          </a>
         </div>
       </td>
       <td className="px-3 py-2 text-neutral-500">
@@ -178,21 +200,46 @@ function KycRow({
         <div className="flex justify-end gap-2">
           <button
             type="button"
-            disabled={disabled}
-            onClick={() => onUpdate('VERIFIED', notes)}
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+            aria-disabled={disabled || actionLocked}
+            onClick={() => {
+              if (actionLocked || disabled) {
+                handleLockedClick();
+                return;
+              }
+              onUpdate('VERIFIED', notes);
+            }}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium text-white transition ${
+              disabled || actionLocked
+                ? 'cursor-not-allowed bg-emerald-300'
+                : 'bg-emerald-600 hover:bg-emerald-700'
+            }`}
           >
             Approve
           </button>
           <button
             type="button"
-            disabled={disabled}
-            onClick={() => onUpdate('REJECTED', notes)}
-            className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+            aria-disabled={disabled || actionLocked}
+            onClick={() => {
+              if (actionLocked || disabled) {
+                handleLockedClick();
+                return;
+              }
+              onUpdate('REJECTED', notes);
+            }}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium text-white transition ${
+              disabled || actionLocked
+                ? 'cursor-not-allowed bg-red-300'
+                : 'bg-red-600 hover:bg-red-700'
+            }`}
           >
             Reject
           </button>
         </div>
+        {isFinal && (
+          <p className="mt-1 text-[10px] text-neutral-400">
+            Click 5x to re-enable ({overrideClicks}/5)
+          </p>
+        )}
         <input
           value={notes}
           onChange={(event) => setNotes(event.target.value)}

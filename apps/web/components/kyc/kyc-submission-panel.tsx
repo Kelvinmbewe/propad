@@ -31,6 +31,13 @@ interface KycSubmissionPanelProps {
   ownerId?: string;
   title?: string;
   description?: string;
+  idNumberLabel?: string;
+  prefillIdNumber?: string;
+  prefillIdType?: string;
+  prefillIdExpiryDate?: string;
+  ownerUpdatedAt?: string | Date;
+  prerequisiteMet?: boolean;
+  prerequisiteMessage?: string;
   idTypeOptions?: Array<{ value: string; label: string }>;
   documentChecklist?: Array<{ title: string; description: string }>;
   documentSlots?: Array<{
@@ -40,6 +47,7 @@ interface KycSubmissionPanelProps {
     docType: string;
     required?: boolean;
     multiple?: boolean;
+    maxCount?: number;
   }>;
   requestUpdateEndpoint?: string;
 }
@@ -49,6 +57,13 @@ export function KycSubmissionPanel({
   ownerId,
   title = "KYC Verification",
   description = "Submit identity documents for compliance review.",
+  idNumberLabel,
+  prefillIdNumber,
+  prefillIdType,
+  prefillIdExpiryDate,
+  ownerUpdatedAt,
+  prerequisiteMet = true,
+  prerequisiteMessage,
   idTypeOptions,
   documentChecklist,
   documentSlots,
@@ -79,6 +94,9 @@ export function KycSubmissionPanel({
   const [docTypeSelections, setDocTypeSelections] = useState<
     Record<string, string>
   >({});
+  const [slotInputCounts, setSlotInputCounts] = useState<
+    Record<string, number>
+  >({});
 
   const isOwner =
     ownerType === "USER" ? data?.user?.id === ownerId || !ownerId : true;
@@ -106,35 +124,73 @@ export function KycSubmissionPanel({
     },
   });
 
-  const latestStatus = historyQuery.data?.[0]?.status ?? "PENDING";
-  const latestRecord = historyQuery.data?.[0];
+  const historyRecords = historyQuery.data ?? [];
+  const latestRecord = historyRecords[0];
+  const overallStatus = historyRecords.some(
+    (record) => record.status === "VERIFIED",
+  )
+    ? "VERIFIED"
+    : historyRecords.some((record) => record.status === "REJECTED")
+      ? "REJECTED"
+      : historyRecords.length > 0
+        ? "PENDING"
+        : "PENDING";
   const [updateRequested, setUpdateRequested] = useState(false);
-  const existingDocTypes = latestRecord?.docTypes ?? [];
+  const existingDocTypes = Array.from(
+    new Set(
+      historyRecords.flatMap((record) =>
+        Array.isArray(record.docTypes) ? record.docTypes : [],
+      ),
+    ),
+  );
+  const ownerUpdatedAtDate = ownerUpdatedAt ? new Date(ownerUpdatedAt) : null;
+  const ownerHasUpdates =
+    ownerUpdatedAtDate && latestRecord?.updatedAt
+      ? ownerUpdatedAtDate.getTime() >
+        new Date(latestRecord.updatedAt).getTime()
+      : false;
+  const passportExpiryDate = historyRecords
+    .filter((record) => record.idType === "PASSPORT" && record.idExpiryDate)
+    .map((record) => new Date(record.idExpiryDate))
+    .sort((a, b) => b.getTime() - a.getTime())[0];
+  const passportExpired = passportExpiryDate
+    ? passportExpiryDate.getTime() < Date.now()
+    : false;
   const allowSupplemental =
-    latestStatus === "VERIFIED" &&
-    documentSlots?.some(
-      (slot) =>
-        !slot.required &&
-        !existingDocTypes.includes(
-          slot.docType === "IDENTITY" ? idType : slot.docType,
-        ),
-    );
+    overallStatus === "VERIFIED" &&
+    (ownerHasUpdates ||
+      passportExpired ||
+      documentSlots?.some(
+        (slot) =>
+          !existingDocTypes.includes(
+            slot.docType === "IDENTITY" ? idType : slot.docType,
+          ),
+      ));
   const isLocked =
-    latestStatus === "VERIFIED" && !updateRequested && !allowSupplemental;
+    overallStatus === "VERIFIED" && !updateRequested && !allowSupplemental;
 
   useEffect(() => {
-    if (latestRecord?.idExpiryDate) {
+    if (prefillIdExpiryDate && !idExpiryDate) {
+      setIdExpiryDate(prefillIdExpiryDate);
+    } else if (latestRecord?.idExpiryDate && !idExpiryDate) {
       setIdExpiryDate(
         new Date(latestRecord.idExpiryDate).toISOString().slice(0, 10),
       );
     }
-    if (latestRecord?.idNumber && !idNumber) {
+    if (prefillIdNumber && !idNumber) {
+      setIdNumber(prefillIdNumber);
+    } else if (latestRecord?.idNumber && !idNumber) {
       setIdNumber(latestRecord.idNumber);
     }
-    if (latestRecord?.idType && idType !== latestRecord.idType) {
+    if (prefillIdType && idType !== prefillIdType) {
+      setIdType(prefillIdType);
+    } else if (latestRecord?.idType && idType !== latestRecord.idType) {
       setIdType(latestRecord.idType);
     }
   }, [
+    prefillIdExpiryDate,
+    prefillIdNumber,
+    prefillIdType,
     latestRecord?.idExpiryDate,
     latestRecord?.idNumber,
     latestRecord?.idType,
@@ -161,23 +217,30 @@ export function KycSubmissionPanel({
         ownerType === "AGENCY" && ownerId
           ? `${apiBaseUrl}/wallets/kyc/agency/${ownerId}`
           : `${apiBaseUrl}/wallets/kyc`;
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          idType,
-          idNumber: effectiveIdNumber,
-          idExpiryDate: idExpiryDate || undefined,
-          docUrls,
-          docTypes,
-          notes: notes || undefined,
-        }),
+      const submissions = docUrls.map((docUrl, index) => {
+        const docType = docTypes[index] ?? "UNKNOWN";
+        return fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            idType,
+            idNumber: effectiveIdNumber,
+            idExpiryDate: idExpiryDate || undefined,
+            docUrls: [docUrl],
+            docTypes: [docType],
+            notes: notes || undefined,
+          }),
+        });
       });
-      if (!res.ok) throw new Error("Failed to submit KYC");
-      return res.json();
+      const responses = await Promise.all(submissions);
+      const failed = responses.find((res) => !res.ok);
+      if (failed) {
+        throw new Error("Failed to submit KYC");
+      }
+      return responses;
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: historyQueryKey });
@@ -334,6 +397,16 @@ export function KycSubmissionPanel({
     });
   };
 
+  const handleAddSlotInput = (slotKey: string, maxCount = 1) => {
+    setSlotInputCounts((current) => {
+      const currentCount = current[slotKey] ?? 1;
+      return {
+        ...current,
+        [slotKey]: Math.min(currentCount + 1, Math.max(1, maxCount)),
+      };
+    });
+  };
+
   const requestKycUpdate = async () => {
     if (!requestUpdateEndpoint || !token) return;
     const res = await fetch(`${apiBaseUrl}${requestUpdateEndpoint}`, {
@@ -349,14 +422,27 @@ export function KycSubmissionPanel({
   const uploadedDocTypes = uploads
     .filter((item) => item.status === "uploaded" && item.url)
     .map((item) => docTypeSelections[item.url ?? ""] || "UNKNOWN");
+  const isIdentityRequired = () => {
+    if (!documentSlots) return false;
+    const hasIdentity = existingDocTypes.includes(idType);
+    if (!hasIdentity) return true;
+    if (idType === "PASSPORT" && passportExpired) return true;
+    return false;
+  };
   const requiredSlotsMet = documentSlots
     ? documentSlots
         .filter((slot) => slot.required)
-        .every((slot) =>
-          uploadedDocTypes.includes(
-            slot.docType === "IDENTITY" ? idType : slot.docType,
-          ),
-        )
+        .every((slot) => {
+          const slotDocType =
+            slot.docType === "IDENTITY" ? idType : slot.docType;
+          const alreadySubmitted = existingDocTypes.includes(slotDocType);
+          const requiredNow =
+            slot.docType === "IDENTITY"
+              ? isIdentityRequired()
+              : !alreadySubmitted;
+          if (!requiredNow) return true;
+          return uploadedDocTypes.includes(slotDocType);
+        })
     : true;
   const effectiveIdNumber = idNumber.trim() || latestRecord?.idNumber || "";
   const canSubmit =
@@ -364,6 +450,9 @@ export function KycSubmissionPanel({
     uploads.some((item) => item.status === "uploaded") &&
     requiredSlotsMet &&
     (idType !== "PASSPORT" || idExpiryDate.trim().length > 0);
+  const isDisabled = !prerequisiteMet || !isOwner || isLocked;
+  const shouldShowRequestUpdate =
+    overallStatus === "VERIFIED" && requestUpdateEndpoint && !allowSupplemental;
 
   return (
     <Card>
@@ -379,12 +468,17 @@ export function KycSubmissionPanel({
             Only the profile owner can submit verification documents.
           </p>
         )}
+        {!prerequisiteMet && prerequisiteMessage && (
+          <p className="text-xs font-medium text-amber-600">
+            {prerequisiteMessage}
+          </p>
+        )}
         {isLocked && (
           <p className="text-xs font-medium text-emerald-600">
             Your KYC has been verified. Documents are locked.
           </p>
         )}
-        {latestStatus === "VERIFIED" && requestUpdateEndpoint && (
+        {shouldShowRequestUpdate && (
           <Button
             variant="outline"
             size="sm"
@@ -403,7 +497,7 @@ export function KycSubmissionPanel({
               value={idType}
               onChange={(event) => setIdType(event.target.value)}
               className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
-              disabled={!isOwner || isLocked}
+              disabled={isDisabled}
             >
               {idTypes.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -414,13 +508,13 @@ export function KycSubmissionPanel({
           </div>
           <div className="space-y-2">
             <label className="text-xs font-medium text-neutral-600">
-              ID number
+              {idNumberLabel || "ID number"}
             </label>
             <Input
               value={idNumber}
               onChange={(event) => setIdNumber(event.target.value)}
-              placeholder="Enter the ID number"
-              disabled={!isOwner || isLocked}
+              placeholder={`Enter ${idNumberLabel?.toLowerCase() || "the ID number"}`}
+              disabled={isDisabled}
             />
           </div>
           {idType === "PASSPORT" && (
@@ -432,7 +526,7 @@ export function KycSubmissionPanel({
                 type="date"
                 value={idExpiryDate}
                 onChange={(event) => setIdExpiryDate(event.target.value)}
-                disabled={!isOwner || isLocked}
+                disabled={isDisabled}
               />
             </div>
           )}
@@ -445,7 +539,7 @@ export function KycSubmissionPanel({
                 type="file"
                 multiple
                 onChange={(event) => handleFiles(event.target.files)}
-                disabled={!isOwner || isLocked}
+                disabled={isDisabled}
               />
               <p className="text-xs text-neutral-500">
                 Accepted: JPG, PNG, WebP, PDF. Max 10MB.
@@ -460,7 +554,7 @@ export function KycSubmissionPanel({
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               placeholder="Any extra context for the verification team"
-              disabled={!isOwner || isLocked}
+              disabled={isDisabled}
             />
           </div>
         </div>
@@ -476,24 +570,45 @@ export function KycSubmissionPanel({
                   key={slot.key}
                   className="rounded-md border border-neutral-200 p-3"
                 >
-                  <p className="text-sm font-medium text-neutral-800">
-                    {slot.label}
-                    {slot.required ? " *" : ""}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-neutral-800">
+                      {slot.label}
+                      {slot.required ? " *" : ""}
+                    </p>
+                    {slot.multiple && (slot.maxCount ?? 1) > 1 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        onClick={() =>
+                          handleAddSlotInput(slot.key, slot.maxCount ?? 1)
+                        }
+                        disabled={isDisabled}
+                      >
+                        +
+                      </Button>
+                    )}
+                  </div>
                   {slot.description && (
                     <p className="text-xs text-neutral-500">
                       {slot.description}
                     </p>
                   )}
-                  <Input
-                    type="file"
-                    multiple={slot.multiple}
-                    className="mt-2"
-                    onChange={(event) =>
-                      handleSlotFiles(slot.docType, event.target.files)
-                    }
-                    disabled={!isOwner || isLocked}
-                  />
+                  {Array.from({
+                    length: Math.max(slotInputCounts[slot.key] ?? 1, 1),
+                  }).map((_, index) => (
+                    <Input
+                      key={`${slot.key}-${index}`}
+                      type="file"
+                      multiple={slot.multiple}
+                      className="mt-2"
+                      onChange={(event) =>
+                        handleSlotFiles(slot.docType, event.target.files)
+                      }
+                      disabled={isDisabled}
+                    />
+                  ))}
                 </div>
               ))}
             </div>
@@ -587,15 +702,13 @@ export function KycSubmissionPanel({
           <Button
             className="gap-2"
             onClick={() => submitMutation.mutate()}
-            disabled={
-              !canSubmit || submitMutation.isPending || !isOwner || isLocked
-            }
+            disabled={!canSubmit || submitMutation.isPending || isDisabled}
           >
             <UploadCloud className="h-4 w-4" />
             {submitMutation.isPending ? "Submitting..." : "Submit for Review"}
           </Button>
           <Badge variant="outline" className="text-xs">
-            {historyQuery.data?.[0]?.status ?? "No submissions"}
+            {historyRecords.length > 0 ? overallStatus : "No submissions"}
           </Badge>
         </div>
 

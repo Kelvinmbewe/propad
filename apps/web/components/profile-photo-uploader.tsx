@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { Input } from "@propad/ui";
 import { getRequiredPublicApiBaseUrl } from "@/lib/api-base-url";
+import { getImageUrl } from "@/lib/image-url";
 
 interface ProfilePhotoUploaderProps {
   endpoint: string;
@@ -61,7 +62,7 @@ export function ProfilePhotoUploader({
         <div className="h-14 w-14 overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
           {currentUrl ? (
             <img
-              src={currentUrl}
+              src={getImageUrl(currentUrl)}
               alt={label}
               className="h-full w-full object-cover"
             />

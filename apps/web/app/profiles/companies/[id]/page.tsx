@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import { Metadata } from "next";
 import { TrustBadgeStack } from "@/components/trust/TrustBadgeStack";
 import { KycSubmissionPanel } from "@/components/kyc/kyc-submission-panel";
 import { Building2, User } from "lucide-react";
+import { getImageUrl } from "@/lib/image-url";
 
 async function getAgencyProfile(id: string) {
   const res = await fetch(
@@ -53,12 +53,10 @@ export default async function AgencyProfilePage({
               <div className="relative">
                 <div className="w-32 h-32 rounded-xl border-4 border-white bg-white shadow-lg flex items-center justify-center overflow-hidden">
                   {profile.logo ? (
-                    <Image
-                      src={profile.logo}
+                    <img
+                      src={getImageUrl(profile.logo)}
                       alt={profile.name}
-                      width={128}
-                      height={128}
-                      className="object-contain p-2"
+                      className="h-full w-full object-contain p-2"
                     />
                   ) : (
                     <Building2 className="w-12 h-12 text-slate-300" />
@@ -97,7 +95,11 @@ export default async function AgencyProfilePage({
             <div className="grid md:grid-cols-12 gap-10">
               <div className="md:col-span-8">
                 <div className="prose prose-sm max-w-none text-slate-600 mb-8">
-                  <p>{profile.bio || "No description provided."}</p>
+                  <p>
+                    {profile.description ||
+                      profile.bio ||
+                      "No description provided."}
+                  </p>
                 </div>
                 <div className="mb-6">
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
@@ -141,13 +143,14 @@ export default async function AgencyProfilePage({
                   title="Compliance & KYC"
                   description="Upload company registration documents to keep your agency verified."
                   requestUpdateEndpoint={`/wallets/kyc/agency/${params.id}/request-update`}
+                  idNumberLabel="Company Reg Number"
                   documentSlots={[
                     {
                       key: "cert-inc",
                       label: "Certificate of Incorporation",
                       description: "Official registration certificate.",
                       docType: "CERT_OF_INC",
-                      required: true,
+                      required: false,
                     },
                     {
                       key: "cr6",
@@ -226,11 +229,10 @@ export default async function AgencyProfilePage({
               >
                 <div className="aspect-square rounded-lg bg-slate-100 mb-4 overflow-hidden relative">
                   {agent.photo ? (
-                    <Image
-                      src={agent.photo}
+                    <img
+                      src={getImageUrl(agent.photo)}
                       alt={agent.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition"
+                      className="h-full w-full object-cover group-hover:scale-105 transition"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-300">

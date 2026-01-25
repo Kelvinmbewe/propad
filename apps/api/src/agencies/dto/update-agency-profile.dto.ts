@@ -15,6 +15,9 @@ export const updateAgencyProfileSchema = z.object({
     )
     .optional(),
   bio: z.string().max(500).optional(),
+  shortDescription: z.string().max(160).optional(),
+  description: z.string().max(1000).optional(),
+  servicesOffered: z.string().max(500).optional(),
 });
 
 export type UpdateAgencyProfileDto = z.infer<typeof updateAgencyProfileSchema>;

@@ -40,7 +40,10 @@ export default function AgencyDashboardPage() {
         phone: '',
         address: '',
         registrationNumber: '',
-        directors: ''
+        directors: '',
+        shortDescription: '',
+        description: '',
+        servicesOffered: ''
     });
 
     const { data: agency, isLoading } = useQuery({
@@ -70,7 +73,10 @@ export default function AgencyDashboardPage() {
             phone: companyForm.phone || undefined,
             address: companyForm.address || undefined,
             registrationNumber: companyForm.registrationNumber || undefined,
-            directorsJson: directorsJson.length > 0 ? directorsJson : undefined
+            directorsJson: directorsJson.length > 0 ? directorsJson : undefined,
+            shortDescription: companyForm.shortDescription || undefined,
+            description: companyForm.description || undefined,
+            servicesOffered: companyForm.servicesOffered || undefined
         };
         await fetch(`${apiBaseUrl}/agencies/${agency.id}`, {
             method: 'PATCH',
@@ -140,6 +146,14 @@ export default function AgencyDashboardPage() {
             </div>
         );
     }
+
+    const directorCount = Array.isArray(agency.directorsJson) ? agency.directorsJson.length : 0;
+    const companyProfileComplete = Boolean(
+        agency.name &&
+        agency.registrationNumber &&
+        agency.address &&
+        directorCount > 0
+    );
 
     return (
         <div className="space-y-6">
@@ -270,7 +284,10 @@ export default function AgencyDashboardPage() {
                             phone: agency.phone ?? '',
                             address: agency.address ?? '',
                             registrationNumber: agency.registrationNumber ?? '',
-                            directors: (agency.directorsJson ?? []).map((director: any) => `${director.name}${director.idNumber ? ` - ${director.idNumber}` : ''}`).join('\n')
+                            directors: (agency.directorsJson ?? []).map((director: any) => `${director.name}${director.idNumber ? ` - ${director.idNumber}` : ''}`).join('\n'),
+                            shortDescription: agency.shortDescription ?? '',
+                            description: agency.description ?? agency.bio ?? '',
+                            servicesOffered: agency.servicesOffered ?? ''
                         });
                         setCompanyEditOpen(true);
                     }}>
@@ -288,13 +305,18 @@ export default function AgencyDashboardPage() {
                 title="Company KYC"
                 description="Provide company registration and director documents for verification."
                 requestUpdateEndpoint={`/wallets/kyc/agency/${agency.id}/request-update`}
+                idNumberLabel="Company Reg Number"
+                prefillIdNumber={agency.registrationNumber ?? ''}
+                ownerUpdatedAt={agency.updatedAt}
+                prerequisiteMet={companyProfileComplete}
+                prerequisiteMessage="Complete Edit Company details before uploading KYC documents."
                 documentSlots={[
                     {
                         key: 'cert-inc',
                         label: 'Certificate of Incorporation',
                         description: 'Official registration certificate.',
                         docType: 'CERT_OF_INC',
-                        required: true
+                        required: false
                     },
                     {
                         key: 'cr6',
@@ -319,7 +341,8 @@ export default function AgencyDashboardPage() {
                         label: 'Director IDs',
                         description: 'Upload director IDs or passports.',
                         docType: 'DIRECTOR_ID',
-                        multiple: true
+                        multiple: true,
+                        maxCount: directorCount || 1
                     },
                     {
                         key: 'rea-cert',
@@ -396,7 +419,6 @@ export default function AgencyDashboardPage() {
                             placeholder="Company name"
                             value={companyForm.name}
                             onChange={(event) => setCompanyForm({ ...companyForm, name: event.target.value })}
-                            disabled={agency.kycStatus === 'VERIFIED'}
                         />
                         <Input
                             placeholder="Company email"
@@ -409,28 +431,41 @@ export default function AgencyDashboardPage() {
                             onChange={(event) => setCompanyForm({ ...companyForm, phone: event.target.value })}
                         />
                         <Input
-                            placeholder="Registration number"
+                            placeholder="Company reg number"
                             value={companyForm.registrationNumber}
                             onChange={(event) => setCompanyForm({ ...companyForm, registrationNumber: event.target.value })}
-                            disabled={agency.kycStatus === 'VERIFIED'}
                         />
                         <Input
                             placeholder="Company address"
                             value={companyForm.address}
                             onChange={(event) => setCompanyForm({ ...companyForm, address: event.target.value })}
-                            disabled={agency.kycStatus === 'VERIFIED'}
+                        />
+                        <Input
+                            placeholder="Short description"
+                            value={companyForm.shortDescription}
+                            onChange={(event) => setCompanyForm({ ...companyForm, shortDescription: event.target.value })}
+                        />
+                        <Input
+                            placeholder="Services offered"
+                            value={companyForm.servicesOffered}
+                            onChange={(event) => setCompanyForm({ ...companyForm, servicesOffered: event.target.value })}
                         />
                         <textarea
                             placeholder="Directors (Name - ID per line)"
                             value={companyForm.directors}
                             onChange={(event) => setCompanyForm({ ...companyForm, directors: event.target.value })}
-                            disabled={agency.kycStatus === 'VERIFIED'}
                             className="h-24 w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+                        />
+                        <textarea
+                            placeholder="Company description"
+                            value={companyForm.description}
+                            onChange={(event) => setCompanyForm({ ...companyForm, description: event.target.value })}
+                            className="h-24 w-full rounded-md border border-neutral-200 px-3 py-2 text-sm sm:col-span-2"
                         />
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setCompanyEditOpen(false)}>Cancel</Button>
-                        <Button onClick={saveCompanyProfile} disabled={agency.kycStatus === 'VERIFIED'}>
+                        <Button onClick={saveCompanyProfile}>
                             Save company
                         </Button>
                     </DialogFooter>

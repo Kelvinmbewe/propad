@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
-  BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AgencyStatus, Role, AgencyMemberRole } from "@propad/config";
@@ -123,20 +122,13 @@ export class AgenciesService {
       phone?: string;
       address?: string;
       directorsJson?: unknown;
+      shortDescription?: string;
+      description?: string;
+      servicesOffered?: string;
     },
     userId: string,
   ) {
     const agency = await this.findOne(id);
-
-    if (
-      agency.kycStatus === "VERIFIED" &&
-      (data.registrationNumber ||
-        data.address ||
-        data.name ||
-        data.directorsJson)
-    ) {
-      throw new BadRequestException("Verified company details are locked");
-    }
 
     await this.audit.logAction({
       action: "AGENCY_UPDATE",
