@@ -31,9 +31,20 @@ export function LoginForm() {
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
+  const ensureNextAuthBaseUrl = () => {
+    if (typeof window === "undefined") return;
+    const baseUrl = window.location.origin;
+    const basePath = "/api/auth";
+    const nextAuth = (window as any).__NEXTAUTH ?? {};
+    if (!nextAuth.baseUrl) nextAuth.baseUrl = baseUrl;
+    if (!nextAuth.basePath) nextAuth.basePath = basePath;
+    (window as any).__NEXTAUTH = nextAuth;
+  };
+
   const onSubmit = async (values: FormValues) => {
     setSubmitting(true);
     try {
+      ensureNextAuthBaseUrl();
       const callbackUrl =
         typeof window !== "undefined" ? `${window.location.origin}/` : "/";
       await signIn("email", {
@@ -77,7 +88,10 @@ export function LoginForm() {
         <Button
           type="button"
           variant="outline"
-          onClick={() => signIn("google")}
+          onClick={() => {
+            ensureNextAuthBaseUrl();
+            signIn("google");
+          }}
           className="w-full"
         >
           Continue with Google

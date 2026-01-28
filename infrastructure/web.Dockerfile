@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+ENV NEXTAUTH_URL=http://localhost:3000
 
 COPY package*.json ./
 COPY pnpm-workspace.yaml ./
@@ -37,6 +38,7 @@ RUN pnpm --filter @propad/web... run build
 FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+ENV NEXTAUTH_URL=http://localhost:3000
 
 RUN apt-get update && apt-get install -y \
   curl \

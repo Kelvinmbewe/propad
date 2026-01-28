@@ -175,10 +175,20 @@ function normalizeApiBaseUrl(baseUrl: string): string {
 export function getServerApiBaseUrl(): string {
   // Read directly from process.env at runtime to pick up Docker env vars
   const internalUrl = process.env.INTERNAL_API_BASE_URL;
+  const apiUrl = process.env.API_URL;
+  const publicApiUrl = process.env.NEXT_PUBLIC_API_URL;
   const publicUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   if (internalUrl) {
     return normalizeApiBaseUrl(internalUrl);
+  }
+
+  if (apiUrl) {
+    return normalizeApiBaseUrl(apiUrl);
+  }
+
+  if (publicApiUrl) {
+    return normalizeApiBaseUrl(publicApiUrl);
   }
 
   if (publicUrl) {

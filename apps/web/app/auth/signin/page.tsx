@@ -18,6 +18,74 @@ export default function SignInPage() {
     otp: "",
   });
 
+  const getAbsoluteCallbackUrl = () => {
+    if (typeof window === "undefined") return "/";
+    const params = new URLSearchParams(window.location.search);
+    const callbackParam = params.get("callbackUrl");
+    if (!callbackParam) return `${window.location.origin}/`;
+    try {
+      if (callbackParam.startsWith("http")) return callbackParam;
+      return new URL(callbackParam, window.location.origin).toString();
+    } catch {
+      return `${window.location.origin}/`;
+    }
+  };
+
+  const ensureNextAuthBaseUrl = () => {
+    if (typeof window === "undefined") return;
+    const baseUrl = window.location.origin;
+    const basePath = "/api/auth";
+    const nextAuth = (window as any).__NEXTAUTH ?? {};
+    if (!nextAuth.baseUrl) nextAuth.baseUrl = baseUrl;
+    if (!nextAuth.basePath) nextAuth.basePath = basePath;
+    (window as any).__NEXTAUTH = nextAuth;
+  };
+
+  const manualCredentialsSignIn = async () => {
+    if (typeof window === "undefined") return;
+    const callbackUrl = getAbsoluteCallbackUrl();
+    const csrfRes = await fetch(`${window.location.origin}/api/auth/csrf`, {
+      headers: { "Content-Type": "application/json" },
+    });
+    const csrfData = await csrfRes.json();
+    const csrfToken = csrfData?.csrfToken;
+    if (!csrfToken) {
+      throw new Error("Missing CSRF token");
+    }
+
+    const formBody = new URLSearchParams();
+    formBody.set("csrfToken", csrfToken);
+    formBody.set("email", formState.email);
+    formBody.set("password", formState.password);
+    if (mfaRequired && formState.otp) {
+      formBody.set("otp", formState.otp);
+    }
+    formBody.set("callbackUrl", callbackUrl);
+    formBody.set("json", "true");
+
+    const res = await fetch(
+      `${window.location.origin}/api/auth/callback/credentials`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formBody.toString(),
+      },
+    );
+
+    const data = await res.json().catch(() => ({}));
+    if (data?.error === "MFA_REQUIRED") {
+      setMfaRequired(true);
+      setError("Enter your authentication code to continue.");
+      setIsLoading(false);
+      return;
+    }
+    if (!res.ok) {
+      throw new Error(data?.error || "Unable to sign in");
+    }
+    const redirectUrl = data?.url || callbackUrl;
+    window.location.href = redirectUrl;
+  };
+
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
@@ -26,9 +94,8 @@ export default function SignInPage() {
     const { email, password, otp } = formState;
 
     try {
-      // Use redirect to let NextAuth handle the flow natively
-      const callbackUrl =
-        typeof window !== "undefined" ? `${window.location.origin}/` : "/";
+      ensureNextAuthBaseUrl();
+      const callbackUrl = getAbsoluteCallbackUrl();
       const result = await signIn("credentials", {
         email,
         password,
@@ -52,10 +119,14 @@ export default function SignInPage() {
       setError(result?.error ? "Invalid credentials" : "Unable to sign in");
       setIsLoading(false);
     } catch (error) {
-      // NextAuth v5 throws on failed auth even with redirect:true
       console.error("SignIn exception:", error);
-      setError("Unable to reach the authentication server.");
-      setIsLoading(false);
+      try {
+        await manualCredentialsSignIn();
+      } catch (fallbackError) {
+        console.error("Manual sign-in failed:", fallbackError);
+        setError("Unable to reach the authentication server.");
+        setIsLoading(false);
+      }
     }
   }
 
