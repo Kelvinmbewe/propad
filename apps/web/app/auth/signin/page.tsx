@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { Button, Input, Label } from "@propad/ui";
 import { Loader2 } from "lucide-react";
 
 export default function SignInPage() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mfaRequired, setMfaRequired] = useState(false);
@@ -17,6 +15,11 @@ export default function SignInPage() {
     password: "Admin123!",
     otp: "",
   });
+
+  // Ensure next-auth base URL is set on component mount
+  useEffect(() => {
+    ensureNextAuthBaseUrl();
+  }, []);
 
   const getAbsoluteCallbackUrl = () => {
     if (typeof window === "undefined") return "/";
@@ -105,7 +108,9 @@ export default function SignInPage() {
       });
 
       if (result?.ok) {
-        router.push(result.url || "/");
+        // Use window.location.href for reliable redirect
+        const redirectTo = result.url || callbackUrl || "/";
+        window.location.href = redirectTo;
         return;
       }
 
