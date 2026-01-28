@@ -157,13 +157,13 @@ export function DashboardOverview() {
   // --- Hooks ---
   const dashboardQuery = useDashboardMetrics();
 
-  // Conditionally fetch admin metrics
+  // Conditionally fetch admin metrics - only for ADMIN users
   const isAdmin = role === "ADMIN";
-  const overviewQuery = useOverviewMetrics(); // Ideally conditionally enabled, but keep simple for now
-  const dailyAdsQuery = useDailyAds(fromIso, toIso);
+  const overviewQuery = useOverviewMetrics({ enabled: isAdmin });
+  const dailyAdsQuery = useDailyAds(fromIso, toIso, { enabled: isAdmin });
   const [agentsLimit, setAgentsLimit] = useState(5);
-  const topAgentsQuery = useTopAgents(agentsLimit);
-  const geoQuery = useGeoListings(selectedCity);
+  const topAgentsQuery = useTopAgents(agentsLimit, { enabled: isAdmin });
+  const geoQuery = useGeoListings(selectedCity, { enabled: isAdmin });
 
   const updateQuery = useCallback(
     (updates: Record<string, string | null>) => {
