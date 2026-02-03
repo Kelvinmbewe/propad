@@ -60,7 +60,7 @@ export class ProfilesService {
 
     return {
       id: user.id,
-      name: user.name,
+      name: user.name ?? "Unnamed User",
       profilePhoto: user.profilePhoto,
       bio: user.bio,
       location: user.location,
@@ -74,12 +74,39 @@ export class ProfilesService {
       badges,
       recentReviews: user.reviewsReceived.map((r: any) => ({
         id: r.id,
-        author: r.reviewer.name,
+        author: r.reviewer?.name ?? "Anonymous",
         rating: r.rating,
         comment: r.comment,
         date: r.createdAt,
       })),
     };
+  }
+
+  async getUserProfileForAdmin(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        dateOfBirth: true,
+        idNumber: true,
+        addressLine1: true,
+        addressCity: true,
+        addressProvince: true,
+        addressCountry: true,
+        location: true,
+        kycStatus: true,
+        isVerified: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) throw new NotFoundException("User not found");
+
+    return user;
   }
 
   async getPublicAgencyProfile(agencyId: string) {
@@ -117,11 +144,13 @@ export class ProfilesService {
         verified: agency.verificationScore > 0,
       },
       badges,
-      agents: agency.members.map((m: any) => ({
-        id: m.userId,
-        name: m.user.name,
-        photo: m.user.profilePhoto,
-      })),
+      agents: agency.members
+        .filter((member: any) => member.user)
+        .map((m: any) => ({
+          id: m.userId,
+          name: m.user?.name ?? "Unnamed Agent",
+          photo: m.user?.profilePhoto ?? null,
+        })),
       recentReviews: agency.reviews.map((r: any) => ({
         rating: r.rating,
         comment: r.comment,

@@ -12,15 +12,15 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Role } from "@propad/config";
 import { ProfilesService } from "./profiles.service";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { RolesGuard } from "../auth/guards/roles.guard";
-import { Roles } from "../auth/decorators/roles.decorator";
 import { Patch, Body } from "@nestjs/common";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import {
   UpdateUserProfileDto,
   updateUserProfileSchema,
 } from "./dto/update-user-profile.dto";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { Roles } from "../auth/decorators/roles.decorator";
 
 @Controller("profiles")
 export class ProfilesController {
@@ -29,6 +29,13 @@ export class ProfilesController {
   @Get("users/:id")
   async getUserProfile(@Param("id") id: string) {
     return this.profilesService.getPublicUserProfile(id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.VERIFIER, Role.MODERATOR)
+  @Get("users/:id/admin")
+  async getUserProfileForAdmin(@Param("id") id: string) {
+    return this.profilesService.getUserProfileForAdmin(id);
   }
 
   @Get("companies/:id")

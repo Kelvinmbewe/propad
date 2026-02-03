@@ -4,6 +4,9 @@ import {
   ForbiddenException,
   BadRequestException,
 } from "@nestjs/common";
+import { existsSync } from "fs";
+import { mkdir, writeFile } from "fs/promises";
+import { join, resolve } from "path";
 import { PrismaService } from "../prisma/prisma.service";
 import { AdvertiserBalanceService } from "./advertiser-balance.service";
 import { AuditService } from "../audit/audit.service";
@@ -11,6 +14,9 @@ import { CreateCampaignDto } from "./dto/create-campaign.dto";
 import { UpdateCampaignDto } from "./dto/update-campaign.dto";
 import { TrackClickDto } from "./dto/track-click.dto";
 import { Role } from "@propad/config";
+import { AdvertiserWithdrawalDto } from "./dto/advertiser-withdrawal.dto";
+import { CreateAdCreativeDto } from "./dto/create-ad-creative.dto";
+import { CreateTopupIntentDto } from "./dto/topup-intent.dto";
 
 interface AuthContext {
   userId: string;
@@ -20,6 +26,7 @@ interface AuthContext {
 
 import { AdsInvoicesService } from "./ads-invoices.service";
 import { FraudDetectionService } from "./fraud/fraud-detection.service";
+import { PaymentsService } from "../payments/payments.service";
 
 @Injectable()
 export class AdsService {
@@ -29,7 +36,27 @@ export class AdsService {
     private audit: AuditService,
     private invoices: AdsInvoicesService,
     private fraud: FraudDetectionService,
-  ) { }
+    private payments: PaymentsService,
+  ) {}
+
+  private resolveUploadsRoot() {
+    const runtimeCwd = process.env.INIT_CWD ?? process.env.PWD ?? ".";
+    const candidates = [
+      process.env.UPLOADS_DIR,
+      resolve(runtimeCwd, "uploads"),
+      resolve(runtimeCwd, "apps", "api", "uploads"),
+      resolve(runtimeCwd, "..", "uploads"),
+      resolve(runtimeCwd, "..", "..", "uploads"),
+    ].filter((value): value is string => !!value);
+
+    for (const candidate of candidates) {
+      if (existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    return resolve(runtimeCwd, "uploads");
+  }
 
   // ========== EXISTING METHODS ==========
 
@@ -43,6 +70,104 @@ export class AdsService {
             placement: true,
           },
         },
+      },
+    });
+  }
+
+  async getPlacements() {
+    return this.prisma.adPlacement.findMany({
+      orderBy: { name: "asc" },
+    });
+  }
+
+  async getAdvertisers() {
+    const advertisers = await this.prisma.advertiser.findMany({
+      select: {
+        id: true,
+        name: true,
+        contactEmail: true,
+        ownerId: true,
+        status: true,
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+
+    const seen = new Set<string>();
+    const unique = [] as typeof advertisers;
+
+    for (const advertiser of advertisers) {
+      const key =
+        advertiser.ownerId || advertiser.contactEmail || advertiser.id;
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      unique.push(advertiser);
+    }
+
+    return unique;
+  }
+
+  async createPlacement(dto: {
+    code: string;
+    name: string;
+    description?: string | null;
+    page: any;
+    position: any;
+    allowedTypes?: any[];
+    allowDirect?: boolean;
+    allowAdSense?: boolean;
+    policyCompliant?: boolean;
+  }) {
+    return this.prisma.adPlacement.create({
+      data: {
+        code: dto.code,
+        name: dto.name,
+        description: dto.description ?? undefined,
+        page: dto.page,
+        position: dto.position,
+        allowedTypes: dto.allowedTypes ?? [],
+        allowDirect: dto.allowDirect ?? true,
+        allowAdSense: dto.allowAdSense ?? false,
+        policyCompliant: dto.policyCompliant ?? true,
+      },
+    });
+  }
+
+  async updatePlacement(
+    id: string,
+    dto: {
+      code?: string;
+      name?: string;
+      description?: string | null;
+      page?: any;
+      position?: any;
+      allowedTypes?: any[];
+      allowDirect?: boolean;
+      allowAdSense?: boolean;
+      policyCompliant?: boolean;
+    },
+  ) {
+    return this.prisma.adPlacement.update({
+      where: { id },
+      data: {
+        code: dto.code,
+        name: dto.name,
+        description: dto.description ?? undefined,
+        page: dto.page,
+        position: dto.position,
+        allowedTypes: dto.allowedTypes,
+        allowDirect: dto.allowDirect,
+        allowAdSense: dto.allowAdSense,
+        policyCompliant: dto.policyCompliant,
       },
     });
   }
@@ -101,9 +226,14 @@ export class AdsService {
   // ========== CAMPAIGN CRUD ==========
 
   async getAdvertiserIdForUser(user: AuthContext): Promise<string | null> {
-    if (!user.email) return null;
+    if (!user.userId && !user.email) return null;
     const advertiser = await this.prisma.advertiser.findFirst({
-      where: { contactEmail: user.email },
+      where: {
+        OR: [
+          user.userId ? { ownerId: user.userId } : undefined,
+          user.email ? { contactEmail: user.email } : undefined,
+        ].filter(Boolean) as any,
+      },
     });
 
     // Backfill ownerId if missing (migration support)
@@ -115,6 +245,26 @@ export class AdsService {
     }
 
     return advertiser?.id ?? null;
+  }
+
+  async getOrCreateAdvertiser(user: AuthContext) {
+    let advertiserId = await this.getAdvertiserIdForUser(user);
+
+    if (!advertiserId) {
+      const advertiser = await this.prisma.advertiser.create({
+        data: {
+          name: user.email || "Unknown",
+          contactEmail: user.email,
+          ownerId: user.userId,
+          status: "ACTIVE",
+        },
+      });
+      advertiserId = advertiser.id;
+    }
+
+    return this.prisma.advertiser.findUnique({
+      where: { id: advertiserId },
+    });
   }
 
   async createCampaign(dto: CreateCampaignDto, user: AuthContext) {
@@ -158,6 +308,35 @@ export class AdsService {
       }
     }
 
+    const placementId =
+      dto.targetingJson &&
+      typeof dto.targetingJson === "object" &&
+      "placementId" in dto.targetingJson
+        ? (dto.targetingJson as any).placementId
+        : undefined;
+
+    let status: "DRAFT" | "ACTIVE" = "DRAFT";
+    const canAfford = await this.balanceService.canAfford(
+      advertiserId,
+      dto.dailyCapCents ?? 100,
+    );
+
+    let placementHasCapacity = true;
+    if (placementId) {
+      const activeFlights = await this.prisma.adFlight.count({
+        where: {
+          placementId,
+          campaign: { status: "ACTIVE" },
+        },
+      });
+      const maxActive = 5;
+      placementHasCapacity = activeFlights < maxActive;
+    }
+
+    if (canAfford && placementHasCapacity) {
+      status = "ACTIVE";
+    }
+
     const data: any = {
       advertiserId,
       name: dto.name,
@@ -170,7 +349,7 @@ export class AdsService {
       endAt: dto.endAt ? new Date(dto.endAt) : null,
       cpmUsdCents: dto.cpmUsdCents,
       cpcUsdCents: dto.cpcUsdCents,
-      status: "DRAFT",
+      status,
     };
 
     if (dto.targetingJson !== null && dto.targetingJson !== undefined) {
@@ -184,6 +363,56 @@ export class AdsService {
         targetProperty: true,
       },
     });
+
+    const placementIdForFlight = placementId;
+    const creativeId =
+      dto.targetingJson &&
+      typeof dto.targetingJson === "object" &&
+      "creativeId" in dto.targetingJson
+        ? (dto.targetingJson as any).creativeId
+        : undefined;
+
+    if (placementIdForFlight || creativeId) {
+      if (!placementIdForFlight || !creativeId) {
+        throw new BadRequestException(
+          "Both placementId and creativeId are required to launch ads",
+        );
+      }
+
+      const placement = await this.prisma.adPlacement.findUnique({
+        where: { id: placementIdForFlight },
+      });
+      if (!placement) {
+        throw new NotFoundException("Placement not found");
+      }
+
+      const creative = await this.prisma.adCreative.findUnique({
+        where: { id: creativeId },
+      });
+      if (!creative) {
+        throw new NotFoundException("Creative not found");
+      }
+      if (user.role !== Role.ADMIN) {
+        const advertiserId = await this.getAdvertiserIdForUser(user);
+        if (!advertiserId || creative.advertiserId !== advertiserId) {
+          throw new ForbiddenException("You do not own this creative");
+        }
+      }
+
+      await this.prisma.adFlight.create({
+        data: {
+          campaignId: campaign.id,
+          creativeId,
+          placementId: placementIdForFlight,
+          weight: 1,
+          priority: 0,
+        },
+      });
+    }
+
+    if (campaign.status === "ACTIVE" && !campaign.invoiceId) {
+      await this.invoices.createCampaignInvoice(campaign);
+    }
 
     await this.audit.logAction({
       action: "ads.campaign.create",
@@ -213,7 +442,19 @@ export class AdsService {
     }
 
     if (!advertiserId) {
-      return [];
+      const advertiser = await this.getOrCreateAdvertiser(user);
+      if (!advertiser) {
+        return [];
+      }
+      return this.prisma.adCampaign.findMany({
+        where: { advertiserId: advertiser.id },
+        include: {
+          advertiser: true,
+          targetProperty: { select: { id: true, title: true } },
+          stats: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
     }
 
     return this.prisma.adCampaign.findMany({
@@ -334,6 +575,34 @@ export class AdsService {
     return updated;
   }
 
+  async deleteCampaign(id: string, user: AuthContext) {
+    const campaign = await this.prisma.adCampaign.findUnique({
+      where: { id },
+      include: { advertiser: true },
+    });
+
+    if (!campaign) {
+      throw new NotFoundException("Campaign not found");
+    }
+
+    await this.assertCampaignAccess(campaign, user);
+
+    const updated = await this.prisma.adCampaign.update({
+      where: { id },
+      data: { status: "ENDED", endAt: new Date() },
+    });
+
+    await this.audit.logAction({
+      action: "ads.campaign.delete",
+      actorId: user.userId,
+      targetType: "adCampaign",
+      targetId: id,
+      metadata: { status: "ENDED" },
+    });
+
+    return updated;
+  }
+
   async pauseCampaign(id: string, user: AuthContext) {
     return this.updateCampaign(id, { status: "PAUSED" }, user);
   }
@@ -391,12 +660,256 @@ export class AdsService {
     return this.balanceService.topUp(advertiserId, amountCents, user.userId);
   }
 
+  async createTopupIntent(dto: CreateTopupIntentDto, user: AuthContext) {
+    const advertiser = await this.getOrCreateAdvertiser(user);
+    if (!advertiser) {
+      throw new BadRequestException("Advertiser profile not found");
+    }
+
+    const invoice = await this.invoices.createTopUpInvoiceOpen({
+      advertiserId: advertiser.id,
+      buyerUserId: user.userId,
+      amountCents: dto.amountCents,
+      currency: dto.currency,
+    });
+
+    const intent = await this.payments.createPaymentIntent({
+      invoiceId: invoice.id,
+      gateway: dto.gateway,
+      returnUrl: dto.returnUrl,
+    });
+
+    return {
+      invoiceId: invoice.id,
+      intentId: intent.id,
+      redirectUrl: intent.redirectUrl,
+    };
+  }
+
   async getAdvertiserBalance(user: AuthContext) {
     const advertiserId = await this.getAdvertiserIdForUser(user);
     if (!advertiserId) {
       return { balanceCents: 0 };
     }
     return this.balanceService.getBalance(advertiserId);
+  }
+
+  async getMyCreatives(user: AuthContext) {
+    const advertiserId = await this.getAdvertiserIdForUser(user);
+
+    if (user.role === Role.ADMIN) {
+      return this.prisma.adCreative.findMany({
+        include: { advertiser: true },
+        orderBy: { createdAt: "desc" },
+      });
+    }
+
+    if (!advertiserId) {
+      return [];
+    }
+
+    return this.prisma.adCreative.findMany({
+      where: { advertiserId },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async createHtmlCreative(dto: CreateAdCreativeDto, user: AuthContext) {
+    const advertiser = await this.getOrCreateAdvertiser(user);
+    if (!advertiser) {
+      throw new BadRequestException("Advertiser profile not found");
+    }
+
+    const creative = await this.prisma.adCreative.create({
+      data: {
+        advertiserId: advertiser.id,
+        type: dto.type,
+        htmlSnippet: dto.htmlSnippet,
+        clickUrl: dto.clickUrl,
+        width: dto.width,
+        height: dto.height,
+      },
+    });
+
+    await this.audit.logAction({
+      action: "ads.creative.create",
+      actorId: user.userId,
+      targetType: "adCreative",
+      targetId: creative.id,
+      metadata: { type: dto.type },
+    });
+
+    return creative;
+  }
+
+  async uploadCreative(
+    file: { originalname: string; mimetype: string; buffer: Buffer },
+    body: { clickUrl?: string; width?: string; height?: string },
+    user: AuthContext,
+  ) {
+    const advertiser = await this.getOrCreateAdvertiser(user);
+    if (!advertiser) {
+      throw new BadRequestException("Advertiser profile not found");
+    }
+
+    if (!file) {
+      throw new BadRequestException("No file provided");
+    }
+
+    const width = Number(body.width);
+    const height = Number(body.height);
+    if (!Number.isFinite(width) || !Number.isFinite(height)) {
+      throw new BadRequestException("Width and height are required");
+    }
+    if (!body.clickUrl || !body.clickUrl.trim()) {
+      throw new BadRequestException("Click URL is required");
+    }
+
+    const uploadsRoot = this.resolveUploadsRoot();
+    await mkdir(uploadsRoot, { recursive: true });
+    const uploadsDir = join(uploadsRoot, "ads", "creatives", advertiser.id);
+    await mkdir(uploadsDir, { recursive: true });
+
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const uniqueName = `${Date.now()}-${safeName}`;
+    const filePath = join(uploadsDir, uniqueName);
+    await writeFile(filePath, file.buffer as Uint8Array);
+
+    const assetUrl = `/uploads/ads/creatives/${advertiser.id}/${uniqueName}`;
+
+    const creative = await this.prisma.adCreative.create({
+      data: {
+        advertiserId: advertiser.id,
+        type: "IMAGE",
+        assetUrl,
+        clickUrl: body.clickUrl.trim(),
+        width,
+        height,
+      },
+    });
+
+    await this.audit.logAction({
+      action: "ads.creative.upload",
+      actorId: user.userId,
+      targetType: "adCreative",
+      targetId: creative.id,
+      metadata: { assetUrl },
+    });
+
+    return creative;
+  }
+
+  async deleteCreative(id: string, user: AuthContext) {
+    const creative = await this.prisma.adCreative.findUnique({
+      where: { id },
+    });
+
+    if (!creative) {
+      throw new NotFoundException("Creative not found");
+    }
+
+    if (user.role !== Role.ADMIN) {
+      const advertiserId = await this.getAdvertiserIdForUser(user);
+      if (!advertiserId || advertiserId !== creative.advertiserId) {
+        throw new ForbiddenException("You do not have access to this creative");
+      }
+    }
+
+    await this.prisma.adCreative.delete({ where: { id } });
+
+    await this.audit.logAction({
+      action: "ads.creative.delete",
+      actorId: user.userId,
+      targetType: "adCreative",
+      targetId: id,
+    });
+
+    return { success: true };
+  }
+
+  async requestWithdrawal(dto: AdvertiserWithdrawalDto, user: AuthContext) {
+    const advertiser = await this.getOrCreateAdvertiser(user);
+    if (!advertiser) {
+      throw new BadRequestException("Advertiser profile not found");
+    }
+
+    const balance = await this.balanceService.getBalance(advertiser.id);
+    if (dto.amountCents > balance.balanceCents) {
+      throw new BadRequestException("Insufficient advertiser balance");
+    }
+
+    await this.audit.logAction({
+      action: "advertiser.withdrawal.request",
+      actorId: user.userId,
+      targetType: "advertiser",
+      targetId: advertiser.id,
+      metadata: {
+        amountCents: dto.amountCents,
+        reason: dto.reason,
+        referenceId: dto.referenceId,
+      },
+    });
+
+    return {
+      status: "PENDING",
+      balanceCents: balance.balanceCents,
+      advertiserId: advertiser.id,
+    };
+  }
+
+  async requestWithdrawalReversal(
+    dto: AdvertiserWithdrawalDto,
+    user: AuthContext,
+  ) {
+    const advertiser = await this.getOrCreateAdvertiser(user);
+    if (!advertiser) {
+      throw new BadRequestException("Advertiser profile not found");
+    }
+
+    const ownerId = await this.balanceService.getAdvertiserOwnerId(
+      advertiser.id,
+    );
+    const recentTopups = await this.prisma.walletLedger.findMany({
+      where: {
+        userId: ownerId,
+        type: "CREDIT",
+        sourceType: "ADJUSTMENT",
+      },
+      orderBy: { createdAt: "desc" },
+      take: 2,
+    });
+    const matchesRecent = recentTopups.some(
+      (entry) => entry.amountCents === dto.amountCents,
+    );
+    if (!matchesRecent) {
+      throw new BadRequestException(
+        "Reversal amount must match one of the last two deposits",
+      );
+    }
+
+    await this.audit.logAction({
+      action: "advertiser.withdrawal.reversal.request",
+      actorId: user.userId,
+      targetType: "advertiser",
+      targetId: advertiser.id,
+      metadata: {
+        amountCents: dto.amountCents,
+        reason: dto.reason,
+        referenceId: dto.referenceId,
+      },
+    });
+
+    const balance = await this.balanceService.getBalance(advertiser.id);
+
+    if (dto.amountCents > balance.balanceCents) {
+      throw new BadRequestException("Insufficient advertiser balance");
+    }
+
+    return {
+      status: "PENDING",
+      balanceCents: balance.balanceCents,
+      advertiserId: advertiser.id,
+    };
   }
 
   // ========== TRACKING ==========
@@ -614,7 +1127,7 @@ export class AdsService {
     );
 
     // Aggregate by campaign type
-    const types = ["PROPERTY_BOOST", "SEARCH_SPONSOR", "DISPLAY_BANNER"];
+    const types = ["PROPERTY_BOOST", "SEARCH_SPONSOR", "BANNER"];
     const typeBreakdown = await Promise.all(
       types.map(async (type) => {
         const stats = await this.aggregateMetrics(
@@ -960,7 +1473,22 @@ export class AdsService {
     if (user.role === Role.ADMIN) return;
 
     const userAdvertiserId = await this.getAdvertiserIdForUser(user);
-    if (userAdvertiserId !== campaign.advertiserId) {
+    if (userAdvertiserId === campaign.advertiserId) {
+      return;
+    }
+
+    const advertiser = await this.prisma.advertiser.findUnique({
+      where: { id: campaign.advertiserId },
+      select: { ownerId: true, contactEmail: true },
+    });
+
+    const isOwner = advertiser?.ownerId && advertiser.ownerId === user.userId;
+    const emailMatch =
+      advertiser?.contactEmail &&
+      user.email &&
+      advertiser.contactEmail === user.email;
+
+    if (!isOwner && !emailMatch) {
       throw new ForbiddenException("You do not have access to this campaign");
     }
   }

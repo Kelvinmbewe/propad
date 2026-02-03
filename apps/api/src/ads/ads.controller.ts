@@ -9,18 +9,51 @@ import {
   Req,
   UseGuards,
   NotFoundException,
-} from '@nestjs/common';
-import { AdsService } from './ads.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { ZodValidationPipe } from '../common/zod-validation.pipe';
-import { Role } from '@propad/config';
-import { CreateCampaignDto, createCampaignSchema } from './dto/create-campaign.dto';
-import { UpdateCampaignDto, updateCampaignSchema } from './dto/update-campaign.dto';
-import { TopupCampaignDto, topupCampaignSchema } from './dto/topup-campaign.dto';
-import { TrackClickDto, trackClickSchema } from './dto/track-click.dto';
-import { createAdImpressionSchema } from './dto/create-ad-impression.dto';
+  Delete,
+  UploadedFile,
+  UseInterceptors,
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { AdsService } from "./ads.service";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { Roles } from "../auth/decorators/roles.decorator";
+import { ZodValidationPipe } from "../common/zod-validation.pipe";
+import { Role } from "@propad/config";
+import {
+  CreateCampaignDto,
+  createCampaignSchema,
+} from "./dto/create-campaign.dto";
+import {
+  UpdateCampaignDto,
+  updateCampaignSchema,
+} from "./dto/update-campaign.dto";
+import {
+  TopupCampaignDto,
+  topupCampaignSchema,
+} from "./dto/topup-campaign.dto";
+import { TrackClickDto, trackClickSchema } from "./dto/track-click.dto";
+import { createAdImpressionSchema } from "./dto/create-ad-impression.dto";
+import {
+  AdvertiserWithdrawalDto,
+  advertiserWithdrawalSchema,
+} from "./dto/advertiser-withdrawal.dto";
+import {
+  CreateAdCreativeDto,
+  createAdCreativeSchema,
+} from "./dto/create-ad-creative.dto";
+import {
+  CreateAdPlacementDto,
+  createAdPlacementSchema,
+} from "./dto/create-ad-placement.dto";
+import {
+  UpdateAdPlacementDto,
+  updateAdPlacementSchema,
+} from "./dto/update-ad-placement.dto";
+import {
+  CreateTopupIntentDto,
+  createTopupIntentSchema,
+} from "./dto/topup-intent.dto";
 
 interface AuthenticatedRequest {
   user: {
@@ -30,28 +63,116 @@ interface AuthenticatedRequest {
   };
 }
 
-import { AdsInvoicesService } from './ads-invoices.service';
+import { AdsInvoicesService } from "./ads-invoices.service";
 
-@Controller('ads')
+@Controller("ads")
 export class AdsController {
   constructor(
     private readonly adsService: AdsService,
     private readonly invoices: AdsInvoicesService,
-  ) { }
+  ) {}
 
   // ========== PUBLIC ENDPOINTS ==========
 
-  @Get('active')
+  @Get("active")
   async getActive() {
     return this.adsService.getActiveCampaigns();
   }
 
-  @Get('promoted')
+  @Get("creatives")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN, Role.USER)
+  async getCreatives(@Req() req: AuthenticatedRequest) {
+    return this.adsService.getMyCreatives(req.user);
+  }
+
+  @Post("creatives")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
+  async createCreative(
+    @Body(new ZodValidationPipe(createAdCreativeSchema))
+    dto: CreateAdCreativeDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.adsService.createHtmlCreative(dto, req.user);
+  }
+
+  @Post("creatives/upload")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: 8 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowed = ["image/jpeg", "image/png", "image/webp"];
+        if (allowed.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new Error("Only JPEG, PNG, and WebP images are allowed"), false);
+        }
+      },
+    }),
+  )
+  async uploadCreative(
+    @UploadedFile()
+    file: { originalname: string; mimetype: string; buffer: Buffer },
+    @Body() body: { clickUrl: string; width: string; height: string },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.adsService.uploadCreative(file, body, req.user);
+  }
+
+  @Delete("creatives/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
+  async deleteCreative(
+    @Param("id") id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.adsService.deleteCreative(id, req.user);
+  }
+
+  @Get("placements")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
+  async getPlacements() {
+    return this.adsService.getPlacements();
+  }
+
+  @Get("advertisers")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async getAdvertisers() {
+    return this.adsService.getAdvertisers();
+  }
+
+  @Post("placements")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async createPlacement(
+    @Body(new ZodValidationPipe(createAdPlacementSchema))
+    dto: CreateAdPlacementDto,
+  ) {
+    return this.adsService.createPlacement(dto);
+  }
+
+  @Patch("placements/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  async updatePlacement(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(updateAdPlacementSchema))
+    dto: UpdateAdPlacementDto,
+  ) {
+    return this.adsService.updatePlacement(id, dto);
+  }
+
+  @Get("promoted")
   async getPromoted(
-    @Query('cityId') cityId?: string,
-    @Query('suburbId') suburbId?: string,
-    @Query('type') type?: string,
-    @Query('limit') limit?: string,
+    @Query("cityId") cityId?: string,
+    @Query("suburbId") suburbId?: string,
+    @Query("type") type?: string,
+    @Query("limit") limit?: string,
   ) {
     return this.adsService.getPromotedListings({
       cityId,
@@ -63,7 +184,7 @@ export class AdsController {
 
   // ========== CAMPAIGN CRUD ==========
 
-  @Post('campaigns')
+  @Post("campaigns")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
   async createCampaign(
@@ -73,78 +194,93 @@ export class AdsController {
     return this.adsService.createCampaign(dto, req.user);
   }
 
-  @Get('campaigns/my')
+  @Get("campaigns/my")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
   async getMyCampaigns(@Req() req: AuthenticatedRequest) {
     return this.adsService.getMyCampaigns(req.user);
   }
 
-  @Get('campaigns/:id')
+  @Get("campaigns/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
   async getCampaignById(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.adsService.getCampaignById(id, req.user);
   }
 
-  @Get('campaigns/:id/analytics')
+  @Get("campaigns/:id/analytics")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
   async getCampaignAnalytics(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.adsService.getCampaignAnalytics(id, req.user);
   }
 
-  @Get('analytics/summary')
+  @Get("analytics/summary")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
   async getAnalyticsSummary(@Req() req: AuthenticatedRequest) {
     const advertiserId = await this.adsService.getAdvertiserIdForUser(req.user);
     if (!advertiserId) {
       // Create advertiser if not exists (lazy profile creation)
-      const campaign = await this.adsService.createCampaign({ name: req.user.email || 'Draft', type: 'PROPERTY_BOOST' } as any, req.user);
-      return this.adsService.getAdvertiserAnalyticsSummary(campaign.advertiserId);
+      const campaign = await this.adsService.createCampaign(
+        { name: req.user.email || "Draft", type: "PROPERTY_BOOST" } as any,
+        req.user,
+      );
+      return this.adsService.getAdvertiserAnalyticsSummary(
+        campaign.advertiserId,
+      );
     }
     return this.adsService.getAdvertiserAnalyticsSummary(advertiserId);
   }
 
-  @Get('analytics/campaign/:id')
+  @Get("analytics/campaign/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
   async getCampaignAnalyticsV2(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.adsService.getCampaignAnalytics(id, req.user);
   }
 
-  @Patch('campaigns/:id')
+  @Patch("campaigns/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
   async updateCampaign(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body(new ZodValidationPipe(updateCampaignSchema)) dto: UpdateCampaignDto,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.adsService.updateCampaign(id, dto, req.user);
   }
 
-  @Post('campaigns/:id/pause')
+  @Delete("campaigns/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
+  async deleteCampaign(
+    @Param("id") id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.adsService.deleteCampaign(id, req.user);
+  }
+
+  @Post("campaigns/:id/pause")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
   async pauseCampaign(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.adsService.pauseCampaign(id, req.user);
   }
 
-  @Get('invoices/my')
+  @Get("invoices/my")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.AGENT, Role.ADMIN)
   async getMyInvoices(@Req() req: AuthenticatedRequest) {
@@ -156,24 +292,24 @@ export class AdsController {
     return this.invoices.getMyInvoices(advertiserId);
   }
 
-  @Get('invoices/:id')
+  @Get("invoices/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.AGENT, Role.ADMIN)
-  async getInvoice(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+  async getInvoice(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     const advertiserId = await this.adsService.getAdvertiserIdForUser(req.user);
-    const invoice = await this.invoices.getInvoice(id, advertiserId || '');
+    const invoice = await this.invoices.getInvoice(id, advertiserId || "");
     if (!invoice && req.user.role !== Role.ADMIN) {
-      throw new NotFoundException('Invoice not found');
+      throw new NotFoundException("Invoice not found");
     }
-    if (!invoice) throw new NotFoundException('Invoice not found');
+    if (!invoice) throw new NotFoundException("Invoice not found");
     return invoice;
   }
 
-  @Post('campaigns/:id/resume')
+  @Post("campaigns/:id/resume")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
   async resumeCampaign(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.adsService.resumeCampaign(id, req.user);
@@ -181,34 +317,74 @@ export class AdsController {
 
   // ========== BALANCE ==========
 
-  @Get('balance')
+  @Get("balance")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
   async getBalance(@Req() req: AuthenticatedRequest) {
     return this.adsService.getAdvertiserBalance(req.user);
   }
 
-  @Post('topup/:advertiserId')
+  @Post("topup/:advertiserId")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
   async topUp(
-    @Param('advertiserId') advertiserId: string,
+    @Param("advertiserId") advertiserId: string,
     @Body(new ZodValidationPipe(topupCampaignSchema)) dto: TopupCampaignDto,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.adsService.topUp(advertiserId, dto.amountCents, req.user);
   }
 
+  @Post("topup-intent")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
+  async createTopupIntent(
+    @Body(new ZodValidationPipe(createTopupIntentSchema))
+    dto: CreateTopupIntentDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.adsService.createTopupIntent(dto, req.user);
+  }
+
+  @Post("withdrawals/request")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
+  async requestWithdrawal(
+    @Body(new ZodValidationPipe(advertiserWithdrawalSchema))
+    dto: AdvertiserWithdrawalDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.adsService.requestWithdrawal(dto, req.user);
+  }
+
+  @Post("withdrawals/reversal")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
+  async requestReversal(
+    @Body(new ZodValidationPipe(advertiserWithdrawalSchema))
+    dto: AdvertiserWithdrawalDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.adsService.requestWithdrawalReversal(dto, req.user);
+  }
+
+  @Get("advertiser")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
+  async getAdvertiser(@Req() req: AuthenticatedRequest) {
+    return this.adsService.getOrCreateAdvertiser(req.user);
+  }
+
   // ========== TRACKING ==========
 
-  @Post('track/impression')
+  @Post("track/impression")
   async trackImpression(
     @Body(new ZodValidationPipe(createAdImpressionSchema)) dto: any,
   ) {
     return this.adsService.trackImpression(dto);
   }
 
-  @Post('track/click')
+  @Post("track/click")
   async trackClick(
     @Body(new ZodValidationPipe(trackClickSchema)) dto: TrackClickDto,
     @Req() req: any,
@@ -218,14 +394,14 @@ export class AdsController {
 
   // ========== STATS (existing) ==========
 
-  @Get('stats/:id')
+  @Get("stats/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADVERTISER, Role.LANDLORD, Role.ADMIN)
-  async getStats(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+  async getStats(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.adsService.getCampaignStats(id);
   }
 
-  @Post('ingest')
+  @Post("ingest")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   async ingestRevenue(
@@ -233,7 +409,7 @@ export class AdsController {
   ) {
     const date = body.date ? new Date(body.date) : new Date();
 
-    if (body.source === 'INHOUSE') {
+    if (body.source === "INHOUSE") {
       return this.adsService.aggregateInHouseRevenue(date);
     }
 
@@ -241,6 +417,6 @@ export class AdsController {
       return this.adsService.ingestDailyRevenue(date, body.amountCents);
     }
 
-    return { message: 'Invalid payload' };
+    return { message: "Invalid payload" };
   }
 }

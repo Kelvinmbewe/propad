@@ -134,16 +134,19 @@ export default function ProfilePage() {
 
     const profileComplete = useMemo(() => {
         const source = profileData || (user as any);
-        return Boolean(
+        const hasIdentity = Boolean(
             source?.name &&
             source?.phone &&
             source?.dateOfBirth &&
-            source?.idNumber &&
+            source?.idNumber
+        );
+        const hasAddress = Boolean(
             source?.addressLine1 &&
             source?.addressCity &&
-            source?.addressProvince &&
             source?.addressCountry
         );
+        const hasLocation = Boolean(source?.location);
+        return hasIdentity && (hasAddress || hasLocation);
     }, [profileData, user]);
 
     const profilePhotoUrl = profilePhoto ? getImageUrl(profilePhoto) : null;

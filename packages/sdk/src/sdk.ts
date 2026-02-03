@@ -696,6 +696,12 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           };
         }>(),
     },
+    paymentProviders: {
+      getEnabledGateways: async () =>
+        client.get("payment-providers/enabled-gateways").json<any[]>(),
+      getDefaultProvider: async () =>
+        client.get("payment-providers/default").json<any>(),
+    },
     geo: {
       suburbs: async () =>
         client
@@ -767,6 +773,8 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         client.post("ads/campaigns", { json: dto }).json<any>(),
       updateCampaign: async (id: string, dto: any) =>
         client.patch(`ads/campaigns/${id}`, { json: dto }).json<any>(),
+      deleteCampaign: async (id: string) =>
+        client.delete(`ads/campaigns/${id}`).json<any>(),
       pauseCampaign: async (id: string) =>
         client.post(`ads/campaigns/${id}/pause`).json<any>(),
       resumeCampaign: async (id: string) =>
@@ -778,6 +786,77 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         client.get("ads/analytics/summary").json<any>(),
       getAdminAnalytics: async () =>
         client.get("admin/ads/analytics").json<any>(),
+      getPlacements: async () => client.get("ads/placements").json<any[]>(),
+      getAdvertisers: async () => client.get("ads/advertisers").json<any[]>(),
+      getAdvertiser: async () => client.get("ads/advertiser").json<any>(),
+      createPlacement: async (payload: {
+        code: string;
+        name: string;
+        description?: string | null;
+        page: string;
+        position: string;
+        allowedTypes?: string[];
+        allowDirect?: boolean;
+        allowAdSense?: boolean;
+        policyCompliant?: boolean;
+      }) => client.post("ads/placements", { json: payload }).json<any>(),
+      updatePlacement: async (
+        id: string,
+        payload: {
+          code?: string;
+          name?: string;
+          description?: string | null;
+          page?: string;
+          position?: string;
+          allowedTypes?: string[];
+          allowDirect?: boolean;
+          allowAdSense?: boolean;
+          policyCompliant?: boolean;
+        },
+      ) => client.patch(`ads/placements/${id}`, { json: payload }).json<any>(),
+      getCreatives: async () => client.get("ads/creatives").json<any[]>(),
+      createCreative: async (payload: {
+        type: string;
+        htmlSnippet: string;
+        clickUrl: string;
+        width: number;
+        height: number;
+      }) => client.post("ads/creatives", { json: payload }).json<any>(),
+      uploadCreative: async (payload: {
+        file: File;
+        clickUrl: string;
+        width: number;
+        height: number;
+      }) => {
+        const formData = new FormData();
+        formData.append("file", payload.file);
+        formData.append("clickUrl", payload.clickUrl);
+        formData.append("width", String(payload.width));
+        formData.append("height", String(payload.height));
+        return client
+          .post("ads/creatives/upload", { body: formData })
+          .json<any>();
+      },
+      deleteCreative: async (id: string) =>
+        client.delete(`ads/creatives/${id}`).json<any>(),
+      requestWithdrawal: async (payload: {
+        amountCents: number;
+        reason?: string;
+        referenceId?: string;
+      }) =>
+        client.post("ads/withdrawals/request", { json: payload }).json<any>(),
+      requestWithdrawalReversal: async (payload: {
+        amountCents: number;
+        reason?: string;
+        referenceId?: string;
+      }) =>
+        client.post("ads/withdrawals/reversal", { json: payload }).json<any>(),
+      createTopupIntent: async (payload: {
+        amountCents: number;
+        currency?: string;
+        gateway?: string;
+        returnUrl?: string;
+      }) => client.post("ads/topup-intent", { json: payload }).json<any>(),
       // Balance methods
       getBalance: async () =>
         client.get("ads/balance").json<{ balanceCents: number }>(),

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { cn } from "@propad/ui";
 import type { Role } from "@propad/sdk";
 import type { ReactNode } from "react";
@@ -33,6 +33,22 @@ const links = [
       "MODERATOR",
     ] as Role[],
     icon: <LayoutDashboard className="h-4 w-4" />,
+  },
+  {
+    href: "/dashboard/profile",
+    label: "My Profile",
+    roles: [
+      "ADMIN",
+      "VERIFIER",
+      "AGENT",
+      "LANDLORD",
+      "USER",
+      "MODERATOR",
+      "ADVERTISER",
+      "INDEPENDENT_AGENT",
+      "COMPANY_ADMIN",
+    ] as Role[],
+    icon: <Users className="h-4 w-4" />,
   },
   {
     href: "/dashboard/listings",
@@ -212,7 +228,7 @@ const links = [
   {
     href: "/dashboard/profile",
     label: "Profile",
-    roles: ["AGENT", "LANDLORD", "USER", "MODERATOR"] as Role[],
+    roles: [] as Role[],
     icon: <Users className="h-4 w-4" />,
   },
 ];
@@ -291,6 +307,21 @@ export function DashboardNav() {
               )}
             </div>
           </div>
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <Link
+            href="/"
+            className="inline-flex flex-1 items-center justify-center rounded-lg border border-[color:var(--aurora-color-border)] px-3 py-1.5 text-xs font-medium text-[color:var(--aurora-color-text-subtle)] hover:bg-[color:var(--aurora-color-input)]"
+          >
+            Home
+          </Link>
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="inline-flex flex-1 items-center justify-center rounded-lg bg-[color:var(--aurora-color-accent)]/10 px-3 py-1.5 text-xs font-medium text-[color:var(--aurora-color-accent)] hover:bg-[color:var(--aurora-color-accent)]/20"
+          >
+            Sign out
+          </button>
         </div>
       </div>
     </nav>

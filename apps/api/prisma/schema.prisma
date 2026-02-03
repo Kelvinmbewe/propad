@@ -316,6 +316,28 @@ enum KycIdType {
   CERT_OF_INC
 }
 
+enum AffiliationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DocumentStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+enum DocumentType {
+  IDENTITY
+  PROOF_ADDRESS
+  CERTIFICATE
+  TAX
+  UBO
+  OTHER
+}
+
 enum WalletTransactionType {
   CREDIT
   DEBIT
@@ -572,6 +594,13 @@ model User {
   paymentMethodStatusLogs     PaymentMethodStatusLog[]  @relation("PaymentMethodStatusActor")
   auditLogs                   AuditLog[]                @relation("AuditLogActor")
   ownedAdvertisers            Advertiser[]              @relation("AdvertiserOwner")
+  userKyc                     UserKyc?
+  companyAffiliations         UserCompanyAffiliation[]
+  documents                   Document[]               @relation("UserDocuments")
+  userKycReviews              UserKyc[]                 @relation("UserKycReviewer")
+  companyKycReviews           CompanyKyc[]              @relation("CompanyKycReviewer")
+  affiliationApprovals        UserCompanyAffiliation[]  @relation("UserAffiliationApprover")
+  verifiedDocuments           Document[]                @relation("DocumentVerifier")
 
   // New relations
   interestsCreated         Interest[]           @relation("UserInterests")
@@ -620,6 +649,60 @@ model User {
   commissions              Commission[]              @relation("UserCommissions")
   conversationParticipants ConversationParticipant[] @relation("ConversationParticipants")
   sentConversationMessages Message[]                 @relation("UserMessages")
+}
+
+model UserKyc {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  status      KycStatus @default(PENDING)
+  reviewerId  String?
+  reviewedAt  DateTime?
+  requestedAt DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user      User             @relation(fields: [userId], references: [id])
+  reviewer  User?            @relation("UserKycReviewer", fields: [reviewerId], references: [id])
+  identity  UserKycIdentity?
+  documents Document[] @relation("UserKycDocuments")
+}
+
+model UserKycIdentity {
+  id             String   @id @default(cuid())
+  userKycId       String   @unique
+  legalName      String
+  idNumber       String?
+  idType         KycIdType
+  dateOfBirth    DateTime?
+  addressLine1   String?
+  addressCity    String?
+  addressProvince String?
+  addressCountry String?
+  verifiedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  userKyc UserKyc @relation(fields: [userKycId], references: [id])
+}
+
+model UserCompanyAffiliation {
+  id         String            @id @default(cuid())
+  userId     String
+  agencyId   String
+  roleTitle  String?
+  status     AffiliationStatus @default(PENDING)
+  approvedById String?
+  approvedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User   @relation(fields: [userId], references: [id])
+  agency     Agency @relation(fields: [agencyId], references: [id])
+  approvedBy User?  @relation("UserAffiliationApprover", fields: [approvedById], references: [id])
+
+  @@index([userId, status])
+  @@index([agencyId, status])
 }
 
 model UserRole {
@@ -703,9 +786,127 @@ model Agency {
   properties    Property[]
   buyerInvoices Invoice[]            @relation("InvoiceBuyerAgency")
   reviews       AgencyReview[]
+  companyProfile Company?
+  affiliations  UserCompanyAffiliation[]
 
   @@index([status])
   @@index([name])
+}
+
+model Company {
+  id                  String   @id @default(cuid())
+  agencyId            String?  @unique
+  name                String
+  slug                String?  @unique
+  logoUrl             String?
+  coverUrl            String?
+  shortDescription    String?
+  description         String?
+  servicesJson        Json?
+  areasServedJson     Json?
+  hoursJson           Json?
+  languagesJson       Json?
+  socialLinksJson     Json?
+  responseTimeMinutes Int?
+  trustScore          Int      @default(0)
+  trustBreakdownJson  Json?
+  listingsCount       Int      @default(0)
+  reviewsCount        Int      @default(0)
+  avgRating           Float    @default(0)
+  verifiedTransactionsCount Int @default(0)
+  complaintResolutionRate    Float @default(0)
+  yearsActive         Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  agency    Agency? @relation(fields: [agencyId], references: [id])
+  kyc       CompanyKyc?
+  documents Document[] @relation("CompanyDocuments")
+}
+
+model CompanyKyc {
+  id            String     @id @default(cuid())
+  companyId     String     @unique
+  status        KycStatus  @default(PENDING)
+  reviewerId    String?
+  reviewedAt    DateTime?
+  requestedAt   DateTime?
+  riskFlagsJson Json?
+  notes         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id])
+  reviewer  User?   @relation("CompanyKycReviewer", fields: [reviewerId], references: [id])
+  identity  CompanyKycIdentity?
+  ubos      CompanyKycUbo[]
+  documents Document[] @relation("CompanyKycDocuments")
+}
+
+model CompanyKycIdentity {
+  id                  String   @id @default(cuid())
+  companyKycId         String   @unique
+  legalName           String
+  registrationNumber  String?
+  taxNumber           String?
+  addressLine1        String?
+  addressCity         String?
+  addressProvince     String?
+  addressCountry      String?
+  verifiedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  companyKyc CompanyKyc @relation(fields: [companyKycId], references: [id])
+}
+
+model CompanyKycUbo {
+  id             String   @id @default(cuid())
+  companyKycId   String
+  fullName       String
+  nationalId     String?
+  ownershipPct   Float?
+  dateOfBirth    DateTime?
+  addressLine1   String?
+  addressCity    String?
+  addressProvince String?
+  addressCountry String?
+  verifiedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  companyKyc CompanyKyc @relation(fields: [companyKycId], references: [id])
+
+  @@index([companyKycId])
+}
+
+model Document {
+  id              String         @id @default(cuid())
+  companyId       String?
+  userId          String?
+  companyKycId    String?
+  userKycId       String?
+  type            DocumentType
+  status          DocumentStatus @default(PENDING)
+  storagePath     String
+  fileHash        String?
+  expiresAt       DateTime?
+  extractedFields Json?
+  verifiedById    String?
+  verifiedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company    Company?   @relation("CompanyDocuments", fields: [companyId], references: [id])
+  user       User?      @relation("UserDocuments", fields: [userId], references: [id])
+  companyKyc CompanyKyc? @relation("CompanyKycDocuments", fields: [companyKycId], references: [id])
+  userKyc    UserKyc?    @relation("UserKycDocuments", fields: [userKycId], references: [id])
+  verifiedBy User?      @relation("DocumentVerifier", fields: [verifiedById], references: [id])
+
+  @@index([companyId, status])
+  @@index([userId, status])
+  @@index([companyKycId])
+  @@index([userKycId])
 }
 
 model AgencyMember {

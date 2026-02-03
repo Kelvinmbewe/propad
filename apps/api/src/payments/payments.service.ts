@@ -15,6 +15,7 @@ import {
   Prisma,
   PrismaClient,
   TransactionResult,
+  WalletLedgerSourceType,
 } from "@prisma/client";
 import {
   ChargeableItemType,
@@ -36,11 +37,15 @@ import { PricingService } from "./pricing.service";
 import { CommissionsService } from "../commissions/commissions.service";
 import { RewardsService } from "../rewards/rewards.service";
 import { PaymentProviderSettingsService } from "./payment-provider-settings.service";
+import { WalletLedgerService } from "../wallets/wallet-ledger.service";
 
 const VAT_SCALE = 100;
 const MICRO_SCALE = 1_000_000;
 
-type PrismaTx = Omit<PrismaClient, '$on' | '$connect' | '$disconnect' | '$use' | '$transaction' | '$extends'>;
+type PrismaTx = Omit<
+  PrismaClient,
+  "$on" | "$connect" | "$disconnect" | "$use" | "$transaction" | "$extends"
+>;
 type PrismaClientOrTx = PrismaTx;
 
 type InvoiceWithRelations = Invoice & {
@@ -123,7 +128,8 @@ export class PaymentsService {
     private readonly referrals: ReferralsService,
     private readonly providerSettings: PaymentProviderSettingsService,
     private readonly appConfig: AppConfigService,
-  ) { }
+    private readonly ledger: WalletLedgerService,
+  ) {}
 
   // Property injection to avoid constructor overload if preferred, but standard is constructor.
   // Actually, let's use ModuleRef later if circular.
@@ -735,6 +741,35 @@ export class PaymentsService {
 
     if (invoice.campaign) {
       await this.activateCampaign(tx, invoice.campaign, issuedAt);
+    }
+
+    const topupLine = updated.lines.find((line) => {
+      if (!line.metaJson || typeof line.metaJson !== "object") {
+        return false;
+      }
+      return "adTopup" in line.metaJson;
+    });
+
+    if (topupLine && updated.advertiserId) {
+      const advertiser = await tx.advertiser.findUnique({
+        where: { id: updated.advertiserId },
+        select: { ownerId: true },
+      });
+      if (advertiser?.ownerId) {
+        const totalUsdCents =
+          (updated.amountUsdCents ?? 0) + (updated.taxUsdCents ?? 0);
+        if (totalUsdCents > 0) {
+          await this.ledger.credit(
+            advertiser.ownerId,
+            totalUsdCents,
+            Currency.USD,
+            WalletLedgerSourceType.ADJUSTMENT,
+            `TOPUP-${updated.id}`,
+            "Advertiser Top Up",
+            tx,
+          );
+        }
+      }
     }
 
     // Growth: Qualify Referral for Advertiser (First Paid Invoice)

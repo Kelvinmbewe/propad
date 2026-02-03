@@ -14,7 +14,7 @@ import {
 } from "@propad/ui";
 import { FileCheck, UploadCloud } from "lucide-react";
 import { format } from "date-fns";
-import { getRequiredPublicApiBaseUrl } from "@/lib/api-base-url";
+import { getPublicApiBaseUrl } from "@/lib/api-base-url";
 
 type OwnerType = "USER" | "AGENCY";
 
@@ -70,7 +70,7 @@ export function KycSubmissionPanel({
   requestUpdateEndpoint,
 }: KycSubmissionPanelProps) {
   const { data } = useSession();
-  const apiBaseUrl = getRequiredPublicApiBaseUrl();
+  const apiBaseUrl = getPublicApiBaseUrl() ?? "http://localhost:3001/v1";
   const token = data?.accessToken as string | undefined;
   const queryClient = useQueryClient();
 
@@ -166,6 +166,7 @@ export function KycSubmissionPanel({
             slot.docType === "IDENTITY" ? idType : slot.docType,
           ),
       ));
+  const allowResubmission = overallStatus === "PENDING" && ownerHasUpdates;
   const isLocked =
     overallStatus === "VERIFIED" && !updateRequested && !allowSupplemental;
 
@@ -450,9 +451,85 @@ export function KycSubmissionPanel({
     uploads.some((item) => item.status === "uploaded") &&
     requiredSlotsMet &&
     (idType !== "PASSPORT" || idExpiryDate.trim().length > 0);
+  const isProfileGateBlocking = !prerequisiteMet;
   const isDisabled = !prerequisiteMet || !isOwner || isLocked;
   const shouldShowRequestUpdate =
     overallStatus === "VERIFIED" && requestUpdateEndpoint && !allowSupplemental;
+
+  if (!prerequisiteMet || !isOwner) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileCheck className="h-4 w-4 text-emerald-600" /> {title}
+          </CardTitle>
+          <p className="text-sm text-neutral-500">{description}</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!isOwner && (
+            <p className="text-xs text-neutral-400">
+              Only the profile owner can submit verification documents.
+            </p>
+          )}
+          {prerequisiteMessage && (
+            <p className="text-xs font-medium text-amber-600">
+              {prerequisiteMessage}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (overallStatus === "PENDING" && !allowResubmission) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileCheck className="h-4 w-4 text-emerald-600" /> {title}
+          </CardTitle>
+          <p className="text-sm text-neutral-500">{description}</p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-neutral-600">
+            Your KYC submission is under review.
+          </p>
+          <p className="text-xs text-neutral-500">
+            If you update your profile details, you can submit updated
+            documents.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (overallStatus === "VERIFIED" && !allowSupplemental && !updateRequested) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileCheck className="h-4 w-4 text-emerald-600" /> {title}
+          </CardTitle>
+          <p className="text-sm text-neutral-500">{description}</p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-emerald-600">
+            Your KYC has been verified.
+          </p>
+          {requestUpdateEndpoint && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={requestKycUpdate}
+              disabled={updateRequested}
+            >
+              {updateRequested ? "Update requested" : "Request KYC update"}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -468,7 +545,7 @@ export function KycSubmissionPanel({
             Only the profile owner can submit verification documents.
           </p>
         )}
-        {!prerequisiteMet && prerequisiteMessage && (
+        {isProfileGateBlocking && prerequisiteMessage && (
           <p className="text-xs font-medium text-amber-600">
             {prerequisiteMessage}
           </p>

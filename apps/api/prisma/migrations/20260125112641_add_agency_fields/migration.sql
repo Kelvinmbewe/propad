@@ -93,6 +93,7 @@ ALTER TYPE "PropertyStatus" ADD VALUE 'PUBLISHED';
 BEGIN;
 CREATE TYPE "RewardEventType_new" AS ENUM ('LISTING_VERIFIED', 'LEAD_VALID', 'SALE_CONFIRMED', 'BONUS_TIER', 'PROMO_REBATE');
 ALTER TABLE "RewardDistribution" ALTER COLUMN "sourceType" DROP DEFAULT;
+ALTER TABLE "RewardDistribution" ALTER COLUMN "sourceType" TYPE "RewardEventType_new" USING ("sourceType"::text::"RewardEventType_new");
 ALTER TABLE "RewardEvent" ALTER COLUMN "type" TYPE "RewardEventType_new" USING ("type"::text::"RewardEventType_new");
 ALTER TYPE "RewardEventType" RENAME TO "RewardEventType_old";
 ALTER TYPE "RewardEventType_new" RENAME TO "RewardEventType";
