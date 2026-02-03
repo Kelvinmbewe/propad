@@ -109,8 +109,8 @@ async function main() {
   const prisma = new PrismaClient();
 
   const schemaPath = path.resolve(
-    process.cwd(),
-    "apps/api/prisma/schema.prisma",
+    __dirname,
+    "schema.prisma",
   );
   const schema = fs.readFileSync(schemaPath, "utf8");
 
@@ -160,6 +160,12 @@ async function main() {
       name: "Demo User",
       password: "User123!",
       role: resolveRole("USER"),
+    },
+    {
+      email: "advertiser@propad.local",
+      name: "Advertiser User",
+      password: "Advertiser123!",
+      role: resolveRole("ADVERTISER"),
     },
   ];
 
