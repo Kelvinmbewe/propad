@@ -823,8 +823,9 @@ function ManagementTab({
   const isAccepted = assignmentStatus === "ACCEPTED";
   const isPending = assignmentStatus === "CREATED";
   const [isRequestingChange, setIsRequestingChange] = useState(false);
+  const ownerId = (property as any)?.ownerId ?? property?.landlordId ?? null;
   const canRequestManagement =
-    sessionRole === "LANDLORD" || sessionRole === "ADMIN";
+    sessionRole === "ADMIN" || (ownerId && ownerId === sessionUserId);
   const managerType = latestManagement?.managedByType || managedByType;
 
   const selectedAgentData =
