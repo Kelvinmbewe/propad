@@ -138,6 +138,10 @@ export const PropertySchema = z
     listingIntent: z.string().nullish(),
     currency: z.string(),
     price: decimalToNumber,
+    ownerId: z.string().nullish(),
+    managedByType: z.string().nullish(),
+    managedById: z.string().nullish(),
+    assignedAgentId: z.string().nullish(),
     areaSqm: z.number().nullish(),
     status: z.string().optional(),
     countryId: z.string().nullish(),
@@ -344,6 +348,31 @@ export const AgentAssignmentSchema = z
   })
   .passthrough();
 
+export const ListingManagementAssignmentSchema = z
+  .object({
+    id: z.string(),
+    propertyId: z.string(),
+    ownerId: z.string(),
+    managedByType: z.string(),
+    managedById: z.string().nullish(),
+    assignedAgentId: z.string().nullish(),
+    serviceFeeUsdCents: z.number().nullish(),
+    landlordPaysFee: z.boolean(),
+    status: z.string(),
+    createdById: z.string().nullish(),
+    acceptedById: z.string().nullish(),
+    acceptedAt: z.string().nullish(),
+    declinedAt: z.string().nullish(),
+    endedAt: z.string().nullish(),
+    notes: z.string().nullish(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    assignedAgent: UserSummarySchema.nullish(),
+    createdBy: UserSummarySchema.nullish(),
+    acceptedBy: UserSummarySchema.nullish(),
+  })
+  .passthrough();
+
 export const PropertyMessageSchema = z
   .object({
     id: z.string(),
@@ -351,6 +380,11 @@ export const PropertyMessageSchema = z
     senderId: z.string(),
     recipientId: z.string(),
     body: z.string(),
+    moderationStatus: z.string().nullish(),
+    containsContactInfo: z.boolean().nullish(),
+    moderatedAt: z.string().nullish(),
+    moderatedById: z.string().nullish(),
+    moderationNotes: z.string().nullish(),
     createdAt: z.string(),
     readAt: z.string().nullish(),
     sender: UserSummarySchema.nullish(),
@@ -361,10 +395,17 @@ export const PropertyMessageSchema = z
 export const PropertyManagementSchema = PropertySchema.extend({
   landlordId: z.string().nullish(),
   agentOwnerId: z.string().nullish(),
+  ownerId: z.string().nullish(),
+  managedByType: z.string().nullish(),
+  managedById: z.string().nullish(),
+  assignedAgentId: z.string().nullish(),
   dealConfirmedAt: z.string().nullish(),
   assignments: AgentAssignmentSchema.array().optional(),
+  managementAssignments: ListingManagementAssignmentSchema.array().optional(),
   landlord: UserSummarySchema.nullish(),
   agentOwner: UserSummarySchema.nullish(),
+  owner: UserSummarySchema.nullish(),
+  assignedAgent: UserSummarySchema.nullish(),
   agency: AgencySummarySchema.nullish(),
   managementContracts: ManagementContractSchema.array().optional(),
 });
@@ -629,6 +670,9 @@ export type FacebookPublishResponse = z.infer<
 >;
 export type AgentSummary = z.infer<typeof AgentSummarySchema>;
 export type AgentAssignment = z.infer<typeof AgentAssignmentSchema>;
+export type ListingManagementAssignment = z.infer<
+  typeof ListingManagementAssignmentSchema
+>;
 export type PropertyMessage = z.infer<typeof PropertyMessageSchema>;
 export type PropertyManagement = z.infer<typeof PropertyManagementSchema>;
 export type UserSummary = z.infer<typeof UserSummarySchema>;

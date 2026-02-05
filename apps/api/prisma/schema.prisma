@@ -451,6 +451,43 @@ enum AgentAssignmentStatus {
   RESIGNED
 }
 
+enum ListingManagedByType {
+  OWNER
+  AGENT
+  AGENCY
+}
+
+enum ListingManagementStatus {
+  CREATED
+  ACCEPTED
+  DECLINED
+  ENDED
+}
+
+enum InterestPipelineStatus {
+  NEW
+  CONTACTED
+  VIEWING_SCHEDULED
+  OFFER_RECEIVED
+  ACCEPTED
+  REJECTED
+  CLOSED
+}
+
+enum ViewingRequestStatus {
+  REQUESTED
+  ACCEPTED
+  RESCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+enum MessageModerationStatus {
+  OK
+  FLAGGED
+  BLOCKED
+}
+
 model Country {
   id         String     @id @default(cuid())
   iso2       String     @unique
@@ -567,6 +604,8 @@ model User {
   landlordProfile             LandlordProfile?
   propertiesOwned             Property[]                @relation("AgentOwnerProperties")
   properties                  Property[]                @relation("LandlordProperties")
+  ownedListings               Property[]                @relation("ListingOwner")
+  assignedManagedListings     Property[]                @relation("ListingAssignedAgent")
   leads                       Lead[]
   verifications               Verification[]            @relation("VerificationVerifier")
   verificationsRequested      Verification[]            @relation("VerificationRequester")
@@ -581,6 +620,7 @@ model User {
   landlordAssignments         AgentAssignment[]         @relation("LandlordAgentAssignments")
   sentMessages                PropertyMessage[]         @relation("MessageSender")
   receivedMessages            PropertyMessage[]         @relation("MessageRecipient")
+  moderatedPropertyMessages   PropertyMessage[]         @relation("PropertyMessageModerator")
   dealConfirmations           Property[]                @relation("PropertyDealConfirmer")
   agencyMemberships           AgencyMember[]
   landlordContracts           ManagementContract[]      @relation("LandlordManagementContracts")
@@ -649,6 +689,11 @@ model User {
   commissions              Commission[]              @relation("UserCommissions")
   conversationParticipants ConversationParticipant[] @relation("ConversationParticipants")
   sentConversationMessages Message[]                 @relation("UserMessages")
+  moderatedMessages       Message[]                 @relation("MessageModerator")
+  managementAssignmentsCreated ListingManagementAssignment[] @relation("ListingManagementCreator")
+  managementAssignmentsAccepted ListingManagementAssignment[] @relation("ListingManagementAccepter")
+  managementAssignmentsOwned ListingManagementAssignment[] @relation("ListingManagementOwner")
+  managementAssignmentsAssigned ListingManagementAssignment[] @relation("ListingManagementAssignedAgent")
 }
 
 model UserKyc {
@@ -954,6 +999,10 @@ model Property {
   landlordId        String?
   agentOwnerId      String?
   agencyId          String?
+  ownerId           String?
+  managedByType     ListingManagedByType @default(OWNER)
+  managedById       String?
+  assignedAgentId   String?
   countryId         String?
   provinceId        String?
   cityId            String?
@@ -985,6 +1034,8 @@ model Property {
 
   landlord        User?                @relation("LandlordProperties", fields: [landlordId], references: [id])
   agentOwner      User?                @relation("AgentOwnerProperties", fields: [agentOwnerId], references: [id])
+  owner           User?                @relation("ListingOwner", fields: [ownerId], references: [id])
+  assignedAgent   User?                @relation("ListingAssignedAgent", fields: [assignedAgentId], references: [id])
   agency          Agency?              @relation(fields: [agencyId], references: [id])
   country         Country?             @relation(fields: [countryId], references: [id])
   province        Province?            @relation(fields: [provinceId], references: [id])
@@ -998,6 +1049,7 @@ model Property {
   adImpressions   AdImpression[]
   promoBoosts     PromoBoost[]
   assignments     AgentAssignment[]
+  managementAssignments ListingManagementAssignment[]
   messages        PropertyMessage[]
   priceHistory    PriceHistory[]
   discountOffers  DiscountOffer[]
@@ -1070,18 +1122,55 @@ model AgentAssignment {
   @@index([agentId, status])
 }
 
+model ListingManagementAssignment {
+  id                 String                 @id @default(cuid())
+  propertyId         String
+  ownerId            String
+  managedByType      ListingManagedByType
+  managedById        String?
+  assignedAgentId    String?
+  serviceFeeUsdCents Int?
+  landlordPaysFee    Boolean                @default(true)
+  status             ListingManagementStatus @default(CREATED)
+  createdById        String?
+  acceptedById       String?
+  acceptedAt         DateTime?
+  declinedAt         DateTime?
+  endedAt            DateTime?
+  notes              String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  property      Property @relation(fields: [propertyId], references: [id])
+  owner         User     @relation("ListingManagementOwner", fields: [ownerId], references: [id])
+  assignedAgent User?    @relation("ListingManagementAssignedAgent", fields: [assignedAgentId], references: [id])
+  createdBy     User?    @relation("ListingManagementCreator", fields: [createdById], references: [id])
+  acceptedBy    User?    @relation("ListingManagementAccepter", fields: [acceptedById], references: [id])
+
+  @@index([propertyId, createdAt(sort: Desc)])
+  @@index([ownerId, status])
+  @@index([assignedAgentId, status])
+  @@index([managedByType, managedById])
+}
+
 model PropertyMessage {
   id          String    @id @default(cuid())
   propertyId  String
   senderId    String
   recipientId String
   body        String
+  moderationStatus MessageModerationStatus @default(OK)
+  containsContactInfo Boolean @default(false)
+  moderatedAt DateTime?
+  moderatedById String?
+  moderationNotes String?
   createdAt   DateTime  @default(now())
   readAt      DateTime?
 
   property  Property @relation(fields: [propertyId], references: [id])
   sender    User     @relation("MessageSender", fields: [senderId], references: [id])
   recipient User     @relation("MessageRecipient", fields: [recipientId], references: [id])
+  moderatedBy User?   @relation("PropertyMessageModerator", fields: [moderatedById], references: [id])
 
   @@index([propertyId, createdAt])
   @@index([recipientId, readAt])
@@ -1392,9 +1481,17 @@ model Viewing {
   landlordId  String? // If landlord is handling
   scheduledAt DateTime
   status      String   @default("PENDING")
+  statusV2    ViewingRequestStatus @default(REQUESTED)
   notes       String?
   locationLat Float?
   locationLng Float?
+  requestedAt DateTime? @default(now())
+  acceptedAt  DateTime?
+  rescheduledAt DateTime?
+  cancelledAt DateTime?
+  completedAt DateTime?
+  viewerConfirmedAt DateTime?
+  hostConfirmedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -2061,6 +2158,7 @@ model Interest {
   propertyId  String
   userId      String
   status      String   @default("PENDING")
+  pipelineStatus InterestPipelineStatus @default(NEW)
   offerAmount Decimal? @db.Decimal(12, 2)
   message     String?
   createdAt   DateTime @default(now())
@@ -2572,11 +2670,17 @@ model Message {
   conversationId String
   senderId       String
   body           String
+  moderationStatus MessageModerationStatus @default(OK)
+  containsContactInfo Boolean @default(false)
+  moderatedAt    DateTime?
+  moderatedById  String?
+  moderationNotes String?
   createdAt      DateTime  @default(now())
   readAt         DateTime?
 
   conversation Conversation @relation(fields: [conversationId], references: [id])
   sender       User         @relation("UserMessages", fields: [senderId], references: [id])
+  moderatedBy  User?        @relation("MessageModerator", fields: [moderatedById], references: [id])
 
   @@index([conversationId, createdAt])
   @@index([senderId])

@@ -2,6 +2,7 @@ import ky from "ky";
 import {
   AdImpressionSchema,
   AgentAssignmentSchema,
+  ListingManagementAssignmentSchema,
   AgentSummarySchema,
   AmlBlocklistEntrySchema,
   AdminOverviewMetricsSchema,
@@ -33,6 +34,7 @@ import {
   ApplicationSchema,
   type AdImpression,
   type AgentAssignment,
+  type ListingManagementAssignment,
   type AgentSummary,
   type AmlBlocklistEntry,
   type AdminOverviewMetrics,
@@ -392,6 +394,41 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .post(`properties/assignments/${assignmentId}/accept`)
           .json<AgentAssignment>()
           .then((data) => AgentAssignmentSchema.parse(data)),
+      createManagementAssignment: async (
+        id: string,
+        payload: {
+          managedByType: "OWNER" | "AGENT" | "AGENCY";
+          managedById?: string;
+          assignedAgentId?: string;
+          serviceFeeUsd?: number;
+          landlordPaysFee?: boolean;
+          notes?: string;
+        },
+      ) =>
+        client
+          .post(`properties/${id}/management`, { json: payload })
+          .json<ListingManagementAssignment>()
+          .then((data) => ListingManagementAssignmentSchema.parse(data)),
+      acceptManagementAssignment: async (assignmentId: string) =>
+        client
+          .post(`properties/management/${assignmentId}/accept`)
+          .json<{ success: boolean }>(),
+      declineManagementAssignment: async (assignmentId: string) =>
+        client
+          .post(`properties/management/${assignmentId}/decline`)
+          .json<{ success: boolean }>(),
+      endManagementAssignment: async (assignmentId: string) =>
+        client
+          .post(`properties/management/${assignmentId}/end`)
+          .json<{ success: boolean }>(),
+      setOperatingAgent: async (
+        id: string,
+        payload: { assignedAgentId: string | null },
+      ) =>
+        client
+          .patch(`properties/${id}/management/agent`, { json: payload })
+          .json<PropertyManagement>()
+          .then((data) => PropertyManagementSchema.parse(data)),
       updateDealConfirmation: async (
         id: string,
         payload: { confirmed: boolean },

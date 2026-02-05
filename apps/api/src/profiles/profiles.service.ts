@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { BadgesHelper, TrustBadge } from "../trust/badges.helper";
 import { AuditService } from "../audit/audit.service";
+import { KycStatus, OwnerType } from "@prisma/client";
 import { existsSync } from "fs";
 import { mkdir, writeFile } from "fs/promises";
 import { join, resolve } from "path";
@@ -205,6 +206,28 @@ export class ProfilesService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException("User not found");
 
+    const docTypesToUpdate = new Set<string>();
+    const identityFieldsChanged =
+      (data.name !== undefined && data.name.trim() !== (user.name ?? "")) ||
+      (data.dateOfBirth !== undefined &&
+        new Date(data.dateOfBirth).toISOString() !==
+          (user.dateOfBirth ? user.dateOfBirth.toISOString() : "")) ||
+      (data.idNumber !== undefined &&
+        data.idNumber.trim() !== (user.idNumber ?? ""));
+    const addressFieldsChanged =
+      (data.addressLine1 !== undefined &&
+        data.addressLine1.trim() !== (user.addressLine1 ?? "")) ||
+      (data.addressCity !== undefined &&
+        data.addressCity.trim() !== (user.addressCity ?? "")) ||
+      (data.addressProvince !== undefined &&
+        data.addressProvince.trim() !== (user.addressProvince ?? "")) ||
+      (data.addressCountry !== undefined &&
+        data.addressCountry.trim() !== (user.addressCountry ?? "")) ||
+      (data.location !== undefined &&
+        data.location.trim() !== (user.location ?? ""));
+    if (identityFieldsChanged) docTypesToUpdate.add("IDENTITY");
+    if (addressFieldsChanged) docTypesToUpdate.add("PROOF_ADDRESS");
+
     const cleaned = {
       name: data.name?.trim() || undefined,
       phone: data.phone?.trim() || undefined,
@@ -217,9 +240,26 @@ export class ProfilesService {
       location: data.location?.trim() || undefined,
     };
 
-    const updated = await this.prisma.user.update({
-      where: { id: userId },
-      data: cleaned as any,
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const userUpdate = await tx.user.update({
+        where: { id: userId },
+        data: cleaned as any,
+      });
+      if (docTypesToUpdate.size > 0) {
+        await tx.kycRecord.create({
+          data: {
+            ownerType: OwnerType.USER,
+            ownerId: userId,
+            idType: "NATIONAL_ID",
+            idNumber: "PROFILE_UPDATE",
+            docUrls: [],
+            docTypes: Array.from(docTypesToUpdate),
+            notes: "PROFILE_UPDATE",
+            status: KycStatus.PENDING,
+          } as any,
+        });
+      }
+      return userUpdate;
     });
 
     await this.audit.logAction({

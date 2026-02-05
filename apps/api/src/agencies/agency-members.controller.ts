@@ -4,6 +4,7 @@ import {
   Delete,
   Body,
   Param,
+  Get,
   UseGuards,
   Req,
   ForbiddenException,
@@ -68,6 +69,22 @@ export class AgencyMembersController {
     });
 
     return member;
+  }
+
+  @Get()
+  @Roles(Role.ADMIN, Role.COMPANY_ADMIN)
+  async listMembers(@Param("id") agencyId: string, @Req() req: any) {
+    if (req.user.role !== Role.ADMIN) {
+      const myAgency = await this.agenciesService.getMyAgency(req.user.id);
+      if (myAgency?.id !== agencyId)
+        throw new ForbiddenException("Not your agency");
+    }
+
+    return this.prisma.agencyMember.findMany({
+      where: { agencyId },
+      include: { user: true },
+      orderBy: { joinedAt: "desc" },
+    });
   }
 
   @Delete(":userId")

@@ -58,6 +58,14 @@ import {
   updateServiceFeeSchema,
 } from "./dto/update-service-fee.dto";
 import {
+  CreateManagementAssignmentDto,
+  createManagementAssignmentSchema,
+} from "./dto/create-management-assignment.dto";
+import {
+  SetOperatingAgentDto,
+  setOperatingAgentSchema,
+} from "./dto/set-operating-agent.dto";
+import {
   CreateOfflineListingPaymentDto,
   createOfflineListingPaymentSchema,
 } from "./dto/create-offline-listing-payment.dto";
@@ -102,7 +110,7 @@ interface AuthenticatedRequest {
 
 @Controller("properties")
 export class PropertiesController {
-  constructor(private readonly propertiesService: PropertiesService) { }
+  constructor(private readonly propertiesService: PropertiesService) {}
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -328,10 +336,7 @@ export class PropertiesController {
   @Delete(":id/agent")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.LANDLORD, Role.ADMIN)
-  resignAgent(
-    @Param("id") id: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
+  resignAgent(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.propertiesService.resignAgent(id, req.user);
   }
 
@@ -343,6 +348,69 @@ export class PropertiesController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.propertiesService.acceptAssignment(assignmentId, req.user);
+  }
+
+  @Post(":id/management")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.LANDLORD, Role.ADMIN)
+  createManagementAssignment(
+    @Param("id") id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(createManagementAssignmentSchema))
+    dto: CreateManagementAssignmentDto,
+  ) {
+    return this.propertiesService.createManagementAssignment(id, dto, req.user);
+  }
+
+  @Post("management/:assignmentId/accept")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.AGENT, Role.COMPANY_ADMIN)
+  acceptManagementAssignment(
+    @Param("assignmentId") assignmentId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.propertiesService.acceptManagementAssignment(
+      assignmentId,
+      req.user,
+    );
+  }
+
+  @Post("management/:assignmentId/decline")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.AGENT, Role.COMPANY_ADMIN)
+  declineManagementAssignment(
+    @Param("assignmentId") assignmentId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.propertiesService.declineManagementAssignment(
+      assignmentId,
+      req.user,
+    );
+  }
+
+  @Post("management/:assignmentId/end")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.LANDLORD, Role.COMPANY_ADMIN, Role.AGENT)
+  endManagementAssignment(
+    @Param("assignmentId") assignmentId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.propertiesService.endManagementAssignment(
+      assignmentId,
+      req.user,
+    );
+  }
+
+  @Patch(":id/management/agent")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.LANDLORD, Role.COMPANY_ADMIN)
+  setOperatingAgent(
+    @Param("id") id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(setOperatingAgentSchema))
+    dto: SetOperatingAgentDto,
+  ) {
+    return this.propertiesService.setOperatingAgent(id, dto, req.user);
   }
 
   @Patch(":id/deal-confirmation")

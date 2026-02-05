@@ -48,7 +48,21 @@ export class ProfilesController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.USER, Role.AGENT, Role.LANDLORD, Role.COMPANY_ADMIN)
+  @Roles(
+    Role.ADMIN,
+    Role.VERIFIER,
+    Role.MODERATOR,
+    Role.USER,
+    Role.AGENT,
+    Role.LANDLORD,
+    Role.COMPANY_ADMIN,
+    Role.COMPANY_AGENT,
+    Role.INDEPENDENT_AGENT,
+    Role.SELLER,
+    Role.TENANT,
+    Role.BUYER,
+    Role.ADVERTISER,
+  )
   @Post("me/photo")
   @UseInterceptors(
     FileInterceptor("file", {
@@ -79,14 +93,42 @@ export class ProfilesController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.USER, Role.AGENT, Role.LANDLORD, Role.COMPANY_ADMIN)
+  @Roles(
+    Role.ADMIN,
+    Role.VERIFIER,
+    Role.MODERATOR,
+    Role.USER,
+    Role.AGENT,
+    Role.LANDLORD,
+    Role.COMPANY_ADMIN,
+    Role.COMPANY_AGENT,
+    Role.INDEPENDENT_AGENT,
+    Role.SELLER,
+    Role.TENANT,
+    Role.BUYER,
+    Role.ADVERTISER,
+  )
   @Get("me")
   async getMyProfile(@Req() req: any) {
     return this.profilesService.getMyProfile(req.user.userId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.USER, Role.AGENT, Role.LANDLORD, Role.COMPANY_ADMIN)
+  @Roles(
+    Role.ADMIN,
+    Role.VERIFIER,
+    Role.MODERATOR,
+    Role.USER,
+    Role.AGENT,
+    Role.LANDLORD,
+    Role.COMPANY_ADMIN,
+    Role.COMPANY_AGENT,
+    Role.INDEPENDENT_AGENT,
+    Role.SELLER,
+    Role.TENANT,
+    Role.BUYER,
+    Role.ADVERTISER,
+  )
   @Patch("me")
   async updateProfile(
     @Req() req: any,

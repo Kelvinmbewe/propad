@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
   Req,
   ForbiddenException,
@@ -32,6 +33,12 @@ export class AgenciesController {
   @Get("my")
   async getMyAgency(@Req() req: any) {
     return this.agenciesService.getMyAgency(req.user.userId);
+  }
+
+  @Get("search")
+  @Roles(Role.ADMIN, Role.LANDLORD, Role.AGENT, Role.COMPANY_ADMIN)
+  async searchAgencies(@Query("q") query?: string) {
+    return this.agenciesService.searchAgencies(query ?? "");
   }
 
   @Get(":id")
@@ -110,9 +117,33 @@ export class AgenciesController {
   }
 
   @Post()
-  @Roles(Role.COMPANY_ADMIN) // Or maybe USER who wants to start one? Assuming COMPANY_ADMIN for now based on Plan.
-  async create(@Body() body: { name: string }, @Req() req: any) {
-    return this.agenciesService.create(body.name, req.user.userId);
+  @Roles(Role.COMPANY_ADMIN, Role.ADMIN, Role.AGENT, Role.INDEPENDENT_AGENT)
+  async create(
+    @Body()
+    body: {
+      name: string;
+      phone?: string;
+      address?: string;
+      registrationNumber?: string;
+    },
+    @Req() req: any,
+  ) {
+    const agency = await this.agenciesService.create(
+      body.name,
+      req.user.userId,
+    );
+    if (body.phone || body.address || body.registrationNumber) {
+      await this.agenciesService.updateProfile(
+        agency.id,
+        {
+          phone: body.phone,
+          address: body.address,
+          registrationNumber: body.registrationNumber,
+        } as any,
+        req.user.userId,
+      );
+    }
+    return agency;
   }
 
   @Post(":id/reviews")

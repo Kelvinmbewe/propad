@@ -24,6 +24,10 @@ interface UploadState {
   status: "idle" | "uploading" | "uploaded" | "error";
   url?: string;
   error?: string;
+  docType?: string;
+  uploadedAt?: string;
+  slotKey?: string;
+  slotIndex?: number;
 }
 
 interface KycSubmissionPanelProps {
@@ -97,6 +101,7 @@ export function KycSubmissionPanel({
   const [slotInputCounts, setSlotInputCounts] = useState<
     Record<string, number>
   >({});
+  const [lockTick, setLockTick] = useState(0);
 
   const isOwner =
     ownerType === "USER" ? data?.user?.id === ownerId || !ownerId : true;
@@ -136,19 +141,21 @@ export function KycSubmissionPanel({
         ? "PENDING"
         : "PENDING";
   const [updateRequested, setUpdateRequested] = useState(false);
+  const isUpdateRequestRecord = (record: any) =>
+    record?.status === "PENDING" &&
+    (record?.notes === "PROFILE_UPDATE" ||
+      record?.notes === "KYC update requested");
   const existingDocTypes = Array.from(
     new Set(
       historyRecords.flatMap((record) =>
-        Array.isArray(record.docTypes) ? record.docTypes : [],
+        record.status === "REJECTED" || isUpdateRequestRecord(record)
+          ? []
+          : Array.isArray(record.docTypes)
+            ? record.docTypes
+            : [],
       ),
     ),
   );
-  const ownerUpdatedAtDate = ownerUpdatedAt ? new Date(ownerUpdatedAt) : null;
-  const ownerHasUpdates =
-    ownerUpdatedAtDate && latestRecord?.updatedAt
-      ? ownerUpdatedAtDate.getTime() >
-        new Date(latestRecord.updatedAt).getTime()
-      : false;
   const passportExpiryDate = historyRecords
     .filter((record) => record.idType === "PASSPORT" && record.idExpiryDate)
     .map((record) => new Date(record.idExpiryDate))
@@ -156,19 +163,108 @@ export function KycSubmissionPanel({
   const passportExpired = passportExpiryDate
     ? passportExpiryDate.getTime() < Date.now()
     : false;
+  const updateRequestRecord = historyRecords.find(isUpdateRequestRecord);
+  const updateRequestDocTypes = Array.isArray(updateRequestRecord?.docTypes)
+    ? updateRequestRecord?.docTypes
+    : [];
+  const hasUpdateRequest = !!updateRequestRecord;
+  const isDocTypeAllowed = (docType: string) => {
+    if (!hasUpdateRequest) return true;
+    if (updateRequestDocTypes.length === 0) return true;
+    if (updateRequestDocTypes.includes("IDENTITY")) {
+      if (docType === "IDENTITY") return true;
+      if (docType === idType) return true;
+    }
+    return updateRequestDocTypes.includes(docType);
+  };
+  const missingRequiredDocs = documentSlots
+    ? documentSlots
+        .filter((slot) => slot.required)
+        .some(
+          (slot) =>
+            !existingDocTypes.includes(
+              slot.docType === "IDENTITY" ? idType : slot.docType,
+            ),
+        )
+    : false;
   const allowSupplemental =
     overallStatus === "VERIFIED" &&
-    (ownerHasUpdates ||
+    (updateRequested ||
+      hasUpdateRequest ||
       passportExpired ||
-      documentSlots?.some(
-        (slot) =>
-          !existingDocTypes.includes(
-            slot.docType === "IDENTITY" ? idType : slot.docType,
-          ),
-      ));
-  const allowResubmission = overallStatus === "PENDING" && ownerHasUpdates;
+      missingRequiredDocs);
+  const allowResubmission = overallStatus === "PENDING" && hasUpdateRequest;
   const isLocked =
     overallStatus === "VERIFIED" && !updateRequested && !allowSupplemental;
+
+  const latestStatusByDocType = useMemo(() => {
+    const map = new Map<string, { status: string; updatedAt: number }>();
+    historyRecords.forEach((record) => {
+      const docTypes = Array.isArray(record.docTypes) ? record.docTypes : [];
+      const updatedAt = record.updatedAt
+        ? new Date(record.updatedAt).getTime()
+        : record.createdAt
+          ? new Date(record.createdAt).getTime()
+          : 0;
+      docTypes.forEach((docType: string) => {
+        const current = map.get(docType);
+        if (!current || updatedAt >= current.updatedAt) {
+          map.set(docType, { status: record.status, updatedAt });
+        }
+      });
+    });
+    return map;
+  }, [historyRecords]);
+
+  const latestSubmittedStatusByDocType = useMemo(() => {
+    const map = new Map<string, { status: string; updatedAt: number }>();
+    historyRecords.forEach((record) => {
+      const docTypes = Array.isArray(record.docTypes) ? record.docTypes : [];
+      const docUrls = Array.isArray(record.docUrls) ? record.docUrls : [];
+      if (docUrls.length === 0) return;
+      const updatedAt = record.updatedAt
+        ? new Date(record.updatedAt).getTime()
+        : record.createdAt
+          ? new Date(record.createdAt).getTime()
+          : 0;
+      docTypes.forEach((docType: string) => {
+        const current = map.get(docType);
+        if (!current || updatedAt >= current.updatedAt) {
+          map.set(docType, { status: record.status, updatedAt });
+        }
+      });
+    });
+    return map;
+  }, [historyRecords]);
+
+  const isDocTypeLocked = (docType: string) => {
+    if (hasUpdateRequest && !isDocTypeAllowed(docType)) return true;
+    const latest = latestStatusByDocType.get(docType);
+    if (hasUpdateRequest && isDocTypeAllowed(docType)) {
+      const submitted = latestSubmittedStatusByDocType.get(docType);
+      return !!submitted && ["PENDING", "VERIFIED"].includes(submitted.status);
+    }
+    if (latest && ["PENDING", "VERIFIED"].includes(latest.status)) {
+      return true;
+    }
+    return false;
+  };
+
+  const isSlotLocked = (
+    docType: string,
+    slotKey?: string,
+    slotIndex?: number,
+  ) => {
+    void lockTick;
+    if (isDocTypeLocked(docType)) return true;
+    if (!slotKey || slotIndex === undefined) return false;
+    const upload = uploads.find(
+      (item) => item.slotKey === slotKey && item.slotIndex === slotIndex,
+    );
+    if (!upload?.uploadedAt) return false;
+    const elapsedMs = Date.now() - new Date(upload.uploadedAt).getTime();
+    return elapsedMs >= 5 * 60 * 1000;
+  };
 
   useEffect(() => {
     if (prefillIdExpiryDate && !idExpiryDate) {
@@ -196,6 +292,13 @@ export function KycSubmissionPanel({
     latestRecord?.idNumber,
     latestRecord?.idType,
   ]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLockTick((current) => current + 1);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -324,13 +427,22 @@ export function KycSubmissionPanel({
     });
   };
 
-  const handleSlotFiles = (docType: string, files: FileList | null) => {
+  const handleSlotFiles = (
+    docType: string,
+    slotKey: string,
+    slotIndex: number,
+    files: FileList | null,
+  ) => {
     if (!files || !token) return;
     const resolvedDocType = docType === "IDENTITY" ? idType : docType;
+    if (isSlotLocked(resolvedDocType, slotKey, slotIndex)) return;
     const nextUploads: UploadState[] = Array.from(files).map((file) => ({
       file,
       progress: 0,
       status: "uploading",
+      docType: resolvedDocType,
+      slotKey,
+      slotIndex,
     }));
     setUploads((prev) => [...prev, ...nextUploads]);
 
@@ -367,6 +479,7 @@ export function KycSubmissionPanel({
                     progress: 100,
                     status: "uploaded",
                     url: response.url,
+                    uploadedAt: new Date().toISOString(),
                   }
                 : item,
             ),
@@ -398,12 +511,16 @@ export function KycSubmissionPanel({
     });
   };
 
-  const handleAddSlotInput = (slotKey: string, maxCount = 1) => {
+  const handleAddSlotInput = (slotKey: string, maxCount?: number) => {
+    const limit =
+      Number.isFinite(maxCount) && maxCount !== undefined
+        ? Math.max(1, maxCount)
+        : Number.POSITIVE_INFINITY;
     setSlotInputCounts((current) => {
       const currentCount = current[slotKey] ?? 1;
       return {
         ...current,
-        [slotKey]: Math.min(currentCount + 1, Math.max(1, maxCount)),
+        [slotKey]: Math.min(currentCount + 1, limit),
       };
     });
   };
@@ -455,6 +572,63 @@ export function KycSubmissionPanel({
   const isDisabled = !prerequisiteMet || !isOwner || isLocked;
   const shouldShowRequestUpdate =
     overallStatus === "VERIFIED" && requestUpdateEndpoint && !allowSupplemental;
+
+  const renderDocumentSlot = (
+    slot: NonNullable<KycSubmissionPanelProps["documentSlots"]>[number],
+  ) => {
+    const slotDocType = slot.docType === "IDENTITY" ? idType : slot.docType;
+    const locked = isDocTypeLocked(slotDocType);
+    const maxCount =
+      Number.isFinite(slot.maxCount) && slot.maxCount !== undefined
+        ? slot.maxCount
+        : undefined;
+    const canAddMore =
+      slot.multiple && (maxCount === undefined || maxCount > 1);
+    return (
+      <div key={slot.key} className="rounded-md border border-neutral-200 p-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-neutral-800">
+            {slot.label}
+            {slot.required ? " *" : ""}
+          </p>
+          {canAddMore && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              onClick={() => handleAddSlotInput(slot.key, maxCount)}
+              disabled={isDisabled || locked}
+            >
+              +
+            </Button>
+          )}
+        </div>
+        {slot.description && (
+          <p className="text-xs text-neutral-500">{slot.description}</p>
+        )}
+        {Array.from({
+          length: Math.max(slotInputCounts[slot.key] ?? 1, 1),
+        }).map((_, index) => (
+          <Input
+            key={`${slot.key}-${index}`}
+            type="file"
+            multiple={slot.multiple}
+            className="mt-2"
+            onChange={(event) =>
+              handleSlotFiles(slot.docType, slot.key, index, event.target.files)
+            }
+            disabled={isDisabled || isSlotLocked(slotDocType, slot.key, index)}
+          />
+        ))}
+        {locked && (
+          <p className="mt-2 text-xs text-amber-600">
+            This document is locked. Update your profile or wait for review.
+          </p>
+        )}
+      </div>
+    );
+  };
 
   if (!prerequisiteMet || !isOwner) {
     return (
@@ -513,9 +687,7 @@ export function KycSubmissionPanel({
           <p className="text-sm text-neutral-500">{description}</p>
         </CardHeader>
         <CardContent className="space-y-2">
-          <p className="text-sm text-emerald-600">
-            Your KYC has been verified.
-          </p>
+          <p className="text-sm text-emerald-600">KYC successfully verified.</p>
           {requestUpdateEndpoint && (
             <Button
               variant="outline"
@@ -642,52 +814,7 @@ export function KycSubmissionPanel({
               Required uploads
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
-              {documentSlots.map((slot) => (
-                <div
-                  key={slot.key}
-                  className="rounded-md border border-neutral-200 p-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-neutral-800">
-                      {slot.label}
-                      {slot.required ? " *" : ""}
-                    </p>
-                    {slot.multiple && (slot.maxCount ?? 1) > 1 && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-7 px-2 text-xs"
-                        onClick={() =>
-                          handleAddSlotInput(slot.key, slot.maxCount ?? 1)
-                        }
-                        disabled={isDisabled}
-                      >
-                        +
-                      </Button>
-                    )}
-                  </div>
-                  {slot.description && (
-                    <p className="text-xs text-neutral-500">
-                      {slot.description}
-                    </p>
-                  )}
-                  {Array.from({
-                    length: Math.max(slotInputCounts[slot.key] ?? 1, 1),
-                  }).map((_, index) => (
-                    <Input
-                      key={`${slot.key}-${index}`}
-                      type="file"
-                      multiple={slot.multiple}
-                      className="mt-2"
-                      onChange={(event) =>
-                        handleSlotFiles(slot.docType, event.target.files)
-                      }
-                      disabled={isDisabled}
-                    />
-                  ))}
-                </div>
-              ))}
+              {documentSlots.map(renderDocumentSlot)}
             </div>
           </div>
         )}

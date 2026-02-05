@@ -124,7 +124,21 @@ export class WalletsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.USER)
+  @Roles(
+    Role.ADMIN,
+    Role.VERIFIER,
+    Role.MODERATOR,
+    Role.USER,
+    Role.AGENT,
+    Role.LANDLORD,
+    Role.COMPANY_ADMIN,
+    Role.COMPANY_AGENT,
+    Role.INDEPENDENT_AGENT,
+    Role.SELLER,
+    Role.TENANT,
+    Role.BUYER,
+    Role.ADVERTISER,
+  )
   @Post("kyc")
   submitKyc(
     @Req() req: AuthenticatedRequest,
@@ -134,14 +148,42 @@ export class WalletsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.USER)
+  @Roles(
+    Role.ADMIN,
+    Role.VERIFIER,
+    Role.MODERATOR,
+    Role.USER,
+    Role.AGENT,
+    Role.LANDLORD,
+    Role.COMPANY_ADMIN,
+    Role.COMPANY_AGENT,
+    Role.INDEPENDENT_AGENT,
+    Role.SELLER,
+    Role.TENANT,
+    Role.BUYER,
+    Role.ADVERTISER,
+  )
   @Get("kyc/history")
   listMyKycHistory(@Req() req: AuthenticatedRequest) {
     return this.walletsService.listMyKycRecords(req.user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.USER)
+  @Roles(
+    Role.ADMIN,
+    Role.VERIFIER,
+    Role.MODERATOR,
+    Role.USER,
+    Role.AGENT,
+    Role.LANDLORD,
+    Role.COMPANY_ADMIN,
+    Role.COMPANY_AGENT,
+    Role.INDEPENDENT_AGENT,
+    Role.SELLER,
+    Role.TENANT,
+    Role.BUYER,
+    Role.ADVERTISER,
+  )
   @Post("kyc/upload")
   @UseInterceptors(
     FileInterceptor("file", {
@@ -184,14 +226,42 @@ export class WalletsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.USER)
+  @Roles(
+    Role.ADMIN,
+    Role.VERIFIER,
+    Role.MODERATOR,
+    Role.USER,
+    Role.AGENT,
+    Role.LANDLORD,
+    Role.COMPANY_ADMIN,
+    Role.COMPANY_AGENT,
+    Role.INDEPENDENT_AGENT,
+    Role.SELLER,
+    Role.TENANT,
+    Role.BUYER,
+    Role.ADVERTISER,
+  )
   @Post("kyc/request-update")
   requestUserUpdate(@Req() req: AuthenticatedRequest) {
     return this.walletsService.requestUserKycUpdate(req.user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.COMPANY_ADMIN, Role.AGENT, Role.LANDLORD)
+  @Roles(
+    Role.ADMIN,
+    Role.VERIFIER,
+    Role.MODERATOR,
+    Role.USER,
+    Role.AGENT,
+    Role.LANDLORD,
+    Role.COMPANY_ADMIN,
+    Role.COMPANY_AGENT,
+    Role.INDEPENDENT_AGENT,
+    Role.SELLER,
+    Role.TENANT,
+    Role.BUYER,
+    Role.ADVERTISER,
+  )
   @Post("kyc/agency/:agencyId")
   submitAgencyKyc(
     @Param("agencyId") agencyId: string,
@@ -202,7 +272,21 @@ export class WalletsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.COMPANY_ADMIN, Role.AGENT, Role.LANDLORD)
+  @Roles(
+    Role.ADMIN,
+    Role.VERIFIER,
+    Role.MODERATOR,
+    Role.USER,
+    Role.AGENT,
+    Role.LANDLORD,
+    Role.COMPANY_ADMIN,
+    Role.COMPANY_AGENT,
+    Role.INDEPENDENT_AGENT,
+    Role.SELLER,
+    Role.TENANT,
+    Role.BUYER,
+    Role.ADVERTISER,
+  )
   @Get("kyc/agency/:agencyId/history")
   listAgencyKycHistory(
     @Param("agencyId") agencyId: string,
@@ -212,7 +296,21 @@ export class WalletsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.COMPANY_ADMIN, Role.AGENT, Role.LANDLORD)
+  @Roles(
+    Role.ADMIN,
+    Role.VERIFIER,
+    Role.MODERATOR,
+    Role.USER,
+    Role.AGENT,
+    Role.LANDLORD,
+    Role.COMPANY_ADMIN,
+    Role.COMPANY_AGENT,
+    Role.INDEPENDENT_AGENT,
+    Role.SELLER,
+    Role.TENANT,
+    Role.BUYER,
+    Role.ADVERTISER,
+  )
   @Post("kyc/agency/:agencyId/upload")
   @UseInterceptors(
     FileInterceptor("file", {
@@ -257,7 +355,21 @@ export class WalletsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.COMPANY_ADMIN, Role.AGENT, Role.LANDLORD)
+  @Roles(
+    Role.ADMIN,
+    Role.VERIFIER,
+    Role.MODERATOR,
+    Role.USER,
+    Role.AGENT,
+    Role.LANDLORD,
+    Role.COMPANY_ADMIN,
+    Role.COMPANY_AGENT,
+    Role.INDEPENDENT_AGENT,
+    Role.SELLER,
+    Role.TENANT,
+    Role.BUYER,
+    Role.ADVERTISER,
+  )
   @Post("kyc/agency/:agencyId/request-update")
   requestAgencyUpdate(
     @Param("agencyId") agencyId: string,

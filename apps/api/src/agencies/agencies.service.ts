@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AgencyStatus, Role, AgencyMemberRole } from "@propad/config";
+import { KycStatus, OwnerType } from "@prisma/client";
 import { AuditService } from "../audit/audit.service";
 import { TrustService } from "../trust/trust.service";
 import { existsSync } from "fs";
@@ -130,6 +131,28 @@ export class AgenciesService {
   ) {
     const agency = await this.findOne(id);
 
+    const docTypesToUpdate = new Set<string>();
+    if (
+      data.registrationNumber !== undefined &&
+      data.registrationNumber?.trim() !== (agency.registrationNumber ?? "")
+    ) {
+      docTypesToUpdate.add("CERT_OF_INC");
+    }
+    if (
+      data.address !== undefined &&
+      data.address?.trim() !== (agency.address ?? "")
+    ) {
+      docTypesToUpdate.add("CR5");
+    }
+    if (data.directorsJson !== undefined) {
+      const before = JSON.stringify(agency.directorsJson ?? null);
+      const after = JSON.stringify(data.directorsJson ?? null);
+      if (before !== after) {
+        docTypesToUpdate.add("DIRECTOR_ID");
+        docTypesToUpdate.add("CR6");
+      }
+    }
+
     await this.audit.logAction({
       action: "AGENCY_UPDATE",
       actorId: userId,
@@ -138,9 +161,26 @@ export class AgenciesService {
       metadata: { before: agency, changes: data },
     });
 
-    return this.prisma.agency.update({
-      where: { id },
-      data: data as any,
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.agency.update({
+        where: { id },
+        data: data as any,
+      });
+      if (docTypesToUpdate.size > 0) {
+        await tx.kycRecord.create({
+          data: {
+            ownerType: OwnerType.AGENCY,
+            ownerId: id,
+            idType: "CERT_OF_INC",
+            idNumber: "PROFILE_UPDATE",
+            docUrls: [],
+            docTypes: Array.from(docTypesToUpdate),
+            notes: "PROFILE_UPDATE",
+            status: KycStatus.PENDING,
+          } as any,
+        });
+      }
+      return updated;
     });
   }
 
@@ -212,6 +252,25 @@ export class AgenciesService {
     });
 
     return member?.agency || null;
+  }
+
+  async searchAgencies(query: string) {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) return [];
+    return this.prisma.agency.findMany({
+      where: {
+        name: { contains: trimmed, mode: "insensitive" },
+      },
+      select: {
+        id: true,
+        name: true,
+        logoUrl: true,
+        status: true,
+        kycStatus: true,
+      },
+      orderBy: { name: "asc" },
+      take: 10,
+    });
   }
 
   async updateTrustScore(id: string, scoreDelta: number) {

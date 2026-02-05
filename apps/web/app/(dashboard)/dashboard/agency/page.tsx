@@ -342,7 +342,7 @@ export default function AgencyDashboardPage() {
                         description: 'Upload director IDs or passports.',
                         docType: 'DIRECTOR_ID',
                         multiple: true,
-                        maxCount: directorCount || 1
+                        maxCount: Math.max(directorCount, 2)
                     },
                     {
                         key: 'rea-cert',

@@ -15,7 +15,7 @@ import {
   RewardEventType,
   ListingActivityType,
 } from "@prisma/client";
-import { Role, PowerPhase } from "@propad/config";
+import { Role, PowerPhase, AgencyMemberRole } from "@propad/config";
 
 // Local Enum Definitions
 const InterestStatus = {
@@ -41,6 +41,7 @@ const ListingPaymentType = {
   PROMOTION: "PROMOTION",
   VERIFICATION: "VERIFICATION",
   AGENT_FEE: "AGENT_FEE",
+  ASSIGNMENT_FEE: "ASSIGNMENT_FEE",
 } as const;
 type ListingPaymentType =
   (typeof ListingPaymentType)[keyof typeof ListingPaymentType];
@@ -143,6 +144,8 @@ import { AssignAgentDto } from "./dto/assign-agent.dto";
 import { UpdateDealConfirmationDto } from "./dto/update-deal-confirmation.dto";
 import { CreateMessageDto } from "./dto/create-message.dto";
 import { UpdateServiceFeeDto } from "./dto/update-service-fee.dto";
+import { CreateManagementAssignmentDto } from "./dto/create-management-assignment.dto";
+import { SetOperatingAgentDto } from "./dto/set-operating-agent.dto";
 // differenceInHours already imported above
 import { VerificationFingerprintService } from "../verifications/verification-fingerprint.service";
 import { RankingService } from "../ranking/ranking.service";
@@ -992,12 +995,23 @@ export class PropertiesService {
       media: true,
       agentOwner: { select: { id: true, name: true, role: true } },
       landlord: { select: { id: true, name: true, role: true } },
+      owner: { select: { id: true, name: true, role: true } },
+      assignedAgent: { select: { id: true, name: true, role: true } },
       assignments: {
         orderBy: { createdAt: "desc" },
         take: 1,
         include: {
           agent: { select: { id: true, name: true, role: true } },
           landlord: { select: { id: true, name: true, role: true } },
+        },
+      },
+      managementAssignments: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        include: {
+          assignedAgent: { select: { id: true, name: true, role: true } },
+          createdBy: { select: { id: true, name: true, role: true } },
+          acceptedBy: { select: { id: true, name: true, role: true } },
         },
       },
       country: true,
@@ -1311,6 +1325,17 @@ export class PropertiesService {
         media: true,
         landlord: { select: { id: true, name: true, email: true } },
         agentOwner: { select: { id: true, name: true, email: true } },
+        owner: { select: { id: true, name: true, email: true } },
+        assignedAgent: { select: { id: true, name: true, email: true } },
+        managementAssignments: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          include: {
+            assignedAgent: { select: { id: true, name: true, role: true } },
+            createdBy: { select: { id: true, name: true, role: true } },
+            acceptedBy: { select: { id: true, name: true, role: true } },
+          },
+        },
         verificationRequests: {
           include: { items: true },
           orderBy: { createdAt: "desc" },
@@ -1326,7 +1351,8 @@ export class PropertiesService {
     // VISIBILITY CHECK
     const isOwner =
       actor &&
-      (property.landlordId === actor.userId ||
+      (property.ownerId === actor.userId ||
+        property.landlordId === actor.userId ||
         property.agentOwnerId === actor.userId);
     const isAdmin = actor?.role === Role.ADMIN;
 
@@ -1366,6 +1392,7 @@ export class PropertiesService {
         propertyId,
         userId: actor.userId,
         status: InterestStatus.PENDING,
+        pipelineStatus: "NEW",
         offerAmount: 0, // Default, or pass DTO if we want offer amount
       },
     });
@@ -1412,6 +1439,19 @@ export class PropertiesService {
       const agentOwnerId =
         dto.agentOwnerId ??
         (actor.role === Role.AGENT ? actor.userId : undefined);
+      const ownerId = landlordId ?? actor.userId;
+      const managedByType = dto.agentOwnerId
+        ? "AGENT"
+        : dto.agencyId
+          ? "AGENCY"
+          : "OWNER";
+      const managedById =
+        managedByType === "AGENT"
+          ? agentOwnerId
+          : managedByType === "AGENCY"
+            ? dto.agencyId
+            : ownerId;
+      const assignedAgentId = managedByType === "AGENT" ? agentOwnerId : null;
 
       // Map actor role to ListingCreatorRole for audit tracking
       let createdByRole: ListingCreatorRole = ListingCreatorRole.LANDLORD;
@@ -1497,6 +1537,10 @@ export class PropertiesService {
           title: dto.title,
           ...(landlordId && { landlordId }),
           ...(agentOwnerId && { agentOwnerId }),
+          ownerId,
+          managedByType: managedByType as any,
+          managedById: managedById ?? undefined,
+          assignedAgentId: assignedAgentId ?? undefined,
           type: dto.type,
           listingIntent: dto.listingIntent ?? null,
           currency: dto.currency,
@@ -1861,6 +1905,20 @@ export class PropertiesService {
       },
     });
 
+    await this.prisma.listingManagementAssignment.create({
+      data: {
+        propertyId: id,
+        ownerId: landlordId,
+        managedByType: "AGENT",
+        managedById: agent.id,
+        assignedAgentId: agent.id,
+        serviceFeeUsdCents: serviceFeeUsdCents ?? undefined,
+        landlordPaysFee: true,
+        status: "CREATED",
+        createdById: actor.userId,
+      },
+    });
+
     // Update property landlordId (but NOT agentOwnerId yet)
     await this.prisma.property.update({
       where: { id },
@@ -1869,24 +1927,7 @@ export class PropertiesService {
       },
     });
 
-    // Auto-generate payment ledger entry if service fee is set
-    if (serviceFeeUsdCents !== null && serviceFeeUsdCents > 0) {
-      await this.prisma.listingPayment.create({
-        data: {
-          propertyId: id,
-          type: ListingPaymentType.AGENT_FEE,
-          amountCents: serviceFeeUsdCents,
-          currency: Currency.USD,
-          status: ListingPaymentStatus.PENDING,
-          reference: `AGENT_FEE_${id}_${assignment.id}`,
-          metadata: {
-            assignmentId: assignment.id,
-            agentId: agent.id,
-            agentName: agent.name,
-          },
-        },
-      });
-    }
+    // Fees are generated after acceptance
 
     await this.audit.logAction({
       action: "property.assignAgent",
@@ -1999,7 +2040,33 @@ export class PropertiesService {
     if (property.agentOwnerId === latestAssignment.agentId) {
       await this.prisma.property.update({
         where: { id },
-        data: { agentOwnerId: null },
+        data: {
+          agentOwnerId: null,
+          assignedAgentId: null,
+          managedByType: "OWNER" as any,
+          managedById: property.ownerId ?? property.landlordId ?? null,
+          isManaged: false,
+        },
+      });
+    }
+
+    const latestManagement =
+      await this.prisma.listingManagementAssignment.findFirst({
+        where: {
+          propertyId: id,
+          assignedAgentId: latestAssignment.agentId,
+          managedByType: "AGENT",
+          status: { in: ["CREATED", "ACCEPTED"] },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+    if (latestManagement) {
+      await this.prisma.listingManagementAssignment.update({
+        where: { id: latestManagement.id },
+        data: {
+          status: "ENDED",
+          endedAt: new Date(),
+        },
       });
     }
 
@@ -2088,8 +2155,53 @@ export class PropertiesService {
     // Set the agentOwnerId on the property
     await this.prisma.property.update({
       where: { id: assignment.propertyId },
-      data: { agentOwnerId: actor.userId },
+      data: {
+        agentOwnerId: actor.userId,
+        managedByType: "AGENT" as any,
+        managedById: actor.userId,
+        assignedAgentId: actor.userId,
+        isManaged: true,
+      },
     });
+
+    const managementAssignment =
+      await this.prisma.listingManagementAssignment.findFirst({
+        where: {
+          propertyId: assignment.propertyId,
+          assignedAgentId: actor.userId,
+          managedByType: "AGENT",
+          status: "CREATED",
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+    if (managementAssignment) {
+      await this.prisma.listingManagementAssignment.update({
+        where: { id: managementAssignment.id },
+        data: {
+          status: "ACCEPTED",
+          acceptedAt: new Date(),
+          acceptedById: actor.userId,
+        },
+      });
+    }
+
+    if (assignment.serviceFeeUsdCents && assignment.serviceFeeUsdCents > 0) {
+      await this.prisma.listingPayment.create({
+        data: {
+          propertyId: assignment.propertyId,
+          type: ListingPaymentType.ASSIGNMENT_FEE,
+          amountCents: assignment.serviceFeeUsdCents,
+          currency: Currency.USD,
+          status: ListingPaymentStatus.PENDING,
+          reference: `ASSIGNMENT_FEE_${assignment.propertyId}_${assignment.id}`,
+          metadata: {
+            assignmentId: assignment.id,
+            agentId: assignment.agentId,
+          },
+        },
+      });
+    }
 
     await this.audit.logAction({
       action: "property.acceptAssignment",
@@ -2113,6 +2225,374 @@ export class PropertiesService {
         landlordName: assignment.landlord?.name,
       },
     );
+
+    return updated;
+  }
+
+  async createManagementAssignment(
+    id: string,
+    dto: CreateManagementAssignmentDto,
+    actor: AuthContext,
+  ) {
+    const property = await this.getPropertyOrThrow(id);
+    this.ensureLandlordAccess(property, actor);
+
+    const ownerId = property.ownerId ?? property.landlordId ?? actor.userId;
+    if (!property.ownerId && ownerId) {
+      await this.prisma.property.update({
+        where: { id },
+        data: { ownerId },
+      });
+    }
+
+    const active = await this.prisma.listingManagementAssignment.findFirst({
+      where: {
+        propertyId: id,
+        status: { in: ["CREATED", "ACCEPTED"] },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (active) {
+      throw new BadRequestException(
+        "A management request is already active for this listing",
+      );
+    }
+
+    if (dto.managedByType === "AGENT" && !dto.managedById) {
+      throw new BadRequestException("Agent is required for management");
+    }
+    if (dto.managedByType === "AGENCY" && !dto.managedById) {
+      throw new BadRequestException("Agency is required for management");
+    }
+
+    if (dto.managedByType === "AGENT" && dto.managedById) {
+      const agent = await this.prisma.user.findUnique({
+        where: { id: dto.managedById },
+        select: { id: true, role: true },
+      });
+      if (
+        !agent ||
+        !["AGENT", "INDEPENDENT_AGENT"].includes(agent.role as string)
+      ) {
+        throw new BadRequestException("Selected user is not an agent");
+      }
+    }
+
+    if (dto.managedByType === "AGENCY" && dto.managedById) {
+      const agency = await this.prisma.agency.findUnique({
+        where: { id: dto.managedById },
+        select: { id: true },
+      });
+      if (!agency) {
+        throw new BadRequestException("Agency not found");
+      }
+      if (dto.assignedAgentId) {
+        const member = await this.prisma.agencyMember.findFirst({
+          where: {
+            agencyId: dto.managedById,
+            userId: dto.assignedAgentId,
+          },
+          select: { id: true },
+        });
+        if (!member) {
+          throw new BadRequestException(
+            "Selected agent does not belong to this agency",
+          );
+        }
+      }
+    }
+
+    const serviceFeeUsdCents =
+      dto.serviceFeeUsd !== undefined
+        ? Math.round(dto.serviceFeeUsd * 100)
+        : null;
+
+    const assignment = await this.prisma.listingManagementAssignment.create({
+      data: {
+        propertyId: id,
+        ownerId,
+        managedByType: dto.managedByType as any,
+        managedById: dto.managedById ?? ownerId,
+        assignedAgentId: dto.assignedAgentId ?? undefined,
+        serviceFeeUsdCents: serviceFeeUsdCents ?? undefined,
+        landlordPaysFee: dto.landlordPaysFee ?? true,
+        status: "CREATED",
+        createdById: actor.userId,
+        notes: dto.notes ?? undefined,
+      },
+    });
+
+    await this.audit.logAction({
+      action: "property.management.create",
+      actorId: actor.userId,
+      targetType: "property",
+      targetId: id,
+      metadata: {
+        assignmentId: assignment.id,
+        managedByType: assignment.managedByType,
+        managedById: assignment.managedById,
+        assignedAgentId: assignment.assignedAgentId,
+      },
+    });
+
+    return assignment;
+  }
+
+  async acceptManagementAssignment(assignmentId: string, actor: AuthContext) {
+    const assignment = await this.prisma.listingManagementAssignment.findUnique(
+      {
+        where: { id: assignmentId },
+        include: { property: true },
+      },
+    );
+    if (!assignment) {
+      throw new NotFoundException("Management assignment not found");
+    }
+    if (assignment.status !== "CREATED") {
+      throw new BadRequestException(
+        `Cannot accept assignment with status: ${assignment.status}`,
+      );
+    }
+
+    if (actor.role !== Role.ADMIN) {
+      if (assignment.managedByType === "AGENT") {
+        if (assignment.managedById !== actor.userId) {
+          throw new ForbiddenException("You are not the assigned manager");
+        }
+      }
+      if (assignment.managedByType === "AGENCY") {
+        if (!assignment.managedById) {
+          throw new BadRequestException("Agency assignment is missing agency");
+        }
+        const isAdmin = await this.isAgencyAdmin(
+          assignment.managedById,
+          actor.userId,
+        );
+        if (!isAdmin) {
+          throw new ForbiddenException("You are not an agency admin");
+        }
+      }
+    }
+
+    const managedByType = assignment.managedByType;
+    const assignedAgentId =
+      managedByType === "AGENT"
+        ? assignment.managedById
+        : assignment.assignedAgentId ?? null;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.listingManagementAssignment.update({
+        where: { id: assignmentId },
+        data: {
+          status: "ACCEPTED",
+          acceptedAt: new Date(),
+          acceptedById: actor.userId,
+        },
+      });
+
+      await tx.property.update({
+        where: { id: assignment.propertyId },
+        data: {
+          managedByType: managedByType as any,
+          managedById: assignment.managedById ?? undefined,
+          assignedAgentId: assignedAgentId ?? undefined,
+          isManaged: managedByType !== "OWNER",
+        },
+      });
+
+      if (assignment.serviceFeeUsdCents && assignment.serviceFeeUsdCents > 0) {
+        await tx.listingPayment.create({
+          data: {
+            propertyId: assignment.propertyId,
+            type: ListingPaymentType.ASSIGNMENT_FEE,
+            amountCents: assignment.serviceFeeUsdCents,
+            currency: Currency.USD,
+            status: ListingPaymentStatus.PENDING,
+            reference: `ASSIGNMENT_FEE_${assignment.propertyId}_${assignment.id}`,
+            metadata: {
+              managementAssignmentId: assignment.id,
+              managedByType: assignment.managedByType,
+              managedById: assignment.managedById,
+              assignedAgentId: assignment.assignedAgentId,
+            },
+          },
+        });
+      }
+    });
+
+    await this.audit.logAction({
+      action: "property.management.accept",
+      actorId: actor.userId,
+      targetType: "property",
+      targetId: assignment.propertyId,
+      metadata: { assignmentId },
+    });
+
+    return { success: true };
+  }
+
+  async declineManagementAssignment(assignmentId: string, actor: AuthContext) {
+    const assignment = await this.prisma.listingManagementAssignment.findUnique(
+      {
+        where: { id: assignmentId },
+      },
+    );
+    if (!assignment) {
+      throw new NotFoundException("Management assignment not found");
+    }
+    if (assignment.status !== "CREATED") {
+      throw new BadRequestException(
+        `Cannot decline assignment with status: ${assignment.status}`,
+      );
+    }
+
+    await this.prisma.listingManagementAssignment.update({
+      where: { id: assignmentId },
+      data: {
+        status: "DECLINED",
+        declinedAt: new Date(),
+        acceptedById: actor.userId,
+      },
+    });
+
+    await this.audit.logAction({
+      action: "property.management.decline",
+      actorId: actor.userId,
+      targetType: "property",
+      targetId: assignment.propertyId,
+      metadata: { assignmentId },
+    });
+
+    return { success: true };
+  }
+
+  async endManagementAssignment(assignmentId: string, actor: AuthContext) {
+    const assignment = await this.prisma.listingManagementAssignment.findUnique(
+      {
+        where: { id: assignmentId },
+        include: { property: true },
+      },
+    );
+    if (!assignment) {
+      throw new NotFoundException("Management assignment not found");
+    }
+    if (!["CREATED", "ACCEPTED"].includes(assignment.status)) {
+      throw new BadRequestException(
+        `Cannot end assignment with status: ${assignment.status}`,
+      );
+    }
+
+    if (actor.role !== Role.ADMIN) {
+      const isOwner = assignment.ownerId === actor.userId;
+      let isManager = false;
+      if (assignment.managedByType === "AGENT") {
+        isManager = assignment.managedById === actor.userId;
+      }
+      if (assignment.managedByType === "AGENCY" && assignment.managedById) {
+        isManager = await this.isAgencyAdmin(
+          assignment.managedById,
+          actor.userId,
+        );
+      }
+      if (!isOwner && !isManager) {
+        throw new ForbiddenException("Not authorized to end management");
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.listingManagementAssignment.update({
+        where: { id: assignmentId },
+        data: {
+          status: "ENDED",
+          endedAt: new Date(),
+        },
+      });
+      await tx.property.update({
+        where: { id: assignment.propertyId },
+        data: {
+          managedByType: "OWNER" as any,
+          managedById: assignment.ownerId,
+          assignedAgentId: null,
+          isManaged: false,
+        },
+      });
+    });
+
+    await this.audit.logAction({
+      action: "property.management.end",
+      actorId: actor.userId,
+      targetType: "property",
+      targetId: assignment.propertyId,
+      metadata: { assignmentId },
+    });
+
+    return { success: true };
+  }
+
+  async setOperatingAgent(
+    id: string,
+    dto: SetOperatingAgentDto,
+    actor: AuthContext,
+  ) {
+    const property = await this.getPropertyOrThrow(id);
+    if (actor.role !== Role.ADMIN) {
+      if (property.managedByType === "AGENCY") {
+        if (!property.managedById) {
+          throw new BadRequestException("Listing is missing agency manager");
+        }
+        const isAdmin = await this.isAgencyAdmin(
+          property.managedById,
+          actor.userId,
+        );
+        if (!isAdmin) {
+          throw new ForbiddenException("You are not an agency admin");
+        }
+      } else if (property.managedByType === "OWNER") {
+        this.ensureLandlordAccess(property, actor);
+      } else {
+        throw new ForbiddenException("Only agency or owner can assign agent");
+      }
+    }
+
+    if (dto.assignedAgentId) {
+      const agent = await this.prisma.user.findUnique({
+        where: { id: dto.assignedAgentId },
+        select: { id: true, role: true },
+      });
+      if (
+        !agent ||
+        !["AGENT", "INDEPENDENT_AGENT"].includes(agent.role as string)
+      ) {
+        throw new BadRequestException("Selected user is not an agent");
+      }
+      if (property.managedByType === "AGENCY" && property.managedById) {
+        const member = await this.prisma.agencyMember.findFirst({
+          where: {
+            agencyId: property.managedById,
+            userId: dto.assignedAgentId,
+          },
+          select: { id: true },
+        });
+        if (!member) {
+          throw new BadRequestException(
+            "Selected agent does not belong to this agency",
+          );
+        }
+      }
+    }
+
+    const updated = await this.prisma.property.update({
+      where: { id },
+      data: { assignedAgentId: dto.assignedAgentId ?? null },
+    });
+
+    await this.audit.logAction({
+      action: "property.management.assign_agent",
+      actorId: actor.userId,
+      targetType: "property",
+      targetId: id,
+      metadata: { assignedAgentId: dto.assignedAgentId ?? null },
+    });
 
     return updated;
   }
@@ -2399,7 +2879,9 @@ export class PropertiesService {
     let recipientId: string | null = dto.recipientId ?? null;
 
     const isOwner = property.landlordId === actor.userId;
-    const isAgent = property.agentOwnerId === actor.userId;
+    const isAgent =
+      property.agentOwnerId === actor.userId ||
+      (property as any).assignedAgentId === actor.userId;
 
     // Chat visibility guard: Only ACCEPTED or CONFIRMED offers allow chat
     // Owners and agents can always chat
@@ -2436,12 +2918,17 @@ export class PropertiesService {
         } else {
           // No incoming messages, fallback to Landlord <-> Agent
           recipientId = isOwner
-            ? property.agentOwnerId ?? property.landlordId
+            ? (property as any).assignedAgentId ??
+              property.agentOwnerId ??
+              property.landlordId
             : property.landlordId;
         }
       } else {
         // Interested party messaging the owner (Agent preferred, else Landlord)
-        recipientId = property.agentOwnerId ?? property.landlordId;
+        recipientId =
+          (property as any).assignedAgentId ??
+          property.agentOwnerId ??
+          property.landlordId;
       }
     }
 
@@ -2453,12 +2940,36 @@ export class PropertiesService {
       );
     }
 
+    const containsContactInfo =
+      /@[A-Z0-9._%+-]+\.[A-Z]{2,}/i.test(dto.body) ||
+      /\+?\d[\d\s().-]{6,}/.test(dto.body);
+    if (containsContactInfo) {
+      const viewing = await this.prisma.viewing.findFirst({
+        where: {
+          propertyId: id,
+          statusV2: { in: ["ACCEPTED", "COMPLETED"] },
+        },
+      });
+      const verifiedPayment = await this.prisma.rentPayment.findFirst({
+        where: {
+          propertyId: id,
+          isVerified: true,
+        },
+      });
+      if (!viewing && !verifiedPayment) {
+        throw new BadRequestException(
+          "Contact details can be shared only after a confirmed viewing or verified payment",
+        );
+      }
+    }
+
     const message = await this.prisma.propertyMessage.create({
       data: {
         propertyId: id,
         senderId: actor.userId,
         recipientId,
         body: dto.body,
+        containsContactInfo,
       },
       include: {
         sender: { select: { id: true, name: true, role: true } },
@@ -2545,6 +3056,18 @@ export class PropertiesService {
     // But listMessages should be restricted.
     // This logic needs refinement based on requirements.
     // For now, allow if they are involved.
+  }
+
+  private async isAgencyAdmin(agencyId: string, userId: string) {
+    const membership = await this.prisma.agencyMember.findFirst({
+      where: {
+        agencyId,
+        userId,
+        role: { in: [AgencyMemberRole.OWNER, AgencyMemberRole.MANAGER] },
+      },
+      select: { id: true },
+    });
+    return !!membership;
   }
 
   async search(dto: SearchPropertiesDto) {
@@ -3943,6 +4466,8 @@ export class PropertiesService {
         locationLat: dto.locationLat ?? null,
         locationLng: dto.locationLng ?? null,
         status: "PENDING",
+        statusV2: "REQUESTED",
+        requestedAt: new Date(),
         landlordId: property.landlordId,
         agentId: property.agentOwnerId,
       },
@@ -4022,7 +4547,8 @@ export class PropertiesService {
     // Verify actor is landlord or agent
     const isAuthorized =
       viewing.property.landlordId === actor.userId ||
-      viewing.property.agentOwnerId === actor.userId;
+      viewing.property.agentOwnerId === actor.userId ||
+      (viewing.property as any).assignedAgentId === actor.userId;
     if (!isAuthorized) {
       throw new ForbiddenException(
         "Only the property owner or assigned agent can respond to viewings",
@@ -4034,6 +4560,20 @@ export class PropertiesService {
       data: {
         status: dto.status as any,
         notes: dto.notes ?? viewing.notes,
+        statusV2:
+          dto.status === "ACCEPTED"
+            ? "ACCEPTED"
+            : dto.status === "POSTPONED"
+              ? "RESCHEDULED"
+              : dto.status === "CANCELLED"
+                ? "CANCELLED"
+                : dto.status === "COMPLETED"
+                  ? "COMPLETED"
+                  : undefined,
+        acceptedAt: dto.status === "ACCEPTED" ? new Date() : undefined,
+        rescheduledAt: dto.status === "POSTPONED" ? new Date() : undefined,
+        cancelledAt: dto.status === "CANCELLED" ? new Date() : undefined,
+        completedAt: dto.status === "COMPLETED" ? new Date() : undefined,
       },
       include: {
         viewer: { select: { id: true, name: true, phone: true } },
@@ -4078,7 +4618,8 @@ export class PropertiesService {
     // Verify actor is landlord or agent
     const isAuthorized =
       property.landlordId === actor.userId ||
-      property.agentOwnerId === actor.userId;
+      property.agentOwnerId === actor.userId ||
+      (property as any).assignedAgentId === actor.userId;
     if (!isAuthorized && actor.role !== Role.ADMIN) {
       throw new ForbiddenException(
         "Only the property owner or assigned agent can view payments",
