@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Bath, BedDouble, Ruler } from "lucide-react";
 import { getImageUrl } from "@/lib/image-url";
+import { TrustBadge, type TrustBreakdown } from "@/components/trust/TrustBadge";
 
 export interface LandingProperty {
   id: string;
@@ -21,6 +22,9 @@ export interface LandingProperty {
   verificationLevel?: string | null;
   verificationStatus?: string | null;
   isFeatured?: boolean;
+  trustScore?: number | null;
+  trustMaxScore?: number | null;
+  trustBreakdown?: TrustBreakdown;
 }
 
 const statusStyles: Record<"sale" | "rent", string> = {
@@ -55,6 +59,12 @@ export function LandingPropertyCard({
   const imageUrl =
     property.imageUrl ??
     (fallbackImage ? getImageUrl(fallbackImage) : "/icons/icon-512.svg");
+  const trustScore = Number(
+    property.trustScore ?? (property as any).trustScore ?? 0,
+  );
+  const trustMaxScore = Number(property.trustMaxScore ?? 110);
+  const trustBreakdown =
+    property.trustBreakdown ?? (property as any).trustBreakdown ?? undefined;
 
   return (
     <motion.article
@@ -101,13 +111,21 @@ export function LandingPropertyCard({
         </div>
       </div>
       <div className="flex flex-1 flex-col gap-4 p-6">
-        <div className="flex items-center justify-between text-slate-700">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-slate-700">
           <span className="text-sm font-medium uppercase tracking-[0.35em] text-slate-400">
             Starting at
           </span>
-          <span className="text-lg font-semibold text-slate-900">
-            {property.price}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-semibold text-slate-900">
+              {property.price}
+            </span>
+            <TrustBadge
+              trustScore={trustScore}
+              maxScore={trustMaxScore}
+              breakdown={trustBreakdown}
+              size="sm"
+            />
+          </div>
         </div>
         <div className="flex items-center gap-4 text-sm text-slate-600">
           <span className="flex items-center gap-2">

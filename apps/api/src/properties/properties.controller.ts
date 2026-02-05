@@ -36,6 +36,10 @@ import {
 } from "./dto/submit-verification.dto";
 import { MapBoundsDto, mapBoundsSchema } from "./dto/map-bounds.dto";
 import {
+  HomeListingsQueryDto,
+  homeListingsQuerySchema,
+} from "./dto/home-listings-query.dto";
+import {
   CreateSignedUploadDto,
   createSignedUploadSchema,
 } from "./dto/signed-upload.dto";
@@ -179,6 +183,22 @@ export class PropertiesController {
   @Get("featured")
   listFeatured() {
     return this.propertiesService.listFeatured();
+  }
+
+  @Get("home/top-agents")
+  topAgentsNear(
+    @Query(new ZodValidationPipe(homeListingsQuerySchema))
+    query: HomeListingsQueryDto,
+  ) {
+    return this.propertiesService.getTopAgentsNear(query);
+  }
+
+  @Get("home/top-agencies")
+  topAgenciesNear(
+    @Query(new ZodValidationPipe(homeListingsQuerySchema))
+    query: HomeListingsQueryDto,
+  ) {
+    return this.propertiesService.getTopAgenciesNear(query);
   }
 
   @Get("map/bounds")

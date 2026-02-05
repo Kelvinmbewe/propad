@@ -1,161 +1,71 @@
-import nextDynamic from "next/dynamic";
 import { LandingNav } from "@/components/landing-nav";
-import { LandingHero, type FloatingHeroCard } from "@/components/landing-hero";
-import {
-  LandingPropertyCard,
-  type LandingProperty,
-} from "@/components/landing-property-card";
-import { LandingAuroraPalette } from "@/components/landing-aurora-palette";
+import { HomePageClient } from "@/components/home/homepage-client";
+import { AdSlot } from "@/components/ad-slot";
 import { Instagram, Linkedin, Twitter } from "lucide-react";
-import type { LandingMapSectionProps } from "@/components/landing-map-section";
-import { serverPublicApiRequest } from "@/lib/server-api";
-import { getImageUrl } from "@/lib/image-url";
-
-const LandingMapSection = nextDynamic<LandingMapSectionProps>(
-  () =>
-    import("@/components/landing-map-section").then(
-      (mod) => mod.LandingMapSection,
-    ),
-  { ssr: false },
-);
+import { DEFAULT_HOME_LOCATION } from "@/lib/homepage-locations";
+import {
+  featuredListingsNear,
+  nearbyVerifiedListings,
+  topAgenciesNear,
+  topAgentsNear,
+} from "@/lib/homepage-data";
 
 export const dynamic = "force-dynamic";
 
-interface ShowcaseProperty extends LandingProperty {
-  coordinates: [number, number];
-}
-
-interface FeaturedListing {
-  id: string;
-  title: string;
-  price: string | number;
-  currency: string;
-  bedrooms: number | null;
-  bathrooms: number | null;
-  areaSqm: number | null;
-  lat: number | null;
-  lng: number | null;
-  listingIntent: string | null;
-  status: string | null;
-  verificationLevel: string | null;
-  verificationScore: number | null;
-  isFeatured: boolean | null;
-  media: Array<{ url: string }>;
-  city?: { name: string } | null;
-  suburb?: { name: string } | null;
-}
-
-const heroCards: FloatingHeroCard[] = [
-  {
-    accent: "CURATED AGENTS",
-    title: "Verified storytellers",
-    description:
-      "Partnered agents trained on PropAd showing rituals and concierge-style onboarding.",
-  },
-  {
-    accent: "SEAMLESS JOURNEY",
-    title: "Framer powered motion",
-    description:
-      "Micro-animations guide renters from enquiry to offer with zero static friction.",
-  },
-  {
-    accent: "MARKET INTELLIGENCE",
-    title: "Live rate telemetry",
-    description:
-      "Pricing heatmaps pull from PropAd market data to keep valuations precise and aspirational.",
-  },
-];
-
-async function getFeaturedProperties(): Promise<ShowcaseProperty[]> {
-  try {
-    const properties = await serverPublicApiRequest<FeaturedListing[]>(
-      "/properties/featured",
-    );
-
-    return properties.map((property) => {
-      const location =
-        property.suburb?.name || property.city?.name || "Zimbabwe";
-      const isRent = property.listingIntent === "TO_RENT";
-      const statusTone = isRent ? "rent" : "sale";
-      const statusLabel = isRent ? "FOR RENT" : "FOR SALE";
-      const imageUrl = property.media?.[0]?.url
-        ? getImageUrl(property.media[0].url)
-        : "/icons/icon-512.svg";
-      const priceValue =
-        typeof property.price === "string"
-          ? Number(property.price)
-          : property.price;
-      const priceLabel = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: property.currency || "USD",
-        maximumFractionDigits: 0,
-      }).format(priceValue ?? 0);
-
-      const coordinates: [number, number] = [
-        property.lat ?? 0,
-        property.lng ?? 0,
-      ];
-
-      return {
-        id: property.id,
-        title: property.title,
-        location,
-        price: priceLabel,
-        status: statusLabel,
-        statusTone,
-        verificationStatus: property.status,
-        verificationLevel: property.verificationLevel,
-        isFeatured: property.isFeatured ?? false,
-        imageUrl,
-        beds: property.bedrooms ?? 0,
-        baths: property.bathrooms ?? 0,
-        area: property.areaSqm ?? 0,
-        coordinates,
-      };
-    });
-  } catch (error) {
-    console.error("Failed to fetch featured properties:", error);
-    return [];
-  }
-}
-
 export default async function HomePage() {
-  const showcaseProperties = await getFeaturedProperties();
+  const fallbackLocation = DEFAULT_HOME_LOCATION;
+
+  const [nearbyResult, featuredResult, agentsResult, agenciesResult] =
+    await Promise.allSettled([
+      nearbyVerifiedListings({
+        coords: fallbackLocation.coords,
+        filters: { limit: 18 },
+      }),
+      featuredListingsNear({ coords: fallbackLocation.coords }),
+      topAgentsNear({ coords: fallbackLocation.coords, filters: { limit: 6 } }),
+      topAgenciesNear({
+        coords: fallbackLocation.coords,
+        filters: { limit: 6 },
+      }),
+    ]);
+
+  const initialNearbyListings =
+    nearbyResult.status === "fulfilled" ? nearbyResult.value.items ?? [] : [];
+  const initialFeaturedListings =
+    featuredResult.status === "fulfilled" ? featuredResult.value ?? [] : [];
+  const initialTopAgents =
+    agentsResult.status === "fulfilled" ? agentsResult.value ?? [] : [];
+  const initialTopAgencies =
+    agenciesResult.status === "fulfilled" ? agenciesResult.value ?? [] : [];
 
   return (
     <div className="relative">
       <LandingNav />
-      <main className="flex flex-col gap-24 pb-24 pt-32">
-        <LandingHero cards={heroCards} />
+      <HomePageClient
+        initialNearbyListings={initialNearbyListings}
+        initialFeaturedListings={initialFeaturedListings}
+        initialTopAgents={initialTopAgents}
+        initialTopAgencies={initialTopAgencies}
+      />
 
-        <LandingAuroraPalette />
-
-        <section
-          id="listings"
-          className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 sm:px-12 lg:px-16"
-        >
-          <div className="flex flex-col gap-4">
-            <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">
-              Signature portfolio
-            </span>
-            <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
-              Featured addresses crafted for modern Zimbabwean living
-            </h2>
-            <p className="max-w-2xl text-base text-slate-600">
-              Cinematic cards reveal the essentials at a glance. Tap through to
-              unlock immersive tours, agent chat, and PropAd verified
-              documentation.
-            </p>
-          </div>
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {showcaseProperties.map((property) => (
-              <LandingPropertyCard key={property.id} property={property} />
-            ))}
-          </div>
-        </section>
-
-        <LandingMapSection properties={showcaseProperties} />
-      </main>
+      <section className="mx-auto w-full max-w-6xl px-6 sm:px-12 lg:px-16">
+        <AdSlot
+          source="home-footer"
+          adsenseEnabled={Boolean(process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID)}
+          unitId={process.env.NEXT_PUBLIC_ADSENSE_FEED_SLOT}
+          className="mx-auto max-w-4xl"
+          fallbackInhouseAds={[
+            {
+              id: "footer-cta",
+              title: "Verified listings move faster",
+              body: "Upgrade verification to earn higher trust scores and more visibility.",
+              ctaLabel: "Start verification",
+              href: "/dashboard/verification",
+              tone: "slate",
+            },
+          ]}
+        />
+      </section>
 
       <footer
         id="contact"

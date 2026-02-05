@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import {
   Currency,
+  ListingIntent,
   Prisma,
   PropertyAvailability,
   PropertyFurnishing,
@@ -3351,6 +3352,245 @@ export class PropertiesService {
         rankingApplied: useRanking,
       },
     };
+  }
+
+  private buildBoundsFromCenter(lat: number, lng: number, radiusKm: number) {
+    const latDelta = radiusKm / 110.574;
+    const lngDelta = radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180));
+    return {
+      southWest: { lat: lat - latDelta, lng: lng - lngDelta },
+      northEast: { lat: lat + latDelta, lng: lng + lngDelta },
+    };
+  }
+
+  async getTopAgentsNear(input: {
+    lat: number;
+    lng: number;
+    radiusKm?: number;
+    limit?: number;
+    verifiedOnly?: boolean;
+    intent?: ListingIntent;
+  }) {
+    const radiusKm = input.radiusKm ?? 40;
+    const limit = input.limit ?? 6;
+    const verifiedOnly = input.verifiedOnly ?? true;
+    const bounds = this.buildBoundsFromCenter(input.lat, input.lng, radiusKm);
+
+    const activeStatuses = verifiedOnly
+      ? [PropertyStatus.VERIFIED]
+      : [
+          PropertyStatus.VERIFIED,
+          PropertyStatus.PENDING_VERIFY,
+          PropertyStatus.PUBLISHED,
+        ];
+
+    const listings = await this.prisma.property.findMany({
+      where: {
+        status: { in: activeStatuses },
+        lat: {
+          gte: bounds.southWest.lat,
+          lte: bounds.northEast.lat,
+        },
+        lng: {
+          gte: bounds.southWest.lng,
+          lte: bounds.northEast.lng,
+        },
+        ...(input.intent ? { listingIntent: input.intent } : {}),
+      },
+      select: {
+        assignedAgentId: true,
+        agentOwnerId: true,
+        trustScore: true,
+        status: true,
+      },
+      take: 500,
+    });
+
+    const stats = new Map<
+      string,
+      { count: number; trustSum: number; verifiedCount: number }
+    >();
+
+    listings.forEach((listing) => {
+      const agentId = listing.assignedAgentId ?? listing.agentOwnerId;
+      if (!agentId) return;
+      const current = stats.get(agentId) ?? {
+        count: 0,
+        trustSum: 0,
+        verifiedCount: 0,
+      };
+      current.count += 1;
+      current.trustSum += Number(listing.trustScore ?? 0);
+      if (listing.status === PropertyStatus.VERIFIED) {
+        current.verifiedCount += 1;
+      }
+      stats.set(agentId, current);
+    });
+
+    const agentIds = Array.from(stats.keys());
+    if (agentIds.length === 0) {
+      return [];
+    }
+
+    const agents = await this.prisma.user.findMany({
+      where: {
+        id: { in: agentIds },
+        role: {
+          in: [Role.AGENT, Role.COMPANY_AGENT, Role.INDEPENDENT_AGENT],
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        profilePhoto: true,
+        trustScore: true,
+        agentProfile: {
+          select: { rating: true },
+        },
+      },
+    });
+
+    const ranked = agents
+      .map((agent) => {
+        const agentStats = stats.get(agent.id) ?? {
+          count: 0,
+          trustSum: 0,
+          verifiedCount: 0,
+        };
+        const avgTrust =
+          agentStats.count > 0 ? agentStats.trustSum / agentStats.count : 0;
+        return {
+          id: agent.id,
+          name: agent.name ?? null,
+          phone: agent.phone ?? null,
+          trustScore: agent.trustScore ?? 0,
+          rating: agent.agentProfile?.rating ?? 0,
+          verifiedListingsCount: agentStats.verifiedCount,
+          averageListingTrust: avgTrust,
+          profilePhoto: agent.profilePhoto ?? null,
+          score:
+            (agent.agentProfile?.rating ?? 0) * 12 +
+            agentStats.verifiedCount * 5 +
+            avgTrust * 0.8,
+        };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(({ score, ...rest }) => rest);
+
+    return ranked;
+  }
+
+  async getTopAgenciesNear(input: {
+    lat: number;
+    lng: number;
+    radiusKm?: number;
+    limit?: number;
+    verifiedOnly?: boolean;
+    intent?: ListingIntent;
+  }) {
+    const radiusKm = input.radiusKm ?? 40;
+    const limit = input.limit ?? 6;
+    const verifiedOnly = input.verifiedOnly ?? true;
+    const bounds = this.buildBoundsFromCenter(input.lat, input.lng, radiusKm);
+
+    const activeStatuses = verifiedOnly
+      ? [PropertyStatus.VERIFIED]
+      : [
+          PropertyStatus.VERIFIED,
+          PropertyStatus.PENDING_VERIFY,
+          PropertyStatus.PUBLISHED,
+        ];
+
+    const listings = await this.prisma.property.findMany({
+      where: {
+        status: { in: activeStatuses },
+        lat: {
+          gte: bounds.southWest.lat,
+          lte: bounds.northEast.lat,
+        },
+        lng: {
+          gte: bounds.southWest.lng,
+          lte: bounds.northEast.lng,
+        },
+        agencyId: { not: null },
+        ...(input.intent ? { listingIntent: input.intent } : {}),
+      },
+      select: {
+        agencyId: true,
+        trustScore: true,
+        status: true,
+      },
+      take: 600,
+    });
+
+    const stats = new Map<
+      string,
+      { count: number; trustSum: number; verifiedCount: number }
+    >();
+
+    listings.forEach((listing) => {
+      if (!listing.agencyId) return;
+      const current = stats.get(listing.agencyId) ?? {
+        count: 0,
+        trustSum: 0,
+        verifiedCount: 0,
+      };
+      current.count += 1;
+      current.trustSum += Number(listing.trustScore ?? 0);
+      if (listing.status === PropertyStatus.VERIFIED) {
+        current.verifiedCount += 1;
+      }
+      stats.set(listing.agencyId, current);
+    });
+
+    const agencyIds = Array.from(stats.keys());
+    if (agencyIds.length === 0) {
+      return [];
+    }
+
+    const agencies = await this.prisma.agency.findMany({
+      where: { id: { in: agencyIds } },
+      select: {
+        id: true,
+        name: true,
+        logoUrl: true,
+        trustScore: true,
+        companyProfile: {
+          select: { avgRating: true },
+        },
+      },
+    });
+
+    const ranked = agencies
+      .map((agency) => {
+        const agencyStats = stats.get(agency.id) ?? {
+          count: 0,
+          trustSum: 0,
+          verifiedCount: 0,
+        };
+        const avgTrust =
+          agencyStats.count > 0 ? agencyStats.trustSum / agencyStats.count : 0;
+        return {
+          id: agency.id,
+          name: agency.name,
+          logoUrl: agency.logoUrl ?? null,
+          trustScore: agency.trustScore ?? 0,
+          rating: agency.companyProfile?.avgRating ?? 0,
+          verifiedListingsCount: agencyStats.verifiedCount,
+          averageListingTrust: avgTrust,
+          score:
+            (agency.companyProfile?.avgRating ?? 0) * 12 +
+            agencyStats.verifiedCount * 5 +
+            avgTrust * 0.8,
+        };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(({ score, ...rest }) => rest);
+
+    return ranked;
   }
 
   async submitForVerification(
