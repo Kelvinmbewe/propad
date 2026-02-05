@@ -1381,10 +1381,14 @@ export class PropertiesService {
         suburb: true,
         pendingGeo: true,
         media: true,
-        landlord: { select: { id: true, name: true, email: true } },
-        agentOwner: { select: { id: true, name: true, email: true } },
-        owner: { select: { id: true, name: true, email: true } },
-        assignedAgent: { select: { id: true, name: true, email: true } },
+        landlord: { select: { id: true, name: true, email: true, role: true } },
+        agentOwner: {
+          select: { id: true, name: true, email: true, role: true },
+        },
+        owner: { select: { id: true, name: true, email: true, role: true } },
+        assignedAgent: {
+          select: { id: true, name: true, email: true, role: true },
+        },
         managementAssignments: {
           orderBy: { createdAt: "desc" },
           take: 1,

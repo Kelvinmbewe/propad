@@ -181,6 +181,9 @@ async function main() {
     `• Detected role field: ${roleField || "(none found)"} ${hasRoleEnum ? "(enum Role)" : ""}`,
   );
 
+  // Store user references for later use
+  const seededUsers = {};
+
   for (const u of demo) {
     const createData = buildCreateData(
       userFields,
@@ -195,7 +198,7 @@ async function main() {
       createData[passwordField] = hashed;
     }
 
-    await prisma.user.upsert({
+    const user = await prisma.user.upsert({
       where: { email: u.email },
       update: {
         ...(roleField && u.role ? { [roleField]: u.role } : {}),
@@ -207,10 +210,238 @@ async function main() {
       create: createData,
     });
 
+    seededUsers[u.email] = user;
     console.log(`✔ Upserted ${u.email}`);
   }
 
-  console.log("🌱 Seed complete.");
+  // 2. SEED AGENCY
+  console.log("\n▶ Seeding agency...");
+  let agency = await prisma.agency.findFirst({
+    where: { slug: "prestige-properties" },
+  });
+  if (!agency) {
+    agency = await prisma.agency.create({
+      data: {
+        name: "Prestige Properties",
+        slug: "prestige-properties",
+        email: "info@prestigeprop.local",
+        phone: "+263242000000",
+        address: "123 Samora Machel Ave, Harare",
+        status: "ACTIVE",
+        trustScore: 95,
+        verificationScore: 95,
+        verifiedAt: new Date(),
+        bio: "Zimbabwe's leading luxury property specialists.",
+      },
+    });
+    console.log(`✔ Created agency: ${agency.name}`);
+  } else {
+    console.log(`✔ Agency already exists: ${agency.name}`);
+  }
+
+  // Link agent to agency
+  const agentUser = seededUsers["agent@propad.local"];
+  if (agentUser) {
+    await prisma.agencyMember.upsert({
+      where: {
+        agencyId_userId: {
+          agencyId: agency.id,
+          userId: agentUser.id,
+        },
+      },
+      update: {},
+      create: {
+        agencyId: agency.id,
+        userId: agentUser.id,
+        role: "AGENT",
+        isActive: true,
+      },
+    });
+    console.log("✔ Linked Agent to Agency");
+  }
+
+  // 3. SEED SAMPLE PROPERTIES WITH LISTING MANAGEMENT
+  console.log("\n▶ Seeding sample properties with listing management...");
+
+  const demoUser = seededUsers["user@propad.local"];
+
+  if (demoUser && agentUser) {
+    // Property 1: Owner-managed listing
+    const ownerManagedProperty = await prisma.property.upsert({
+      where: { id: "seed-property-owner-managed" },
+      update: {},
+      create: {
+        id: "seed-property-owner-managed",
+        title: "Modern 3 Bedroom House in Borrowdale",
+        type: "HOUSE",
+        currency: "USD",
+        price: 1500,
+        bedrooms: 3,
+        bathrooms: 2,
+        areaSqm: 180,
+        amenities: ["swimming_pool", "garden", "security", "borehole"],
+        description: "Beautiful modern house with pool in quiet Borrowdale neighborhood.",
+        status: "PUBLISHED",
+        landlordId: demoUser.id,
+        ownerId: demoUser.id,
+        managedByType: "OWNER",
+        verificationScore: 75,
+        trustScore: 80,
+        createdByRole: "LANDLORD",
+      },
+    });
+    console.log(`✔ Seeded property: ${ownerManagedProperty.title}`);
+
+    // Property 2: Agent-managed listing
+    const agentManagedProperty = await prisma.property.upsert({
+      where: { id: "seed-property-agent-managed" },
+      update: {},
+      create: {
+        id: "seed-property-agent-managed",
+        title: "Executive Apartment in Avondale",
+        type: "APARTMENT",
+        currency: "USD",
+        price: 1200,
+        bedrooms: 2,
+        bathrooms: 2,
+        areaSqm: 120,
+        amenities: ["gym", "parking", "security", "elevator"],
+        description: "Luxurious executive apartment in prime Avondale location.",
+        status: "PUBLISHED",
+        landlordId: demoUser.id,
+        ownerId: demoUser.id,
+        managedByType: "AGENT",
+        managedById: agentUser.id,
+        assignedAgentId: agentUser.id,
+        verificationScore: 90,
+        trustScore: 95,
+        createdByRole: "LANDLORD",
+      },
+    });
+    console.log(`✔ Seeded property: ${agentManagedProperty.title}`);
+
+    // Property 3: Agency-managed listing
+    const agencyManagedProperty = await prisma.property.upsert({
+      where: { id: "seed-property-agency-managed" },
+      update: {},
+      create: {
+        id: "seed-property-agency-managed",
+        title: "Commercial Office Space in CBD",
+        type: "COMMERCIAL_OFFICE",
+        currency: "USD",
+        price: 3500,
+        areaSqm: 250,
+        amenities: ["parking", "security", "elevator", "reception"],
+        description: "Prime commercial office space in Harare CBD.",
+        status: "PUBLISHED",
+        landlordId: demoUser.id,
+        ownerId: demoUser.id,
+        managedByType: "AGENCY",
+        managedById: agency.id,
+        agencyId: agency.id,
+        assignedAgentId: agentUser.id,
+        verificationScore: 95,
+        trustScore: 98,
+        createdByRole: "LANDLORD",
+      },
+    });
+    console.log(`✔ Seeded property: ${agencyManagedProperty.title}`);
+
+    // Property 4: Pending assignment
+    const pendingProperty = await prisma.property.upsert({
+      where: { id: "seed-property-pending-assignment" },
+      update: {},
+      create: {
+        id: "seed-property-pending-assignment",
+        title: "Townhouse in Highlands",
+        type: "TOWNHOUSE",
+        currency: "USD",
+        price: 1800,
+        bedrooms: 4,
+        bathrooms: 3,
+        areaSqm: 200,
+        amenities: ["garden", "garage", "security"],
+        description: "Spacious townhouse in serene Highlands area.",
+        status: "DRAFT",
+        landlordId: demoUser.id,
+        ownerId: demoUser.id,
+        managedByType: "OWNER",
+        createdByRole: "LANDLORD",
+      },
+    });
+    console.log(`✔ Seeded property: ${pendingProperty.title}`);
+
+    // 4. SEED LISTING MANAGEMENT ASSIGNMENTS
+    console.log("\n▶ Seeding listing management assignments...");
+
+    // Assignment for agent-managed property (accepted)
+    await prisma.listingManagementAssignment.upsert({
+      where: { id: "seed-lma-agent-accepted" },
+      update: {},
+      create: {
+        id: "seed-lma-agent-accepted",
+        propertyId: agentManagedProperty.id,
+        ownerId: demoUser.id,
+        managedByType: "AGENT",
+        managedById: agentUser.id,
+        assignedAgentId: agentUser.id,
+        serviceFeeUsdCents: 10000,
+        landlordPaysFee: true,
+        status: "ACCEPTED",
+        createdById: demoUser.id,
+        acceptedById: agentUser.id,
+        acceptedAt: new Date(),
+        notes: "Agent accepted to manage this listing.",
+      },
+    });
+    console.log("✔ Seeded agent management assignment (ACCEPTED)");
+
+    // Assignment for agency-managed property (accepted)
+    await prisma.listingManagementAssignment.upsert({
+      where: { id: "seed-lma-agency-accepted" },
+      update: {},
+      create: {
+        id: "seed-lma-agency-accepted",
+        propertyId: agencyManagedProperty.id,
+        ownerId: demoUser.id,
+        managedByType: "AGENCY",
+        managedById: agency.id,
+        assignedAgentId: agentUser.id,
+        serviceFeeUsdCents: 25000,
+        landlordPaysFee: true,
+        status: "ACCEPTED",
+        createdById: demoUser.id,
+        acceptedById: agentUser.id,
+        acceptedAt: new Date(),
+        notes: "Agency assigned to manage this commercial property.",
+      },
+    });
+    console.log("✔ Seeded agency management assignment (ACCEPTED)");
+
+    // Assignment pending approval
+    await prisma.listingManagementAssignment.upsert({
+      where: { id: "seed-lma-pending" },
+      update: {},
+      create: {
+        id: "seed-lma-pending",
+        propertyId: pendingProperty.id,
+        ownerId: demoUser.id,
+        managedByType: "AGENT",
+        managedById: agentUser.id,
+        assignedAgentId: agentUser.id,
+        serviceFeeUsdCents: 15000,
+        landlordPaysFee: false,
+        status: "CREATED",
+        createdById: demoUser.id,
+        notes: "Pending agent acceptance for property management.",
+      },
+    });
+    console.log("✔ Seeded pending management assignment (CREATED)");
+  } else {
+    console.log("⚠ Skipping property seeding - demo user or agent not found");
+  }
+
+  console.log("\n🌱 Seed complete.");
   await prisma.$disconnect();
 }
 
@@ -218,3 +449,4 @@ main().catch((e) => {
   console.error("❌ Seed failed:", e);
   process.exit(1);
 });
+

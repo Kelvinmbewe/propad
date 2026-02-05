@@ -3,6 +3,11 @@ import {
   Role,
   AgencyStatus,
   AgencyMemberRole,
+  ListingManagedByType,
+  ListingManagementStatus,
+  PropertyType,
+  PropertyStatus,
+  Currency,
 } from "@prisma/client";
 import { hash } from "bcryptjs";
 
@@ -200,7 +205,181 @@ async function main() {
   });
   console.log("Seeded Reward Pool:", pool.name);
 
-  // 11. MOCK ADSENSE DATA
+  // 11. SAMPLE PROPERTIES WITH LISTING MANAGEMENT
+  console.log("Seeding sample properties with listing management...");
+
+  // Property 1: Owner-managed listing (landlord manages their own property)
+  const ownerManagedProperty = await prisma.property.upsert({
+    where: { id: "seed-property-owner-managed" },
+    update: {},
+    create: {
+      id: "seed-property-owner-managed",
+      title: "Modern 3 Bedroom House in Borrowdale",
+      type: PropertyType.HOUSE,
+      currency: Currency.USD,
+      price: 1500,
+      bedrooms: 3,
+      bathrooms: 2,
+      areaSqm: 180,
+      amenities: ["swimming_pool", "garden", "security", "borehole"],
+      description: "Beautiful modern house with pool in quiet Borrowdale neighborhood.",
+      status: PropertyStatus.PUBLISHED,
+      landlordId: user.id,
+      ownerId: user.id,
+      managedByType: ListingManagedByType.OWNER,
+      verificationScore: 75,
+      trustScore: 80,
+      createdByRole: "LANDLORD",
+    },
+  });
+  console.log("Seeded Owner-Managed Property:", ownerManagedProperty.title);
+
+  // Property 2: Agent-managed listing (agent manages on behalf of owner)
+  const agentManagedProperty = await prisma.property.upsert({
+    where: { id: "seed-property-agent-managed" },
+    update: {},
+    create: {
+      id: "seed-property-agent-managed",
+      title: "Executive Apartment in Avondale",
+      type: PropertyType.APARTMENT,
+      currency: Currency.USD,
+      price: 1200,
+      bedrooms: 2,
+      bathrooms: 2,
+      areaSqm: 120,
+      amenities: ["gym", "parking", "security", "elevator"],
+      description: "Luxurious executive apartment in prime Avondale location.",
+      status: PropertyStatus.PUBLISHED,
+      landlordId: user.id,
+      ownerId: user.id,
+      managedByType: ListingManagedByType.AGENT,
+      managedById: agent.id,
+      assignedAgentId: agent.id,
+      verificationScore: 90,
+      trustScore: 95,
+      createdByRole: "LANDLORD",
+    },
+  });
+  console.log("Seeded Agent-Managed Property:", agentManagedProperty.title);
+
+  // Property 3: Agency-managed listing (agency manages the property)
+  const agencyManagedProperty = await prisma.property.upsert({
+    where: { id: "seed-property-agency-managed" },
+    update: {},
+    create: {
+      id: "seed-property-agency-managed",
+      title: "Commercial Office Space in CBD",
+      type: PropertyType.COMMERCIAL_OFFICE,
+      currency: Currency.USD,
+      price: 3500,
+      areaSqm: 250,
+      amenities: ["parking", "security", "elevator", "reception"],
+      description: "Prime commercial office space in Harare CBD.",
+      status: PropertyStatus.PUBLISHED,
+      landlordId: user.id,
+      ownerId: user.id,
+      managedByType: ListingManagedByType.AGENCY,
+      managedById: agency.id,
+      agencyId: agency.id,
+      assignedAgentId: agent.id,
+      verificationScore: 95,
+      trustScore: 98,
+      createdByRole: "LANDLORD",
+    },
+  });
+  console.log("Seeded Agency-Managed Property:", agencyManagedProperty.title);
+
+  // 12. LISTING MANAGEMENT ASSIGNMENTS
+  console.log("Seeding listing management assignments...");
+
+  // Assignment for agent-managed property (accepted)
+  await prisma.listingManagementAssignment.upsert({
+    where: { id: "seed-lma-agent-accepted" },
+    update: {},
+    create: {
+      id: "seed-lma-agent-accepted",
+      propertyId: agentManagedProperty.id,
+      ownerId: user.id,
+      managedByType: ListingManagedByType.AGENT,
+      managedById: agent.id,
+      assignedAgentId: agent.id,
+      serviceFeeUsdCents: 10000, // $100 fee
+      landlordPaysFee: true,
+      status: ListingManagementStatus.ACCEPTED,
+      createdById: user.id,
+      acceptedById: agent.id,
+      acceptedAt: new Date(),
+      notes: "Agent accepted to manage this listing.",
+    },
+  });
+  console.log("Seeded Agent Management Assignment (Accepted)");
+
+  // Assignment for agency-managed property (accepted)
+  await prisma.listingManagementAssignment.upsert({
+    where: { id: "seed-lma-agency-accepted" },
+    update: {},
+    create: {
+      id: "seed-lma-agency-accepted",
+      propertyId: agencyManagedProperty.id,
+      ownerId: user.id,
+      managedByType: ListingManagedByType.AGENCY,
+      managedById: agency.id,
+      assignedAgentId: agent.id,
+      serviceFeeUsdCents: 25000, // $250 fee
+      landlordPaysFee: true,
+      status: ListingManagementStatus.ACCEPTED,
+      createdById: user.id,
+      acceptedById: agent.id,
+      acceptedAt: new Date(),
+      notes: "Agency assigned to manage this commercial property.",
+    },
+  });
+  console.log("Seeded Agency Management Assignment (Accepted)");
+
+  // Assignment pending approval (to demonstrate the workflow)
+  const pendingProperty = await prisma.property.upsert({
+    where: { id: "seed-property-pending-assignment" },
+    update: {},
+    create: {
+      id: "seed-property-pending-assignment",
+      title: "Townhouse in Highlands",
+      type: PropertyType.TOWNHOUSE,
+      currency: Currency.USD,
+      price: 1800,
+      bedrooms: 4,
+      bathrooms: 3,
+      areaSqm: 200,
+      amenities: ["garden", "garage", "security"],
+      description: "Spacious townhouse in serene Highlands area.",
+      status: PropertyStatus.DRAFT,
+      landlordId: user.id,
+      ownerId: user.id,
+      managedByType: ListingManagedByType.OWNER,
+      createdByRole: "LANDLORD",
+    },
+  });
+  console.log("Seeded Pending Property:", pendingProperty.title);
+
+  await prisma.listingManagementAssignment.upsert({
+    where: { id: "seed-lma-pending" },
+    update: {},
+    create: {
+      id: "seed-lma-pending",
+      propertyId: pendingProperty.id,
+      ownerId: user.id,
+      managedByType: ListingManagedByType.AGENT,
+      managedById: agent.id,
+      assignedAgentId: agent.id,
+      serviceFeeUsdCents: 15000, // $150 fee
+      landlordPaysFee: false, // Tenant pays
+      status: ListingManagementStatus.CREATED,
+      createdById: user.id,
+      notes: "Pending agent acceptance for property management.",
+    },
+  });
+  console.log("Seeded Pending Management Assignment");
+
+  // 13. MOCK ADSENSE DATA
   console.log("Seeding AdSense Data...");
   const today = new Date();
   for (let i = 0; i < 30; i++) {
