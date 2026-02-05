@@ -51,6 +51,7 @@ import { FinanceModule } from "./finance/finance.module";
 import { GovernanceModule } from "./governance/governance.module";
 import { CompaniesModule } from "./companies/companies.module";
 import { UsersModule } from "./users/users.module";
+import { SavedSearchesModule } from "./saved-searches/saved-searches.module";
 
 @Module({
   imports: [
@@ -104,6 +105,7 @@ import { UsersModule } from "./users/users.module";
     GovernanceModule,
     CompaniesModule,
     UsersModule,
+    SavedSearchesModule,
   ],
   providers: [
     {

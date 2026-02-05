@@ -3593,6 +3593,238 @@ export class PropertiesService {
     return ranked;
   }
 
+  async getHomeCounts(input: {
+    lat?: number;
+    lng?: number;
+    radiusKm?: number;
+  }) {
+    const hasCoords =
+      typeof input.lat === "number" && typeof input.lng === "number";
+    const bounds = hasCoords
+      ? this.buildBoundsFromCenter(
+          input.lat as number,
+          input.lng as number,
+          input.radiusKm ?? 40,
+        )
+      : null;
+    const locationFilter = bounds
+      ? {
+          lat: {
+            gte: bounds.southWest.lat,
+            lte: bounds.northEast.lat,
+          },
+          lng: {
+            gte: bounds.southWest.lng,
+            lte: bounds.northEast.lng,
+          },
+        }
+      : {};
+
+    const sinceDate = new Date();
+    sinceDate.setDate(sinceDate.getDate() - 30);
+
+    const [verifiedListingsCount, newListings30dCount, trustChecksCount] =
+      await Promise.all([
+        this.prisma.property.count({
+          where: {
+            status: PropertyStatus.VERIFIED,
+            ...locationFilter,
+          },
+        }),
+        this.prisma.property.count({
+          where: {
+            status: {
+              in: [
+                PropertyStatus.VERIFIED,
+                PropertyStatus.PUBLISHED,
+                PropertyStatus.PENDING_VERIFY,
+              ],
+            },
+            createdAt: { gte: sinceDate },
+            ...locationFilter,
+          },
+        }),
+        this.prisma.verificationRequestItem.count({
+          where: { status: "APPROVED" },
+        }),
+      ]);
+
+    let partnersCount = 0;
+    if (bounds) {
+      const listings = await this.prisma.property.findMany({
+        where: {
+          status: PropertyStatus.VERIFIED,
+          ...locationFilter,
+        },
+        select: {
+          assignedAgentId: true,
+          agentOwnerId: true,
+          agencyId: true,
+        },
+        take: 800,
+      });
+      const agentIds = new Set<string>();
+      const agencyIds = new Set<string>();
+      listings.forEach((listing) => {
+        if (listing.assignedAgentId) agentIds.add(listing.assignedAgentId);
+        if (listing.agentOwnerId) agentIds.add(listing.agentOwnerId);
+        if (listing.agencyId) agencyIds.add(listing.agencyId);
+      });
+      partnersCount = agentIds.size + agencyIds.size;
+    } else {
+      const [agentsCount, agenciesCount] = await Promise.all([
+        this.prisma.user.count({
+          where: {
+            role: {
+              in: [Role.AGENT, Role.COMPANY_AGENT, Role.INDEPENDENT_AGENT],
+            },
+          },
+        }),
+        this.prisma.agency.count({
+          where: { status: "ACTIVE" },
+        }),
+      ]);
+      partnersCount = agentsCount + agenciesCount;
+    }
+
+    return {
+      verifiedListingsCount,
+      partnersCount,
+      newListings30dCount,
+      trustChecksCount,
+    };
+  }
+
+  async getHomeAreas(input: {
+    lat?: number;
+    lng?: number;
+    radiusKm?: number;
+    city?: string;
+    limitCities?: number;
+    limitSuburbs?: number;
+  }) {
+    const limitCities = input.limitCities ?? 6;
+    const limitSuburbs = input.limitSuburbs ?? 6;
+    const hasCoords =
+      typeof input.lat === "number" && typeof input.lng === "number";
+    const bounds = hasCoords
+      ? this.buildBoundsFromCenter(
+          input.lat as number,
+          input.lng as number,
+          input.radiusKm ?? 40,
+        )
+      : null;
+    const locationFilter = bounds
+      ? {
+          lat: {
+            gte: bounds.southWest.lat,
+            lte: bounds.northEast.lat,
+          },
+          lng: {
+            gte: bounds.southWest.lng,
+            lte: bounds.northEast.lng,
+          },
+        }
+      : {};
+
+    const publicStatuses = [PropertyStatus.VERIFIED, PropertyStatus.PUBLISHED];
+
+    const topCities = await this.prisma.property.groupBy({
+      by: ["cityId"],
+      where: {
+        status: { in: publicStatuses },
+        cityId: { not: null },
+        ...locationFilter,
+      },
+      _count: { cityId: true },
+      orderBy: { _count: { cityId: "desc" } },
+      take: limitCities,
+    });
+
+    const cityIds = topCities
+      .map((item) => item.cityId)
+      .filter(Boolean) as string[];
+    const cities = cityIds.length
+      ? await this.prisma.city.findMany({
+          where: { id: { in: cityIds } },
+          select: {
+            id: true,
+            name: true,
+            lat: true,
+            lng: true,
+            province: { select: { name: true } },
+          },
+        })
+      : [];
+
+    const cityCounts = new Map<string, number>();
+    topCities.forEach((item) => {
+      if (item.cityId) cityCounts.set(item.cityId, item._count.cityId);
+    });
+
+    const cityResults = cities
+      .map((city) => ({
+        id: city.id,
+        name: city.name,
+        province: city.province?.name ?? null,
+        lat: city.lat,
+        lng: city.lng,
+        count: cityCounts.get(city.id) ?? 0,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limitCities);
+
+    let suburbFilter: any = locationFilter;
+    if (input.city) {
+      const cityRecord = await this.prisma.city.findFirst({
+        where: { name: { equals: input.city, mode: "insensitive" } },
+        select: { id: true },
+      });
+      if (cityRecord?.id) {
+        suburbFilter = { ...suburbFilter, cityId: cityRecord.id };
+      }
+    }
+
+    const topSuburbs = await this.prisma.property.groupBy({
+      by: ["suburbId"],
+      where: {
+        status: { in: publicStatuses },
+        suburbId: { not: null },
+        ...suburbFilter,
+      },
+      _count: { suburbId: true },
+      orderBy: { _count: { suburbId: "desc" } },
+      take: limitSuburbs,
+    });
+
+    const suburbIds = topSuburbs
+      .map((item) => item.suburbId)
+      .filter(Boolean) as string[];
+    const suburbs = suburbIds.length
+      ? await this.prisma.suburb.findMany({
+          where: { id: { in: suburbIds } },
+          select: { id: true, name: true, city: { select: { name: true } } },
+        })
+      : [];
+
+    const suburbCounts = new Map<string, number>();
+    topSuburbs.forEach((item) => {
+      if (item.suburbId) suburbCounts.set(item.suburbId, item._count.suburbId);
+    });
+
+    const suburbResults = suburbs
+      .map((suburb) => ({
+        id: suburb.id,
+        name: suburb.name,
+        city: suburb.city?.name ?? null,
+        count: suburbCounts.get(suburb.id) ?? 0,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limitSuburbs);
+
+    return { cities: cityResults, suburbs: suburbResults };
+  }
+
   async submitForVerification(
     id: string,
     dto: SubmitForVerificationDto,

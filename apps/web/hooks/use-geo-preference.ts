@@ -74,7 +74,7 @@ export function useGeoPreference(fallbackLocation: {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           },
-          label: "Near you",
+          label: "Near me",
           source: "browser" as const,
           permission: "granted" as const,
           updatedAt: new Date().toISOString(),

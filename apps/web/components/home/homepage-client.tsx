@@ -1,22 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { LandingHero, type HomeSearchState } from "@/components/landing-hero";
+import { signIn, useSession } from "next-auth/react";
 import {
-  LandingPropertyCard,
-  type LandingProperty,
-} from "@/components/landing-property-card";
+  HeroSearchCard,
+  type HomeSearchState,
+} from "@/components/home/hero-search-card";
+import { StatsBand } from "@/components/home/stats-band";
+import { FeaturedListingsSection } from "@/components/home/featured-listings-section";
+import { ListingsGridSection } from "@/components/home/listings-grid-section";
+import { type LandingProperty } from "@/components/landing-property-card";
 import { AdSlot } from "@/components/ad-slot";
 import { TrustBadge, type TrustBreakdown } from "@/components/trust/TrustBadge";
+import { notify } from "@propad/ui";
 import {
   buildBoundsString,
-  nearbyVerifiedListings,
-  featuredListingsNear,
-  topAgentsNear,
-  topAgenciesNear,
   type HomeAgent,
   type HomeAgency,
+  type HomeCounts,
 } from "@/lib/homepage-data";
 import {
   DEFAULT_HOME_LOCATION,
@@ -24,8 +27,34 @@ import {
   type QuickLocation,
 } from "@/lib/homepage-locations";
 import { useGeoPreference } from "@/hooks/use-geo-preference";
+import { useNearbyListings } from "@/hooks/use-nearby-listings";
+import { useFeaturedListings } from "@/hooks/use-featured-listings";
+import { useHomeAreas } from "@/hooks/use-home-areas";
+import { useTopPartners } from "@/hooks/use-top-partners";
 import { getImageUrl } from "@/lib/image-url";
-import { Building2, MapPin, ShieldCheck, UserCheck } from "lucide-react";
+import { ShieldCheck, UserCheck } from "lucide-react";
+
+const ExploreByAreaSection = dynamic(
+  () =>
+    import("@/components/home/explore-by-area-section").then(
+      (mod) => mod.ExploreByAreaSection,
+    ),
+  { ssr: false },
+);
+const TopPartnersSection = dynamic(
+  () =>
+    import("@/components/home/top-partners-section").then(
+      (mod) => mod.TopPartnersSection,
+    ),
+  { ssr: false },
+);
+const SavedSearchCTASection = dynamic(
+  () =>
+    import("@/components/home/saved-search-cta-section").then(
+      (mod) => mod.SavedSearchCTASection,
+    ),
+  { ssr: false },
+);
 
 const FEATURED_MIN_TRUST = 70;
 
@@ -34,6 +63,7 @@ interface HomePageClientProps {
   initialFeaturedListings: any[];
   initialTopAgents: HomeAgent[];
   initialTopAgencies: HomeAgency[];
+  initialCounts?: HomeCounts;
 }
 
 function formatPrice(
@@ -143,58 +173,34 @@ function parsePriceRange(range: string) {
   };
 }
 
-function getPopularAreas(listings: any[]) {
-  const counts = new Map<string, number>();
-  listings.forEach((listing) => {
-    const suburb =
-      listing.suburb?.name ||
-      listing.location?.suburb?.name ||
-      listing.suburbName;
-    const city =
-      listing.city?.name || listing.location?.city?.name || listing.cityName;
-    const label = suburb ? `${suburb}${city ? `, ${city}` : ""}` : city;
-    if (label) {
-      counts.set(label, (counts.get(label) ?? 0) + 1);
-    }
-  });
-
-  return Array.from(counts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
-    .map(([label, count]) => ({ label, count }));
-}
-
 export function HomePageClient({
   initialNearbyListings,
   initialFeaturedListings,
   initialTopAgents,
   initialTopAgencies,
+  initialCounts,
 }: HomePageClientProps) {
+  const { data: session } = useSession();
+  const isAuthenticated = Boolean(session?.user?.id);
   const geo = useGeoPreference(DEFAULT_HOME_LOCATION);
   const [searchState, setSearchState] = useState<HomeSearchState>({
     intent: "FOR_SALE",
     locationLabel: geo.label,
+    locationId: null,
+    locationLevel: null,
     propertyType: "any",
     priceRange: "any",
     verifiedOnly: true,
+    minTrust: 60,
   });
-  const [nearbyListings, setNearbyListings] = useState<any[]>(
-    initialNearbyListings,
-  );
-  const [featuredListings, setFeaturedListings] = useState<any[]>(
-    initialFeaturedListings,
-  );
-  const [topAgents, setTopAgents] = useState<HomeAgent[]>(initialTopAgents);
-  const [topAgencies, setTopAgencies] =
-    useState<HomeAgency[]>(initialTopAgencies);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"agents" | "agencies">("agents");
 
   useEffect(() => {
     setSearchState((prev) => ({
       ...prev,
-      locationLabel: geo.source === "default" ? "Near you" : geo.label,
+      locationLabel: geo.label,
+      locationId: null,
+      locationLevel: null,
     }));
   }, [geo.label, geo.source]);
 
@@ -205,107 +211,92 @@ export function HomePageClient({
   };
 
   const handleQuickLocation = (location: QuickLocation) => {
-    if (location.label.toLowerCase() === "nearby") {
+    if (location.label.toLowerCase() === "near me") {
       geo.requestLocation();
-      setSearchState((prev) => ({ ...prev, locationLabel: "Near you" }));
+      setSearchState((prev) => ({ ...prev, locationLabel: "Near me" }));
       return;
     }
 
     geo.setManualLocation({ label: location.label, coords: location.coords });
-    setSearchState((prev) => ({ ...prev, locationLabel: location.label }));
+    setSearchState((prev) => ({
+      ...prev,
+      locationLabel: location.label,
+      locationId: null,
+      locationLevel: null,
+    }));
   };
 
-  useEffect(() => {
-    let active = true;
+  const priceFilters = parsePriceRange(searchState.priceRange);
+  const nearbyQuery = useNearbyListings({
+    lat: selectedCoords?.lat,
+    lng: selectedCoords?.lng,
+    city: searchState.locationLabel,
+    mode: searchState.intent === "FOR_SALE" ? "sale" : "rent",
+    verifiedOnly: searchState.verifiedOnly,
+    limit: 24,
+    minTrust: searchState.minTrust,
+    propertyType:
+      searchState.propertyType !== "any" ? searchState.propertyType : undefined,
+    priceMin: priceFilters.priceMin,
+    priceMax: priceFilters.priceMax,
+  });
+  const featuredQuery = useFeaturedListings({
+    lat: selectedCoords?.lat,
+    lng: selectedCoords?.lng,
+    minTrust: Math.max(FEATURED_MIN_TRUST, searchState.minTrust),
+  });
+  const agentsQuery = useTopPartners({
+    lat: selectedCoords?.lat,
+    lng: selectedCoords?.lng,
+    type: "agents",
+    limit: 6,
+  });
+  const agenciesQuery = useTopPartners({
+    lat: selectedCoords?.lat,
+    lng: selectedCoords?.lng,
+    type: "agencies",
+    limit: 6,
+  });
+  const areasQuery = useHomeAreas({
+    lat: selectedCoords?.lat,
+    lng: selectedCoords?.lng,
+    city:
+      searchState.locationLevel === "CITY"
+        ? searchState.locationLabel
+        : undefined,
+  });
 
-    const load = async () => {
-      setIsLoading(true);
-      setLoadError(null);
-      try {
-        const priceFilters = parsePriceRange(searchState.priceRange);
-        const filters = {
-          verifiedOnly: searchState.verifiedOnly,
-          propertyType:
-            searchState.propertyType !== "any"
-              ? searchState.propertyType
-              : undefined,
-          priceMin: priceFilters.priceMin,
-          priceMax: priceFilters.priceMax,
-          limit: 24,
-        };
-
-        const [nearby, featured, agents, agencies] = await Promise.all([
-          nearbyVerifiedListings({ coords: selectedCoords, filters }),
-          featuredListingsNear({ coords: selectedCoords }),
-          topAgentsNear({ coords: selectedCoords, filters: { limit: 6 } }),
-          topAgenciesNear({ coords: selectedCoords, filters: { limit: 6 } }),
-        ]);
-
-        if (!active) return;
-
-        const filteredByIntent = (nearby.items ?? []).filter((listing) => {
-          if (searchState.intent === "TO_RENT")
-            return listing.listingIntent === "TO_RENT";
-          if (searchState.intent === "FOR_SALE")
-            return listing.listingIntent !== "TO_RENT";
-          return true;
-        });
-
-        const sorted = filteredByIntent
-          .slice()
-          .sort(
-            (a, b) =>
-              scoreListing(b, selectedCoords) - scoreListing(a, selectedCoords),
-          );
-
-        const featuredFiltered = (featured ?? [])
-          .filter(
-            (listing) => Number(listing.trustScore ?? 0) >= FEATURED_MIN_TRUST,
-          )
-          .filter((listing) => {
-            if (searchState.intent === "TO_RENT")
-              return listing.listingIntent === "TO_RENT";
-            if (searchState.intent === "FOR_SALE")
-              return listing.listingIntent !== "TO_RENT";
-            return true;
-          });
-
-        setNearbyListings(sorted);
-        setFeaturedListings(featuredFiltered);
-        setTopAgents(agents ?? []);
-        setTopAgencies(agencies ?? []);
-      } catch (error) {
-        if (!active) return;
-        setLoadError("We could not refresh nearby listings.");
-      } finally {
-        if (active) setIsLoading(false);
-      }
-    };
-
-    load();
-    return () => {
-      active = false;
-    };
-  }, [
-    searchState.intent,
-    searchState.priceRange,
-    searchState.propertyType,
-    searchState.verifiedOnly,
-    selectedCoords,
-  ]);
+  const nearbyItems = (nearbyQuery.data?.items ??
+    initialNearbyListings) as any[];
+  const featuredItems = (featuredQuery.data?.items ??
+    initialFeaturedListings) as any[];
+  const topAgents = (agentsQuery.data?.items ??
+    initialTopAgents) as HomeAgent[];
+  const topAgencies = (agenciesQuery.data?.items ??
+    initialTopAgencies) as HomeAgency[];
 
   const nearCards = useMemo(
-    () => nearbyListings.map(mapToLandingProperty),
-    [nearbyListings],
+    () => nearbyItems.map(mapToLandingProperty),
+    [nearbyItems],
   );
   const featuredCards = useMemo(
-    () => featuredListings.map(mapToLandingProperty),
-    [featuredListings],
+    () => featuredItems.map(mapToLandingProperty),
+    [featuredItems],
   );
-  const popularAreas = useMemo(
-    () => getPopularAreas(nearbyListings),
-    [nearbyListings],
-  );
+  const areaCities = (areasQuery.data?.cities ?? []) as Array<{
+    id: string;
+    name: string;
+    province?: string | null;
+    lat?: number | null;
+    lng?: number | null;
+    count?: number;
+  }>;
+  const areaSuburbs = (areasQuery.data?.suburbs ?? []) as Array<{
+    id: string;
+    name: string;
+    city?: string | null;
+    count?: number;
+  }>;
 
   const inhouseAds = useMemo(
     () => [
@@ -329,31 +320,92 @@ export function HomePageClient({
     [],
   );
 
+  const buildBrowseParams = () => {
+    const params = new URLSearchParams();
+    params.set("verifiedOnly", searchState.verifiedOnly ? "true" : "false");
+    params.set("intent", searchState.intent);
+    if (searchState.locationId && searchState.locationLevel) {
+      if (searchState.locationLevel === "CITY") {
+        params.set("cityId", searchState.locationId);
+      }
+      if (searchState.locationLevel === "SUBURB") {
+        params.set("suburbId", searchState.locationId);
+      }
+      if (searchState.locationLevel === "PROVINCE") {
+        params.set("provinceId", searchState.locationId);
+      }
+    }
+    if (searchState.propertyType !== "any") {
+      params.set("type", searchState.propertyType);
+    }
+    const priceFilters = parsePriceRange(searchState.priceRange);
+    if (priceFilters.priceMin) {
+      params.set("priceMin", String(priceFilters.priceMin));
+    }
+    if (priceFilters.priceMax) {
+      params.set("priceMax", String(priceFilters.priceMax));
+    }
+    if (searchState.minTrust > 0) {
+      params.set("minTrust", String(searchState.minTrust));
+    }
+    if (selectedCoords?.lat && selectedCoords?.lng) {
+      params.set("bounds", buildBoundsString(selectedCoords, 30));
+    }
+    return params;
+  };
+
+  const buildSearchPayload = () => ({
+    intent: searchState.intent,
+    locationLabel: searchState.locationLabel,
+    locationId: searchState.locationId,
+    locationLevel: searchState.locationLevel,
+    propertyType: searchState.propertyType,
+    priceRange: searchState.priceRange,
+    verifiedOnly: searchState.verifiedOnly,
+    minTrust: searchState.minTrust,
+    coords: selectedCoords,
+    createdAt: new Date().toISOString(),
+  });
+
+  const handleCreateAlert = () => {
+    if (!isAuthenticated) {
+      signIn(undefined, { callbackUrl: window.location.href });
+      return;
+    }
+
+    const payload = buildSearchPayload();
+    fetch("/api/home/alerts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Homepage alert",
+        intent: payload.intent,
+        locationLabel: payload.locationLabel,
+        locationId: payload.locationId,
+        locationLevel: payload.locationLevel,
+        propertyType: payload.propertyType,
+        priceRange: payload.priceRange,
+        verifiedOnly: payload.verifiedOnly,
+        minTrust: payload.minTrust,
+        queryJson: payload,
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to save");
+        }
+        notify.success("Alert created for this search.");
+      })
+      .catch(() => {
+        notify.error("We could not save this alert. Please try again.");
+      });
+  };
+
   return (
-    <main className="flex flex-col gap-24 pb-24 pt-32">
-      <LandingHero
-        cards={[
-          {
-            accent: "TRUSTED LISTINGS",
-            title: "Verified first",
-            description:
-              "Listings are sorted by trust, proximity, and freshness so you see the safest options first.",
-          },
-          {
-            accent: "NEAR YOU",
-            title: "Local to your life",
-            description:
-              "Geo-aware ranking highlights the suburbs and streets closest to you.",
-          },
-          {
-            accent: "PREMIUM VISIBILITY",
-            title: "Featured spotlight",
-            description:
-              "Premium listings stay verified and stand out without sacrificing trust.",
-          },
-        ]}
+    <main className="flex flex-col gap-16 pb-24 pt-24">
+      <HeroSearchCard
         searchState={searchState}
-        onSearchStateChange={(next) => {
+        onSearchStateChange={(next: Partial<HomeSearchState>) => {
           if (
             next.locationLabel &&
             next.locationLabel !== searchState.locationLabel
@@ -363,7 +415,7 @@ export function HomePageClient({
                 location.label.toLowerCase() ===
                 next.locationLabel?.toLowerCase(),
             );
-            if (match && match.label.toLowerCase() !== "nearby") {
+            if (match && match.label.toLowerCase() !== "near me") {
               geo.setManualLocation({
                 label: match.label,
                 coords: match.coords,
@@ -373,53 +425,36 @@ export function HomePageClient({
           handleSearchStateChange(next);
         }}
         onSearch={() => {
-          const params = new URLSearchParams();
-          params.set(
-            "verifiedOnly",
-            searchState.verifiedOnly ? "true" : "false",
-          );
-          if (searchState.propertyType !== "any")
-            params.set("type", searchState.propertyType);
-          const priceFilters = parsePriceRange(searchState.priceRange);
-          if (priceFilters.priceMin)
-            params.set("priceMin", String(priceFilters.priceMin));
-          if (priceFilters.priceMax)
-            params.set("priceMax", String(priceFilters.priceMax));
-          if (selectedCoords?.lat && selectedCoords?.lng) {
-            params.set("bounds", buildBoundsString(selectedCoords, 30));
-          }
-          window.location.href = `/properties?${params.toString()}`;
+          const params = buildBrowseParams();
+          window.location.href = `/listings?${params.toString()}`;
         }}
         onRequestLocation={geo.requestLocation}
         onSelectQuickLocation={handleQuickLocation}
+        onCreateAlert={handleCreateAlert}
         quickLocations={QUICK_LOCATIONS}
         locationSource={geo.source}
         fallbackLabel={geo.fallbackLabel}
         isLocating={geo.isLoading}
+        isAuthenticated={isAuthenticated}
       />
 
-      <section
-        id="nearby"
-        className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 sm:px-12 lg:px-16"
-      >
-        <div className="flex flex-col gap-4">
-          <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">
-            Homes near you (verified)
-          </span>
-          <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
-            Trust-forward listings around {searchState.locationLabel}
-          </h2>
-          <p className="max-w-2xl text-base text-slate-600">
-            Listings are ranked by trust score, proximity, and fresh activity.
-            Only verified homes surface by default.
-          </p>
-        </div>
-        {loadError ? (
+      <StatsBand coords={selectedCoords} initialCounts={initialCounts} />
+
+      <FeaturedListingsSection
+        listings={featuredCards}
+        viewAllHref={`/listings?featured=true&${buildBrowseParams().toString()}`}
+      />
+
+      {nearbyQuery.isError ? (
+        <section className="mx-auto w-full max-w-6xl px-6 sm:px-12 lg:px-16">
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-            {loadError}
+            We could not refresh nearby listings.
           </div>
-        ) : null}
-        {isLoading ? (
+        </section>
+      ) : null}
+
+      {nearbyQuery.isLoading ? (
+        <section className="mx-auto w-full max-w-6xl px-6 sm:px-12 lg:px-16">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
               <div
@@ -428,19 +463,16 @@ export function HomePageClient({
               />
             ))}
           </div>
-        ) : nearCards.length ? (
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {nearCards.map((property) => (
-              <LandingPropertyCard key={property.id} property={property} />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-600">
-            No verified listings match this area yet. Try another location or
-            toggle verified-only off.
-          </div>
-        )}
-      </section>
+        </section>
+      ) : (
+        <ListingsGridSection
+          title="Verified homes near you"
+          subtitle="Trust scoring, distance, and recency shape your top results."
+          listings={nearCards}
+          viewAllHref={`/listings?${buildBrowseParams().toString()}`}
+          locationLabel={searchState.locationLabel}
+        />
+      )}
 
       <section className="mx-auto w-full max-w-6xl px-6 sm:px-12 lg:px-16">
         <AdSlot
@@ -452,239 +484,26 @@ export function HomePageClient({
         />
       </section>
 
-      {featuredCards.length ? (
-        <section
-          id="featured"
-          className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 sm:px-12 lg:px-16"
-        >
-          <div className="flex flex-col gap-4">
-            <span className="text-xs uppercase tracking-[0.35em] text-amber-500">
-              Featured near you
-            </span>
-            <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
-              Premium listings that still meet trust benchmarks
-            </h2>
-            <p className="max-w-2xl text-base text-slate-600">
-              Featured homes are curated for visibility, but still must clear
-              minimum verification standards.
-            </p>
-          </div>
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {featuredCards.map((property) => (
-              <LandingPropertyCard key={property.id} property={property} />
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <ExploreByAreaSection cities={areaCities} popularAreas={areaSuburbs} />
 
-      <section
-        id="explore"
-        className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 sm:px-12 lg:px-16"
-      >
-        <div className="flex flex-col gap-4">
-          <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">
-            Explore Zimbabwe
-          </span>
-          <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
-            Browse by city and discover popular suburbs
-          </h2>
-          <p className="max-w-2xl text-base text-slate-600">
-            Jump into markets across Zimbabwe or drill into the neighborhoods
-            closest to you.
-          </p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {QUICK_LOCATIONS.filter(
-            (location) => location.label !== "Nearby",
-          ).map((location) => (
-            <Link
-              key={location.label}
-              href={`/properties?bounds=${encodeURIComponent(buildBoundsString(location.coords, 35))}`}
-              className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.3em] text-slate-400">
-                    City
-                  </p>
-                  <h3 className="mt-2 text-xl font-semibold text-slate-900">
-                    {location.label}
-                  </h3>
-                </div>
-                <MapPin className="h-6 w-6 text-emerald-500" />
-              </div>
-              <p className="mt-4 text-sm text-slate-600">
-                Browse verified listings in {location.label}.
-              </p>
-            </Link>
-          ))}
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          {popularAreas.length ? (
-            popularAreas.map((area) => (
-              <div
-                key={area.label}
-                className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/60 px-5 py-4"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {area.label}
-                  </p>
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                    Popular suburbs
-                  </p>
-                </div>
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-600">
-                  {area.count} listings
-                </span>
-              </div>
-            ))
-          ) : (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-              We are still mapping popular suburbs near you.
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section
-        id="agents"
-        className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 sm:px-12 lg:px-16"
-      >
-        <div className="flex flex-col gap-4">
-          <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">
-            Top agents and agencies near you
-          </span>
-          <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
-            Work with trusted partners close to {searchState.locationLabel}
-          </h2>
-          <p className="max-w-2xl text-base text-slate-600">
-            Ranked by ratings, verified listings, and average listing trust.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab("agents")}
-            className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] ${
-              activeTab === "agents"
-                ? "bg-emerald-600 text-white"
-                : "border border-slate-200 text-slate-600"
-            }`}
-          >
-            Agents
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("agencies")}
-            className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] ${
-              activeTab === "agencies"
-                ? "bg-emerald-600 text-white"
-                : "border border-slate-200 text-slate-600"
-            }`}
-          >
-            Agencies
-          </button>
-        </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {activeTab === "agents" && topAgents.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-              No verified agents are available near this location yet.
-            </div>
-          ) : null}
-          {activeTab === "agencies" && topAgencies.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-              No verified agencies are available near this location yet.
-            </div>
-          ) : null}
-          {activeTab === "agents"
-            ? topAgents.map((agent) => (
-                <Link
-                  key={agent.id}
-                  href={`/agents/${agent.id}`}
-                  className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                        Agent
-                      </p>
-                      <h3 className="mt-1 text-lg font-semibold text-slate-900">
-                        {agent.name ?? "Verified agent"}
-                      </h3>
-                    </div>
-                    <UserCheck className="h-6 w-6 text-emerald-500" />
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-600">
-                    <span>Rating</span>
-                    <span className="font-semibold text-slate-900">
-                      {agent.rating?.toFixed(1) ?? "0.0"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-600">
-                    <span>Verified listings</span>
-                    <span className="font-semibold text-slate-900">
-                      {agent.verifiedListingsCount}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-600">
-                    <span>Avg listing trust</span>
-                    <span className="font-semibold text-slate-900">
-                      {Math.round(agent.averageListingTrust)}
-                    </span>
-                  </div>
-                </Link>
-              ))
-            : topAgencies.map((agency) => (
-                <Link
-                  key={agency.id}
-                  href={`/agencies/${agency.id}`}
-                  className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                        Agency
-                      </p>
-                      <h3 className="mt-1 text-lg font-semibold text-slate-900">
-                        {agency.name}
-                      </h3>
-                    </div>
-                    <Building2 className="h-6 w-6 text-emerald-500" />
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-600">
-                    <span>Rating</span>
-                    <span className="font-semibold text-slate-900">
-                      {agency.rating?.toFixed(1) ?? "0.0"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-600">
-                    <span>Verified listings</span>
-                    <span className="font-semibold text-slate-900">
-                      {agency.verifiedListingsCount}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-600">
-                    <span>Avg listing trust</span>
-                    <span className="font-semibold text-slate-900">
-                      {Math.round(agency.averageListingTrust)}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-        </div>
-      </section>
+      <TopPartnersSection
+        agents={topAgents}
+        agencies={topAgencies}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        locationLabel={searchState.locationLabel}
+      />
 
       <section
         id="trust"
         className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 sm:px-12 lg:px-16"
       >
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">
-            Trust explainer
+            How verification works
           </span>
           <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
-            Trust scoring that keeps your move secure
+            Trust-first protections on every listing.
           </h2>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
@@ -710,7 +529,7 @@ export function HomePageClient({
               }}
             />
             <h3 className="mt-4 text-lg font-semibold text-slate-900">
-              In-house chat
+              In-house chat safety
             </h3>
             <p className="mt-2 text-sm text-slate-600">
               Message verified agents instantly and track every conversation
@@ -735,6 +554,11 @@ export function HomePageClient({
           Learn how verification works →
         </Link>
       </section>
+
+      <SavedSearchCTASection
+        isAuthenticated={isAuthenticated}
+        onCreateAlert={handleCreateAlert}
+      />
     </main>
   );
 }

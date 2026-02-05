@@ -46,6 +46,13 @@ export interface HomeAgency {
   rating?: number | null;
 }
 
+export interface HomeCounts {
+  verifiedListingsCount: number;
+  partnersCount: number;
+  newListings30dCount: number;
+  trustChecksCount: number;
+}
+
 export function buildBoundsString(coords: GeoCoords, radiusKm: number) {
   const latDelta = radiusKm / 110.574;
   const lngDelta = radiusKm / (111.32 * Math.cos((coords.lat * Math.PI) / 180));
@@ -216,4 +223,30 @@ export async function topAgenciesNear({
   }
 
   return (await response.json()) as HomeAgency[];
+}
+
+export async function homepageCounts(input?: {
+  coords?: GeoCoords;
+  radiusKm?: number;
+}): Promise<HomeCounts> {
+  const baseUrl = getRequiredPublicApiBaseUrl();
+  const params = new URLSearchParams();
+  if (input?.coords) {
+    params.set("lat", input.coords.lat.toFixed(6));
+    params.set("lng", input.coords.lng.toFixed(6));
+  }
+  if (input?.radiusKm) {
+    params.set("radiusKm", String(input.radiusKm));
+  }
+
+  const response = await fetch(
+    `${baseUrl}/properties/home/counts?${params.toString()}`,
+    { cache: "no-store" },
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to load homepage counts");
+  }
+
+  return (await response.json()) as HomeCounts;
 }

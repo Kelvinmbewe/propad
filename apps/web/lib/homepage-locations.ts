@@ -11,7 +11,7 @@ export const DEFAULT_HOME_LOCATION: QuickLocation = {
 };
 
 export const QUICK_LOCATIONS: QuickLocation[] = [
-  { label: "Nearby", coords: DEFAULT_HOME_LOCATION.coords },
+  { label: "Near me", coords: DEFAULT_HOME_LOCATION.coords },
   DEFAULT_HOME_LOCATION,
   { label: "Bulawayo", coords: { lat: -20.1494, lng: 28.5816 } },
   { label: "Victoria Falls", coords: { lat: -17.9324, lng: 25.8307 } },

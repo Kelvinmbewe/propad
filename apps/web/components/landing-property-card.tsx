@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Bath, BedDouble, Ruler } from "lucide-react";
 import { getImageUrl } from "@/lib/image-url";
 import { TrustBadge, type TrustBreakdown } from "@/components/trust/TrustBadge";
+import clsx from "clsx";
 
 export interface LandingProperty {
   id: string;
@@ -34,8 +35,12 @@ const statusStyles: Record<"sale" | "rent", string> = {
 
 export function LandingPropertyCard({
   property,
+  variant = "default",
+  className,
 }: {
   property: LandingProperty;
+  variant?: "default" | "compact" | "featured";
+  className?: string;
 }) {
   const intent: "sale" | "rent" = property.statusTone
     ? property.statusTone
@@ -65,14 +70,23 @@ export function LandingPropertyCard({
   const trustMaxScore = Number(property.trustMaxScore ?? 110);
   const trustBreakdown =
     property.trustBreakdown ?? (property as any).trustBreakdown ?? undefined;
+  const isCompact = variant === "compact";
+  const isFeaturedVariant = variant === "featured";
+  const imageHeight = isCompact ? "h-56" : "h-64";
 
   return (
     <motion.article
       whileHover={{ scale: 1.015 }}
       transition={{ type: "spring", stiffness: 260, damping: 24 }}
-      className="group flex flex-col overflow-hidden rounded-[24px] bg-white shadow-lg ring-1 ring-slate-100"
+      className={clsx(
+        "group flex flex-col overflow-hidden rounded-[24px] bg-white shadow-lg ring-1 ring-slate-100",
+        isCompact && "shadow-sm",
+        isFeaturedVariant &&
+          "ring-amber-200 shadow-[0_30px_60px_-40px_rgba(251,191,36,0.6)]",
+        className,
+      )}
     >
-      <div className="relative h-64 overflow-hidden">
+      <div className={clsx("relative overflow-hidden", imageHeight)}>
         <Image
           src={imageUrl}
           alt={property.title}
@@ -80,7 +94,12 @@ export function LandingPropertyCard({
           sizes="(min-width: 1280px) 360px, (min-width: 768px) 50vw, 100vw"
           className="object-cover transition duration-500 group-hover:scale-105 group-hover:brightness-110"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/20 to-transparent" />
+        <div
+          className={clsx(
+            "absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-900/20 to-transparent",
+            isCompact && "from-slate-950/60",
+          )}
+        />
         <div className="absolute left-4 top-4 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.35em] text-white/80">
           <span
             className={`rounded-full px-3 py-1 text-[11px] tracking-[0.3em] ${statusStyles[intent]}`}
@@ -110,7 +129,9 @@ export function LandingPropertyCard({
           <h3 className="mt-1 text-2xl font-semibold">{property.title}</h3>
         </div>
       </div>
-      <div className="flex flex-1 flex-col gap-4 p-6">
+      <div
+        className={clsx("flex flex-1 flex-col gap-4 p-6", isCompact && "gap-3")}
+      >
         <div className="flex flex-wrap items-center justify-between gap-3 text-slate-700">
           <span className="text-sm font-medium uppercase tracking-[0.35em] text-slate-400">
             Starting at

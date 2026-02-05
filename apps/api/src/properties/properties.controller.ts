@@ -40,6 +40,14 @@ import {
   homeListingsQuerySchema,
 } from "./dto/home-listings-query.dto";
 import {
+  HomeCountsQueryDto,
+  homeCountsQuerySchema,
+} from "./dto/home-counts-query.dto";
+import {
+  HomeAreasQueryDto,
+  homeAreasQuerySchema,
+} from "./dto/home-areas-query.dto";
+import {
   CreateSignedUploadDto,
   createSignedUploadSchema,
 } from "./dto/signed-upload.dto";
@@ -199,6 +207,22 @@ export class PropertiesController {
     query: HomeListingsQueryDto,
   ) {
     return this.propertiesService.getTopAgenciesNear(query);
+  }
+
+  @Get("home/counts")
+  homeCounts(
+    @Query(new ZodValidationPipe(homeCountsQuerySchema))
+    query: HomeCountsQueryDto,
+  ) {
+    return this.propertiesService.getHomeCounts(query);
+  }
+
+  @Get("home/areas")
+  homeAreas(
+    @Query(new ZodValidationPipe(homeAreasQuerySchema))
+    query: HomeAreasQueryDto,
+  ) {
+    return this.propertiesService.getHomeAreas(query);
   }
 
   @Get("map/bounds")
