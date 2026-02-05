@@ -161,6 +161,16 @@ export class PropertiesController {
     return this.propertiesService.searchAgents(query || "");
   }
 
+  @Get("agents/search/agency")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.COMPANY_ADMIN, Role.ADMIN)
+  searchAgencyAgents(
+    @Query("q") query: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.propertiesService.searchAgencyAgents(query || "", req.user);
+  }
+
   @Get("search")
   search(@Query() dto: SearchPropertiesDto) {
     return this.propertiesService.search(dto);

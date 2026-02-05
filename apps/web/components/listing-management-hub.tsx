@@ -92,10 +92,21 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [serviceFee, setServiceFee] = useState("");
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+  const [managedByType, setManagedByType] = useState<
+    "OWNER" | "AGENT" | "AGENCY"
+  >("OWNER");
+  const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
+  const [selectedOperatingAgentId, setSelectedOperatingAgentId] = useState<
+    string | null
+  >(null);
   const [agentSearchQuery, setAgentSearchQuery] = useState("");
   const [agentSearchResults, setAgentSearchResults] = useState<any[]>([]);
   const [isSearchingAgents, setIsSearchingAgents] = useState(false);
   const [showAgentDropdown, setShowAgentDropdown] = useState(false);
+  const [agencySearchQuery, setAgencySearchQuery] = useState("");
+  const [agencySearchResults, setAgencySearchResults] = useState<any[]>([]);
+  const [isSearchingAgencies, setIsSearchingAgencies] = useState(false);
+  const [showAgencyDropdown, setShowAgencyDropdown] = useState(false);
   const [agentFeeConfig, setAgentFeeConfig] = useState<
     Array<{ min: number; max: number; feeUsd: number; label?: string }>
   >([]);
@@ -138,6 +149,22 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     staleTime: 5000,
     refetchOnWindowFocus: false,
     refetchOnMount: "always",
+  });
+
+  const { data: myAgency } = useQuery({
+    queryKey: ["agency", "my"],
+    queryFn: async () => sdk!.agencies.getMy(),
+    enabled: !!sdk && session?.user?.role === "COMPANY_ADMIN",
+    staleTime: 30000,
+  });
+
+  const { data: agencyMembers } = useQuery({
+    queryKey: ["agency", "members", selectedAgencyId],
+    queryFn: async () =>
+      selectedAgencyId ? sdk!.agencies.listMembers(selectedAgencyId) : [],
+    enabled: !!sdk && !!selectedAgencyId,
+    initialData: [] as any[],
+    staleTime: 30000,
   });
 
   const { data: agents } = useQuery({
@@ -265,23 +292,50 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     fetchConfigs();
   }, [apiBaseUrl, session?.accessToken]);
 
-  // Initialize selectedAgent and search query when property loads with existing agent
   useEffect(() => {
-    if (property?.agentOwnerId && !selectedAgent) {
-      setSelectedAgent(
-        typeof property.agentOwnerId === "string"
-          ? property.agentOwnerId
-          : null,
-      );
-      // Set search query to agent name if available
-      const existingAgent = agents?.find(
-        (a: any) => a.id === property.agentOwnerId,
-      );
+    if (!property) return;
+    const managementAssignments = (property as any)?.managementAssignments as
+      | any[]
+      | undefined;
+    const latestManagement = managementAssignments?.[0];
+    const nextManagedByType =
+      latestManagement?.managedByType || property.managedByType || "OWNER";
+    setManagedByType(nextManagedByType);
+
+    if (nextManagedByType === "AGENT") {
+      const managerId =
+        latestManagement?.managedById ||
+        property.managedById ||
+        property.agentOwnerId ||
+        null;
+      setSelectedAgent(managerId);
+      const existingAgent = agents?.find((a: any) => a.id === managerId);
       if (existingAgent?.name) {
         setAgentSearchQuery(existingAgent.name);
       }
     }
-  }, [property?.agentOwnerId, selectedAgent, agents]);
+
+    if (nextManagedByType === "AGENCY") {
+      const agencyId =
+        latestManagement?.managedById ||
+        property.managedById ||
+        property.agencyId ||
+        null;
+      setSelectedAgencyId(agencyId);
+      setSelectedOperatingAgentId(
+        latestManagement?.assignedAgentId || property.assignedAgentId || null,
+      );
+    }
+  }, [property?.id, property?.managedByType, agents]);
+
+  useEffect(() => {
+    if (session?.user?.role !== "COMPANY_ADMIN" || !myAgency) return;
+    if (!selectedAgencyId) {
+      setManagedByType("AGENCY");
+      setSelectedAgencyId(myAgency.id);
+      setAgencySearchQuery(myAgency.name ?? "");
+    }
+  }, [session?.user?.role, myAgency, selectedAgencyId]);
 
   useEffect(() => {
     if (!selectedAgent || serviceFee) return;
@@ -297,9 +351,21 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     }
   }, [selectedAgent, agentSearchResults, agents, agentFeeConfig, serviceFee]);
 
+  useEffect(() => {
+    if (managedByType !== "AGENT") {
+      setSelectedAgent(null);
+      setAgentSearchQuery("");
+    }
+    if (managedByType !== "AGENCY") {
+      setSelectedAgencyId(null);
+      setAgencySearchQuery("");
+      setSelectedOperatingAgentId(null);
+    }
+  }, [managedByType]);
+
   // Debounced agent search
   useEffect(() => {
-    if (!sdk || agentSearchQuery.length < 2) {
+    if (!sdk || managedByType !== "AGENT" || agentSearchQuery.length < 2) {
       setAgentSearchResults([]);
       setShowAgentDropdown(false);
       return;
@@ -322,45 +388,88 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     return () => clearTimeout(timer);
   }, [agentSearchQuery, sdk]);
 
-  const assignMutation = useMutation({
-    mutationFn: ({
-      agentId,
-      serviceFeeUsd,
-    }: {
-      agentId: string;
+  useEffect(() => {
+    if (!sdk || managedByType !== "AGENCY" || agencySearchQuery.length < 2) {
+      setAgencySearchResults([]);
+      setShowAgencyDropdown(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingAgencies(true);
+      try {
+        const results = await sdk.agencies.search(agencySearchQuery);
+        setAgencySearchResults(results);
+        setShowAgencyDropdown(true);
+      } catch (error) {
+        console.error("Agency search failed:", error);
+        setAgencySearchResults([]);
+      } finally {
+        setIsSearchingAgencies(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [agencySearchQuery, sdk, managedByType]);
+
+  const createManagementMutation = useMutation({
+    mutationFn: async (payload: {
+      managedByType: "OWNER" | "AGENT" | "AGENCY";
+      managedById?: string;
+      assignedAgentId?: string;
       serviceFeeUsd?: number;
-    }) => sdk!.properties.assignAgent(propertyId, { agentId, serviceFeeUsd }),
+    }) => sdk!.properties.createManagementAssignment(propertyId, payload),
     onSuccess: () => {
-      notify.success("Agent assigned successfully");
+      notify.success("Management request sent");
       queryClient.invalidateQueries({ queryKey: ["property", propertyId] });
       setServiceFee("");
     },
     onError: (err: any) =>
-      notify.error(err.message || "Failed to assign agent"),
+      notify.error(err.message || "Failed to send management request"),
   });
 
-  const updateFeeMutation = useMutation({
-    mutationFn: ({ serviceFeeUsd }: { serviceFeeUsd: number }) =>
-      sdk!.properties.updateServiceFee(propertyId, { serviceFeeUsd }),
+  const acceptManagementMutation = useMutation({
+    mutationFn: (assignmentId: string) =>
+      sdk!.properties.acceptManagementAssignment(assignmentId),
     onSuccess: () => {
-      notify.success("Service fee updated");
+      notify.success("Management accepted");
       queryClient.invalidateQueries({ queryKey: ["property", propertyId] });
-    },
-    onError: (err: any) => notify.error(err.message || "Failed to update fee"),
-  });
-
-  const resignAgentMutation = useMutation({
-    mutationFn: () => sdk!.properties.resignAgent(propertyId),
-    onSuccess: () => {
-      notify.success(
-        "Agent resigned successfully. You can now assign a new agent or manage the property yourself.",
-      );
-      queryClient.invalidateQueries({ queryKey: ["property", propertyId] });
-      setSelectedAgent(null);
-      setAgentSearchQuery("");
     },
     onError: (err: any) =>
-      notify.error(err.message || "Failed to resign agent"),
+      notify.error(err.message || "Failed to accept management"),
+  });
+
+  const declineManagementMutation = useMutation({
+    mutationFn: (assignmentId: string) =>
+      sdk!.properties.declineManagementAssignment(assignmentId),
+    onSuccess: () => {
+      notify.success("Management declined");
+      queryClient.invalidateQueries({ queryKey: ["property", propertyId] });
+    },
+    onError: (err: any) =>
+      notify.error(err.message || "Failed to decline management"),
+  });
+
+  const endManagementMutation = useMutation({
+    mutationFn: (assignmentId: string) =>
+      sdk!.properties.endManagementAssignment(assignmentId),
+    onSuccess: () => {
+      notify.success("Management ended");
+      queryClient.invalidateQueries({ queryKey: ["property", propertyId] });
+    },
+    onError: (err: any) =>
+      notify.error(err.message || "Failed to end management"),
+  });
+
+  const setOperatingAgentMutation = useMutation({
+    mutationFn: (assignedAgentId: string | null) =>
+      sdk!.properties.setOperatingAgent(propertyId, { assignedAgentId }),
+    onSuccess: () => {
+      notify.success("Operating agent updated");
+      queryClient.invalidateQueries({ queryKey: ["property", propertyId] });
+    },
+    onError: (err: any) =>
+      notify.error(err.message || "Failed to update operating agent"),
   });
 
   const resolvePaymentGateway = () => {
@@ -374,9 +483,30 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
   };
 
   const handleAssign = () => {
-    if (!selectedAgent) return notify.error("Select an agent first");
     const fee = serviceFee ? Number(serviceFee) : undefined;
-    assignMutation.mutate({ agentId: selectedAgent, serviceFeeUsd: fee });
+    if (managedByType === "AGENT") {
+      if (!selectedAgent) return notify.error("Select an agent first");
+      return createManagementMutation.mutate({
+        managedByType,
+        managedById: selectedAgent,
+        assignedAgentId: selectedAgent,
+        serviceFeeUsd: fee,
+      });
+    }
+
+    if (managedByType === "AGENCY") {
+      if (!selectedAgencyId) return notify.error("Select an agency first");
+      return createManagementMutation.mutate({
+        managedByType,
+        managedById: selectedAgencyId,
+        assignedAgentId: selectedOperatingAgentId ?? undefined,
+        serviceFeeUsd: fee,
+      });
+    }
+
+    return createManagementMutation.mutate({
+      managedByType: "OWNER",
+    });
   };
 
   const handlePurchaseFeatured = async () => {
@@ -536,6 +666,11 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
           <ManagementTab
             property={property}
             agents={agents}
+            myAgency={myAgency}
+            sessionRole={session?.user?.role}
+            sessionUserId={session?.user?.id}
+            managedByType={managedByType}
+            setManagedByType={setManagedByType}
             selectedAgent={selectedAgent}
             setSelectedAgent={setSelectedAgent}
             agentSearchQuery={agentSearchQuery}
@@ -544,12 +679,35 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
             isSearchingAgents={isSearchingAgents}
             showAgentDropdown={showAgentDropdown}
             setShowAgentDropdown={setShowAgentDropdown}
+            agencySearchQuery={agencySearchQuery}
+            setAgencySearchQuery={setAgencySearchQuery}
+            agencySearchResults={agencySearchResults}
+            isSearchingAgencies={isSearchingAgencies}
+            showAgencyDropdown={showAgencyDropdown}
+            setShowAgencyDropdown={setShowAgencyDropdown}
+            selectedAgencyId={selectedAgencyId}
+            setSelectedAgencyId={setSelectedAgencyId}
+            agencyMembers={agencyMembers}
+            selectedOperatingAgentId={selectedOperatingAgentId}
+            setSelectedOperatingAgentId={setSelectedOperatingAgentId}
             serviceFee={serviceFee}
             setServiceFee={setServiceFee}
             handleAssign={handleAssign}
-            isAssigning={assignMutation.isPending}
-            updateFee={updateFeeMutation.mutate}
-            isUpdatingFee={updateFeeMutation.isPending}
+            isAssigning={createManagementMutation.isPending}
+            onAcceptManagement={(id: string) =>
+              acceptManagementMutation.mutate(id)
+            }
+            onDeclineManagement={(id: string) =>
+              declineManagementMutation.mutate(id)
+            }
+            onEndManagement={(id: string) => endManagementMutation.mutate(id)}
+            onSetOperatingAgent={(agentId: string | null) =>
+              setOperatingAgentMutation.mutate(agentId)
+            }
+            isAccepting={acceptManagementMutation.isPending}
+            isDeclining={declineManagementMutation.isPending}
+            isEnding={endManagementMutation.isPending}
+            isUpdatingOperatingAgent={setOperatingAgentMutation.isPending}
             agentFeeConfig={agentFeeConfig}
             featuredPlans={featuredPlans}
             selectedFeaturedPlan={selectedFeaturedPlan}
@@ -558,8 +716,6 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
             featuredProcessing={featuredProcessing}
             handlePurchaseFeatured={handlePurchaseFeatured}
             propertyPayments={propertyPayments}
-            handleResignAgent={() => resignAgentMutation.mutate()}
-            isResigning={resignAgentMutation.isPending}
           />
         )}
         {activeTab === "interest" && <InterestTab propertyId={propertyId} />}
@@ -614,6 +770,11 @@ function OverviewTab({ property }: { property: any }) {
 function ManagementTab({
   property,
   agents,
+  myAgency,
+  sessionRole,
+  sessionUserId,
+  managedByType,
+  setManagedByType,
   selectedAgent,
   setSelectedAgent,
   agentSearchQuery,
@@ -622,12 +783,29 @@ function ManagementTab({
   isSearchingAgents,
   showAgentDropdown,
   setShowAgentDropdown,
+  agencySearchQuery,
+  setAgencySearchQuery,
+  agencySearchResults,
+  isSearchingAgencies,
+  showAgencyDropdown,
+  setShowAgencyDropdown,
+  selectedAgencyId,
+  setSelectedAgencyId,
+  agencyMembers,
+  selectedOperatingAgentId,
+  setSelectedOperatingAgentId,
   serviceFee,
   setServiceFee,
   handleAssign,
   isAssigning,
-  updateFee,
-  isUpdatingFee,
+  onAcceptManagement,
+  onDeclineManagement,
+  onEndManagement,
+  onSetOperatingAgent,
+  isAccepting,
+  isDeclining,
+  isEnding,
+  isUpdatingOperatingAgent,
   agentFeeConfig,
   featuredPlans,
   selectedFeaturedPlan,
@@ -636,14 +814,24 @@ function ManagementTab({
   featuredProcessing,
   handlePurchaseFeatured,
   propertyPayments,
-  handleResignAgent,
-  isResigning,
 }: any) {
-  const assignment = property.assignments?.[0];
+  const managementAssignments = (property as any)?.managementAssignments as
+    | any[]
+    | undefined;
+  const latestManagement = managementAssignments?.[0];
+  const assignmentStatus = latestManagement?.status;
+  const isAccepted = assignmentStatus === "ACCEPTED";
+  const isPending = assignmentStatus === "CREATED";
+  const [isRequestingChange, setIsRequestingChange] = useState(false);
+  const canRequestManagement =
+    sessionRole === "LANDLORD" || sessionRole === "ADMIN";
+  const managerType = latestManagement?.managedByType || managedByType;
+
   const selectedAgentData =
     agentSearchResults.find((a: any) => a.id === selectedAgent) ||
     agents?.find((a: any) => a.id === selectedAgent);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const agencyDropdownRef = useRef<HTMLDivElement>(null);
 
   const trustScore = Number(selectedAgentData?.trustScore ?? 0);
   const feeTier = (agentFeeConfig || []).find(
@@ -660,7 +848,27 @@ function ManagementTab({
     setShowAgentDropdown(false);
   };
 
-  // Close dropdown when clicking outside
+  const handleAgencySelect = (agency: any) => {
+    setSelectedAgencyId(agency.id);
+    setAgencySearchQuery(agency.name || "");
+    setShowAgencyDropdown(false);
+  };
+
+  const agentOptions = (agencyMembers || [])
+    .filter((member: any) => member.role === "AGENT")
+    .map((member: any) => member.user)
+    .filter(Boolean);
+
+  const canAccept =
+    isPending &&
+    (sessionRole === "ADMIN" ||
+      (latestManagement?.managedByType === "AGENT" &&
+        latestManagement?.managedById === sessionUserId) ||
+      (latestManagement?.managedByType === "AGENCY" &&
+        latestManagement?.managedById === myAgency?.id &&
+        sessionRole === "COMPANY_ADMIN"));
+  const canRequestChange = isAccepted && canRequestManagement;
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -669,167 +877,352 @@ function ManagementTab({
       ) {
         setShowAgentDropdown(false);
       }
+      if (
+        agencyDropdownRef.current &&
+        !agencyDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowAgencyDropdown(false);
+      }
     };
-    if (showAgentDropdown) {
+    if (showAgentDropdown || showAgencyDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [showAgentDropdown]);
+  }, [showAgentDropdown, showAgencyDropdown]);
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>Agent Assignment</CardTitle>
-          {agentFeeConfig?.length === 0 && (
-            <p className="text-xs text-neutral-500">
-              Agent fee tiers are managed by Admin. Configure them in Pricing
-              &amp; Fees.
-            </p>
-          )}
+          <CardTitle>Listing Management</CardTitle>
+          <p className="text-xs text-neutral-500">
+            Pick who manages the listing, then choose the operating agent.
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2 relative">
-            <Label>Search Agent</Label>
-            <div className="relative" ref={dropdownRef}>
-              <Input
-                type="text"
-                placeholder="Type agent name to search..."
-                value={agentSearchQuery}
-                onChange={(e) => {
-                  setAgentSearchQuery(e.target.value);
-                  if (e.target.value.length < 2) {
-                    setSelectedAgent("");
-                    setShowAgentDropdown(false);
-                  } else {
-                    setShowAgentDropdown(true);
-                  }
-                }}
-                onFocus={() => {
-                  if (agentSearchResults.length > 0) {
-                    setShowAgentDropdown(true);
-                  }
-                }}
-                disabled={!!assignment}
-                className="w-full"
-              />
-              {isSearchingAgents && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />
-                </div>
-              )}
-              {showAgentDropdown && agentSearchResults.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                  {agentSearchResults.map((agent: any) => (
-                    <div
-                      key={agent.id}
-                      onClick={() => handleAgentSelect(agent)}
-                      className="px-4 py-2 hover:bg-neutral-50 cursor-pointer border-b last:border-0"
-                    >
-                      <div className="font-medium">
-                        {agent.name || "Unnamed Agent"}
-                      </div>
-                      <div className="text-xs text-neutral-500">
-                        {agent.agentProfile?.verifiedListingsCount || 0}{" "}
-                        verified listings
-                        {agent.agentProfile?.rating
-                          ? ` • Rating: ${agent.agentProfile.rating.toFixed(1)}`
-                          : ""}
-                      </div>
-                    </div>
-                  ))}
+          {isAccepted && !isRequestingChange && (
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+              <p className="font-semibold">Management Active</p>
+              <p className="text-xs text-emerald-700">
+                Manager: {managerType}
+                {latestManagement?.managedByType === "AGENT" &&
+                  latestManagement?.managedById &&
+                  ` • Agent ${latestManagement.managedById}`}
+                {latestManagement?.managedByType === "AGENCY" &&
+                  latestManagement?.managedById &&
+                  ` • Agency ${latestManagement.managedById}`}
+              </p>
+            </div>
+          )}
+
+          {isPending && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <p className="font-semibold">Management Pending</p>
+              <p className="text-xs text-amber-700">
+                Waiting for acceptance from the manager.
+              </p>
+              {canAccept && (
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => onAcceptManagement(latestManagement.id)}
+                    disabled={isAccepting}
+                  >
+                    {isAccepting ? "Accepting..." : "Accept"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onDeclineManagement(latestManagement.id)}
+                    disabled={isDeclining}
+                  >
+                    {isDeclining ? "Declining..." : "Decline"}
+                  </Button>
                 </div>
               )}
             </div>
-            {selectedAgentData && (
-              <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded-md text-sm">
-                <span className="font-medium text-emerald-800">
-                  Selected: {selectedAgentData.name}
-                </span>
-              </div>
-            )}
-          </div>
+          )}
 
-          <div className="space-y-2">
-            <Label>Service Fee (USD)</Label>
-            <Input
-              type="number"
-              placeholder="e.g. 50"
-              value={
-                serviceFee ||
-                (assignment?.serviceFeeUsdCents
-                  ? assignment.serviceFeeUsdCents / 100
-                  : "")
-              }
-              onChange={(e) => setServiceFee(e.target.value)}
-              disabled={!!assignment}
-            />
-            {feeLabel && !assignment && (
-              <p className="text-xs text-neutral-500">
-                Suggested fee: {feeLabel}
-              </p>
-            )}
-          </div>
+          {!isAccepted && !isPending && !canRequestManagement && (
+            <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600">
+              Only the listing owner can request management changes.
+            </div>
+          )}
 
-          <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600">
-            <p className="font-medium text-neutral-700">How agent fees work</p>
-            <p>
-              Agent fees are based on trust scores set by Admin to keep pricing
-              fair. Agents with higher trust scores can propose custom fees that
-              require Admin/Moderator approval.
-            </p>
-          </div>
+          {(!isAccepted || isRequestingChange) &&
+            !isPending &&
+            canRequestManagement && (
+              <>
+                {isRequestingChange && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                    You are preparing a management change request. The current
+                    manager remains active until the new request is accepted.
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label>Step 1: Choose listing manager</Label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant={
+                        managedByType === "OWNER" ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => setManagedByType("OWNER")}
+                    >
+                      Self-managed
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={
+                        managedByType === "AGENT" ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => setManagedByType("AGENT")}
+                    >
+                      Individual Agent
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={
+                        managedByType === "AGENCY" ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => setManagedByType("AGENCY")}
+                    >
+                      Agency
+                    </Button>
+                  </div>
+                </div>
 
-          {assignment ? (
-            <>
-              <div className="p-4 bg-blue-50 text-blue-800 rounded-md text-sm flex items-start gap-3">
-                <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold">
-                    Agent Assigned: {property.agentOwner?.name}
-                  </p>
-                  <p className="text-xs mt-1">
-                    Service Fee: ${assignment.serviceFeeUsdCents / 100}
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    Search and fee fields are locked. Resign agent to make
-                    changes.
+                {managedByType === "AGENT" && (
+                  <div className="space-y-2 relative">
+                    <Label>Search Agent</Label>
+                    <div className="relative" ref={dropdownRef}>
+                      <Input
+                        type="text"
+                        placeholder="Type agent name to search..."
+                        value={agentSearchQuery}
+                        onChange={(e) => {
+                          setAgentSearchQuery(e.target.value);
+                          if (e.target.value.length < 2) {
+                            setSelectedAgent("");
+                            setShowAgentDropdown(false);
+                          } else {
+                            setShowAgentDropdown(true);
+                          }
+                        }}
+                        onFocus={() => {
+                          if (agentSearchResults.length > 0) {
+                            setShowAgentDropdown(true);
+                          }
+                        }}
+                        className="w-full"
+                      />
+                      {isSearchingAgents && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />
+                        </div>
+                      )}
+                      {showAgentDropdown && agentSearchResults.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                          {agentSearchResults.map((agent: any) => (
+                            <div
+                              key={agent.id}
+                              onClick={() => handleAgentSelect(agent)}
+                              className="px-4 py-2 hover:bg-neutral-50 cursor-pointer border-b last:border-0"
+                            >
+                              <div className="font-medium">
+                                {agent.name || "Unnamed Agent"}
+                              </div>
+                              <div className="text-xs text-neutral-500">
+                                {agent.agentProfile?.verifiedListingsCount || 0}{" "}
+                                verified listings
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {managedByType === "AGENCY" && (
+                  <div className="space-y-2 relative">
+                    <Label>Search Agency</Label>
+                    {sessionRole === "COMPANY_ADMIN" && myAgency ? (
+                      <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm">
+                        {myAgency.name}
+                      </div>
+                    ) : (
+                      <div className="relative" ref={agencyDropdownRef}>
+                        <Input
+                          type="text"
+                          placeholder="Type agency name to search..."
+                          value={agencySearchQuery}
+                          onChange={(e) => {
+                            setAgencySearchQuery(e.target.value);
+                            if (e.target.value.length < 2) {
+                              setSelectedAgencyId(null);
+                              setShowAgencyDropdown(false);
+                            } else {
+                              setShowAgencyDropdown(true);
+                            }
+                          }}
+                          onFocus={() => {
+                            if (agencySearchResults.length > 0) {
+                              setShowAgencyDropdown(true);
+                            }
+                          }}
+                          className="w-full"
+                        />
+                        {isSearchingAgencies && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />
+                          </div>
+                        )}
+                        {showAgencyDropdown &&
+                          agencySearchResults.length > 0 && (
+                            <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                              {agencySearchResults.map((agency: any) => (
+                                <div
+                                  key={agency.id}
+                                  onClick={() => handleAgencySelect(agency)}
+                                  className="px-4 py-2 hover:bg-neutral-50 cursor-pointer border-b last:border-0"
+                                >
+                                  <div className="font-medium">
+                                    {agency.name}
+                                  </div>
+                                  <div className="text-xs text-neutral-500">
+                                    {agency.status}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label>Step 2: Operating agent</Label>
+                  {managedByType === "AGENCY" ? (
+                    <select
+                      className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+                      value={selectedOperatingAgentId || ""}
+                      onChange={(e) =>
+                        setSelectedOperatingAgentId(
+                          e.target.value ? e.target.value : null,
+                        )
+                      }
+                    >
+                      <option value="">Select agent (optional)</option>
+                      {agentOptions.map((agent: any) => (
+                        <option key={agent.id} value={agent.id}>
+                          {agent.name || "Unnamed Agent"}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
+                      {managedByType === "AGENT"
+                        ? "Operating agent is the selected manager."
+                        : "Owner-managed. You can delegate an operating agent later."}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Service Fee (USD)</Label>
+                  <Input
+                    type="number"
+                    placeholder="e.g. 50"
+                    value={serviceFee}
+                    onChange={(e) => setServiceFee(e.target.value)}
+                  />
+                  {feeLabel && managedByType === "AGENT" && (
+                    <p className="text-xs text-neutral-500">
+                      Suggested fee: {feeLabel}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600">
+                  <p className="font-medium text-neutral-700">Fee routing</p>
+                  <p>
+                    Agent-managed listings pay the fee to the agent.
+                    Agency-managed listings pay the fee to the agency. Internal
+                    agency assignments do not create platform fees.
                   </p>
                 </div>
-              </div>
-              <Button
-                variant="outline"
-                className="w-full border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
-                disabled={isResigning}
-                onClick={() => {
-                  if (
-                    confirm(
-                      "Are you sure you want to resign the agent? You can assign a new agent or manage the property yourself.",
-                    )
-                  ) {
-                    handleResignAgent();
+
+                <Button
+                  onClick={handleAssign}
+                  disabled={
+                    isAssigning ||
+                    (managedByType === "AGENT" && !selectedAgent) ||
+                    (managedByType === "AGENCY" && !selectedAgencyId)
                   }
-                }}
-              >
-                {isResigning ? "Resigning..." : "Resign Agent"}
-              </Button>
-            </>
-          ) : (
-            <PaymentGate
-              featureType={ChargeableItemType.FEATURE}
-              targetId={property.id}
-              featureName="Agent Assignment"
-              featureDescription="Assign a verified agent to manage your property listing"
-            >
-              <Button
-                onClick={handleAssign}
-                disabled={isAssigning || !selectedAgent}
-                className="w-full"
-              >
-                {isAssigning ? "Assigning..." : "Assign Agent"}
-              </Button>
-            </PaymentGate>
+                  className="w-full"
+                >
+                  {isAssigning ? "Sending..." : "Send Management Request"}
+                </Button>
+              </>
+            )}
+
+          {isAccepted && !isRequestingChange && (
+            <div className="space-y-3">
+              {managerType === "AGENCY" && (
+                <div className="space-y-2">
+                  <Label>Operating agent</Label>
+                  <select
+                    className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+                    value={(property as any).assignedAgentId || ""}
+                    onChange={(e) =>
+                      onSetOperatingAgent(
+                        e.target.value ? e.target.value : null,
+                      )
+                    }
+                    disabled={isUpdatingOperatingAgent}
+                  >
+                    <option value="">Unassigned</option>
+                    {agentOptions.map((agent: any) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.name || "Unnamed Agent"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  disabled={isEnding}
+                  onClick={() => onEndManagement(latestManagement.id)}
+                >
+                  {isEnding ? "Ending..." : "End management"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={!canRequestChange}
+                  onClick={() => {
+                    setManagedByType("OWNER");
+                    setSelectedAgent(null);
+                    setSelectedAgencyId(null);
+                    setSelectedOperatingAgentId(null);
+                    setIsRequestingChange(true);
+                  }}
+                >
+                  Request change
+                </Button>
+              </div>
+              <p className="text-xs text-neutral-500">
+                Use Request change to send a new management proposal. Accepting
+                a new manager automatically ends the current one.
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -2449,6 +2842,10 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
     switch (type) {
       case "AGENT_FEE":
         return `Agent Service Fee${metadata?.agentName ? ` - ${metadata.agentName}` : ""}`;
+      case "ASSIGNMENT_FEE":
+        return metadata?.managedByType === "AGENCY"
+          ? "Agency Assignment Fee"
+          : "Agent Assignment Fee";
       case "PROMOTION":
         return metadata?.planLabel
           ? `${metadata.planLabel} Featured Listing`
@@ -3371,6 +3768,11 @@ function LogsTab({ propertyId }: { propertyId: string }) {
     type: string,
     metadata: Record<string, unknown> | null,
   ) => {
+    const action = (metadata as any)?.action;
+    if (action === "management_requested") return "Management Requested";
+    if (action === "management_accepted") return "Management Accepted";
+    if (action === "management_declined") return "Management Declined";
+    if (action === "management_ended") return "Management Ended";
     switch (type) {
       case "OFFER_RECEIVED":
         return "Offer Received";
@@ -3388,10 +3790,28 @@ function LogsTab({ propertyId }: { propertyId: string }) {
         return metadata?.agentName
           ? `Agent Assigned: ${metadata.agentName}`
           : "Agent Assigned";
+      case "MANAGEMENT_REQUESTED":
+        return "Management Requested";
+      case "MANAGEMENT_ACCEPTED":
+        return "Management Accepted";
+      case "MANAGEMENT_DECLINED":
+        return "Management Declined";
+      case "MANAGEMENT_ENDED":
+        return "Management Ended";
       case "AGENT_UNASSIGNED":
         return "Agent Unassigned";
       case "PAYMENT_CREATED":
         return "Payment Created";
+      case "PAYMENT_ASSIGNMENT_FEE_CREATED":
+        return "Assignment Fee Created";
+      case "MANAGEMENT_REQUESTED":
+        return "Management Requested";
+      case "MANAGEMENT_ACCEPTED":
+        return "Management Accepted";
+      case "MANAGEMENT_DECLINED":
+        return "Management Declined";
+      case "MANAGEMENT_ENDED":
+        return "Management Ended";
       case "PAYMENT_PAID":
         return "Payment Completed";
       case "PAYMENT_FAILED":

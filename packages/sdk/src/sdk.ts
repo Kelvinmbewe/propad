@@ -64,9 +64,15 @@ import {
   type RiskEntitySummary,
   AdminUserSchema,
   AdminAgencySchema,
+  AgencySchema,
+  AgencySummarySchema,
+  AgencyMemberSchema,
   AuditLogSchema,
   type AdminUser,
   type AdminAgency,
+  type Agency,
+  type AgencySummary,
+  type AgencyMember,
   type AuditLog,
   DealSchema,
   type Deal,
@@ -367,8 +373,8 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
       get: async (id: string) =>
         client
           .get(`properties/${id}`)
-          .json<Property>()
-          .then((data) => PropertySchema.parse(data)),
+          .json<PropertyManagement>()
+          .then((data) => PropertyManagementSchema.parse(data)),
       assignAgent: async (
         id: string,
         payload: { agentId: string; serviceFeeUsd?: number },
@@ -474,7 +480,12 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           Array<{
             id: string;
             propertyId: string;
-            type: "LISTING_FEE" | "PROMOTION" | "VERIFICATION" | "AGENT_FEE";
+            type:
+              | "LISTING_FEE"
+              | "PROMOTION"
+              | "VERIFICATION"
+              | "AGENT_FEE"
+              | "ASSIGNMENT_FEE";
             amountCents: number;
             currency: string;
             status: "PENDING" | "PAID" | "FAILED" | "CANCELLED";
@@ -979,6 +990,30 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           .get("properties/agents/search", { searchParams: { q: query } })
           .json<AgentSummary[]>()
           .then((data) => AgentSummarySchema.array().parse(data)),
+      searchAgency: async (query: string) =>
+        client
+          .get("properties/agents/search/agency", {
+            searchParams: { q: query },
+          })
+          .json<AgentSummary[]>()
+          .then((data) => AgentSummarySchema.array().parse(data)),
+    },
+    agencies: {
+      getMy: async () =>
+        client
+          .get("agencies/my")
+          .json<Agency | null>()
+          .then((data) => (data ? AgencySchema.parse(data) : null)),
+      search: async (query: string) =>
+        client
+          .get("agencies/search", { searchParams: { q: query } })
+          .json<AgencySummary[]>()
+          .then((data) => AgencySummarySchema.array().parse(data)),
+      listMembers: async (agencyId: string) =>
+        client
+          .get(`agencies/${agencyId}/members`)
+          .json<AgencyMember[]>()
+          .then((data) => AgencyMemberSchema.array().parse(data)),
     },
     facebook: {
       publish: async (payload: {

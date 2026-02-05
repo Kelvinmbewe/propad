@@ -1305,6 +1305,64 @@ export class PropertiesService {
     });
   }
 
+  async searchAgencyAgents(query: string, actor: AuthContext) {
+    const searchTerm = query.trim();
+    if (searchTerm.length < 2) {
+      return [];
+    }
+    const membership = await this.prisma.agencyMember.findFirst({
+      where: { userId: actor.userId },
+      select: { agencyId: true },
+    });
+    if (!membership?.agencyId) return [];
+
+    return this.prisma.user.findMany({
+      where: {
+        role: { in: [Role.AGENT, Role.COMPANY_AGENT, Role.INDEPENDENT_AGENT] },
+        agencyMemberships: { some: { agencyId: membership.agencyId } },
+        OR: [
+          {
+            name: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+          {
+            email: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+          {
+            phone: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        trustScore: true,
+        agentProfile: {
+          select: {
+            verifiedListingsCount: true,
+            leadsCount: true,
+            rating: true,
+          },
+        },
+      },
+      orderBy: {
+        agentProfile: {
+          verifiedListingsCount: "desc",
+        },
+      },
+      take: 20,
+    });
+  }
+
   async findById(id: string, actor?: AuthContext) {
     // #region agent log
     await this.logDebug(
@@ -2335,6 +2393,19 @@ export class PropertiesService {
       },
     });
 
+    await this.logActivity(
+      id,
+      ListingActivityType.AGENT_ASSIGNED,
+      actor.userId,
+      {
+        action: "management_requested",
+        assignmentId: assignment.id,
+        managedByType: assignment.managedByType,
+        managedById: assignment.managedById,
+        assignedAgentId: assignment.assignedAgentId,
+      },
+    );
+
     return assignment;
   }
 
@@ -2381,6 +2452,17 @@ export class PropertiesService {
         : assignment.assignedAgentId ?? null;
 
     await this.prisma.$transaction(async (tx) => {
+      await tx.listingManagementAssignment.updateMany({
+        where: {
+          propertyId: assignment.propertyId,
+          status: "ACCEPTED",
+          id: { not: assignment.id },
+        },
+        data: {
+          status: "ENDED",
+          endedAt: new Date(),
+        },
+      });
       await tx.listingManagementAssignment.update({
         where: { id: assignmentId },
         data: {
@@ -2428,6 +2510,19 @@ export class PropertiesService {
       metadata: { assignmentId },
     });
 
+    await this.logActivity(
+      assignment.propertyId,
+      ListingActivityType.AGENT_ASSIGNED,
+      actor.userId,
+      {
+        action: "management_accepted",
+        assignmentId,
+        managedByType: assignment.managedByType,
+        managedById: assignment.managedById,
+        assignedAgentId: assignment.assignedAgentId,
+      },
+    );
+
     return { success: true };
   }
 
@@ -2462,6 +2557,19 @@ export class PropertiesService {
       targetId: assignment.propertyId,
       metadata: { assignmentId },
     });
+
+    await this.logActivity(
+      assignment.propertyId,
+      ListingActivityType.AGENT_ASSIGNED,
+      actor.userId,
+      {
+        action: "management_declined",
+        assignmentId,
+        managedByType: assignment.managedByType,
+        managedById: assignment.managedById,
+        assignedAgentId: assignment.assignedAgentId,
+      },
+    );
 
     return { success: true };
   }
@@ -2525,6 +2633,19 @@ export class PropertiesService {
       targetId: assignment.propertyId,
       metadata: { assignmentId },
     });
+
+    await this.logActivity(
+      assignment.propertyId,
+      ListingActivityType.AGENT_ASSIGNED,
+      actor.userId,
+      {
+        action: "management_ended",
+        assignmentId,
+        managedByType: assignment.managedByType,
+        managedById: assignment.managedById,
+        assignedAgentId: assignment.assignedAgentId,
+      },
+    );
 
     return { success: true };
   }
