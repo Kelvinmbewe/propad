@@ -190,8 +190,8 @@ export function HomePageClient({
     locationLevel: null,
     propertyType: "any",
     priceRange: "any",
-    verifiedOnly: false,
-    minTrust: 0,
+    verifiedOnly: true,
+    minTrust: 60,
   });
   const [activeTab, setActiveTab] = useState<"agents" | "agencies">("agents");
 
@@ -245,7 +245,7 @@ export function HomePageClient({
   const featuredQuery = useFeaturedListings({
     lat: selectedCoords?.lat,
     lng: selectedCoords?.lng,
-    minTrust: searchState.minTrust,
+    minTrust: Math.max(FEATURED_MIN_TRUST, searchState.minTrust),
   });
   const agentsQuery = useTopPartners({
     lat: selectedCoords?.lat,

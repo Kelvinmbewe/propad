@@ -8,6 +8,7 @@ import {
   PropertyType,
   PropertyStatus,
   Currency,
+  VerificationLevel,
 } from "@prisma/client";
 import { hash } from "bcryptjs";
 
@@ -208,10 +209,27 @@ async function main() {
   // 11. SAMPLE PROPERTIES WITH LISTING MANAGEMENT
   console.log("Seeding sample properties with listing management...");
 
+  // Look up Harare city for assigning to properties
+  const harareCity = await prisma.city.findFirst({
+    where: { name: { contains: "Harare", mode: "insensitive" } },
+  });
+  const borrowdaleSuburb = await prisma.suburb.findFirst({
+    where: { name: { contains: "Borrowdale", mode: "insensitive" } },
+  });
+  const avondaleSuburb = await prisma.suburb.findFirst({
+    where: { name: { contains: "Avondale", mode: "insensitive" } },
+  });
+
   // Property 1: Owner-managed listing (landlord manages their own property)
   const ownerManagedProperty = await prisma.property.upsert({
     where: { id: "seed-property-owner-managed" },
-    update: { lat: -17.7656, lng: 31.0881 },
+    update: {
+      lat: -17.7656,
+      lng: 31.0881,
+      cityId: harareCity?.id,
+      suburbId: borrowdaleSuburb?.id,
+      verificationLevel: VerificationLevel.VERIFIED,
+    },
     create: {
       id: "seed-property-owner-managed",
       title: "Modern 3 Bedroom House in Borrowdale",
@@ -229,9 +247,12 @@ async function main() {
       managedByType: ListingManagedByType.OWNER,
       verificationScore: 75,
       trustScore: 80,
+      verificationLevel: VerificationLevel.VERIFIED,
       createdByRole: "LANDLORD",
       lat: -17.7656,
       lng: 31.0881,
+      cityId: harareCity?.id,
+      suburbId: borrowdaleSuburb?.id,
     },
   });
   console.log("Seeded Owner-Managed Property:", ownerManagedProperty.title);
@@ -239,7 +260,13 @@ async function main() {
   // Property 2: Agent-managed listing (agent manages on behalf of owner)
   const agentManagedProperty = await prisma.property.upsert({
     where: { id: "seed-property-agent-managed" },
-    update: { lat: -17.7894, lng: 31.0217 },
+    update: {
+      lat: -17.7894,
+      lng: 31.0217,
+      cityId: harareCity?.id,
+      suburbId: avondaleSuburb?.id,
+      verificationLevel: VerificationLevel.VERIFIED,
+    },
     create: {
       id: "seed-property-agent-managed",
       title: "Executive Apartment in Avondale",
@@ -259,9 +286,12 @@ async function main() {
       assignedAgentId: agent.id,
       verificationScore: 90,
       trustScore: 95,
+      verificationLevel: VerificationLevel.VERIFIED,
       createdByRole: "LANDLORD",
       lat: -17.7894,
       lng: 31.0217,
+      cityId: harareCity?.id,
+      suburbId: avondaleSuburb?.id,
     },
   });
   console.log("Seeded Agent-Managed Property:", agentManagedProperty.title);
@@ -269,7 +299,12 @@ async function main() {
   // Property 3: Agency-managed listing (agency manages the property)
   const agencyManagedProperty = await prisma.property.upsert({
     where: { id: "seed-property-agency-managed" },
-    update: { lat: -17.8252, lng: 31.0335 },
+    update: {
+      lat: -17.8252,
+      lng: 31.0335,
+      cityId: harareCity?.id,
+      verificationLevel: VerificationLevel.VERIFIED,
+    },
     create: {
       id: "seed-property-agency-managed",
       title: "Commercial Office Space in CBD",
@@ -288,9 +323,11 @@ async function main() {
       assignedAgentId: agent.id,
       verificationScore: 95,
       trustScore: 98,
+      verificationLevel: VerificationLevel.VERIFIED,
       createdByRole: "LANDLORD",
       lat: -17.8252,
       lng: 31.0335,
+      cityId: harareCity?.id,
     },
   });
   console.log("Seeded Agency-Managed Property:", agencyManagedProperty.title);

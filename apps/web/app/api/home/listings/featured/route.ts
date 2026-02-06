@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   const radiusKm = parseNumber(url.searchParams.get("radiusKm")) ?? 50;
   const limit = parseNumber(url.searchParams.get("limit")) ?? 12;
   const minTrust =
-    parseNumber(url.searchParams.get("minTrust")) ?? 0;
+    parseNumber(url.searchParams.get("minTrust")) ?? MIN_TRUST_SCORE;
 
   let items: any[] = [];
   try {

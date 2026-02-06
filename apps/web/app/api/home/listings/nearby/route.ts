@@ -44,9 +44,9 @@ export async function GET(request: Request) {
   const radiusKm = parseNumber(url.searchParams.get("radiusKm")) ?? 30;
   const limit = parseNumber(url.searchParams.get("limit")) ?? DEFAULT_LIMIT;
   const verifiedOnly =
-    parseBoolean(url.searchParams.get("verifiedOnly")) ?? false;
+    parseBoolean(url.searchParams.get("verifiedOnly")) ?? true;
   const minTrust =
-    parseNumber(url.searchParams.get("minTrust")) ?? 0;
+    parseNumber(url.searchParams.get("minTrust")) ?? MIN_TRUST_SCORE;
   const mode = url.searchParams.get("mode") ?? "all";
   const city = url.searchParams.get("city");
   const locationId = url.searchParams.get("locationId");

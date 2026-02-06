@@ -19,11 +19,8 @@ const fallbackCounts: HomeCounts = {
 };
 
 export function StatsBand({ coords, initialCounts }: StatsBandProps) {
-  const { data, isLoading, isError } = useHomeCounts({
-    lat: coords?.lat,
-    lng: coords?.lng,
-    radiusKm: 40,
-  });
+  // Fetch global counts (no location filtering) to show platform-wide stats
+  const { data, isLoading, isError } = useHomeCounts({});
   const resolved = data ?? initialCounts;
 
   const counts = useMemo(() => {

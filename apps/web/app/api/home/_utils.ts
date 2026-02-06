@@ -72,12 +72,10 @@ export function getListingTrustScore(listing: any) {
 
 export function isPublicListing(listing: any) {
   const status = listing?.status ?? "";
-  return ["VERIFIED", "PUBLISHED", "PENDING_VERIFY"].includes(status);
+  return ["VERIFIED", "PUBLISHED"].includes(status);
 }
 
 export function isVerifiedListing(listing: any, minTrust: number) {
-  // When minTrust is 0, show all listings regardless of verification
-  if (minTrust <= 0) return true;
   const level = listing?.verificationLevel ?? "NONE";
   if (["VERIFIED", "TRUSTED"].includes(level)) return true;
   return getListingTrustScore(listing) >= minTrust;
