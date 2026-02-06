@@ -1,4 +1,4 @@
-import { getRequiredPublicApiBaseUrl } from "@/lib/api-base-url";
+import { getPublicApiBaseUrl } from "../../../lib/api-base-url";
 
 export const DEFAULT_LIMIT = 18;
 export const MIN_TRUST_SCORE = 70;
@@ -39,8 +39,23 @@ export function buildBoundsString(lat: number, lng: number, radiusKm: number) {
     .join(",");
 }
 
+function normalizeApiBaseUrl(baseUrl: string) {
+  const withProtocol = baseUrl.startsWith("http")
+    ? baseUrl
+    : `http://${baseUrl}`;
+  const trimmed = withProtocol.replace(/\/+$/, "");
+  return trimmed.endsWith("/v1") ? trimmed : `${trimmed}/v1`;
+}
+
 export function getApiBaseUrl() {
-  return getRequiredPublicApiBaseUrl();
+  const baseUrl =
+    getPublicApiBaseUrl() ||
+    process.env.INTERNAL_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.API_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    "http://localhost:3001";
+  return normalizeApiBaseUrl(baseUrl);
 }
 
 export function getListingTrustScore(listing: any) {
@@ -57,10 +72,12 @@ export function getListingTrustScore(listing: any) {
 
 export function isPublicListing(listing: any) {
   const status = listing?.status ?? "";
-  return ["VERIFIED", "PUBLISHED"].includes(status);
+  return ["VERIFIED", "PUBLISHED", "PENDING_VERIFY"].includes(status);
 }
 
 export function isVerifiedListing(listing: any, minTrust: number) {
+  // When minTrust is 0, show all listings regardless of verification
+  if (minTrust <= 0) return true;
   const level = listing?.verificationLevel ?? "NONE";
   if (["VERIFIED", "TRUSTED"].includes(level)) return true;
   return getListingTrustScore(listing) >= minTrust;

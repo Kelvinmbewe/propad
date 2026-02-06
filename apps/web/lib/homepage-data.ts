@@ -124,7 +124,7 @@ export async function nearbyVerifiedListings({
   const params = new URLSearchParams();
   params.set("bounds", buildBoundsString(coords, radiusKm));
   params.set("limit", String(filters?.limit ?? 18));
-  if (filters?.verifiedOnly !== false) {
+  if (filters?.verifiedOnly === true) {
     params.set("verifiedOnly", "true");
   }
   if (filters?.propertyType) {

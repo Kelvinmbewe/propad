@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getApiBaseUrl, parseNumber } from "../_utils";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const lat = parseNumber(url.searchParams.get("lat"));
@@ -14,20 +19,25 @@ export async function GET(request: Request) {
   if (radiusKm) params.set("radiusKm", String(radiusKm));
   if (city) params.set("city", city);
 
-  const response = await fetch(
-    `${getApiBaseUrl()}/properties/home/areas?${params.toString()}`,
-    { cache: "no-store" },
-  );
+  try {
+    const response = await fetch(
+      `${getApiBaseUrl()}/properties/home/areas?${params.toString()}`,
+      { cache: "no-store" },
+    );
 
-  if (!response.ok) {
+    if (!response.ok) {
+      throw new Error(`Areas request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const res = NextResponse.json(data);
+    res.headers.set(
+      "Cache-Control",
+      "public, s-maxage=180, stale-while-revalidate=300",
+    );
+    return res;
+  } catch (error) {
+    console.error("[home/areas]", error);
     return NextResponse.json({ cities: [], suburbs: [] });
   }
-
-  const data = await response.json();
-  const res = NextResponse.json(data);
-  res.headers.set(
-    "Cache-Control",
-    "public, s-maxage=180, stale-while-revalidate=300",
-  );
-  return res;
 }

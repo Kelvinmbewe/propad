@@ -3623,23 +3623,18 @@ export class PropertiesService {
     const sinceDate = new Date();
     sinceDate.setDate(sinceDate.getDate() - 30);
 
+    const publicStatuses = [PropertyStatus.VERIFIED, PropertyStatus.PUBLISHED];
     const [verifiedListingsCount, newListings30dCount, trustChecksCount] =
       await Promise.all([
         this.prisma.property.count({
           where: {
-            status: PropertyStatus.VERIFIED,
+            status: { in: publicStatuses },
             ...locationFilter,
           },
         }),
         this.prisma.property.count({
           where: {
-            status: {
-              in: [
-                PropertyStatus.VERIFIED,
-                PropertyStatus.PUBLISHED,
-                PropertyStatus.PENDING_VERIFY,
-              ],
-            },
+            status: { in: publicStatuses },
             createdAt: { gte: sinceDate },
             ...locationFilter,
           },

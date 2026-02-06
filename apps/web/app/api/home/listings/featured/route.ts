@@ -9,6 +9,11 @@ import {
   parseNumber,
 } from "../../_utils";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const lat = parseNumber(url.searchParams.get("lat"));
@@ -16,18 +21,24 @@ export async function GET(request: Request) {
   const radiusKm = parseNumber(url.searchParams.get("radiusKm")) ?? 50;
   const limit = parseNumber(url.searchParams.get("limit")) ?? 12;
   const minTrust =
-    parseNumber(url.searchParams.get("minTrust")) ?? MIN_TRUST_SCORE;
+    parseNumber(url.searchParams.get("minTrust")) ?? 0;
 
-  const response = await fetch(`${getApiBaseUrl()}/properties/featured`, {
-    cache: "no-store",
-  });
+  let items: any[] = [];
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/properties/featured`, {
+      cache: "no-store",
+    });
 
-  if (!response.ok) {
+    if (!response.ok) {
+      throw new Error(`Featured request failed: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    items = Array.isArray(payload) ? payload : [];
+  } catch (error) {
+    console.error("[home/featured]", error);
     return NextResponse.json({ items: [] });
   }
-
-  const payload = await response.json();
-  const items = Array.isArray(payload) ? payload : [];
   const bounds =
     lat !== undefined && lng !== undefined
       ? buildBoundsFromCenter(lat, lng, radiusKm)

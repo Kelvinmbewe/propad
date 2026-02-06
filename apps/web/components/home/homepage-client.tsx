@@ -190,8 +190,8 @@ export function HomePageClient({
     locationLevel: null,
     propertyType: "any",
     priceRange: "any",
-    verifiedOnly: true,
-    minTrust: 60,
+    verifiedOnly: false,
+    minTrust: 0,
   });
   const [activeTab, setActiveTab] = useState<"agents" | "agencies">("agents");
 
@@ -231,6 +231,8 @@ export function HomePageClient({
     lat: selectedCoords?.lat,
     lng: selectedCoords?.lng,
     city: searchState.locationLabel,
+    locationId: searchState.locationId,
+    locationLevel: searchState.locationLevel,
     mode: searchState.intent === "FOR_SALE" ? "sale" : "rent",
     verifiedOnly: searchState.verifiedOnly,
     limit: 24,
@@ -243,7 +245,7 @@ export function HomePageClient({
   const featuredQuery = useFeaturedListings({
     lat: selectedCoords?.lat,
     lng: selectedCoords?.lng,
-    minTrust: Math.max(FEATURED_MIN_TRUST, searchState.minTrust),
+    minTrust: searchState.minTrust,
   });
   const agentsQuery = useTopPartners({
     lat: selectedCoords?.lat,

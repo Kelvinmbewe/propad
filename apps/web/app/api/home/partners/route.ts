@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getApiBaseUrl, parseNumber } from "../_utils";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const lat = parseNumber(url.searchParams.get("lat"));
@@ -14,22 +19,28 @@ export async function GET(request: Request) {
   if (lng !== undefined) params.set("lng", lng.toFixed(6));
   params.set("radiusKm", String(radiusKm));
   params.set("limit", String(limit));
+  params.set("verifiedOnly", "false");
 
   const endpoint = type === "agencies" ? "top-agencies" : "top-agents";
-  const response = await fetch(
-    `${getApiBaseUrl()}/properties/home/${endpoint}?${params.toString()}`,
-    { cache: "no-store" },
-  );
+  try {
+    const response = await fetch(
+      `${getApiBaseUrl()}/properties/home/${endpoint}?${params.toString()}`,
+      { cache: "no-store" },
+    );
 
-  if (!response.ok) {
+    if (!response.ok) {
+      throw new Error(`Partners request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const res = NextResponse.json({ items: data ?? [] });
+    res.headers.set(
+      "Cache-Control",
+      "public, s-maxage=120, stale-while-revalidate=240",
+    );
+    return res;
+  } catch (error) {
+    console.error("[home/partners]", error);
     return NextResponse.json({ items: [] });
   }
-
-  const data = await response.json();
-  const res = NextResponse.json({ items: data ?? [] });
-  res.headers.set(
-    "Cache-Control",
-    "public, s-maxage=120, stale-while-revalidate=240",
-  );
-  return res;
 }

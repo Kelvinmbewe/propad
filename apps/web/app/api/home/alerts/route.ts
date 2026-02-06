@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getRequiredPublicApiBaseUrl } from "@/lib/api-base-url";
+import { getApiBaseUrl } from "@/app/api/home/_utils";
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -10,17 +12,14 @@ export async function POST(request: Request) {
   }
 
   const payload = await request.json();
-  const response = await fetch(
-    `${getRequiredPublicApiBaseUrl()}/saved-searches`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify(payload),
+  const response = await fetch(`${getApiBaseUrl()}/saved-searches`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
     },
-  );
+    body: JSON.stringify(payload),
+  });
 
   if (!response.ok) {
     const error = await response.text();

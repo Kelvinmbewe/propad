@@ -211,7 +211,7 @@ async function main() {
   // Property 1: Owner-managed listing (landlord manages their own property)
   const ownerManagedProperty = await prisma.property.upsert({
     where: { id: "seed-property-owner-managed" },
-    update: {},
+    update: { lat: -17.7656, lng: 31.0881 },
     create: {
       id: "seed-property-owner-managed",
       title: "Modern 3 Bedroom House in Borrowdale",
@@ -230,6 +230,8 @@ async function main() {
       verificationScore: 75,
       trustScore: 80,
       createdByRole: "LANDLORD",
+      lat: -17.7656,
+      lng: 31.0881,
     },
   });
   console.log("Seeded Owner-Managed Property:", ownerManagedProperty.title);
@@ -237,7 +239,7 @@ async function main() {
   // Property 2: Agent-managed listing (agent manages on behalf of owner)
   const agentManagedProperty = await prisma.property.upsert({
     where: { id: "seed-property-agent-managed" },
-    update: {},
+    update: { lat: -17.7894, lng: 31.0217 },
     create: {
       id: "seed-property-agent-managed",
       title: "Executive Apartment in Avondale",
@@ -258,6 +260,8 @@ async function main() {
       verificationScore: 90,
       trustScore: 95,
       createdByRole: "LANDLORD",
+      lat: -17.7894,
+      lng: 31.0217,
     },
   });
   console.log("Seeded Agent-Managed Property:", agentManagedProperty.title);
@@ -265,7 +269,7 @@ async function main() {
   // Property 3: Agency-managed listing (agency manages the property)
   const agencyManagedProperty = await prisma.property.upsert({
     where: { id: "seed-property-agency-managed" },
-    update: {},
+    update: { lat: -17.8252, lng: 31.0335 },
     create: {
       id: "seed-property-agency-managed",
       title: "Commercial Office Space in CBD",
@@ -285,6 +289,8 @@ async function main() {
       verificationScore: 95,
       trustScore: 98,
       createdByRole: "LANDLORD",
+      lat: -17.8252,
+      lng: 31.0335,
     },
   });
   console.log("Seeded Agency-Managed Property:", agencyManagedProperty.title);
@@ -339,7 +345,7 @@ async function main() {
   // Assignment pending approval (to demonstrate the workflow)
   const pendingProperty = await prisma.property.upsert({
     where: { id: "seed-property-pending-assignment" },
-    update: {},
+    update: { lat: -17.8150, lng: 31.0456 },
     create: {
       id: "seed-property-pending-assignment",
       title: "Townhouse in Highlands",
@@ -356,6 +362,8 @@ async function main() {
       ownerId: user.id,
       managedByType: ListingManagedByType.OWNER,
       createdByRole: "LANDLORD",
+      lat: -17.8150,
+      lng: 31.0456,
     },
   });
   console.log("Seeded Pending Property:", pendingProperty.title);
