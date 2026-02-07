@@ -48,7 +48,7 @@ export interface SearchResult<T extends GeoLevel> {
 
 @Injectable()
 export class GeoService implements OnModuleInit {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   listPending({ level, status, search }: ListPendingGeoDto) {
     const whereCondition: any = {
@@ -452,12 +452,12 @@ export class GeoService implements OnModuleInit {
 
     let suburb:
       | (Suburb & {
-          city?:
-            | (City & { province?: Province | null; country?: Country | null })
-            | null;
-          province?: Province | null;
-          country?: Country | null;
-        })
+        city?:
+        | (City & { province?: Province | null; country?: Country | null })
+        | null;
+        province?: Province | null;
+        country?: Country | null;
+      })
       | null = null;
     if (suburbId) {
       suburb = await this.prisma.suburb.findUnique({
@@ -479,9 +479,9 @@ export class GeoService implements OnModuleInit {
 
     let city:
       | (City & {
-          province?: (Province & { country?: Country | null }) | null;
-          country?: Country | null;
-        })
+        province?: (Province & { country?: Country | null }) | null;
+        country?: Country | null;
+      })
       | null = null;
     if (suburb?.city) {
       city = suburb.city;
@@ -629,6 +629,15 @@ export class GeoService implements OnModuleInit {
               lng: citySeed.lng ?? null,
             },
           });
+        } else {
+          // Update GPS data if it exists
+          await this.prisma.city.update({
+            where: { id: city.id },
+            data: {
+              lat: citySeed.lat ?? null,
+              lng: citySeed.lng ?? null,
+            },
+          });
         }
 
         for (const suburbSeed of citySeed.suburbs ?? []) {
@@ -636,23 +645,36 @@ export class GeoService implements OnModuleInit {
             where: { name: suburbSeed.name, cityId: city.id },
           });
 
+          const suburbData: any = {
+            name: suburbSeed.name,
+            cityId: city.id,
+            provinceId: province.id,
+            countryId: country.id,
+            lat: suburbSeed.lat ?? null,
+            lng: suburbSeed.lng ?? null,
+          };
+          if (
+            suburbSeed.polygonGeoJson !== null &&
+            suburbSeed.polygonGeoJson !== undefined
+          ) {
+            suburbData.polygonGeoJson = suburbSeed.polygonGeoJson;
+          }
+
           if (!existingSuburb) {
-            const suburbData: any = {
-              name: suburbSeed.name,
-              cityId: city.id,
-              provinceId: province.id,
-              countryId: country.id,
-              lat: suburbSeed.lat ?? null,
-              lng: suburbSeed.lng ?? null,
-            };
-            if (
-              suburbSeed.polygonGeoJson !== null &&
-              suburbSeed.polygonGeoJson !== undefined
-            ) {
-              suburbData.polygonGeoJson = suburbSeed.polygonGeoJson;
-            }
             await this.prisma.suburb.create({
               data: suburbData,
+            });
+          } else {
+            // Update GPS data
+            await this.prisma.suburb.update({
+              where: { id: existingSuburb.id },
+              data: {
+                lat: suburbSeed.lat ?? null,
+                lng: suburbSeed.lng ?? null,
+                ...(suburbData.polygonGeoJson
+                  ? { polygonGeoJson: suburbData.polygonGeoJson }
+                  : {}),
+              },
             });
           }
         }
