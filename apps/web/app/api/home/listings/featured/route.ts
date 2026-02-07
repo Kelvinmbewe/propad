@@ -53,7 +53,7 @@ export async function GET(request: Request) {
   const filterByProvinceId = locationId && locationLevel === "PROVINCE" ? locationId : null;
 
   const bounds =
-    lat !== undefined && lng !== undefined && !locationId
+    lat !== undefined && lng !== undefined
       ? buildBoundsFromCenter(lat, lng, radiusKm)
       : null;
 
@@ -61,7 +61,19 @@ export async function GET(request: Request) {
     .filter((listing: any) => isPublicListing(listing))
     .filter((listing: any) => isVerifiedListing(listing, minTrust))
     .filter((listing: any) => {
-      // If a specific city is selected, only show listings from that city
+      // Prioritize bounds filtering if available (supports "nearby" logic like Kwekwe -> Gweru)
+      if (bounds) {
+        const latValue = Number(listing.lat ?? 0);
+        const lngValue = Number(listing.lng ?? 0);
+        return (
+          latValue >= bounds.southWest.lat &&
+          latValue <= bounds.northEast.lat &&
+          lngValue >= bounds.southWest.lng &&
+          lngValue <= bounds.northEast.lng
+        );
+      }
+
+      // Fallback to strict location filtering if NO GPS data available
       if (filterByCityId) {
         return listing.cityId === filterByCityId || listing.location?.cityId === filterByCityId;
       }
@@ -71,16 +83,8 @@ export async function GET(request: Request) {
       if (filterByProvinceId) {
         return listing.provinceId === filterByProvinceId || listing.location?.provinceId === filterByProvinceId;
       }
-      // Otherwise use bounds if available
-      if (!bounds) return true;
-      const latValue = Number(listing.lat ?? 0);
-      const lngValue = Number(listing.lng ?? 0);
-      return (
-        latValue >= bounds.southWest.lat &&
-        latValue <= bounds.northEast.lat &&
-        lngValue >= bounds.southWest.lng &&
-        lngValue <= bounds.northEast.lng
-      );
+
+      return true;
     })
     .map((listing: any) => ({
       ...listing,

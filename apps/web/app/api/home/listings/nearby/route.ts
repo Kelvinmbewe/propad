@@ -61,11 +61,24 @@ export async function GET(request: Request) {
   if (propertyType) params.set("type", propertyType);
   if (priceMin !== undefined) params.set("priceMin", String(priceMin));
   if (priceMax !== undefined) params.set("priceMax", String(priceMax));
-  if (locationId && locationLevel) {
-    if (locationLevel === "CITY") params.set("cityId", locationId);
-    if (locationLevel === "SUBURB") params.set("suburbId", locationId);
-    if (locationLevel === "PROVINCE") params.set("provinceId", locationId);
+
+  // Prioritize bounds if provided (for proximity searches like Kwekwe->Gweru)
+  const bounds = url.searchParams.get("bounds");
+
+  if (bounds) {
+    // Bounds provided, use them for proximity search
+    params.set("bounds", bounds);
+  } else if (locationId && locationLevel) {
+    // Only use strict location filtering if NO bounds provided
+    if (locationLevel === "CITY") {
+      params.set("cityId", locationId);
+    } else if (locationLevel === "SUBURB") {
+      params.set("suburbId", locationId);
+    } else if (locationLevel === "PROVINCE") {
+      params.set("provinceId", locationId);
+    }
   } else if (lat !== undefined && lng !== undefined) {
+    // Default to fallback bounds if nothing else
     params.set("bounds", buildBoundsString(lat, lng, radiusKm));
   } else if (city) {
     const locationMatch = await resolveLocationId(city);

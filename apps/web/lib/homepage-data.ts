@@ -127,20 +127,15 @@ export async function nearbyVerifiedListings({
 }: HomeQueryInput): Promise<HomeSearchResult> {
   const params = new URLSearchParams();
 
-  // If a specific location is selected, filter by that location
-  // Otherwise use GPS bounds with a larger radius for city-level matching
-  if (locationId && locationLevel) {
-    if (locationLevel === "CITY") {
-      params.set("cityId", locationId);
-    } else if (locationLevel === "SUBURB") {
-      params.set("suburbId", locationId);
-    } else if (locationLevel === "PROVINCE") {
-      params.set("provinceId", locationId);
-    }
-  } else {
-    // Use bounds for GPS proximity matching with larger radius
+  // Use GPS bounds with larger radius for proximity matching
+  // This ensures checking Kwekwe (0 properties) shows Gweru properties (within 150km)
+  if (coords) {
     params.set("bounds", buildBoundsString(coords, radiusKm));
   }
+
+  // We still pass location metadata for potential server-side optimization or logging
+  if (locationId) params.set("locationId", locationId);
+  if (locationLevel) params.set("locationLevel", locationLevel);
 
   params.set("limit", String(filters?.limit ?? 18));
   if (filters?.verifiedOnly !== false) {

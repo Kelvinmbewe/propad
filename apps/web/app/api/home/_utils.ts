@@ -48,9 +48,10 @@ function normalizeApiBaseUrl(baseUrl: string) {
 }
 
 export function getApiBaseUrl() {
+  // Prioritize internal URL for server-side requests
   const baseUrl =
-    getPublicApiBaseUrl() ||
     process.env.INTERNAL_API_BASE_URL ||
+    getPublicApiBaseUrl() ||
     process.env.NEXT_PUBLIC_API_URL ||
     process.env.API_URL ||
     process.env.NEXT_PUBLIC_API_BASE_URL ||
