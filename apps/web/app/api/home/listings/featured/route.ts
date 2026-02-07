@@ -25,7 +25,12 @@ export async function GET(request: Request) {
 
   let items: any[] = [];
   try {
-    const response = await fetch(`${getApiBaseUrl()}/properties/featured`, {
+    const params = new URLSearchParams();
+    if (lat !== undefined) params.set("lat", String(lat));
+    if (lng !== undefined) params.set("lng", String(lng));
+    params.set("radiusKm", String(radiusKm));
+
+    const response = await fetch(`${getApiBaseUrl()}/properties/featured?${params.toString()}`, {
       cache: "no-store",
     });
 

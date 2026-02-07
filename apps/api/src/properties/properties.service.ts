@@ -12,6 +12,7 @@ import {
   PropertyAvailability,
   PropertyFurnishing,
   PropertyStatus,
+  VerificationLevel,
   PropertyType,
   RewardEventType,
   ListingActivityType,
@@ -255,7 +256,7 @@ export class PropertiesService {
     private readonly pricing: PricingService,
     private readonly paymentsService: PaymentsService,
     private readonly verificationsService: VerificationsService,
-  ) {}
+  ) { }
 
   /**
    * Recursively convert Prisma Decimal types and Date objects for JSON serialization
@@ -350,8 +351,8 @@ export class PropertiesService {
           runId: "run1",
           hypothesisId,
         }) + "\n";
-      await mkdir(".cursor", { recursive: true }).catch(() => {});
-      await appendFile(".cursor/debug.log", logEntry).catch(() => {});
+      await mkdir(".cursor", { recursive: true }).catch(() => { });
+      await appendFile(".cursor/debug.log", logEntry).catch(() => { });
     } catch {
       // Ignore logging errors
     }
@@ -396,7 +397,7 @@ export class PropertiesService {
         priceType: typeof property?.price,
       },
       "A",
-    ).catch(() => {});
+    ).catch(() => { });
     // #endregion
     try {
       // Safely extract location data with proper null checks
@@ -431,7 +432,7 @@ export class PropertiesService {
           provinceType: typeof province,
         },
         "A",
-      ).catch(() => {});
+      ).catch(() => { });
       // #endregion
 
       // Exclude Prisma relation objects from the spread to avoid serialization issues
@@ -456,7 +457,7 @@ export class PropertiesService {
           priceValue: cleanProperty?.price?.toString?.()?.substring(0, 20),
         },
         "B",
-      ).catch(() => {});
+      ).catch(() => { });
       // #endregion
 
       // Use pending geo's proposed name as suburb name if no regular suburb exists
@@ -510,18 +511,18 @@ export class PropertiesService {
           countryId: property.countryId ?? null,
           country: country
             ? {
-                id: String(country.id ?? ""),
-                name: String(country.name ?? ""),
-                iso2: String(country.iso2 ?? ""),
-                phoneCode: String(country.phoneCode ?? ""),
-              }
+              id: String(country.id ?? ""),
+              name: String(country.name ?? ""),
+              iso2: String(country.iso2 ?? ""),
+              phoneCode: String(country.phoneCode ?? ""),
+            }
             : null,
           provinceId: property.provinceId ?? null,
           province: province
             ? {
-                id: String(province.id ?? ""),
-                name: String(province.name ?? ""),
-              }
+              id: String(province.id ?? ""),
+              name: String(province.name ?? ""),
+            }
             : null,
           cityId: property.cityId ?? null,
           city: city
@@ -534,11 +535,11 @@ export class PropertiesService {
           pendingGeoId: property.pendingGeoId ?? null,
           pendingGeo: pendingGeo
             ? {
-                id: String(pendingGeo.id ?? ""),
-                proposedName: String(pendingGeo.proposedName ?? ""),
-                level: String(pendingGeo.level ?? ""),
-                status: String(pendingGeo.status ?? ""),
-              }
+              id: String(pendingGeo.id ?? ""),
+              proposedName: String(pendingGeo.proposedName ?? ""),
+              level: String(pendingGeo.level ?? ""),
+              status: String(pendingGeo.status ?? ""),
+            }
             : null,
           lat: typeof property.lat === "number" ? property.lat : null,
           lng: typeof property.lng === "number" ? property.lng : null,
@@ -558,7 +559,7 @@ export class PropertiesService {
           resultAreaSqmType: typeof convertedResult?.areaSqm,
         },
         "B",
-      ).catch(() => {});
+      ).catch(() => { });
       // #endregion
 
       return convertedResult;
@@ -614,7 +615,7 @@ export class PropertiesService {
       "attachLocationToMany entry",
       { propertyCount: properties.length },
       "C",
-    ).catch(() => {});
+    ).catch(() => { });
     // #endregion
     return properties
       .map((property, index) => {
@@ -625,7 +626,7 @@ export class PropertiesService {
             "attachLocationToMany processing property",
             { index, propertyId: property?.id },
             "C",
-          ).catch(() => {});
+          ).catch(() => { });
           // #endregion
           return this.attachLocation(property);
         } catch (error) {
@@ -684,7 +685,7 @@ export class PropertiesService {
             isDecimal: result?.price?.constructor?.name === "Decimal",
           },
           "B",
-        ).catch(() => {});
+        ).catch(() => { });
         // #endregion
         // Convert all Decimal types recursively
         const converted = this.convertDecimalsToNumbers(result);
@@ -698,7 +699,7 @@ export class PropertiesService {
             newPriceType: typeof converted?.price,
           },
           "B",
-        ).catch(() => {});
+        ).catch(() => { });
         // #endregion
         return converted;
       });
@@ -1856,12 +1857,12 @@ export class PropertiesService {
         ...filtered,
         ...(isUpdatingLocation
           ? {
-              countryId: location.country?.id ?? null,
-              provinceId: location.province?.id ?? null,
-              cityId: location.city?.id ?? null,
-              suburbId: location.suburb?.id ?? null,
-              pendingGeoId: location.pendingGeo?.id ?? null,
-            }
+            countryId: location.country?.id ?? null,
+            provinceId: location.province?.id ?? null,
+            cityId: location.city?.id ?? null,
+            suburbId: location.suburb?.id ?? null,
+            pendingGeoId: location.pendingGeo?.id ?? null,
+          }
           : {}),
         ...(lat !== undefined ? { lat } : {}),
         ...(lng !== undefined ? { lng } : {}),
@@ -3045,8 +3046,8 @@ export class PropertiesService {
           // No incoming messages, fallback to Landlord <-> Agent
           recipientId = isOwner
             ? (property as any).assignedAgentId ??
-              property.agentOwnerId ??
-              property.landlordId
+            property.agentOwnerId ??
+            property.landlordId
             : property.landlordId;
         }
       } else {
@@ -3204,10 +3205,10 @@ export class PropertiesService {
     const activeStatuses = dto.verifiedOnly
       ? [PropertyStatus.VERIFIED]
       : [
-          PropertyStatus.VERIFIED,
-          PropertyStatus.PENDING_VERIFY,
-          PropertyStatus.PUBLISHED,
-        ];
+        PropertyStatus.VERIFIED,
+        PropertyStatus.PENDING_VERIFY,
+        PropertyStatus.PUBLISHED,
+      ];
 
     const where: Prisma.PropertyWhereInput = {
       status: { in: activeStatuses },
@@ -3221,26 +3222,26 @@ export class PropertiesService {
       // Range Filters
       ...(filters.priceMin || filters.priceMax
         ? {
-            price: {
-              ...(filters.priceMin ? { gte: filters.priceMin } : {}),
-              ...(filters.priceMax ? { lte: filters.priceMax } : {}),
-            },
-          }
+          price: {
+            ...(filters.priceMin ? { gte: filters.priceMin } : {}),
+            ...(filters.priceMax ? { lte: filters.priceMax } : {}),
+          },
+        }
         : {}),
       ...(filters.bedrooms ? { bedrooms: { gte: filters.bedrooms } } : {}),
       ...(filters.bathrooms ? { bathrooms: { gte: filters.bathrooms } } : {}),
       ...(filters.minFloorArea
         ? {
-            OR: [
-              { areaSqm: { gte: filters.minFloorArea } },
-              {
-                commercialFields: {
-                  path: ["floorAreaSqm"],
-                  gte: filters.minFloorArea,
-                },
+          OR: [
+            { areaSqm: { gte: filters.minFloorArea } },
+            {
+              commercialFields: {
+                path: ["floorAreaSqm"],
+                gte: filters.minFloorArea,
               },
-            ],
-          }
+            },
+          ],
+        }
         : {}),
 
       // Boolean / Enum Filters
@@ -3256,33 +3257,33 @@ export class PropertiesService {
       // JSON Array Filter (Amenities)
       ...(filters.amenities && filters.amenities.length > 0
         ? {
-            amenities: { hasSome: filters.amenities },
-          }
+          amenities: { hasSome: filters.amenities },
+        }
         : {}),
 
       // Geo Bounds
       ...(filters.bounds
         ? {
-            lat: {
-              gte: filters.bounds.southWest.lat,
-              lte: filters.bounds.northEast.lat,
-            },
-            lng: {
-              gte: filters.bounds.southWest.lng,
-              lte: filters.bounds.northEast.lng,
-            },
-          }
+          lat: {
+            gte: filters.bounds.southWest.lat,
+            lte: filters.bounds.northEast.lat,
+          },
+          lng: {
+            gte: filters.bounds.southWest.lng,
+            lte: filters.bounds.northEast.lng,
+          },
+        }
         : {}),
 
       // --- SMART RANKING FILTERS ---
       // Verified Only Support
       ...(dto.verifiedOnly
         ? {
-            OR: [
-              { verificationLevel: "VERIFIED" },
-              { verificationLevel: "TRUSTED" },
-            ],
-          }
+          OR: [
+            { verificationLevel: "VERIFIED" },
+            { verificationLevel: "TRUSTED" },
+          ],
+        }
         : {}),
     };
 
@@ -3379,10 +3380,10 @@ export class PropertiesService {
     const activeStatuses = verifiedOnly
       ? [PropertyStatus.VERIFIED]
       : [
-          PropertyStatus.VERIFIED,
-          PropertyStatus.PENDING_VERIFY,
-          PropertyStatus.PUBLISHED,
-        ];
+        PropertyStatus.VERIFIED,
+        PropertyStatus.PENDING_VERIFY,
+        PropertyStatus.PUBLISHED,
+      ];
 
     const listings = await this.prisma.property.findMany({
       where: {
@@ -3498,10 +3499,10 @@ export class PropertiesService {
     const activeStatuses = verifiedOnly
       ? [PropertyStatus.VERIFIED]
       : [
-          PropertyStatus.VERIFIED,
-          PropertyStatus.PENDING_VERIFY,
-          PropertyStatus.PUBLISHED,
-        ];
+        PropertyStatus.VERIFIED,
+        PropertyStatus.PENDING_VERIFY,
+        PropertyStatus.PUBLISHED,
+      ];
 
     const listings = await this.prisma.property.findMany({
       where: {
@@ -3602,22 +3603,22 @@ export class PropertiesService {
       typeof input.lat === "number" && typeof input.lng === "number";
     const bounds = hasCoords
       ? this.buildBoundsFromCenter(
-          input.lat as number,
-          input.lng as number,
-          input.radiusKm ?? 40,
-        )
+        input.lat as number,
+        input.lng as number,
+        input.radiusKm ?? 40,
+      )
       : null;
     const locationFilter = bounds
       ? {
-          lat: {
-            gte: bounds.southWest.lat,
-            lte: bounds.northEast.lat,
-          },
-          lng: {
-            gte: bounds.southWest.lng,
-            lte: bounds.northEast.lng,
-          },
-        }
+        lat: {
+          gte: bounds.southWest.lat,
+          lte: bounds.northEast.lat,
+        },
+        lng: {
+          gte: bounds.southWest.lng,
+          lte: bounds.northEast.lng,
+        },
+      }
       : {};
 
     const sinceDate = new Date();
@@ -3628,7 +3629,17 @@ export class PropertiesService {
       await Promise.all([
         this.prisma.property.count({
           where: {
-            status: { in: publicStatuses },
+            OR: [
+              { status: PropertyStatus.VERIFIED },
+              {
+                status: PropertyStatus.PUBLISHED,
+                verificationLevel: { in: [VerificationLevel.VERIFIED, VerificationLevel.TRUSTED] },
+              },
+              {
+                status: PropertyStatus.PUBLISHED,
+                verificationScore: { gte: 70 },
+              },
+            ],
             ...locationFilter,
           },
         }),
@@ -3704,22 +3715,22 @@ export class PropertiesService {
       typeof input.lat === "number" && typeof input.lng === "number";
     const bounds = hasCoords
       ? this.buildBoundsFromCenter(
-          input.lat as number,
-          input.lng as number,
-          input.radiusKm ?? 40,
-        )
+        input.lat as number,
+        input.lng as number,
+        input.radiusKm ?? 40,
+      )
       : null;
     const locationFilter = bounds
       ? {
-          lat: {
-            gte: bounds.southWest.lat,
-            lte: bounds.northEast.lat,
-          },
-          lng: {
-            gte: bounds.southWest.lng,
-            lte: bounds.northEast.lng,
-          },
-        }
+        lat: {
+          gte: bounds.southWest.lat,
+          lte: bounds.northEast.lat,
+        },
+        lng: {
+          gte: bounds.southWest.lng,
+          lte: bounds.northEast.lng,
+        },
+      }
       : {};
 
     const publicStatuses = [PropertyStatus.VERIFIED, PropertyStatus.PUBLISHED];
@@ -3741,15 +3752,15 @@ export class PropertiesService {
       .filter(Boolean) as string[];
     const cities = cityIds.length
       ? await this.prisma.city.findMany({
-          where: { id: { in: cityIds } },
-          select: {
-            id: true,
-            name: true,
-            lat: true,
-            lng: true,
-            province: { select: { name: true } },
-          },
-        })
+        where: { id: { in: cityIds } },
+        select: {
+          id: true,
+          name: true,
+          lat: true,
+          lng: true,
+          province: { select: { name: true } },
+        },
+      })
       : [];
 
     const cityCounts = new Map<string, number>();
@@ -3797,9 +3808,9 @@ export class PropertiesService {
       .filter(Boolean) as string[];
     const suburbs = suburbIds.length
       ? await this.prisma.suburb.findMany({
-          where: { id: { in: suburbIds } },
-          select: { id: true, name: true, city: { select: { name: true } } },
-        })
+        where: { id: { in: suburbIds } },
+        select: { id: true, name: true, city: { select: { name: true } } },
+      })
       : [];
 
     const suburbCounts = new Map<string, number>();
@@ -4109,18 +4120,18 @@ export class PropertiesService {
             create: [
               ...(hasProofOfOwnership
                 ? [
-                    {
-                      type: "PROOF_OF_OWNERSHIP" as const,
-                      status: "SUBMITTED" as const,
-                      evidenceUrls: dto.proofOfOwnershipUrls!,
-                    },
-                  ]
+                  {
+                    type: "PROOF_OF_OWNERSHIP" as const,
+                    status: "SUBMITTED" as const,
+                    evidenceUrls: dto.proofOfOwnershipUrls!,
+                  },
+                ]
                 : [
-                    {
-                      type: "PROOF_OF_OWNERSHIP" as const,
-                      status: "PENDING" as const,
-                    },
-                  ]),
+                  {
+                    type: "PROOF_OF_OWNERSHIP" as const,
+                    status: "PENDING" as const,
+                  },
+                ]),
               {
                 type: "LOCATION_CONFIRMATION" as const,
                 status: hasLocation
@@ -4134,18 +4145,18 @@ export class PropertiesService {
               },
               ...(hasPropertyPhotos
                 ? [
-                    {
-                      type: "PROPERTY_PHOTOS" as const,
-                      status: "SUBMITTED" as const,
-                      evidenceUrls: dto.propertyPhotoUrls!,
-                    },
-                  ]
+                  {
+                    type: "PROPERTY_PHOTOS" as const,
+                    status: "SUBMITTED" as const,
+                    evidenceUrls: dto.propertyPhotoUrls!,
+                  },
+                ]
                 : [
-                    {
-                      type: "PROPERTY_PHOTOS" as const,
-                      status: "PENDING" as const,
-                    },
-                  ]),
+                  {
+                    type: "PROPERTY_PHOTOS" as const,
+                    status: "PENDING" as const,
+                  },
+                ]),
             ],
           },
         },
@@ -4666,8 +4677,12 @@ export class PropertiesService {
     return this.attachLocationToMany(properties);
   }
 
-  async listFeatured() {
+  async listFeatured(input?: { lat?: number; lng?: number; radiusKm?: number }) {
     const now = new Date();
+    const hasLocation =
+      typeof input?.lat === "number" && typeof input?.lng === "number";
+
+    // 1. Fetch ALL active featured listings (usually small number < 100)
     const featuredProperties: Prisma.PropertyGetPayload<{
       include: {
         media: true;
@@ -4696,42 +4711,93 @@ export class PropertiesService {
         suburb: true,
         featuredListing: true,
       },
+      // Initial sort by priority so slice works better if limits were applied
       orderBy: [
         { featuredListing: { priorityLevel: "desc" } },
         { featuredListing: { startsAt: "desc" } },
       ],
-      take: 12,
+      take: 50, // Limit to reasonable number of featured items
     });
 
-    const remainingSlots = Math.max(0, 12 - featuredProperties.length);
+    // 2. Sort in memory based on priority AND distance if location provided
+    const sortedFeatured = [...featuredProperties].sort((a, b) => {
+      // Primary Sort: Priority Level (Platinum vs Gold)
+      const aPriority =
+        (a.featuredListing?.priorityLevel ?? 0) + (a.featuredListing ? 100 : 0);
+      const bPriority =
+        (b.featuredListing?.priorityLevel ?? 0) + (b.featuredListing ? 100 : 0);
+
+      if (aPriority !== bPriority) {
+        return bPriority - aPriority;
+      }
+
+      // Secondary Sort: Distance (if user provided location)
+      if (hasLocation) {
+        // Simple distance check if both have coords
+        if (a.lat && a.lng && b.lat && b.lng) {
+          const distA = Math.sqrt(
+            Math.pow((a.lat - (input?.lat ?? 0)), 2) +
+            Math.pow((a.lng - (input?.lng ?? 0)), 2)
+          );
+          const distB = Math.sqrt(
+            Math.pow((b.lat - (input?.lat ?? 0)), 2) +
+            Math.pow((b.lng - (input?.lng ?? 0)), 2)
+          );
+          // If difference is significant (> 0.01 deg ~= 1km), sort by distance
+          if (Math.abs(distA - distB) > 0.0001) {
+            return distA - distB;
+          }
+        } else if (a.lat && a.lng) {
+          return -1; // a has location, prioritize
+        } else if (b.lat && b.lng) {
+          return 1; // b has location, prioritize
+        }
+      }
+
+      // Tertiary Sort: Start Date (Newest first)
+      const aStartsAt = a.featuredListing?.startsAt?.getTime?.() ?? 0;
+      const bStartsAt = b.featuredListing?.startsAt?.getTime?.() ?? 0;
+      return bStartsAt - aStartsAt;
+    });
+
+    // Take top 12
+    const topFeatured = sortedFeatured.slice(0, 12);
+
+    const remainingSlots = Math.max(0, 12 - topFeatured.length);
     const fallbackProperties = remainingSlots
       ? await this.prisma.property.findMany({
-          where: {
-            status: {
-              in: [
-                PropertyStatus.VERIFIED,
-                PropertyStatus.PENDING_VERIFY,
-                PropertyStatus.PUBLISHED,
-              ],
-            },
-            id: featuredProperties.length
-              ? { notIn: featuredProperties.map((property) => property.id) }
-              : undefined,
+        where: {
+          status: {
+            in: [
+              PropertyStatus.VERIFIED,
+              PropertyStatus.PENDING_VERIFY,
+              PropertyStatus.PUBLISHED,
+            ],
           },
-          include: {
-            media: { take: 1 },
-            city: true,
-            suburb: true,
-            featuredListing: true,
-          },
-          orderBy: [{ verificationScore: "desc" }, { updatedAt: "desc" }],
-          take: remainingSlots,
-        })
+          id: topFeatured.length
+            ? { notIn: topFeatured.map((property) => property.id) }
+            : undefined,
+          // Only Verified/Trusted if filling slots
+          OR: [
+            { verificationLevel: { in: [VerificationLevel.VERIFIED, VerificationLevel.TRUSTED] } },
+            { verificationScore: { gte: 70 } }
+          ]
+        },
+        include: {
+          media: { take: 1 },
+          city: true,
+          suburb: true,
+          featuredListing: true,
+        },
+        orderBy: [{ verificationScore: "desc" }, { updatedAt: "desc" }],
+        take: remainingSlots,
+      })
       : [];
 
-    const properties = [...featuredProperties, ...fallbackProperties];
+    const finalProperties = [...topFeatured, ...fallbackProperties];
 
-    const sorted = [...properties].sort((a, b) => {
+    const sorted = [...finalProperties].sort((a, b) => {
+      // 1. Priority Level
       const aPriority =
         (a.featuredListing?.priorityLevel ?? 0) + (a.featuredListing ? 100 : 0);
       const bPriority =
@@ -4740,6 +4806,24 @@ export class PropertiesService {
         return bPriority - aPriority;
       }
 
+      // 2. Distance (if location provided)
+      if (hasLocation) {
+        if (a.lat && a.lng && b.lat && b.lng) {
+          const distA = Math.sqrt(
+            Math.pow((a.lat - (input?.lat ?? 0)), 2) +
+            Math.pow((a.lng - (input?.lng ?? 0)), 2)
+          );
+          const distB = Math.sqrt(
+            Math.pow((b.lat - (input?.lat ?? 0)), 2) +
+            Math.pow((b.lng - (input?.lng ?? 0)), 2)
+          );
+          if (Math.abs(distA - distB) > 0.0001) {
+            return distA - distB;
+          }
+        }
+      }
+
+      // 3. Verification Level
       const verificationWeight = (property: typeof a) => {
         if (property.status === PropertyStatus.PENDING_VERIFY) {
           return 0;
@@ -4762,6 +4846,7 @@ export class PropertiesService {
         return bWeight - aWeight;
       }
 
+      // 4. Start Date / Recency
       const aStartsAt = a.featuredListing?.startsAt?.getTime?.() ?? 0;
       const bStartsAt = b.featuredListing?.startsAt?.getTime?.() ?? 0;
       return bStartsAt - aStartsAt;

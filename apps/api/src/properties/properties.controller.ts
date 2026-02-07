@@ -122,7 +122,7 @@ interface AuthenticatedRequest {
 
 @Controller("properties")
 export class PropertiesController {
-  constructor(private readonly propertiesService: PropertiesService) {}
+  constructor(private readonly propertiesService: PropertiesService) { }
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -189,8 +189,11 @@ export class PropertiesController {
   }
 
   @Get("featured")
-  listFeatured() {
-    return this.propertiesService.listFeatured();
+  listFeatured(
+    @Query(new ZodValidationPipe(homeListingsQuerySchema))
+    query: HomeListingsQueryDto,
+  ) {
+    return this.propertiesService.listFeatured(query);
   }
 
   @Get("home/top-agents")
