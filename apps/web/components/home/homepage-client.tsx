@@ -246,6 +246,8 @@ export function HomePageClient({
     lat: selectedCoords?.lat,
     lng: selectedCoords?.lng,
     minTrust: Math.max(FEATURED_MIN_TRUST, searchState.minTrust),
+    locationId: searchState.locationId,
+    locationLevel: searchState.locationLevel,
   });
   const agentsQuery = useTopPartners({
     lat: selectedCoords?.lat,

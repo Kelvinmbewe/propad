@@ -220,6 +220,20 @@ async function main() {
     where: { name: { contains: "Avondale", mode: "insensitive" } },
   });
 
+  // Look up Gweru city for assigning to properties
+  const gweruCity = await prisma.city.findFirst({
+    where: { name: { contains: "Gweru", mode: "insensitive" } },
+  });
+  const ridgemontSuburb = await prisma.suburb.findFirst({
+    where: { name: { contains: "Ridgemont", mode: "insensitive" } },
+  });
+  const ascotGweruSuburb = await prisma.suburb.findFirst({
+    where: {
+      name: { contains: "Ascot", mode: "insensitive" },
+      cityId: gweruCity?.id,
+    },
+  });
+
   // Property 1: Owner-managed listing (landlord manages their own property)
   const ownerManagedProperty = await prisma.property.upsert({
     where: { id: "seed-property-owner-managed" },
@@ -331,6 +345,80 @@ async function main() {
     },
   });
   console.log("Seeded Agency-Managed Property:", agencyManagedProperty.title);
+
+  // Property 4: Gweru residential property (in Ridgemont suburb)
+  const gweruResidentialProperty = await prisma.property.upsert({
+    where: { id: "seed-property-gweru-residential" },
+    update: {
+      lat: -19.4402,
+      lng: 29.8184,
+      cityId: gweruCity?.id,
+      suburbId: ridgemontSuburb?.id,
+      verificationLevel: VerificationLevel.VERIFIED,
+    },
+    create: {
+      id: "seed-property-gweru-residential",
+      title: "Family Home in Ridgemont, Gweru",
+      type: PropertyType.HOUSE,
+      currency: Currency.USD,
+      price: 950,
+      bedrooms: 4,
+      bathrooms: 2,
+      areaSqm: 200,
+      amenities: ["garden", "garage", "borehole", "solar"],
+      description: "Spacious family home in the quiet Ridgemont suburb of Gweru with modern finishes.",
+      status: PropertyStatus.PUBLISHED,
+      landlordId: user.id,
+      ownerId: user.id,
+      managedByType: ListingManagedByType.OWNER,
+      verificationScore: 85,
+      trustScore: 88,
+      verificationLevel: VerificationLevel.VERIFIED,
+      createdByRole: "LANDLORD",
+      lat: -19.4402,
+      lng: 29.8184,
+      cityId: gweruCity?.id,
+      suburbId: ridgemontSuburb?.id,
+    },
+  });
+  console.log("Seeded Gweru Residential Property:", gweruResidentialProperty.title);
+
+  // Property 5: Gweru commercial property (in Ascot suburb)
+  const gweruCommercialProperty = await prisma.property.upsert({
+    where: { id: "seed-property-gweru-commercial" },
+    update: {
+      lat: -19.4450,
+      lng: 29.8100,
+      cityId: gweruCity?.id,
+      suburbId: ascotGweruSuburb?.id,
+      verificationLevel: VerificationLevel.TRUSTED,
+    },
+    create: {
+      id: "seed-property-gweru-commercial",
+      title: "Retail Space in Ascot, Gweru",
+      type: PropertyType.COMMERCIAL_RETAIL,
+      currency: Currency.USD,
+      price: 1200,
+      areaSqm: 120,
+      amenities: ["parking", "security", "air_conditioning"],
+      description: "Prime retail space on busy Ascot road in Gweru, ideal for shops or offices.",
+      status: PropertyStatus.PUBLISHED,
+      landlordId: user.id,
+      ownerId: user.id,
+      managedByType: ListingManagedByType.AGENT,
+      managedById: agent.id,
+      assignedAgentId: agent.id,
+      verificationScore: 78,
+      trustScore: 82,
+      verificationLevel: VerificationLevel.TRUSTED,
+      createdByRole: "LANDLORD",
+      lat: -19.4450,
+      lng: 29.8100,
+      cityId: gweruCity?.id,
+      suburbId: ascotGweruSuburb?.id,
+    },
+  });
+  console.log("Seeded Gweru Commercial Property:", gweruCommercialProperty.title);
 
   // 12. LISTING MANAGEMENT ASSIGNMENTS
   console.log("Seeding listing management assignments...");

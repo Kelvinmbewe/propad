@@ -41,7 +41,7 @@ export async function GET(request: Request) {
   const debug = url.searchParams.get("debug") === "1";
   const lat = parseNumber(url.searchParams.get("lat"));
   const lng = parseNumber(url.searchParams.get("lng"));
-  const radiusKm = parseNumber(url.searchParams.get("radiusKm")) ?? 30;
+  const radiusKm = parseNumber(url.searchParams.get("radiusKm")) ?? 150;
   const limit = parseNumber(url.searchParams.get("limit")) ?? DEFAULT_LIMIT;
   const verifiedOnly =
     parseBoolean(url.searchParams.get("verifiedOnly")) ?? true;

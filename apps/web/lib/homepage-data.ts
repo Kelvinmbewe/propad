@@ -13,6 +13,8 @@ export interface HomeQueryInput {
   coords: GeoCoords;
   radiusKm?: number;
   filters?: HomeSearchFilters;
+  locationId?: string | null;
+  locationLevel?: string | null;
 }
 
 export interface HomeSearchResult {
@@ -118,11 +120,28 @@ async function requestSearch(
 
 export async function nearbyVerifiedListings({
   coords,
-  radiusKm = 30,
+  radiusKm = 150,
   filters,
+  locationId,
+  locationLevel,
 }: HomeQueryInput): Promise<HomeSearchResult> {
   const params = new URLSearchParams();
-  params.set("bounds", buildBoundsString(coords, radiusKm));
+
+  // If a specific location is selected, filter by that location
+  // Otherwise use GPS bounds with a larger radius for city-level matching
+  if (locationId && locationLevel) {
+    if (locationLevel === "CITY") {
+      params.set("cityId", locationId);
+    } else if (locationLevel === "SUBURB") {
+      params.set("suburbId", locationId);
+    } else if (locationLevel === "PROVINCE") {
+      params.set("provinceId", locationId);
+    }
+  } else {
+    // Use bounds for GPS proximity matching with larger radius
+    params.set("bounds", buildBoundsString(coords, radiusKm));
+  }
+
   params.set("limit", String(filters?.limit ?? 18));
   if (filters?.verifiedOnly !== false) {
     params.set("verifiedOnly", "true");

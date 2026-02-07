@@ -18,10 +18,12 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const lat = parseNumber(url.searchParams.get("lat"));
   const lng = parseNumber(url.searchParams.get("lng"));
-  const radiusKm = parseNumber(url.searchParams.get("radiusKm")) ?? 50;
+  const radiusKm = parseNumber(url.searchParams.get("radiusKm")) ?? 150;
   const limit = parseNumber(url.searchParams.get("limit")) ?? 12;
   const minTrust =
     parseNumber(url.searchParams.get("minTrust")) ?? MIN_TRUST_SCORE;
+  const locationId = url.searchParams.get("locationId");
+  const locationLevel = url.searchParams.get("locationLevel");
 
   let items: any[] = [];
   try {
@@ -44,8 +46,14 @@ export async function GET(request: Request) {
     console.error("[home/featured]", error);
     return NextResponse.json({ items: [] });
   }
+
+  // Filter by location if explicitly selected
+  const filterByCityId = locationId && locationLevel === "CITY" ? locationId : null;
+  const filterBySuburbId = locationId && locationLevel === "SUBURB" ? locationId : null;
+  const filterByProvinceId = locationId && locationLevel === "PROVINCE" ? locationId : null;
+
   const bounds =
-    lat !== undefined && lng !== undefined
+    lat !== undefined && lng !== undefined && !locationId
       ? buildBoundsFromCenter(lat, lng, radiusKm)
       : null;
 
@@ -53,6 +61,17 @@ export async function GET(request: Request) {
     .filter((listing: any) => isPublicListing(listing))
     .filter((listing: any) => isVerifiedListing(listing, minTrust))
     .filter((listing: any) => {
+      // If a specific city is selected, only show listings from that city
+      if (filterByCityId) {
+        return listing.cityId === filterByCityId || listing.location?.cityId === filterByCityId;
+      }
+      if (filterBySuburbId) {
+        return listing.suburbId === filterBySuburbId || listing.location?.suburbId === filterBySuburbId;
+      }
+      if (filterByProvinceId) {
+        return listing.provinceId === filterByProvinceId || listing.location?.provinceId === filterByProvinceId;
+      }
+      // Otherwise use bounds if available
       if (!bounds) return true;
       const latValue = Number(listing.lat ?? 0);
       const lngValue = Number(listing.lng ?? 0);
@@ -86,3 +105,4 @@ export async function GET(request: Request) {
   );
   return res;
 }
+

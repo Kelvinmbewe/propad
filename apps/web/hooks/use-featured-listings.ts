@@ -6,6 +6,8 @@ export function useFeaturedListings(params?: {
   radiusKm?: number;
   limit?: number;
   minTrust?: number;
+  locationId?: string | null;
+  locationLevel?: string | null;
 }) {
   return useQuery({
     queryKey: ["home-featured", params],
@@ -16,6 +18,8 @@ export function useFeaturedListings(params?: {
       if (params?.radiusKm) search.set("radiusKm", String(params.radiusKm));
       if (params?.limit) search.set("limit", String(params.limit));
       if (params?.minTrust) search.set("minTrust", String(params.minTrust));
+      if (params?.locationId) search.set("locationId", params.locationId);
+      if (params?.locationLevel) search.set("locationLevel", params.locationLevel);
       const response = await fetch(
         `/api/home/listings/featured?${search.toString()}`,
       );
@@ -25,3 +29,4 @@ export function useFeaturedListings(params?: {
     staleTime: 1000 * 60 * 3,
   });
 }
+
