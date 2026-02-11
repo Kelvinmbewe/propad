@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       parseNumber(url.searchParams.get("radiusKm")),
       DEFAULT_RADIUS_KM,
       1,
-      500,
+      150,
     );
     const limit = clampInt(
       parseNumber(url.searchParams.get("limit")),
