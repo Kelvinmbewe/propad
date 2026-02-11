@@ -396,8 +396,6 @@ export async function fetchPropertiesInRadius(params: {
   type?: string;
   priceMin?: number;
   priceMax?: number;
-  locationId?: string | null;
-  locationLevel?: string | null;
 }) {
   const cap = Math.max(60, (params.limit ?? 12) * 8);
   const pages = Math.ceil(Math.min(150, cap) / 50);
@@ -408,15 +406,6 @@ export async function fetchPropertiesInRadius(params: {
   );
 
   const query = new URLSearchParams();
-
-  // Use explicit location filtering if available (City/Suburb)
-  if (params.locationId) {
-    if (params.locationLevel === "CITY") {
-      query.set("cityId", params.locationId);
-    } else if (params.locationLevel === "SUBURB") {
-      query.set("suburbId", params.locationId);
-    }
-  }
 
   // Also pass bounds as fallback/constraint
   query.set("bounds", bounds);

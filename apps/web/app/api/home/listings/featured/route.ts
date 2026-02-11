@@ -69,8 +69,6 @@ export async function GET(request: Request) {
       mode,
       verifiedOnly,
       limit: limit * 8,
-      locationId: location.locationId,
-      locationLevel: location.locationLevel,
     });
 
     const featured = candidates.filter(

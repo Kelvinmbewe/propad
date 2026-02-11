@@ -61,8 +61,6 @@ export async function GET(request: Request) {
       type: propertyType,
       priceMin,
       priceMax,
-      locationId: location.locationId,
-      locationLevel: location.locationLevel,
     });
 
     const items = listings
