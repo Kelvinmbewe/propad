@@ -15,8 +15,8 @@ const NEXTAUTH_SECRET =
   process.env.NEXTAUTH_SECRET ?? "propad-dev-secret-do-not-use-in-prod";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ??
   process.env.INTERNAL_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
   "http://localhost:3001";
 
 const TOKEN_REFRESH_BUFFER_MS = 60 * 1000;

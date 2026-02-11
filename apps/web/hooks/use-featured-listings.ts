@@ -3,9 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 export function useFeaturedListings(params?: {
   lat?: number;
   lng?: number;
-  radiusKm?: number;
+  q?: string;
   limit?: number;
-  minTrust?: number;
+  mode?: "sale" | "rent" | "all";
+  verifiedOnly?: boolean;
+  primaryRadiusKm?: number;
+  maxRadiusKm?: number;
+  minResults?: number;
   locationId?: string | null;
   locationLevel?: string | null;
 }) {
@@ -15,11 +19,24 @@ export function useFeaturedListings(params?: {
       const search = new URLSearchParams();
       if (params?.lat !== undefined) search.set("lat", params.lat.toFixed(6));
       if (params?.lng !== undefined) search.set("lng", params.lng.toFixed(6));
-      if (params?.radiusKm) search.set("radiusKm", String(params.radiusKm));
+      if (params?.q) search.set("q", params.q);
       if (params?.limit) search.set("limit", String(params.limit));
-      if (params?.minTrust) search.set("minTrust", String(params.minTrust));
+      if (params?.mode) search.set("mode", params.mode);
+      if (params?.verifiedOnly !== undefined) {
+        search.set("verifiedOnly", params.verifiedOnly ? "true" : "false");
+      }
+      if (params?.primaryRadiusKm) {
+        search.set("primaryRadiusKm", String(params.primaryRadiusKm));
+      }
+      if (params?.maxRadiusKm) {
+        search.set("maxRadiusKm", String(params.maxRadiusKm));
+      }
+      if (params?.minResults) {
+        search.set("minResults", String(params.minResults));
+      }
       if (params?.locationId) search.set("locationId", params.locationId);
-      if (params?.locationLevel) search.set("locationLevel", params.locationLevel);
+      if (params?.locationLevel)
+        search.set("locationLevel", params.locationLevel);
       const response = await fetch(
         `/api/home/listings/featured?${search.toString()}`,
       );
@@ -29,4 +46,3 @@ export function useFeaturedListings(params?: {
     staleTime: 1000 * 60 * 3,
   });
 }
-

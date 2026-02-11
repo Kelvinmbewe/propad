@@ -21,6 +21,7 @@ function decodeJwtPayload(token: string): { exp?: number } | null {
 
 async function refreshAccessToken(refreshToken: string) {
   const rawApiUrl =
+    process.env.INTERNAL_API_BASE_URL ||
     process.env.API_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
     process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -62,6 +63,7 @@ export const {
         if (!credentials?.email || !credentials?.password) return null;
 
         const rawApiUrl =
+          process.env.INTERNAL_API_BASE_URL ||
           process.env.API_URL ||
           process.env.NEXT_PUBLIC_API_URL ||
           process.env.NEXT_PUBLIC_API_BASE_URL ||

@@ -8,6 +8,10 @@ import { useHomeCounts } from "@/hooks/use-home-counts";
 
 interface StatsBandProps {
   coords?: GeoCoords;
+  mode?: "sale" | "rent" | "all";
+  locationId?: string | null;
+  locationLevel?: string | null;
+  q?: string;
   initialCounts?: HomeCounts;
 }
 
@@ -15,12 +19,25 @@ const fallbackCounts: HomeCounts = {
   verifiedListingsCount: 0,
   partnersCount: 0,
   newListings30dCount: 0,
-  trustChecksCount: 0,
+  trustChecksCompletedCount: 0,
 };
 
-export function StatsBand({ coords, initialCounts }: StatsBandProps) {
-  // Fetch global counts (no location filtering) to show platform-wide stats
-  const { data, isLoading, isError } = useHomeCounts({});
+export function StatsBand({
+  coords,
+  mode,
+  locationId,
+  locationLevel,
+  q,
+  initialCounts,
+}: StatsBandProps) {
+  const { data, isLoading, isError } = useHomeCounts({
+    lat: coords?.lat,
+    lng: coords?.lng,
+    mode,
+    locationId,
+    locationLevel,
+    q,
+  });
   const resolved = data ?? initialCounts;
 
   const counts = useMemo(() => {
@@ -46,7 +63,7 @@ export function StatsBand({ coords, initialCounts }: StatsBandProps) {
     },
     {
       label: "Trust checks completed",
-      value: counts.trustChecksCount,
+      value: counts.trustChecksCompletedCount,
       icon: ShieldCheck,
     },
   ];

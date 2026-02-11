@@ -1,9 +1,13 @@
-import { PropertyFurnishing, PropertyType } from '@prisma/client';
+import { PropertyFurnishing, PropertyType, ListingIntent } from '@prisma/client';
 import { PropertyFurnishingEnum, PropertyTypeEnum, PowerPhaseEnum, PowerPhase } from '@propad/config';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class SearchPropertiesDto {
+  @IsOptional()
+  @IsEnum(ListingIntent)
+  listingIntent?: ListingIntent;
+
   @IsOptional()
   @IsEnum(PropertyTypeEnum)
   type?: PropertyType;

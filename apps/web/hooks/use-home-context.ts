@@ -1,22 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 
-export function useHomeCounts(params?: {
+export function useHomeContext(params?: {
   lat?: number;
   lng?: number;
   q?: string;
   locationId?: string | null;
   locationLevel?: string | null;
-  mode?: "sale" | "rent" | "all";
 }) {
   return useQuery({
     queryKey: [
-      "home-counts",
+      "home-context",
       params?.lat,
       params?.lng,
       params?.q,
       params?.locationId,
       params?.locationLevel,
-      params?.mode,
     ],
     queryFn: async () => {
       const search = new URLSearchParams();
@@ -26,9 +24,8 @@ export function useHomeCounts(params?: {
       if (params?.locationId) search.set("locationId", params.locationId);
       if (params?.locationLevel)
         search.set("locationLevel", params.locationLevel);
-      if (params?.mode) search.set("mode", params.mode);
-      const response = await fetch(`/api/home/counts?${search.toString()}`);
-      if (!response.ok) throw new Error("Failed to load counts");
+      const response = await fetch(`/api/home/context?${search.toString()}`);
+      if (!response.ok) throw new Error("Failed to resolve home context");
       return response.json();
     },
     staleTime: 1000 * 60,

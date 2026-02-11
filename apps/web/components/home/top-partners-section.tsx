@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Building2, UserCheck } from "lucide-react";
 import type { HomeAgent, HomeAgency } from "@/lib/homepage-data";
+import { trackLocationEvent } from "@/lib/home-events";
 
 interface TopPartnersSectionProps {
   agents: HomeAgent[];
@@ -86,6 +87,12 @@ export function TopPartnersSection({
               <Link
                 key={agent.id}
                 href={`/agents/${agent.id}`}
+                onClick={() =>
+                  trackLocationEvent({
+                    type: "VIEW_AGENT",
+                    agentId: agent.id,
+                  })
+                }
                 className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
               >
                 <div className="flex items-center justify-between">
@@ -123,6 +130,12 @@ export function TopPartnersSection({
               <Link
                 key={agency.id}
                 href={`/agencies/${agency.id}`}
+                onClick={() =>
+                  trackLocationEvent({
+                    type: "VIEW_AGENCY",
+                    agencyId: agency.id,
+                  })
+                }
                 className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
               >
                 <div className="flex items-center justify-between">

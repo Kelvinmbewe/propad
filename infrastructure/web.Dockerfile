@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y \
   curl \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-ENV NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+ENV NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/v1
 ENV NEXTAUTH_URL=http://localhost:3000
 
 COPY package*.json ./

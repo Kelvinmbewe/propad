@@ -52,7 +52,7 @@ export interface HomeCounts {
   verifiedListingsCount: number;
   partnersCount: number;
   newListings30dCount: number;
-  trustChecksCount: number;
+  trustChecksCompletedCount: number;
 }
 
 export function buildBoundsString(coords: GeoCoords, radiusKm: number) {
@@ -262,5 +262,13 @@ export async function homepageCounts(input?: {
     throw new Error("Failed to load homepage counts");
   }
 
-  return (await response.json()) as HomeCounts;
+  const payload = (await response.json()) as Record<string, unknown>;
+  return {
+    verifiedListingsCount: Number(payload.verifiedListingsCount ?? 0),
+    partnersCount: Number(payload.partnersCount ?? 0),
+    newListings30dCount: Number(payload.newListings30dCount ?? 0),
+    trustChecksCompletedCount: Number(
+      payload.trustChecksCompletedCount ?? payload.trustChecksCount ?? 0,
+    ),
+  };
 }

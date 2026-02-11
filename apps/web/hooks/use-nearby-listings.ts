@@ -3,13 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 export function useNearbyListings(params: {
   lat?: number;
   lng?: number;
-  city?: string;
+  q?: string;
   locationId?: string | null;
   locationLevel?: string | null;
   mode?: "sale" | "rent" | "all";
   verifiedOnly?: boolean;
   limit?: number;
-  minTrust?: number;
   propertyType?: string;
   priceMin?: number;
   priceMax?: number;
@@ -20,7 +19,7 @@ export function useNearbyListings(params: {
       const search = new URLSearchParams();
       if (params.lat !== undefined) search.set("lat", params.lat.toFixed(6));
       if (params.lng !== undefined) search.set("lng", params.lng.toFixed(6));
-      if (params.city) search.set("city", params.city);
+      if (params.q) search.set("q", params.q);
       if (params.locationId) search.set("locationId", params.locationId);
       if (params.locationLevel)
         search.set("locationLevel", params.locationLevel);
@@ -28,7 +27,6 @@ export function useNearbyListings(params: {
       if (params.verifiedOnly !== undefined)
         search.set("verifiedOnly", params.verifiedOnly ? "true" : "false");
       if (params.limit) search.set("limit", String(params.limit));
-      if (params.minTrust) search.set("minTrust", String(params.minTrust));
       if (params.propertyType) search.set("propertyType", params.propertyType);
       if (params.priceMin !== undefined)
         search.set("priceMin", String(params.priceMin));

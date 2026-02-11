@@ -148,6 +148,7 @@ import { CreateMessageDto } from "./dto/create-message.dto";
 import { UpdateServiceFeeDto } from "./dto/update-service-fee.dto";
 import { CreateManagementAssignmentDto } from "./dto/create-management-assignment.dto";
 import { SetOperatingAgentDto } from "./dto/set-operating-agent.dto";
+import { HomeLocationEventDto } from "./dto/home-location-event.dto";
 // differenceInHours already imported above
 import { VerificationFingerprintService } from "../verifications/verification-fingerprint.service";
 import { RankingService } from "../ranking/ranking.service";
@@ -221,6 +222,7 @@ type NormalizedFilters = {
   zoning?: string;
   parking?: boolean;
   powerPhase?: PowerPhase;
+  listingIntent?: ListingIntent;
 };
 
 @Injectable()
@@ -981,6 +983,7 @@ export class PropertiesService {
       zoning: zoning ?? undefined,
       parking,
       powerPhase,
+      listingIntent: (parsedFilters.listingIntent as ListingIntent) ?? dto.listingIntent,
     };
   }
 
@@ -1427,13 +1430,8 @@ export class PropertiesService {
       }
     }
 
-    try {
-      const result = this.attachLocation(property);
-      // ... serialization checks removed for brevity in this block, assumed handled by attachLocation or caller
-      return result;
-    } catch (error: unknown) {
-      throw error;
-    }
+    const result = this.attachLocation(property);
+    return result;
   }
 
   async addInterest(propertyId: string, actor: AuthContext) {
@@ -1493,6 +1491,33 @@ export class PropertiesService {
       this.logger.error("Failed to increment view", err);
     }
     return { success: true };
+  }
+
+  async recordHomeLocationEvent(input: HomeLocationEventDto, userId?: string) {
+    const eventType = input.type;
+    const metadataJson = input.metadata ? JSON.stringify(input.metadata) : null;
+
+    try {
+      await this.prisma.$executeRawUnsafe(
+        `INSERT INTO "LocationEvent" ("id", "type", "locationId", "listingId", "agentId", "agencyId", "userId", "metadata", "createdAt") VALUES ($1, $2::"LocationEventType", $3, $4, $5, $6, $7, $8::jsonb, NOW())`,
+        randomUUID(),
+        eventType,
+        input.locationId ?? null,
+        input.listingId ?? null,
+        input.agentId ?? null,
+        input.agencyId ?? null,
+        userId ?? null,
+        metadataJson,
+      );
+    } catch (error) {
+      this.logger.warn(`Failed to persist location event: ${String(error)}`);
+    }
+
+    if (eventType === "VIEW_LISTING" && input.listingId) {
+      await this.incrementView(input.listingId).catch(() => undefined);
+    }
+
+    return { ok: true };
   }
 
   async create(dto: CreatePropertyDto, actor: AuthContext): Promise<any> {
@@ -3202,13 +3227,11 @@ export class PropertiesService {
     const useRanking = !dto.sort || dto.sort === "RELEVANCE";
 
     // Build Where Clause
-    const activeStatuses = dto.verifiedOnly
-      ? [PropertyStatus.VERIFIED]
-      : [
-        PropertyStatus.VERIFIED,
-        PropertyStatus.PENDING_VERIFY,
-        PropertyStatus.PUBLISHED,
-      ];
+    const activeStatuses = [
+      PropertyStatus.VERIFIED,
+      PropertyStatus.PENDING_VERIFY,
+      PropertyStatus.PUBLISHED,
+    ];
 
     const where: Prisma.PropertyWhereInput = {
       status: { in: activeStatuses },
@@ -3218,6 +3241,7 @@ export class PropertiesService {
       ...(filters.provinceId ? { provinceId: filters.provinceId } : {}),
       ...(filters.cityId ? { cityId: filters.cityId } : {}),
       ...(filters.suburbId ? { suburbId: filters.suburbId } : {}),
+      ...(filters.listingIntent ? { listingIntent: filters.listingIntent } : {}),
 
       // Range Filters
       ...(filters.priceMin || filters.priceMax
@@ -3279,10 +3303,7 @@ export class PropertiesService {
       // Verified Only Support
       ...(dto.verifiedOnly
         ? {
-          OR: [
-            { verificationLevel: "VERIFIED" },
-            { verificationLevel: "TRUSTED" },
-          ],
+          verificationLevel: { in: ["VERIFIED", "TRUSTED"] },
         }
         : {}),
     };
@@ -3343,7 +3364,7 @@ export class PropertiesService {
       });
     }
 
-    const attached = await this.attachLocationToMany(resultProperties);
+    const attached = this.attachLocationToMany(resultProperties);
     return {
       data: attached,
       meta: {
@@ -3364,6 +3385,194 @@ export class PropertiesService {
     };
   }
 
+  private getDistanceKm(
+    a: { lat: number; lng: number },
+    b: { lat: number; lng: number },
+  ) {
+    const toRad = (value: number) => (value * Math.PI) / 180;
+    const earthRadius = 6371;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+    const sinLat = Math.sin(dLat / 2) ** 2;
+    const sinLng = Math.sin(dLng / 2) ** 2;
+    const c =
+      2 *
+      Math.asin(Math.sqrt(sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng));
+    return earthRadius * c;
+  }
+
+  private getListingTrustScoreForHome(listing: {
+    trustScore: number | null;
+    verificationScore: number;
+    verificationLevel: VerificationLevel;
+  }) {
+    const explicit = Number(
+      listing.trustScore ?? listing.verificationScore ?? 0,
+    );
+    if (explicit > 0) return explicit;
+    if (listing.verificationLevel === VerificationLevel.TRUSTED) return 90;
+    if (listing.verificationLevel === VerificationLevel.VERIFIED) return 80;
+    if (listing.verificationLevel === VerificationLevel.BASIC) return 60;
+    return 0;
+  }
+
+  private isListingQualifiedForHome(
+    listing: {
+      status: PropertyStatus;
+      verificationLevel: VerificationLevel;
+      trustScore: number | null;
+      verificationScore: number;
+    },
+    verifiedOnly: boolean,
+  ) {
+    if (
+      listing.status !== PropertyStatus.VERIFIED &&
+      listing.status !== PropertyStatus.PUBLISHED
+    ) {
+      return false;
+    }
+    if (!verifiedOnly) return true;
+    if (
+      listing.verificationLevel === VerificationLevel.VERIFIED ||
+      listing.verificationLevel === VerificationLevel.TRUSTED
+    ) {
+      return true;
+    }
+    return this.getListingTrustScoreForHome(listing) >= 70;
+  }
+
+  private comparePartnerRank(
+    a: {
+      rating: number;
+      verifiedListingsCount: number;
+      averageListingTrust: number;
+      responsiveness: number | null;
+    },
+    b: {
+      rating: number;
+      verifiedListingsCount: number;
+      averageListingTrust: number;
+      responsiveness: number | null;
+    },
+  ) {
+    if (b.rating !== a.rating) return b.rating - a.rating;
+    if (b.verifiedListingsCount !== a.verifiedListingsCount) {
+      return b.verifiedListingsCount - a.verifiedListingsCount;
+    }
+    if (b.averageListingTrust !== a.averageListingTrust) {
+      return b.averageListingTrust - a.averageListingTrust;
+    }
+    const aResp = a.responsiveness ?? -1;
+    const bResp = b.responsiveness ?? -1;
+    return bResp - aResp;
+  }
+
+  private async buildPartnerListingSignals(input: {
+    lat: number;
+    lng: number;
+    radiusKm: number;
+    verifiedOnly: boolean;
+    intent?: ListingIntent;
+  }) {
+    const candidates = await this.prisma.property.findMany({
+      where: {
+        lat: { not: null },
+        lng: { not: null },
+        listingIntent: input.intent,
+        status: { in: [PropertyStatus.VERIFIED, PropertyStatus.PUBLISHED] },
+      },
+      select: {
+        id: true,
+        agencyId: true,
+        assignedAgentId: true,
+        agentOwnerId: true,
+        lat: true,
+        lng: true,
+        status: true,
+        trustScore: true,
+        verificationScore: true,
+        verificationLevel: true,
+      },
+      take: 5000,
+      orderBy: { createdAt: "desc" },
+    });
+
+    const center = { lat: input.lat, lng: input.lng };
+    const filtered = candidates
+      .filter((listing) =>
+        this.isListingQualifiedForHome(listing, input.verifiedOnly),
+      )
+      .map((listing) => {
+        const lat = Number(listing.lat);
+        const lng = Number(listing.lng);
+        const distanceKm = this.getDistanceKm(center, { lat, lng });
+        return {
+          ...listing,
+          lat,
+          lng,
+          distanceKm,
+          trust: this.getListingTrustScoreForHome(listing),
+        };
+      });
+
+    type PartnerStats = {
+      totalCount: number;
+      inRadiusCount: number;
+      inRadiusVerifiedCount: number;
+      inRadiusTrustSum: number;
+      totalTrustSum: number;
+      latSum: number;
+      lngSum: number;
+    };
+
+    const agentStats = new Map<string, PartnerStats>();
+    const agencyStats = new Map<string, PartnerStats>();
+
+    const addStat = (
+      map: Map<string, PartnerStats>,
+      id: string,
+      listing: (typeof filtered)[number],
+    ) => {
+      const stats = map.get(id) ?? {
+        totalCount: 0,
+        inRadiusCount: 0,
+        inRadiusVerifiedCount: 0,
+        inRadiusTrustSum: 0,
+        totalTrustSum: 0,
+        latSum: 0,
+        lngSum: 0,
+      };
+
+      stats.totalCount += 1;
+      stats.totalTrustSum += listing.trust;
+      stats.latSum += listing.lat;
+      stats.lngSum += listing.lng;
+      if (listing.distanceKm <= input.radiusKm) {
+        stats.inRadiusCount += 1;
+        stats.inRadiusTrustSum += listing.trust;
+        if (
+          listing.status === PropertyStatus.VERIFIED ||
+          listing.verificationLevel === VerificationLevel.VERIFIED ||
+          listing.verificationLevel === VerificationLevel.TRUSTED ||
+          listing.trust >= 70
+        ) {
+          stats.inRadiusVerifiedCount += 1;
+        }
+      }
+      map.set(id, stats);
+    };
+
+    filtered.forEach((listing) => {
+      const agentId = listing.assignedAgentId ?? listing.agentOwnerId;
+      if (agentId) addStat(agentStats, agentId, listing);
+      if (listing.agencyId) addStat(agencyStats, listing.agencyId, listing);
+    });
+
+    return { agentStats, agencyStats, center, radiusKm: input.radiusKm };
+  }
+
   async getTopAgentsNear(input: {
     lat: number;
     lng: number;
@@ -3372,63 +3581,18 @@ export class PropertiesService {
     verifiedOnly?: boolean;
     intent?: ListingIntent;
   }) {
-    const radiusKm = input.radiusKm ?? 40;
+    const radiusKm = input.radiusKm ?? 150;
     const limit = input.limit ?? 6;
     const verifiedOnly = input.verifiedOnly ?? true;
-    const bounds = this.buildBoundsFromCenter(input.lat, input.lng, radiusKm);
-
-    const activeStatuses = verifiedOnly
-      ? [PropertyStatus.VERIFIED]
-      : [
-        PropertyStatus.VERIFIED,
-        PropertyStatus.PENDING_VERIFY,
-        PropertyStatus.PUBLISHED,
-      ];
-
-    const listings = await this.prisma.property.findMany({
-      where: {
-        status: { in: activeStatuses },
-        lat: {
-          gte: bounds.southWest.lat,
-          lte: bounds.northEast.lat,
-        },
-        lng: {
-          gte: bounds.southWest.lng,
-          lte: bounds.northEast.lng,
-        },
-        ...(input.intent ? { listingIntent: input.intent } : {}),
-      },
-      select: {
-        assignedAgentId: true,
-        agentOwnerId: true,
-        trustScore: true,
-        status: true,
-      },
-      take: 500,
+    const { agentStats, center } = await this.buildPartnerListingSignals({
+      lat: input.lat,
+      lng: input.lng,
+      radiusKm,
+      verifiedOnly,
+      intent: input.intent,
     });
 
-    const stats = new Map<
-      string,
-      { count: number; trustSum: number; verifiedCount: number }
-    >();
-
-    listings.forEach((listing) => {
-      const agentId = listing.assignedAgentId ?? listing.agentOwnerId;
-      if (!agentId) return;
-      const current = stats.get(agentId) ?? {
-        count: 0,
-        trustSum: 0,
-        verifiedCount: 0,
-      };
-      current.count += 1;
-      current.trustSum += Number(listing.trustScore ?? 0);
-      if (listing.status === PropertyStatus.VERIFIED) {
-        current.verifiedCount += 1;
-      }
-      stats.set(agentId, current);
-    });
-
-    const agentIds = Array.from(stats.keys());
+    const agentIds = Array.from(agentStats.keys());
     if (agentIds.length === 0) {
       return [];
     }
@@ -3454,31 +3618,55 @@ export class PropertiesService {
 
     const ranked = agents
       .map((agent) => {
-        const agentStats = stats.get(agent.id) ?? {
-          count: 0,
-          trustSum: 0,
-          verifiedCount: 0,
+        const stats = agentStats.get(agent.id) ?? {
+          totalCount: 0,
+          inRadiusCount: 0,
+          inRadiusVerifiedCount: 0,
+          inRadiusTrustSum: 0,
+          totalTrustSum: 0,
+          latSum: 0,
+          lngSum: 0,
         };
+        const avgLat =
+          stats.totalCount > 0 ? stats.latSum / stats.totalCount : 0;
+        const avgLng =
+          stats.totalCount > 0 ? stats.lngSum / stats.totalCount : 0;
+        const inferredDistance =
+          stats.totalCount > 0
+            ? this.getDistanceKm(center, { lat: avgLat, lng: avgLng })
+            : Number.POSITIVE_INFINITY;
+        const majorityWithinRadius =
+          stats.totalCount > 0 && stats.inRadiusCount * 2 >= stats.totalCount;
+        if (!majorityWithinRadius && inferredDistance > radiusKm) {
+          return null;
+        }
+
         const avgTrust =
-          agentStats.count > 0 ? agentStats.trustSum / agentStats.count : 0;
+          stats.inRadiusCount > 0
+            ? stats.inRadiusTrustSum / stats.inRadiusCount
+            : stats.totalCount > 0
+              ? stats.totalTrustSum / stats.totalCount
+              : 0;
+
         return {
           id: agent.id,
           name: agent.name ?? null,
           phone: agent.phone ?? null,
           trustScore: agent.trustScore ?? 0,
           rating: agent.agentProfile?.rating ?? 0,
-          verifiedListingsCount: agentStats.verifiedCount,
+          verifiedListingsCount: stats.inRadiusVerifiedCount,
           averageListingTrust: avgTrust,
           profilePhoto: agent.profilePhoto ?? null,
-          score:
-            (agent.agentProfile?.rating ?? 0) * 12 +
-            agentStats.verifiedCount * 5 +
-            avgTrust * 0.8,
+          responsiveness: null as number | null,
         };
       })
-      .sort((a, b) => b.score - a.score)
+      .filter(Boolean)
+      .sort((a, b) => this.comparePartnerRank(a as any, b as any))
       .slice(0, limit)
-      .map(({ score, ...rest }) => rest);
+      .map((entry) => {
+        const { responsiveness, ...rest } = entry as any;
+        return rest;
+      });
 
     return ranked;
   }
@@ -3491,62 +3679,18 @@ export class PropertiesService {
     verifiedOnly?: boolean;
     intent?: ListingIntent;
   }) {
-    const radiusKm = input.radiusKm ?? 40;
+    const radiusKm = input.radiusKm ?? 150;
     const limit = input.limit ?? 6;
     const verifiedOnly = input.verifiedOnly ?? true;
-    const bounds = this.buildBoundsFromCenter(input.lat, input.lng, radiusKm);
-
-    const activeStatuses = verifiedOnly
-      ? [PropertyStatus.VERIFIED]
-      : [
-        PropertyStatus.VERIFIED,
-        PropertyStatus.PENDING_VERIFY,
-        PropertyStatus.PUBLISHED,
-      ];
-
-    const listings = await this.prisma.property.findMany({
-      where: {
-        status: { in: activeStatuses },
-        lat: {
-          gte: bounds.southWest.lat,
-          lte: bounds.northEast.lat,
-        },
-        lng: {
-          gte: bounds.southWest.lng,
-          lte: bounds.northEast.lng,
-        },
-        agencyId: { not: null },
-        ...(input.intent ? { listingIntent: input.intent } : {}),
-      },
-      select: {
-        agencyId: true,
-        trustScore: true,
-        status: true,
-      },
-      take: 600,
+    const { agencyStats, center } = await this.buildPartnerListingSignals({
+      lat: input.lat,
+      lng: input.lng,
+      radiusKm,
+      verifiedOnly,
+      intent: input.intent,
     });
 
-    const stats = new Map<
-      string,
-      { count: number; trustSum: number; verifiedCount: number }
-    >();
-
-    listings.forEach((listing) => {
-      if (!listing.agencyId) return;
-      const current = stats.get(listing.agencyId) ?? {
-        count: 0,
-        trustSum: 0,
-        verifiedCount: 0,
-      };
-      current.count += 1;
-      current.trustSum += Number(listing.trustScore ?? 0);
-      if (listing.status === PropertyStatus.VERIFIED) {
-        current.verifiedCount += 1;
-      }
-      stats.set(listing.agencyId, current);
-    });
-
-    const agencyIds = Array.from(stats.keys());
+    const agencyIds = Array.from(agencyStats.keys());
     if (agencyIds.length === 0) {
       return [];
     }
@@ -3559,37 +3703,67 @@ export class PropertiesService {
         logoUrl: true,
         trustScore: true,
         companyProfile: {
-          select: { avgRating: true },
+          select: { avgRating: true, responseTimeMinutes: true },
         },
       },
     });
 
     const ranked = agencies
       .map((agency) => {
-        const agencyStats = stats.get(agency.id) ?? {
-          count: 0,
-          trustSum: 0,
-          verifiedCount: 0,
+        const stats = agencyStats.get(agency.id) ?? {
+          totalCount: 0,
+          inRadiusCount: 0,
+          inRadiusVerifiedCount: 0,
+          inRadiusTrustSum: 0,
+          totalTrustSum: 0,
+          latSum: 0,
+          lngSum: 0,
         };
+        const avgLat =
+          stats.totalCount > 0 ? stats.latSum / stats.totalCount : 0;
+        const avgLng =
+          stats.totalCount > 0 ? stats.lngSum / stats.totalCount : 0;
+        const inferredDistance =
+          stats.totalCount > 0
+            ? this.getDistanceKm(center, { lat: avgLat, lng: avgLng })
+            : Number.POSITIVE_INFINITY;
+        const majorityWithinRadius =
+          stats.totalCount > 0 && stats.inRadiusCount * 2 >= stats.totalCount;
+        if (!majorityWithinRadius && inferredDistance > radiusKm) {
+          return null;
+        }
+
         const avgTrust =
-          agencyStats.count > 0 ? agencyStats.trustSum / agencyStats.count : 0;
+          stats.inRadiusCount > 0
+            ? stats.inRadiusTrustSum / stats.inRadiusCount
+            : stats.totalCount > 0
+              ? stats.totalTrustSum / stats.totalCount
+              : 0;
+        const responseMinutes =
+          agency.companyProfile?.responseTimeMinutes ?? null;
+        const responsiveness =
+          responseMinutes && responseMinutes > 0
+            ? Math.max(0, 100 - Math.min(100, responseMinutes))
+            : null;
+
         return {
           id: agency.id,
           name: agency.name,
           logoUrl: agency.logoUrl ?? null,
           trustScore: agency.trustScore ?? 0,
           rating: agency.companyProfile?.avgRating ?? 0,
-          verifiedListingsCount: agencyStats.verifiedCount,
+          verifiedListingsCount: stats.inRadiusVerifiedCount,
           averageListingTrust: avgTrust,
-          score:
-            (agency.companyProfile?.avgRating ?? 0) * 12 +
-            agencyStats.verifiedCount * 5 +
-            avgTrust * 0.8,
+          responsiveness,
         };
       })
-      .sort((a, b) => b.score - a.score)
+      .filter(Boolean)
+      .sort((a, b) => this.comparePartnerRank(a as any, b as any))
       .slice(0, limit)
-      .map(({ score, ...rest }) => rest);
+      .map((entry) => {
+        const { responsiveness, ...rest } = entry as any;
+        return rest;
+      });
 
     return ranked;
   }
@@ -3598,6 +3772,7 @@ export class PropertiesService {
     lat?: number;
     lng?: number;
     radiusKm?: number;
+    intent?: ListingIntent;
   }) {
     const hasCoords =
       typeof input.lat === "number" && typeof input.lng === "number";
@@ -3633,19 +3808,23 @@ export class PropertiesService {
               { status: PropertyStatus.VERIFIED },
               {
                 status: PropertyStatus.PUBLISHED,
-                verificationLevel: { in: [VerificationLevel.VERIFIED, VerificationLevel.TRUSTED] },
+                verificationLevel: {
+                  in: [VerificationLevel.VERIFIED, VerificationLevel.TRUSTED],
+                },
               },
               {
                 status: PropertyStatus.PUBLISHED,
                 verificationScore: { gte: 70 },
               },
             ],
+            ...(input.intent ? { listingIntent: input.intent } : {}),
             ...locationFilter,
           },
         }),
         this.prisma.property.count({
           where: {
             status: { in: publicStatuses },
+            ...(input.intent ? { listingIntent: input.intent } : {}),
             createdAt: { gte: sinceDate },
             ...locationFilter,
           },
@@ -3660,6 +3839,7 @@ export class PropertiesService {
       const listings = await this.prisma.property.findMany({
         where: {
           status: PropertyStatus.VERIFIED,
+          ...(input.intent ? { listingIntent: input.intent } : {}),
           ...locationFilter,
         },
         select: {
@@ -3708,6 +3888,7 @@ export class PropertiesService {
     city?: string;
     limitCities?: number;
     limitSuburbs?: number;
+    intent?: ListingIntent;
   }) {
     const limitCities = input.limitCities ?? 6;
     const limitSuburbs = input.limitSuburbs ?? 6;
@@ -3740,6 +3921,7 @@ export class PropertiesService {
       where: {
         status: { in: publicStatuses },
         cityId: { not: null },
+        ...(input.intent ? { listingIntent: input.intent } : {}),
         ...locationFilter,
       },
       _count: { cityId: true },
@@ -3768,18 +3950,6 @@ export class PropertiesService {
       if (item.cityId) cityCounts.set(item.cityId, item._count.cityId);
     });
 
-    const cityResults = cities
-      .map((city) => ({
-        id: city.id,
-        name: city.name,
-        province: city.province?.name ?? null,
-        lat: city.lat,
-        lng: city.lng,
-        count: cityCounts.get(city.id) ?? 0,
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, limitCities);
-
     let suburbFilter: any = locationFilter;
     if (input.city) {
       const cityRecord = await this.prisma.city.findFirst({
@@ -3796,6 +3966,7 @@ export class PropertiesService {
       where: {
         status: { in: publicStatuses },
         suburbId: { not: null },
+        ...(input.intent ? { listingIntent: input.intent } : {}),
         ...suburbFilter,
       },
       _count: { suburbId: true },
@@ -3818,15 +3989,101 @@ export class PropertiesService {
       if (item.suburbId) suburbCounts.set(item.suburbId, item._count.suburbId);
     });
 
+    const searchEventCounts = new Map<string, number>();
+    const listingViewCounts = new Map<string, number>();
+    try {
+      const sinceDate = new Date();
+      sinceDate.setDate(sinceDate.getDate() - 30);
+
+      const searchRows = await this.prisma.$queryRaw<
+        Array<{ locationId: string; total: number }>
+      >`
+        SELECT "locationId", COUNT(*)::int AS total
+        FROM "LocationEvent"
+        WHERE "type" = 'SEARCH'::"LocationEventType"
+          AND "locationId" IS NOT NULL
+          AND "createdAt" >= ${sinceDate}
+        GROUP BY "locationId"
+      `;
+      searchRows.forEach((row) => {
+        searchEventCounts.set(String(row.locationId), Number(row.total));
+      });
+
+      const viewRows = await this.prisma.$queryRaw<
+        Array<{ listingId: string; total: number }>
+      >`
+        SELECT "listingId", COUNT(*)::int AS total
+        FROM "LocationEvent"
+        WHERE "type" = 'VIEW_LISTING'::"LocationEventType"
+          AND "listingId" IS NOT NULL
+          AND "createdAt" >= ${sinceDate}
+        GROUP BY "listingId"
+      `;
+      viewRows.forEach((row) => {
+        listingViewCounts.set(String(row.listingId), Number(row.total));
+      });
+    } catch (error) {
+      this.logger.warn(`LocationEvent boost skipped: ${String(error)}`);
+    }
+
+    const viewCityBoost = new Map<string, number>();
+    const viewSuburbBoost = new Map<string, number>();
+    if (listingViewCounts.size > 0) {
+      const listingIds = Array.from(listingViewCounts.keys());
+      const listingLocations = await this.prisma.property.findMany({
+        where: { id: { in: listingIds } },
+        select: { id: true, cityId: true, suburbId: true },
+      });
+      listingLocations.forEach((listing) => {
+        const views = listingViewCounts.get(listing.id) ?? 0;
+        if (listing.cityId) {
+          viewCityBoost.set(
+            listing.cityId,
+            (viewCityBoost.get(listing.cityId) ?? 0) + views,
+          );
+        }
+        if (listing.suburbId) {
+          viewSuburbBoost.set(
+            listing.suburbId,
+            (viewSuburbBoost.get(listing.suburbId) ?? 0) + views,
+          );
+        }
+      });
+    }
+
+    const cityResults = cities
+      .map((city) => {
+        const listingCount = cityCounts.get(city.id) ?? 0;
+        const searchBoost = searchEventCounts.get(city.id) ?? 0;
+        const viewBoost = viewCityBoost.get(city.id) ?? 0;
+        return {
+          id: city.id,
+          name: city.name,
+          province: city.province?.name ?? null,
+          lat: city.lat,
+          lng: city.lng,
+          count: listingCount,
+          score: listingCount * 100 + searchBoost * 8 + viewBoost * 3,
+        };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limitCities)
+      .map(({ score, ...city }) => city);
+
     const suburbResults = suburbs
       .map((suburb) => ({
         id: suburb.id,
         name: suburb.name,
         city: suburb.city?.name ?? null,
         count: suburbCounts.get(suburb.id) ?? 0,
+        score:
+          (suburbCounts.get(suburb.id) ?? 0) * 100 +
+          (searchEventCounts.get(suburb.id) ?? 0) * 10 +
+          (viewSuburbBoost.get(suburb.id) ?? 0) * 4,
       }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, limitSuburbs);
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limitSuburbs)
+      .map(({ score, ...suburb }) => suburb);
 
     return { cities: cityResults, suburbs: suburbResults };
   }
@@ -4677,7 +4934,11 @@ export class PropertiesService {
     return this.attachLocationToMany(properties);
   }
 
-  async listFeatured(input?: { lat?: number; lng?: number; radiusKm?: number }) {
+  async listFeatured(input?: {
+    lat?: number;
+    lng?: number;
+    radiusKm?: number;
+  }) {
     const now = new Date();
     const hasLocation =
       typeof input?.lat === "number" && typeof input?.lng === "number";
@@ -4736,12 +4997,12 @@ export class PropertiesService {
         // Simple distance check if both have coords
         if (a.lat && a.lng && b.lat && b.lng) {
           const distA = Math.sqrt(
-            Math.pow((a.lat - (input?.lat ?? 0)), 2) +
-            Math.pow((a.lng - (input?.lng ?? 0)), 2)
+            Math.pow(a.lat - (input?.lat ?? 0), 2) +
+            Math.pow(a.lng - (input?.lng ?? 0), 2),
           );
           const distB = Math.sqrt(
-            Math.pow((b.lat - (input?.lat ?? 0)), 2) +
-            Math.pow((b.lng - (input?.lng ?? 0)), 2)
+            Math.pow(b.lat - (input?.lat ?? 0), 2) +
+            Math.pow(b.lng - (input?.lng ?? 0), 2),
           );
           // If difference is significant (> 0.01 deg ~= 1km), sort by distance
           if (Math.abs(distA - distB) > 0.0001) {
@@ -4779,9 +5040,13 @@ export class PropertiesService {
             : undefined,
           // Only Verified/Trusted if filling slots
           OR: [
-            { verificationLevel: { in: [VerificationLevel.VERIFIED, VerificationLevel.TRUSTED] } },
-            { verificationScore: { gte: 70 } }
-          ]
+            {
+              verificationLevel: {
+                in: [VerificationLevel.VERIFIED, VerificationLevel.TRUSTED],
+              },
+            },
+            { verificationScore: { gte: 70 } },
+          ],
         },
         include: {
           media: { take: 1 },
@@ -4810,12 +5075,12 @@ export class PropertiesService {
       if (hasLocation) {
         if (a.lat && a.lng && b.lat && b.lng) {
           const distA = Math.sqrt(
-            Math.pow((a.lat - (input?.lat ?? 0)), 2) +
-            Math.pow((a.lng - (input?.lng ?? 0)), 2)
+            Math.pow(a.lat - (input?.lat ?? 0), 2) +
+            Math.pow(a.lng - (input?.lng ?? 0), 2),
           );
           const distB = Math.sqrt(
-            Math.pow((b.lat - (input?.lat ?? 0)), 2) +
-            Math.pow((b.lng - (input?.lng ?? 0)), 2)
+            Math.pow(b.lat - (input?.lat ?? 0), 2) +
+            Math.pow(b.lng - (input?.lng ?? 0), 2),
           );
           if (Math.abs(distA - distB) > 0.0001) {
             return distA - distB;

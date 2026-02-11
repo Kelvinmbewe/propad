@@ -48,6 +48,10 @@ import {
   homeAreasQuerySchema,
 } from "./dto/home-areas-query.dto";
 import {
+  HomeLocationEventDto,
+  homeLocationEventSchema,
+} from "./dto/home-location-event.dto";
+import {
   CreateSignedUploadDto,
   createSignedUploadSchema,
 } from "./dto/signed-upload.dto";
@@ -122,7 +126,7 @@ interface AuthenticatedRequest {
 
 @Controller("properties")
 export class PropertiesController {
-  constructor(private readonly propertiesService: PropertiesService) { }
+  constructor(private readonly propertiesService: PropertiesService) {}
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -226,6 +230,19 @@ export class PropertiesController {
     query: HomeAreasQueryDto,
   ) {
     return this.propertiesService.getHomeAreas(query);
+  }
+
+  @Post("home/location-events")
+  @UseGuards(OptionalJwtAuthGuard)
+  recordHomeLocationEvent(
+    @Body(new ZodValidationPipe(homeLocationEventSchema))
+    dto: HomeLocationEventDto,
+    @Req() req: any,
+  ) {
+    return this.propertiesService.recordHomeLocationEvent(
+      dto,
+      req?.user?.userId,
+    );
   }
 
   @Get("map/bounds")

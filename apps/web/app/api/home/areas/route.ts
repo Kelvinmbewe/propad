@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { getApiBaseUrl, parseNumber } from "../_utils";
+import {
+  DEFAULT_RADIUS_KM,
+  fetchApiJson,
+  mapModeParam,
+  parseNumber,
+  resolveBrowsingLocation,
+} from "../_utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,37 +13,39 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const lat = parseNumber(url.searchParams.get("lat"));
-  const lng = parseNumber(url.searchParams.get("lng"));
-  const radiusKm = parseNumber(url.searchParams.get("radiusKm")) ?? 40;
-  const city = url.searchParams.get("city");
-
-  const params = new URLSearchParams();
-  if (lat !== undefined) params.set("lat", lat.toFixed(6));
-  if (lng !== undefined) params.set("lng", lng.toFixed(6));
-  if (radiusKm) params.set("radiusKm", String(radiusKm));
-  if (city) params.set("city", city);
-
   try {
-    const response = await fetch(
-      `${getApiBaseUrl()}/properties/home/areas?${params.toString()}`,
-      { cache: "no-store" },
-    );
+    const url = new URL(request.url);
+    const mode = mapModeParam(url.searchParams.get("mode"));
+    const location = await resolveBrowsingLocation({
+      lat: parseNumber(url.searchParams.get("lat")),
+      lng: parseNumber(url.searchParams.get("lng")),
+      locationId: url.searchParams.get("locationId"),
+      locationLevel: url.searchParams.get("locationLevel"),
+      q: url.searchParams.get("q"),
+      fallbackCity: "Harare",
+    });
 
-    if (!response.ok) {
-      throw new Error(`Areas request failed: ${response.status}`);
-    }
+    const params = new URLSearchParams();
+    params.set("lat", location.centerLat.toFixed(6));
+    params.set("lng", location.centerLng.toFixed(6));
+    params.set("radiusKm", String(DEFAULT_RADIUS_KM));
+    params.set("limitCities", "6");
+    params.set("limitSuburbs", "6");
+    if (mode === "SALE") params.set("intent", "FOR_SALE");
+    if (mode === "RENT") params.set("intent", "TO_RENT");
 
-    const data = await response.json();
-    const res = NextResponse.json(data);
-    res.headers.set(
-      "Cache-Control",
-      "public, s-maxage=180, stale-while-revalidate=300",
-    );
-    return res;
+    const payload = await fetchApiJson<{
+      cities?: any[];
+      suburbs?: any[];
+    }>(`/properties/home/areas?${params.toString()}`);
+
+    return NextResponse.json({
+      topCities: payload.cities ?? [],
+      topSuburbs: payload.suburbs ?? [],
+      context: location,
+    });
   } catch (error) {
     console.error("[home/areas]", error);
-    return NextResponse.json({ cities: [], suburbs: [] });
+    return NextResponse.json({ topCities: [], topSuburbs: [] });
   }
 }

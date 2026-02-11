@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import {
-  MIN_TRUST_SCORE,
-  buildBoundsFromCenter,
-  getApiBaseUrl,
-  getListingTrustScore,
-  isPublicListing,
-  isVerifiedListing,
+  DEFAULT_LIMIT,
+  DEFAULT_RADIUS_KM,
+  FEATURED_MAX_RADIUS_KM,
+  FEATURED_MIN_RESULTS,
+  clampInt,
+  fetchPropertiesInRadius,
+  mapModeParam,
+  parseBoolean,
   parseNumber,
+  resolveBrowsingLocation,
 } from "../../_utils";
 
 export const runtime = "nodejs";
@@ -15,98 +18,127 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const lat = parseNumber(url.searchParams.get("lat"));
-  const lng = parseNumber(url.searchParams.get("lng"));
-  const radiusKm = parseNumber(url.searchParams.get("radiusKm")) ?? 150;
-  const limit = parseNumber(url.searchParams.get("limit")) ?? 12;
-  const minTrust =
-    parseNumber(url.searchParams.get("minTrust")) ?? MIN_TRUST_SCORE;
-  const locationId = url.searchParams.get("locationId");
-  const locationLevel = url.searchParams.get("locationLevel");
-
-  let items: any[] = [];
   try {
-    const params = new URLSearchParams();
-    if (lat !== undefined) params.set("lat", String(lat));
-    if (lng !== undefined) params.set("lng", String(lng));
-    params.set("radiusKm", String(radiusKm));
+    const url = new URL(request.url);
+    const lat = parseNumber(url.searchParams.get("lat"));
+    const lng = parseNumber(url.searchParams.get("lng"));
+    const mode = mapModeParam(url.searchParams.get("mode"));
+    const verifiedOnly =
+      parseBoolean(url.searchParams.get("verifiedOnly")) ?? true;
+    const locationId = url.searchParams.get("locationId");
+    const locationLevel = url.searchParams.get("locationLevel");
+    const q = url.searchParams.get("q") ?? url.searchParams.get("city");
+    const primaryRadiusKm = clampInt(
+      parseNumber(url.searchParams.get("primaryRadiusKm")),
+      DEFAULT_RADIUS_KM,
+      1,
+      500,
+    );
+    const maxRadiusKm = clampInt(
+      parseNumber(url.searchParams.get("maxRadiusKm")),
+      FEATURED_MAX_RADIUS_KM,
+      primaryRadiusKm,
+      500,
+    );
+    const minResults = clampInt(
+      parseNumber(url.searchParams.get("minResults")),
+      FEATURED_MIN_RESULTS,
+      1,
+      24,
+    );
+    const limit = clampInt(
+      parseNumber(url.searchParams.get("limit")),
+      DEFAULT_LIMIT,
+      1,
+      24,
+    );
 
-    const response = await fetch(`${getApiBaseUrl()}/properties/featured?${params.toString()}`, {
-      cache: "no-store",
+    const location = await resolveBrowsingLocation({
+      lat,
+      lng,
+      locationId,
+      locationLevel,
+      q,
+      fallbackCity: "Harare",
     });
 
-    if (!response.ok) {
-      throw new Error(`Featured request failed: ${response.status}`);
-    }
+    const candidates = await fetchPropertiesInRadius({
+      centerLat: location.centerLat,
+      centerLng: location.centerLng,
+      radiusKm: maxRadiusKm,
+      mode,
+      verifiedOnly,
+      limit: limit * 8,
+      locationId: location.locationId,
+      locationLevel: location.locationLevel,
+    });
 
-    const payload = await response.json();
-    items = Array.isArray(payload) ? payload : [];
-  } catch (error) {
-    console.error("[home/featured]", error);
-    return NextResponse.json({ items: [] });
-  }
+    const featured = candidates.filter(
+      (listing) =>
+        listing?.isFeatured ||
+        listing?.featuredListing?.status === "ACTIVE" ||
+        typeof listing?.featuredListing?.priorityLevel === "number",
+    );
 
-  // Filter by location if explicitly selected
-  const filterByCityId = locationId && locationLevel === "CITY" ? locationId : null;
-  const filterBySuburbId = locationId && locationLevel === "SUBURB" ? locationId : null;
-  const filterByProvinceId = locationId && locationLevel === "PROVINCE" ? locationId : null;
+    const score = (listing: any) =>
+      Number(listing?.featuredListing?.priorityLevel ?? 0);
 
-  const bounds =
-    lat !== undefined && lng !== undefined
-      ? buildBoundsFromCenter(lat, lng, radiusKm)
-      : null;
-
-  const filtered = items
-    .filter((listing: any) => isPublicListing(listing))
-    .filter((listing: any) => isVerifiedListing(listing, minTrust))
-    .filter((listing: any) => {
-      // Prioritize bounds filtering if available (supports "nearby" logic like Kwekwe -> Gweru)
-      if (bounds) {
-        const latValue = Number(listing.lat ?? 0);
-        const lngValue = Number(listing.lng ?? 0);
+    const primary = featured
+      .filter((listing) => listing.distanceKm <= primaryRadiusKm)
+      .sort((a, b) => {
+        if (score(b) !== score(a)) return score(b) - score(a);
+        if (b.trustScore !== a.trustScore) return b.trustScore - a.trustScore;
         return (
-          latValue >= bounds.southWest.lat &&
-          latValue <= bounds.northEast.lat &&
-          lngValue >= bounds.southWest.lng &&
-          lngValue <= bounds.northEast.lng
+          new Date(b.createdAt ?? 0).getTime() -
+          new Date(a.createdAt ?? 0).getTime()
         );
-      }
+      });
 
-      // Fallback to strict location filtering if NO GPS data available
-      if (filterByCityId) {
-        return listing.cityId === filterByCityId || listing.location?.cityId === filterByCityId;
-      }
-      if (filterBySuburbId) {
-        return listing.suburbId === filterBySuburbId || listing.location?.suburbId === filterBySuburbId;
-      }
-      if (filterByProvinceId) {
-        return listing.provinceId === filterByProvinceId || listing.location?.provinceId === filterByProvinceId;
-      }
+    const selectedPrimary = primary.slice(0, limit);
+    const selectedIds = new Set(selectedPrimary.map((item) => item.id));
+    const needExpanded = selectedPrimary.length < minResults;
 
-      return true;
-    })
-    .map((listing: any) => ({
-      ...listing,
-      trustScore: getListingTrustScore(listing),
-    }))
-    .sort((a: any, b: any) => {
-      const aPriority = a.featuredListing?.priorityLevel ?? 0;
-      const bPriority = b.featuredListing?.priorityLevel ?? 0;
-      if (aPriority !== bPriority) return bPriority - aPriority;
-      if (b.trustScore !== a.trustScore) return b.trustScore - a.trustScore;
-      return (
-        new Date(b.createdAt ?? 0).getTime() -
-        new Date(a.createdAt ?? 0).getTime()
-      );
-    })
-    .slice(0, limit);
+    const expanded = needExpanded
+      ? featured
+        .filter(
+          (listing) =>
+            listing.distanceKm > primaryRadiusKm &&
+            listing.distanceKm <= maxRadiusKm &&
+            !selectedIds.has(listing.id),
+        )
+        .sort((a, b) => {
+          if (score(b) !== score(a)) return score(b) - score(a);
+          if (b.trustScore !== a.trustScore)
+            return b.trustScore - a.trustScore;
+          return (
+            new Date(b.createdAt ?? 0).getTime() -
+            new Date(a.createdAt ?? 0).getTime()
+          );
+        })
+      : [];
 
-  const res = NextResponse.json({ items: filtered });
-  res.headers.set(
-    "Cache-Control",
-    "public, s-maxage=180, stale-while-revalidate=300",
-  );
-  return res;
+    const items = [...selectedPrimary, ...expanded].slice(0, limit);
+
+    return NextResponse.json({
+      items,
+      context: location,
+      meta: {
+        usedPrimaryRadius: true,
+        expanded: needExpanded && expanded.length > 0,
+        primaryCount: selectedPrimary.length,
+        expandedCount: Math.max(0, items.length - selectedPrimary.length),
+      },
+    });
+  } catch (error) {
+    console.error("[home/listings/featured]", error);
+    return NextResponse.json({
+      items: [],
+      meta: {
+        usedPrimaryRadius: true,
+        expanded: false,
+        primaryCount: 0,
+        expandedCount: 0,
+      },
+    });
+  }
 }
-

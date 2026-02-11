@@ -37,10 +37,12 @@ export function LandingPropertyCard({
   property,
   variant = "default",
   className,
+  onListingClick,
 }: {
   property: LandingProperty;
   variant?: "default" | "compact" | "featured";
   className?: string;
+  onListingClick?: (propertyId: string) => void;
 }) {
   const intent: "sale" | "rent" = property.statusTone
     ? property.statusTone
@@ -168,6 +170,7 @@ export function LandingPropertyCard({
           </span>
           <Link
             href={`/properties/${property.id}`}
+            onClick={() => onListingClick?.(property.id)}
             className="text-xs font-semibold text-slate-400 hover:text-emerald-500"
           >
             View listing →

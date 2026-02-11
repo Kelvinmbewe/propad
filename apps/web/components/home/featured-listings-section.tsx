@@ -10,11 +10,13 @@ import { Button } from "@propad/ui";
 interface FeaturedListingsSectionProps {
   listings: LandingProperty[];
   viewAllHref: string;
+  onListingClick?: (listingId: string) => void;
 }
 
 export function FeaturedListingsSection({
   listings,
   viewAllHref,
+  onListingClick,
 }: FeaturedListingsSectionProps) {
   if (!listings.length) {
     return null;
@@ -50,6 +52,7 @@ export function FeaturedListingsSection({
             key={property.id}
             property={property}
             variant="featured"
+            onListingClick={onListingClick}
           />
         ))}
       </div>

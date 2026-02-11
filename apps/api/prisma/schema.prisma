@@ -444,6 +444,13 @@ enum AdEventType {
   VIDEO_COMPLETE
 }
 
+enum LocationEventType {
+  SEARCH
+  VIEW_LISTING
+  VIEW_AGENT
+  VIEW_AGENCY
+}
+
 enum AgentAssignmentStatus {
   PENDING
   ACCEPTED
@@ -2500,6 +2507,25 @@ model AdClick {
   @@index([userId])
   @@index([propertyId])
   @@index([sessionId])
+}
+
+model LocationEvent {
+  id         String            @id @default(cuid())
+  type       LocationEventType
+  locationId String?
+  listingId  String?
+  userId     String?
+  agentId    String?
+  agencyId   String?
+  metadata   Json?
+  createdAt  DateTime          @default(now())
+
+  @@index([type, createdAt(sort: Desc)])
+  @@index([locationId, createdAt(sort: Desc)])
+  @@index([listingId, createdAt(sort: Desc)])
+  @@index([agentId, createdAt(sort: Desc)])
+  @@index([agencyId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model AdvertiserBalanceLog {

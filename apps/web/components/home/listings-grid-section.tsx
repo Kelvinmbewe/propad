@@ -14,6 +14,7 @@ interface ListingsGridSectionProps {
   listings: LandingProperty[];
   viewAllHref: string;
   locationLabel: string;
+  onListingClick?: (listingId: string) => void;
 }
 
 export function ListingsGridSection({
@@ -22,6 +23,7 @@ export function ListingsGridSection({
   listings,
   viewAllHref,
   locationLabel,
+  onListingClick,
 }: ListingsGridSectionProps) {
   return (
     <section
@@ -77,7 +79,11 @@ export function ListingsGridSection({
                     />
                   </div>
                 ) : null}
-                <LandingPropertyCard property={property} variant="compact" />
+                <LandingPropertyCard
+                  property={property}
+                  variant="compact"
+                  onListingClick={onListingClick}
+                />
               </div>
             );
           })}

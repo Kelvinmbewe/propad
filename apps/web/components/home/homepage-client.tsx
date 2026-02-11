@@ -16,7 +16,6 @@ import { AdSlot } from "@/components/ad-slot";
 import { TrustBadge, type TrustBreakdown } from "@/components/trust/TrustBadge";
 import { notify } from "@propad/ui";
 import {
-  buildBoundsString,
   type HomeAgent,
   type HomeAgency,
   type HomeCounts,
@@ -27,11 +26,13 @@ import {
   type QuickLocation,
 } from "@/lib/homepage-locations";
 import { useGeoPreference } from "@/hooks/use-geo-preference";
+import { useHomeContext } from "@/hooks/use-home-context";
 import { useNearbyListings } from "@/hooks/use-nearby-listings";
 import { useFeaturedListings } from "@/hooks/use-featured-listings";
 import { useHomeAreas } from "@/hooks/use-home-areas";
-import { useTopPartners } from "@/hooks/use-top-partners";
+import { useHomePartners } from "@/hooks/use-home-partners";
 import { getImageUrl } from "@/lib/image-url";
+import { trackLocationEvent } from "@/lib/home-events";
 import { ShieldCheck, UserCheck } from "lucide-react";
 
 const ExploreByAreaSection = dynamic(
@@ -56,8 +57,6 @@ const SavedSearchCTASection = dynamic(
   { ssr: false },
 );
 
-const FEATURED_MIN_TRUST = 70;
-
 interface HomePageClientProps {
   initialNearbyListings: any[];
   initialFeaturedListings: any[];
@@ -76,40 +75,6 @@ function formatPrice(
     currency,
     maximumFractionDigits: 0,
   }).format(priceValue);
-}
-
-function getDistanceKm(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number },
-) {
-  const toRad = (value: number) => (value * Math.PI) / 180;
-  const earthRadius = 6371;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-
-  const sinLat = Math.sin(dLat / 2) ** 2;
-  const sinLng = Math.sin(dLng / 2) ** 2;
-  const c =
-    2 * Math.asin(Math.sqrt(sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng));
-  return earthRadius * c;
-}
-
-function scoreListing(listing: any, origin: { lat: number; lng: number }) {
-  const trust = Number(listing.trustScore ?? 0);
-  const lat = Number(listing.lat ?? listing.location?.lat ?? 0);
-  const lng = Number(listing.lng ?? listing.location?.lng ?? 0);
-  const distance = lat && lng ? getDistanceKm(origin, { lat, lng }) : 45;
-  const createdAt = listing.createdAt
-    ? new Date(listing.createdAt).getTime()
-    : Date.now();
-  const recencyDays = Math.max(0, (Date.now() - createdAt) / 86400000);
-
-  const trustScore = trust * 1.6;
-  const distanceScore = Math.max(0, 40 - distance);
-  const recencyScore = Math.max(0, 30 - recencyDays) * 1.4;
-  return trustScore + distanceScore + recencyScore;
 }
 
 function deriveTrustBreakdown(listing: any): TrustBreakdown {
@@ -206,6 +171,18 @@ export function HomePageClient({
 
   const selectedCoords = geo.coords;
 
+  const resolvedContextQuery = useHomeContext({
+    lat: selectedCoords?.lat,
+    lng: selectedCoords?.lng,
+    q: searchState.locationLabel,
+    locationId: searchState.locationId,
+    locationLevel: searchState.locationLevel,
+  });
+  const resolvedCenter = {
+    lat: Number(resolvedContextQuery.data?.centerLat ?? selectedCoords?.lat),
+    lng: Number(resolvedContextQuery.data?.centerLng ?? selectedCoords?.lng),
+  };
+
   const handleSearchStateChange = (next: Partial<HomeSearchState>) => {
     setSearchState((prev) => ({ ...prev, ...next }));
   };
@@ -228,46 +205,58 @@ export function HomePageClient({
 
   const priceFilters = parsePriceRange(searchState.priceRange);
   const nearbyQuery = useNearbyListings({
-    lat: selectedCoords?.lat,
-    lng: selectedCoords?.lng,
-    city: searchState.locationLabel,
+    lat: resolvedCenter.lat,
+    lng: resolvedCenter.lng,
+    q: searchState.locationLabel,
     locationId: searchState.locationId,
     locationLevel: searchState.locationLevel,
     mode: searchState.intent === "FOR_SALE" ? "sale" : "rent",
     verifiedOnly: searchState.verifiedOnly,
-    limit: 24,
-    minTrust: searchState.minTrust,
+    limit: 12,
     propertyType:
       searchState.propertyType !== "any" ? searchState.propertyType : undefined,
     priceMin: priceFilters.priceMin,
     priceMax: priceFilters.priceMax,
   });
   const featuredQuery = useFeaturedListings({
-    lat: selectedCoords?.lat,
-    lng: selectedCoords?.lng,
-    minTrust: Math.max(FEATURED_MIN_TRUST, searchState.minTrust),
+    lat: resolvedCenter.lat,
+    lng: resolvedCenter.lng,
+    q: searchState.locationLabel,
+    mode: searchState.intent === "FOR_SALE" ? "sale" : "rent",
+    verifiedOnly: searchState.verifiedOnly,
+    minResults: 6,
+    primaryRadiusKm: 150,
+    maxRadiusKm: 500,
     locationId: searchState.locationId,
     locationLevel: searchState.locationLevel,
   });
-  const agentsQuery = useTopPartners({
-    lat: selectedCoords?.lat,
-    lng: selectedCoords?.lng,
+  const agentsQuery = useHomePartners({
+    lat: resolvedCenter.lat,
+    lng: resolvedCenter.lng,
+    q: searchState.locationLabel,
+    locationId: searchState.locationId,
+    locationLevel: searchState.locationLevel,
+    mode: searchState.intent === "FOR_SALE" ? "sale" : "rent",
     type: "agents",
     limit: 6,
   });
-  const agenciesQuery = useTopPartners({
-    lat: selectedCoords?.lat,
-    lng: selectedCoords?.lng,
+  const agenciesQuery = useHomePartners({
+    lat: resolvedCenter.lat,
+    lng: resolvedCenter.lng,
+    q: searchState.locationLabel,
+    locationId: searchState.locationId,
+    locationLevel: searchState.locationLevel,
+    mode: searchState.intent === "FOR_SALE" ? "sale" : "rent",
     type: "agencies",
     limit: 6,
   });
   const areasQuery = useHomeAreas({
-    lat: selectedCoords?.lat,
-    lng: selectedCoords?.lng,
-    city:
-      searchState.locationLevel === "CITY"
-        ? searchState.locationLabel
-        : undefined,
+    lat: resolvedCenter.lat,
+    lng: resolvedCenter.lng,
+    q: searchState.locationLabel,
+    locationId: searchState.locationId,
+    locationLevel: searchState.locationLevel,
+    mode: searchState.intent === "FOR_SALE" ? "sale" : "rent",
   });
 
   const nearbyItems = (nearbyQuery.data?.items ??
@@ -287,7 +276,7 @@ export function HomePageClient({
     () => featuredItems.map(mapToLandingProperty),
     [featuredItems],
   );
-  const areaCities = (areasQuery.data?.cities ?? []) as Array<{
+  const areaCities = (areasQuery.data?.topCities ?? []) as Array<{
     id: string;
     name: string;
     province?: string | null;
@@ -295,7 +284,7 @@ export function HomePageClient({
     lng?: number | null;
     count?: number;
   }>;
-  const areaSuburbs = (areasQuery.data?.suburbs ?? []) as Array<{
+  const areaSuburbs = (areasQuery.data?.topSuburbs ?? []) as Array<{
     id: string;
     name: string;
     city?: string | null;
@@ -352,9 +341,9 @@ export function HomePageClient({
     if (searchState.minTrust > 0) {
       params.set("minTrust", String(searchState.minTrust));
     }
-    if (selectedCoords?.lat && selectedCoords?.lng) {
-      params.set("bounds", buildBoundsString(selectedCoords, 30));
-    }
+    if (searchState.locationLabel) params.set("q", searchState.locationLabel);
+    if (searchState.intent === "TO_RENT") params.set("mode", "rent");
+    if (searchState.intent === "FOR_SALE") params.set("mode", "sale");
     return params;
   };
 
@@ -426,6 +415,20 @@ export function HomePageClient({
               });
             }
           }
+
+          if (next.locationId || (next.locationLevel && next.locationLabel)) {
+            trackLocationEvent({
+              type: "SEARCH",
+              locationId: next.locationId ?? null,
+              metadata: {
+                intent:
+                  (next.intent ?? searchState.intent) === "TO_RENT"
+                    ? "rent"
+                    : "sale",
+                locationLabel: next.locationLabel ?? searchState.locationLabel,
+              },
+            });
+          }
           handleSearchStateChange(next);
         }}
         onSearch={() => {
@@ -442,11 +445,28 @@ export function HomePageClient({
         isAuthenticated={isAuthenticated}
       />
 
-      <StatsBand coords={selectedCoords} initialCounts={initialCounts} />
+      <StatsBand
+        coords={resolvedCenter}
+        mode={searchState.intent === "TO_RENT" ? "rent" : "sale"}
+        locationId={searchState.locationId}
+        locationLevel={searchState.locationLevel}
+        q={searchState.locationLabel}
+        initialCounts={initialCounts}
+      />
 
       <FeaturedListingsSection
         listings={featuredCards}
         viewAllHref={`/listings?featured=true&${buildBrowseParams().toString()}`}
+        onListingClick={(listingId) => {
+          trackLocationEvent({
+            type: "VIEW_LISTING",
+            listingId,
+            locationId: searchState.locationId,
+            metadata: {
+              mode: searchState.intent === "TO_RENT" ? "rent" : "sale",
+            },
+          });
+        }}
       />
 
       {nearbyQuery.isError ? (
@@ -475,6 +495,16 @@ export function HomePageClient({
           listings={nearCards}
           viewAllHref={`/listings?${buildBrowseParams().toString()}`}
           locationLabel={searchState.locationLabel}
+          onListingClick={(listingId) => {
+            trackLocationEvent({
+              type: "VIEW_LISTING",
+              listingId,
+              locationId: searchState.locationId,
+              metadata: {
+                mode: searchState.intent === "TO_RENT" ? "rent" : "sale",
+              },
+            });
+          }}
         />
       )}
 
