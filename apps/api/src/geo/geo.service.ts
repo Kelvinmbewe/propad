@@ -44,6 +44,8 @@ export interface SearchResult<T extends GeoLevel> {
   countryId?: string;
   cityName?: string;
   provinceName?: string;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 @Injectable()
@@ -175,6 +177,8 @@ export class GeoService implements OnModuleInit {
         provinceId: city.provinceId,
         countryId: city.countryId,
         provinceName: city.province?.name,
+        lat: city.lat,
+        lng: city.lng,
       });
     }
     for (const suburb of suburbs) {
@@ -187,6 +191,8 @@ export class GeoService implements OnModuleInit {
         countryId: suburb.countryId,
         cityName: suburb.city?.name,
         provinceName: suburb.province?.name,
+        lat: suburb.lat,
+        lng: suburb.lng,
       });
     }
 

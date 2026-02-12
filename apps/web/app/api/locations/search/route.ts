@@ -9,6 +9,8 @@ type GeoSearchResult = {
   provinceId?: string;
   provinceName?: string;
   cityName?: string;
+  lat?: number | null;
+  lng?: number | null;
 };
 
 export const runtime = "nodejs";
@@ -90,13 +92,19 @@ export async function GET(request: Request) {
 
     const shortlist = results
       .filter((item) => item.level === "CITY" || item.level === "SUBURB")
-      .slice(0, limit);
+      .slice(0, limit)
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        type: item.level,
+        level: item.level,
+        lat: item.lat ?? null,
+        lng: item.lng ?? null,
+        province: item.provinceName ?? null,
+        city: item.cityName ?? null,
+      }));
 
-    const enriched = (
-      await Promise.all(shortlist.map((item) => enrichLocation(item)))
-    ).filter(Boolean);
-
-    return NextResponse.json({ items: enriched });
+    return NextResponse.json({ items: shortlist });
   } catch (error) {
     console.error("[locations/search]", error);
     return NextResponse.json({ items: [] });
