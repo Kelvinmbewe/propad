@@ -6,7 +6,10 @@ import { ReactNode } from 'react';
 export function AuthProvider({ children }: { children: ReactNode }) {
   // In Docker/production, NEXTAUTH_URL may not be available client-side.
   // Using empty string allows next-auth to use relative URLs (current origin).
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const baseUrl = (typeof window !== 'undefined' && window.location.origin)
+    ? window.location.origin
+    : process.env.NEXTAUTH_URL || "http://localhost:3000";
+
   return (
     <SessionProvider basePath="/api/auth" baseUrl={baseUrl}>
       {children}

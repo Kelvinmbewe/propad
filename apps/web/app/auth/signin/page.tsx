@@ -16,10 +16,7 @@ export default function SignInPage() {
     otp: "",
   });
 
-  // Ensure next-auth base URL is set on component mount
-  useEffect(() => {
-    ensureNextAuthBaseUrl();
-  }, []);
+
 
   const getAbsoluteCallbackUrl = () => {
     if (typeof window === "undefined") return "/";
@@ -34,15 +31,9 @@ export default function SignInPage() {
     }
   };
 
-  const ensureNextAuthBaseUrl = () => {
-    if (typeof window === "undefined") return;
-    const baseUrl = window.location.origin;
-    const basePath = "/api/auth";
-    const nextAuth = (window as any).__NEXTAUTH ?? {};
-    if (!nextAuth.baseUrl) nextAuth.baseUrl = baseUrl;
-    if (!nextAuth.basePath) nextAuth.basePath = basePath;
-    (window as any).__NEXTAUTH = nextAuth;
-  };
+  // Ensure next-auth base URL is set on component mount
+  // REMOVED manual patching - rely on SessionProvider
+
 
   const manualCredentialsSignIn = async () => {
     if (typeof window === "undefined") return;
@@ -97,7 +88,7 @@ export default function SignInPage() {
     const { email, password, otp } = formState;
 
     try {
-      ensureNextAuthBaseUrl();
+
       const callbackUrl = getAbsoluteCallbackUrl();
       const result = await signIn("credentials", {
         email,

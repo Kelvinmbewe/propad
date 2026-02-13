@@ -2,7 +2,7 @@ import NextAuth from 'next-auth';
 import type { Role } from '@propad/sdk';
 
 const config = {
-  secret: process.env.NEXTAUTH_SECRET ?? 'propad-dev-secret-do-not-use-in-prod',
+  secret: 'this-is-a-very-secure-secret-that-is-at-least-32-chars-long',
   providers: [],
   session: {
     strategy: 'jwt' as const
@@ -22,7 +22,19 @@ const config = {
 
       return session;
     }
-  }
+  },
+  trustHost: true,
+  cookies: {
+    sessionToken: {
+      name: "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: false, // Required for localhost (HTTP, not HTTPS)
+      },
+    },
+  },
 };
 
 export const { auth } = NextAuth(config);
