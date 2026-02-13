@@ -258,7 +258,7 @@ export class PropertiesService {
     private readonly pricing: PricingService,
     private readonly paymentsService: PaymentsService,
     private readonly verificationsService: VerificationsService,
-  ) { }
+  ) {}
 
   /**
    * Recursively convert Prisma Decimal types and Date objects for JSON serialization
@@ -353,8 +353,8 @@ export class PropertiesService {
           runId: "run1",
           hypothesisId,
         }) + "\n";
-      await mkdir(".cursor", { recursive: true }).catch(() => { });
-      await appendFile(".cursor/debug.log", logEntry).catch(() => { });
+      await mkdir(".cursor", { recursive: true }).catch(() => {});
+      await appendFile(".cursor/debug.log", logEntry).catch(() => {});
     } catch {
       // Ignore logging errors
     }
@@ -399,7 +399,7 @@ export class PropertiesService {
         priceType: typeof property?.price,
       },
       "A",
-    ).catch(() => { });
+    ).catch(() => {});
     // #endregion
     try {
       // Safely extract location data with proper null checks
@@ -434,7 +434,7 @@ export class PropertiesService {
           provinceType: typeof province,
         },
         "A",
-      ).catch(() => { });
+      ).catch(() => {});
       // #endregion
 
       // Exclude Prisma relation objects from the spread to avoid serialization issues
@@ -459,7 +459,7 @@ export class PropertiesService {
           priceValue: cleanProperty?.price?.toString?.()?.substring(0, 20),
         },
         "B",
-      ).catch(() => { });
+      ).catch(() => {});
       // #endregion
 
       // Use pending geo's proposed name as suburb name if no regular suburb exists
@@ -513,18 +513,18 @@ export class PropertiesService {
           countryId: property.countryId ?? null,
           country: country
             ? {
-              id: String(country.id ?? ""),
-              name: String(country.name ?? ""),
-              iso2: String(country.iso2 ?? ""),
-              phoneCode: String(country.phoneCode ?? ""),
-            }
+                id: String(country.id ?? ""),
+                name: String(country.name ?? ""),
+                iso2: String(country.iso2 ?? ""),
+                phoneCode: String(country.phoneCode ?? ""),
+              }
             : null,
           provinceId: property.provinceId ?? null,
           province: province
             ? {
-              id: String(province.id ?? ""),
-              name: String(province.name ?? ""),
-            }
+                id: String(province.id ?? ""),
+                name: String(province.name ?? ""),
+              }
             : null,
           cityId: property.cityId ?? null,
           city: city
@@ -537,11 +537,11 @@ export class PropertiesService {
           pendingGeoId: property.pendingGeoId ?? null,
           pendingGeo: pendingGeo
             ? {
-              id: String(pendingGeo.id ?? ""),
-              proposedName: String(pendingGeo.proposedName ?? ""),
-              level: String(pendingGeo.level ?? ""),
-              status: String(pendingGeo.status ?? ""),
-            }
+                id: String(pendingGeo.id ?? ""),
+                proposedName: String(pendingGeo.proposedName ?? ""),
+                level: String(pendingGeo.level ?? ""),
+                status: String(pendingGeo.status ?? ""),
+              }
             : null,
           lat: typeof property.lat === "number" ? property.lat : null,
           lng: typeof property.lng === "number" ? property.lng : null,
@@ -561,7 +561,7 @@ export class PropertiesService {
           resultAreaSqmType: typeof convertedResult?.areaSqm,
         },
         "B",
-      ).catch(() => { });
+      ).catch(() => {});
       // #endregion
 
       return convertedResult;
@@ -617,7 +617,7 @@ export class PropertiesService {
       "attachLocationToMany entry",
       { propertyCount: properties.length },
       "C",
-    ).catch(() => { });
+    ).catch(() => {});
     // #endregion
     return properties
       .map((property, index) => {
@@ -628,7 +628,7 @@ export class PropertiesService {
             "attachLocationToMany processing property",
             { index, propertyId: property?.id },
             "C",
-          ).catch(() => { });
+          ).catch(() => {});
           // #endregion
           return this.attachLocation(property);
         } catch (error) {
@@ -687,7 +687,7 @@ export class PropertiesService {
             isDecimal: result?.price?.constructor?.name === "Decimal",
           },
           "B",
-        ).catch(() => { });
+        ).catch(() => {});
         // #endregion
         // Convert all Decimal types recursively
         const converted = this.convertDecimalsToNumbers(result);
@@ -701,7 +701,7 @@ export class PropertiesService {
             newPriceType: typeof converted?.price,
           },
           "B",
-        ).catch(() => { });
+        ).catch(() => {});
         // #endregion
         return converted;
       });
@@ -983,7 +983,8 @@ export class PropertiesService {
       zoning: zoning ?? undefined,
       parking,
       powerPhase,
-      listingIntent: (parsedFilters.listingIntent as ListingIntent) ?? dto.listingIntent,
+      listingIntent:
+        (parsedFilters.listingIntent as ListingIntent) ?? dto.listingIntent,
     };
   }
 
@@ -1425,7 +1426,11 @@ export class PropertiesService {
 
     // If not Owner/Admin, enforce public status
     if (!isOwner && !isAdmin) {
-      if (property.status !== PropertyStatus.VERIFIED) {
+      if (
+        property.status !== PropertyStatus.VERIFIED &&
+        property.status !== PropertyStatus.PUBLISHED &&
+        property.status !== PropertyStatus.PENDING_VERIFY
+      ) {
         throw new NotFoundException("Property not found"); // Hide non-public
       }
     }
@@ -1882,12 +1887,12 @@ export class PropertiesService {
         ...filtered,
         ...(isUpdatingLocation
           ? {
-            countryId: location.country?.id ?? null,
-            provinceId: location.province?.id ?? null,
-            cityId: location.city?.id ?? null,
-            suburbId: location.suburb?.id ?? null,
-            pendingGeoId: location.pendingGeo?.id ?? null,
-          }
+              countryId: location.country?.id ?? null,
+              provinceId: location.province?.id ?? null,
+              cityId: location.city?.id ?? null,
+              suburbId: location.suburb?.id ?? null,
+              pendingGeoId: location.pendingGeo?.id ?? null,
+            }
           : {}),
         ...(lat !== undefined ? { lat } : {}),
         ...(lng !== undefined ? { lng } : {}),
@@ -3071,8 +3076,8 @@ export class PropertiesService {
           // No incoming messages, fallback to Landlord <-> Agent
           recipientId = isOwner
             ? (property as any).assignedAgentId ??
-            property.agentOwnerId ??
-            property.landlordId
+              property.agentOwnerId ??
+              property.landlordId
             : property.landlordId;
         }
       } else {
@@ -3241,31 +3246,33 @@ export class PropertiesService {
       ...(filters.provinceId ? { provinceId: filters.provinceId } : {}),
       ...(filters.cityId ? { cityId: filters.cityId } : {}),
       ...(filters.suburbId ? { suburbId: filters.suburbId } : {}),
-      ...(filters.listingIntent ? { listingIntent: filters.listingIntent } : {}),
+      ...(filters.listingIntent
+        ? { listingIntent: filters.listingIntent }
+        : {}),
 
       // Range Filters
       ...(filters.priceMin || filters.priceMax
         ? {
-          price: {
-            ...(filters.priceMin ? { gte: filters.priceMin } : {}),
-            ...(filters.priceMax ? { lte: filters.priceMax } : {}),
-          },
-        }
+            price: {
+              ...(filters.priceMin ? { gte: filters.priceMin } : {}),
+              ...(filters.priceMax ? { lte: filters.priceMax } : {}),
+            },
+          }
         : {}),
       ...(filters.bedrooms ? { bedrooms: { gte: filters.bedrooms } } : {}),
       ...(filters.bathrooms ? { bathrooms: { gte: filters.bathrooms } } : {}),
       ...(filters.minFloorArea
         ? {
-          OR: [
-            { areaSqm: { gte: filters.minFloorArea } },
-            {
-              commercialFields: {
-                path: ["floorAreaSqm"],
-                gte: filters.minFloorArea,
+            OR: [
+              { areaSqm: { gte: filters.minFloorArea } },
+              {
+                commercialFields: {
+                  path: ["floorAreaSqm"],
+                  gte: filters.minFloorArea,
+                },
               },
-            },
-          ],
-        }
+            ],
+          }
         : {}),
 
       // Boolean / Enum Filters
@@ -3281,30 +3288,30 @@ export class PropertiesService {
       // JSON Array Filter (Amenities)
       ...(filters.amenities && filters.amenities.length > 0
         ? {
-          amenities: { hasSome: filters.amenities },
-        }
+            amenities: { hasSome: filters.amenities },
+          }
         : {}),
 
       // Geo Bounds
       ...(filters.bounds
         ? {
-          lat: {
-            gte: filters.bounds.southWest.lat,
-            lte: filters.bounds.northEast.lat,
-          },
-          lng: {
-            gte: filters.bounds.southWest.lng,
-            lte: filters.bounds.northEast.lng,
-          },
-        }
+            lat: {
+              gte: filters.bounds.southWest.lat,
+              lte: filters.bounds.northEast.lat,
+            },
+            lng: {
+              gte: filters.bounds.southWest.lng,
+              lte: filters.bounds.northEast.lng,
+            },
+          }
         : {}),
 
       // --- SMART RANKING FILTERS ---
       // Verified Only Support
       ...(dto.verifiedOnly
         ? {
-          verificationLevel: { in: ["VERIFIED", "TRUSTED"] },
-        }
+            verificationLevel: { in: ["VERIFIED", "TRUSTED"] },
+          }
         : {}),
     };
 
@@ -3778,22 +3785,22 @@ export class PropertiesService {
       typeof input.lat === "number" && typeof input.lng === "number";
     const bounds = hasCoords
       ? this.buildBoundsFromCenter(
-        input.lat as number,
-        input.lng as number,
-        input.radiusKm ?? 40,
-      )
+          input.lat as number,
+          input.lng as number,
+          input.radiusKm ?? 40,
+        )
       : null;
     const locationFilter = bounds
       ? {
-        lat: {
-          gte: bounds.southWest.lat,
-          lte: bounds.northEast.lat,
-        },
-        lng: {
-          gte: bounds.southWest.lng,
-          lte: bounds.northEast.lng,
-        },
-      }
+          lat: {
+            gte: bounds.southWest.lat,
+            lte: bounds.northEast.lat,
+          },
+          lng: {
+            gte: bounds.southWest.lng,
+            lte: bounds.northEast.lng,
+          },
+        }
       : {};
 
     const sinceDate = new Date();
@@ -3896,22 +3903,22 @@ export class PropertiesService {
       typeof input.lat === "number" && typeof input.lng === "number";
     const bounds = hasCoords
       ? this.buildBoundsFromCenter(
-        input.lat as number,
-        input.lng as number,
-        input.radiusKm ?? 40,
-      )
+          input.lat as number,
+          input.lng as number,
+          input.radiusKm ?? 40,
+        )
       : null;
     const locationFilter = bounds
       ? {
-        lat: {
-          gte: bounds.southWest.lat,
-          lte: bounds.northEast.lat,
-        },
-        lng: {
-          gte: bounds.southWest.lng,
-          lte: bounds.northEast.lng,
-        },
-      }
+          lat: {
+            gte: bounds.southWest.lat,
+            lte: bounds.northEast.lat,
+          },
+          lng: {
+            gte: bounds.southWest.lng,
+            lte: bounds.northEast.lng,
+          },
+        }
       : {};
 
     const publicStatuses = [PropertyStatus.VERIFIED, PropertyStatus.PUBLISHED];
@@ -3934,15 +3941,15 @@ export class PropertiesService {
       .filter(Boolean) as string[];
     const cities = cityIds.length
       ? await this.prisma.city.findMany({
-        where: { id: { in: cityIds } },
-        select: {
-          id: true,
-          name: true,
-          lat: true,
-          lng: true,
-          province: { select: { name: true } },
-        },
-      })
+          where: { id: { in: cityIds } },
+          select: {
+            id: true,
+            name: true,
+            lat: true,
+            lng: true,
+            province: { select: { name: true } },
+          },
+        })
       : [];
 
     const cityCounts = new Map<string, number>();
@@ -3979,9 +3986,9 @@ export class PropertiesService {
       .filter(Boolean) as string[];
     const suburbs = suburbIds.length
       ? await this.prisma.suburb.findMany({
-        where: { id: { in: suburbIds } },
-        select: { id: true, name: true, city: { select: { name: true } } },
-      })
+          where: { id: { in: suburbIds } },
+          select: { id: true, name: true, city: { select: { name: true } } },
+        })
       : [];
 
     const suburbCounts = new Map<string, number>();
@@ -4377,18 +4384,18 @@ export class PropertiesService {
             create: [
               ...(hasProofOfOwnership
                 ? [
-                  {
-                    type: "PROOF_OF_OWNERSHIP" as const,
-                    status: "SUBMITTED" as const,
-                    evidenceUrls: dto.proofOfOwnershipUrls!,
-                  },
-                ]
+                    {
+                      type: "PROOF_OF_OWNERSHIP" as const,
+                      status: "SUBMITTED" as const,
+                      evidenceUrls: dto.proofOfOwnershipUrls!,
+                    },
+                  ]
                 : [
-                  {
-                    type: "PROOF_OF_OWNERSHIP" as const,
-                    status: "PENDING" as const,
-                  },
-                ]),
+                    {
+                      type: "PROOF_OF_OWNERSHIP" as const,
+                      status: "PENDING" as const,
+                    },
+                  ]),
               {
                 type: "LOCATION_CONFIRMATION" as const,
                 status: hasLocation
@@ -4402,18 +4409,18 @@ export class PropertiesService {
               },
               ...(hasPropertyPhotos
                 ? [
-                  {
-                    type: "PROPERTY_PHOTOS" as const,
-                    status: "SUBMITTED" as const,
-                    evidenceUrls: dto.propertyPhotoUrls!,
-                  },
-                ]
+                    {
+                      type: "PROPERTY_PHOTOS" as const,
+                      status: "SUBMITTED" as const,
+                      evidenceUrls: dto.propertyPhotoUrls!,
+                    },
+                  ]
                 : [
-                  {
-                    type: "PROPERTY_PHOTOS" as const,
-                    status: "PENDING" as const,
-                  },
-                ]),
+                    {
+                      type: "PROPERTY_PHOTOS" as const,
+                      status: "PENDING" as const,
+                    },
+                  ]),
             ],
           },
         },
@@ -4998,11 +5005,11 @@ export class PropertiesService {
         if (a.lat && a.lng && b.lat && b.lng) {
           const distA = Math.sqrt(
             Math.pow(a.lat - (input?.lat ?? 0), 2) +
-            Math.pow(a.lng - (input?.lng ?? 0), 2),
+              Math.pow(a.lng - (input?.lng ?? 0), 2),
           );
           const distB = Math.sqrt(
             Math.pow(b.lat - (input?.lat ?? 0), 2) +
-            Math.pow(b.lng - (input?.lng ?? 0), 2),
+              Math.pow(b.lng - (input?.lng ?? 0), 2),
           );
           // If difference is significant (> 0.01 deg ~= 1km), sort by distance
           if (Math.abs(distA - distB) > 0.0001) {
@@ -5027,36 +5034,36 @@ export class PropertiesService {
     const remainingSlots = Math.max(0, 12 - topFeatured.length);
     const fallbackProperties = remainingSlots
       ? await this.prisma.property.findMany({
-        where: {
-          status: {
-            in: [
-              PropertyStatus.VERIFIED,
-              PropertyStatus.PENDING_VERIFY,
-              PropertyStatus.PUBLISHED,
+          where: {
+            status: {
+              in: [
+                PropertyStatus.VERIFIED,
+                PropertyStatus.PENDING_VERIFY,
+                PropertyStatus.PUBLISHED,
+              ],
+            },
+            id: topFeatured.length
+              ? { notIn: topFeatured.map((property) => property.id) }
+              : undefined,
+            // Only Verified/Trusted if filling slots
+            OR: [
+              {
+                verificationLevel: {
+                  in: [VerificationLevel.VERIFIED, VerificationLevel.TRUSTED],
+                },
+              },
+              { verificationScore: { gte: 70 } },
             ],
           },
-          id: topFeatured.length
-            ? { notIn: topFeatured.map((property) => property.id) }
-            : undefined,
-          // Only Verified/Trusted if filling slots
-          OR: [
-            {
-              verificationLevel: {
-                in: [VerificationLevel.VERIFIED, VerificationLevel.TRUSTED],
-              },
-            },
-            { verificationScore: { gte: 70 } },
-          ],
-        },
-        include: {
-          media: { take: 1 },
-          city: true,
-          suburb: true,
-          featuredListing: true,
-        },
-        orderBy: [{ verificationScore: "desc" }, { updatedAt: "desc" }],
-        take: remainingSlots,
-      })
+          include: {
+            media: { take: 1 },
+            city: true,
+            suburb: true,
+            featuredListing: true,
+          },
+          orderBy: [{ verificationScore: "desc" }, { updatedAt: "desc" }],
+          take: remainingSlots,
+        })
       : [];
 
     const finalProperties = [...topFeatured, ...fallbackProperties];
@@ -5076,11 +5083,11 @@ export class PropertiesService {
         if (a.lat && a.lng && b.lat && b.lng) {
           const distA = Math.sqrt(
             Math.pow(a.lat - (input?.lat ?? 0), 2) +
-            Math.pow(a.lng - (input?.lng ?? 0), 2),
+              Math.pow(a.lng - (input?.lng ?? 0), 2),
           );
           const distB = Math.sqrt(
             Math.pow(b.lat - (input?.lat ?? 0), 2) +
-            Math.pow(b.lng - (input?.lng ?? 0), 2),
+              Math.pow(b.lng - (input?.lng ?? 0), 2),
           );
           if (Math.abs(distA - distB) > 0.0001) {
             return distA - distB;

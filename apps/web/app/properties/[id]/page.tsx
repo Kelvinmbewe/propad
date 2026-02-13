@@ -1,205 +1,270 @@
+import { notFound } from "next/navigation";
+import { Badge } from "@propad/ui";
+import { LandingNav } from "@/components/landing-nav";
+import { ViewTracker } from "@/components/view-tracker";
+import { ListingGallery } from "@/components/property-detail/listing-gallery";
+import { PropertyOffersCard } from "@/components/property-detail/property-offers-card";
+import { ListingSidebar } from "@/components/property-detail/listing-sidebar";
+import { ListingLocationMap } from "@/components/property-detail/listing-location-map";
+import { NearbyListingsPanel } from "@/components/property-detail/nearby-listings-panel";
+import { formatCurrency } from "@/lib/formatters";
+import { serverPublicApiRequest } from "@/lib/server-api";
 
-
-import { LandingNav } from '@/components/landing-nav';
-import { ApplicationModal } from '@/components/application-modal';
-import { InterestButton } from '@/components/interest-button';
-import { auth } from '@/auth';
-import { PropertyMessenger } from '@/components/property-messenger';
-import { PropertyImage } from '@/components/property-image';
-import { notFound } from 'next/navigation';
-import { Bath, BedDouble, MapPin, Ruler, Star, CheckCircle2 } from 'lucide-react';
-import { Badge, Button } from '@propad/ui';
-import { ViewTracker } from '@/components/view-tracker';
-import { serverPublicApiRequest } from '@/lib/server-api';
-import { getImageUrl } from '@/lib/image-url';
-
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface PropertyDetails {
-    id: string;
-    title: string;
-    description: string | null;
-    price: string; // Decimal often comes as string in JSON
-    currency: string;
-    bedrooms: number;
-    bathrooms: number;
-    areaSqm: number | null;
-    listingIntent: string;
-    status: string;
-    verificationLevel: string;
-    isPromoted: boolean;
-    landlordId: string;
-    agentOwnerId: string | null;
-    location: {
-        country?: { name: string };
-        city?: { name: string };
-        suburb?: { name: string };
+  id: string;
+  title: string;
+  description?: string | null;
+  price: string | number;
+  currency?: string;
+  type: string;
+  listingIntent: "FOR_SALE" | "TO_RENT";
+  status?: string;
+  verificationLevel?: string;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  areaSqm?: number | null;
+  furnishing?: string | null;
+  amenities?: string[] | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  media?: Array<{ id?: string; url: string }>;
+  location?: {
+    lat?: number;
+    lng?: number;
+    suburb?: { name?: string };
+    city?: { name?: string };
+    province?: { name?: string };
+  };
+  suburbName?: string | null;
+  cityName?: string | null;
+  provinceName?: string | null;
+  landlordId?: string | null;
+  agentOwnerId?: string | null;
+  landlord?: {
+    id?: string;
+    name?: string | null;
+    phone?: string | null;
+  } | null;
+  agentOwner?: {
+    id?: string;
+    name?: string | null;
+    phone?: string | null;
+  } | null;
+  assignedAgent?: {
+    id?: string;
+    name?: string | null;
+    phone?: string | null;
+  } | null;
+  agency?: { id?: string; name?: string | null; phone?: string | null } | null;
+  commercialFields?: {
+    floorAreaSqm?: number | null;
+    parkingBays?: number | null;
+    powerPhase?: string | null;
+    loadingBay?: boolean | null;
+  } | null;
+}
+
+async function getProperty(id: string) {
+  try {
+    return await serverPublicApiRequest<PropertyDetails>(`/properties/${id}`);
+  } catch {
+    return null;
+  }
+}
+
+function locationText(property: PropertyDetails) {
+  return [
+    property.suburbName ?? property.location?.suburb?.name,
+    property.cityName ?? property.location?.city?.name,
+    property.provinceName ?? property.location?.province?.name,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function entityForSidebar(property: PropertyDetails) {
+  if (property.agency?.name) {
+    return {
+      name: property.agency.name,
+      roleLabel: "Agency",
+      phone: property.agency.phone,
+      profileHref: property.agency.id
+        ? `/agencies/${property.agency.id}`
+        : "/agencies",
     };
-    media: { url: string; type: string }[];
-    amenities: string[];
+  }
+  if (property.assignedAgent?.name) {
+    return {
+      name: property.assignedAgent.name,
+      roleLabel: "Agent",
+      phone: property.assignedAgent.phone,
+      profileHref: property.assignedAgent.id
+        ? `/agents/${property.assignedAgent.id}`
+        : "/agencies",
+    };
+  }
+  if (property.agentOwner?.name) {
+    return {
+      name: property.agentOwner.name,
+      roleLabel: "Agent",
+      phone: property.agentOwner.phone,
+      profileHref: property.agentOwner.id
+        ? `/agents/${property.agentOwner.id}`
+        : "/agencies",
+    };
+  }
+  return {
+    name: property.landlord?.name ?? "Property owner",
+    roleLabel: "Landlord",
+    phone: property.landlord?.phone,
+    profileHref: null,
+  };
 }
 
-async function getProperty(id: string): Promise<PropertyDetails | null> {
-    try {
-        // Fetch from API
-        // NOTE: We rely on serverPublicApiRequest to handle the base URL.
-        // It might be using internal Docker URL.
-        const property = await serverPublicApiRequest<PropertyDetails>(`/properties/${id}`);
-        return property;
-    } catch (error) {
-        console.error('Failed to fetch property:', error);
-        return null;
-    }
+function offeringExtras(property: PropertyDetails) {
+  const extras: string[] = [];
+  const amenityText = (property.amenities ?? []).map((entry) =>
+    entry.toLowerCase(),
+  );
+  const hasAmenity = (name: string) =>
+    amenityText.some((entry) => entry.includes(name));
+  if (hasAmenity("borehole")) extras.push("Borehole");
+  if (hasAmenity("solar")) extras.push("Solar");
+  if (hasAmenity("security")) extras.push("Security");
+  if (hasAmenity("water")) extras.push("Water");
+  if (hasAmenity("backup") || property.commercialFields?.powerPhase)
+    extras.push("Power backup");
+  if (property.commercialFields?.loadingBay) extras.push("Loading bay");
+  return extras;
 }
 
-export default async function PropertyDetailsPage({ params }: { params: { id: string } }) {
-    const session = await auth();
-    const property = await getProperty(params.id);
+export default async function PropertyDetailsPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const property = await getProperty(params.id);
+  if (!property) notFound();
 
-    if (!property) {
-        notFound();
-    }
+  const location = locationText(property) || "Zimbabwe";
+  const price = formatCurrency(
+    Number(property.price ?? 0),
+    property.currency ?? "USD",
+  );
+  const isRent = property.listingIntent === "TO_RENT";
+  const verificationStatus = (property.status ?? "").toUpperCase();
+  const verificationLevel = (property.verificationLevel ?? "").toUpperCase();
+  const isVerified =
+    verificationLevel === "VERIFIED" || verificationLevel === "TRUSTED";
+  const extras = offeringExtras(property);
+  const lat =
+    typeof property.location?.lat === "number"
+      ? property.location.lat
+      : undefined;
+  const lng =
+    typeof property.location?.lng === "number"
+      ? property.location.lng
+      : undefined;
 
-    // Authorization Check for Drafts (If API allows fetching but we want to double check UI side)
-    // The API `findById` already strictly hides non-published for public.
-    // If we are OWNER, the API `findById` would have returned it because we passed User (if we did).
-    // Wait, `serverPublicApiRequest` usually doesn't pass Auth cookies unless configured.
-    // D3 task said "Public: only PUBLISHED".
-    // Owners might access via Dashboard, but if they click "View Listing" from Dashboard, they might land here.
-    // If they land here and are logged in, we should ideally pass their token to `getProperty` to see DRAFTs.
-    // But `getProperty` here uses `serverPublicApiRequest` which might not forward headers.
-    // For now, let's assume this page is the PUBLIC view.
-    // Owner preview might need a separate mechanism or token forwarding.
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <LandingNav />
+      <ViewTracker propertyId={property.id} />
 
-    const locationString = [
-        property.location?.suburb?.name,
-        property.location?.city?.name,
-        property.location?.country?.name
-    ].filter(Boolean).join(', ');
+      <main className="mx-auto max-w-7xl px-4 pb-12 pt-24 sm:px-6 lg:px-8">
+        <div className="space-y-5">
+          <ListingGallery media={property.media ?? []} title={property.title} />
 
-    // Safely handle price
-    const priceNum = Number(property.price);
-    const formattedPrice = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: property.currency || 'USD'
-    }).format(priceNum);
-
-    const mainImage = property.media?.[0]?.url
-        ? getImageUrl(property.media[0].url)
-        : 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80';
-
-    return (
-        <div className="min-h-screen bg-slate-50">
-            <LandingNav />
-            <ViewTracker propertyId={property.id} />
-            <main className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
-                <div className="overflow-hidden rounded-2xl bg-white shadow-xl">
-                    <div className="relative h-96 w-full sm:h-[500px]">
-                        <PropertyImage
-                            src={mainImage}
-                            alt={property.title}
-                            className="h-full w-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-
-                        {/* Status Badges */}
-                        <div className="absolute top-4 right-4 flex gap-2">
-                            {property.isPromoted && <Badge className="bg-purple-600">Promoted</Badge>}
-                            {(property.verificationLevel === 'VERIFIED' || property.verificationLevel === 'TRUSTED') && (
-                                <Badge className="bg-blue-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Verified</Badge>
-                            )}
-                            {property.status !== 'VERIFIED' && <Badge variant="secondary">{property.status}</Badge>}
-                        </div>
-
-                        <div className="absolute bottom-0 left-0 p-8 text-white">
-                            <div className="mb-2 flex items-center gap-2">
-                                <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${property.listingIntent === 'TO_RENT' ? 'bg-blue-500' : 'bg-emerald-500'
-                                    }`}>
-                                    {property.listingIntent === 'TO_RENT' ? 'For Rent' : 'For Sale'}
-                                </span>
-                                <span className="flex items-center gap-1 text-sm font-medium">
-                                    <MapPin className="h-4 w-4" /> {locationString}
-                                </span>
-                            </div>
-                            <h1 className="text-3xl font-bold sm:text-4xl">{property.title}</h1>
-                            <p className="mt-2 text-2xl font-semibold text-emerald-400">
-                                {formattedPrice}{property.listingIntent === 'TO_RENT' ? '/month' : ''}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="grid gap-8 p-8 lg:grid-cols-3">
-                        <div className="lg:col-span-2">
-                            <h2 className="text-xl font-bold text-slate-900">Description</h2>
-                            <p className="mt-4 text-slate-600 leading-relaxed whitespace-pre-wrap">
-                                {property.description || 'No description available for this property.'}
-                            </p>
-
-                            {property.amenities && property.amenities.length > 0 && (
-                                <div className="mt-8">
-                                    <h3 className="text-lg font-semibold mb-3">Amenities</h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        {property.amenities.map(a => (
-                                            <Badge key={a} variant="outline" className="bg-slate-50">{a}</Badge>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="mt-8 grid grid-cols-3 gap-4 rounded-xl bg-slate-50 p-6">
-                                <div className="flex flex-col items-center justify-center gap-2 text-slate-600">
-                                    <BedDouble className="h-6 w-6 text-emerald-600" />
-                                    <span className="font-semibold">{property.bedrooms} Bedrooms</span>
-                                </div>
-                                <div className="flex flex-col items-center justify-center gap-2 text-slate-600">
-                                    <Bath className="h-6 w-6 text-emerald-600" />
-                                    <span className="font-semibold">{property.bathrooms} Bathrooms</span>
-                                </div>
-                                <div className="flex flex-col items-center justify-center gap-2 text-slate-600">
-                                    <Ruler className="h-6 w-6 text-emerald-600" />
-                                    <span className="font-semibold">{property.areaSqm ? `${property.areaSqm} m²` : '-- m²'}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-6">
-                            {/* Role Based Actions */}
-                            {session?.user?.id === property.landlordId || session?.user?.id === property.agentOwnerId ? (
-                                <div className="rounded-lg border border-neutral-200 bg-emerald-50 p-4 text-center">
-                                    <p className="text-sm font-medium text-emerald-800 mb-2">You own this listing</p>
-                                    <Button className="w-full" asChild variant="outline">
-                                        <a href={`/dashboard/listings/${property.id}`}>Manage Listing</a>
-                                    </Button>
-                                </div>
-                            ) : (
-                                <>
-                                    <ApplicationModal
-                                        propertyId={property.id}
-                                        propertyTitle={property.title}
-                                    />
-
-                                    {session?.user ? (
-                                        <div id="chat">
-                                            <PropertyMessenger
-                                                propertyId={property.id}
-                                                landlordId={property.landlordId}
-                                                agentOwnerId={property.agentOwnerId}
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="rounded-lg border border-neutral-200 bg-white p-4 text-center">
-                                            <p className="text-sm text-neutral-600 mb-2">Sign in to chat with the owner</p>
-                                            <Button asChild variant="secondary" className="w-full">
-                                                <a href={`/auth/signin?callbackUrl=/properties/${property.id}`}>Sign In</a>
-                                            </Button>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    </div>
+          <section className="rounded-2xl border border-border bg-card p-5 text-card-foreground">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-2">
+                <h1 className="text-3xl font-semibold text-foreground">
+                  {property.title}
+                </h1>
+                <p className="text-sm text-muted-foreground">{location}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-emerald-600 text-white">
+                    {isRent ? "FOR RENT" : "FOR SALE"}
+                  </Badge>
+                  <Badge variant="secondary">
+                    {isVerified ? "VERIFIED" : "PENDING_VERIFY"}
+                  </Badge>
+                  {verificationStatus ? (
+                    <Badge variant="outline">{verificationStatus}</Badge>
+                  ) : null}
                 </div>
-            </main>
+              </div>
+
+              <p className="text-3xl font-semibold text-emerald-600">
+                {price}
+                {isRent ? (
+                  <span className="ml-1 text-base text-muted-foreground">
+                    /month
+                  </span>
+                ) : null}
+              </p>
+            </div>
+          </section>
+
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="space-y-6">
+              <PropertyOffersCard
+                bedrooms={property.bedrooms}
+                bathrooms={property.bathrooms}
+                floorArea={
+                  property.areaSqm ??
+                  property.commercialFields?.floorAreaSqm ??
+                  null
+                }
+                propertyType={property.type}
+                furnished={property.furnishing}
+                parking={property.commercialFields?.parkingBays ?? null}
+                extras={extras}
+                createdAt={property.createdAt}
+                updatedAt={property.updatedAt}
+              />
+
+              <section className="rounded-2xl border border-border bg-card p-5 text-card-foreground">
+                <h2 className="text-lg font-semibold text-foreground">
+                  Description
+                </h2>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
+                  {property.description ||
+                    "No description available for this listing yet."}
+                </p>
+              </section>
+
+              <ListingLocationMap
+                lat={lat}
+                lng={lng}
+                locationLabel={location}
+              />
+
+              <NearbyListingsPanel
+                currentId={property.id}
+                lat={lat}
+                lng={lng}
+                intent={property.listingIntent}
+                price={Number(property.price ?? 0)}
+                locationLabel={
+                  property.suburbName ?? property.cityName ?? location
+                }
+                areaQuery={property.suburbName ?? property.cityName ?? location}
+              />
+            </div>
+
+            <ListingSidebar
+              propertyId={property.id}
+              propertyTitle={property.title}
+              landlordId={property.landlord?.id ?? property.landlordId}
+              agentOwnerId={property.agentOwner?.id ?? property.agentOwnerId}
+              entity={entityForSidebar(property)}
+            />
+          </div>
         </div>
-    );
+      </main>
+    </div>
+  );
 }

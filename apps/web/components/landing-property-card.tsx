@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Bath, BedDouble, Ruler } from "lucide-react";
 import { getImageUrl } from "@/lib/image-url";
@@ -44,6 +45,7 @@ export function LandingPropertyCard({
   className?: string;
   onListingClick?: (propertyId: string) => void;
 }) {
+  const router = useRouter();
   const intent: "sale" | "rent" = property.statusTone
     ? property.statusTone
     : property.listingIntent === "TO_RENT"
@@ -75,18 +77,42 @@ export function LandingPropertyCard({
   const isCompact = variant === "compact";
   const isFeaturedVariant = variant === "featured";
   const imageHeight = isCompact ? "h-56" : "h-64";
+  const detailsHref = `/properties/${property.id}`;
+
+  const shouldSkipCardNavigation = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return false;
+    return Boolean(
+      target.closest("a,button,input,textarea,select,[role='button']"),
+    );
+  };
 
   return (
     <motion.article
       whileHover={{ scale: 1.015 }}
       transition={{ type: "spring", stiffness: 260, damping: 24 }}
       className={clsx(
-        "group flex flex-col overflow-hidden rounded-[24px] bg-card text-card-foreground shadow-lg ring-1 ring-border",
+        "group flex cursor-pointer flex-col overflow-hidden rounded-[24px] bg-card text-card-foreground shadow-lg ring-1 ring-border",
         isCompact && "shadow-sm",
         isFeaturedVariant &&
           "ring-amber-200 shadow-[0_30px_60px_-40px_rgba(251,191,36,0.6)]",
         className,
       )}
+      role="link"
+      tabIndex={0}
+      aria-label={`Open listing ${property.title}`}
+      onClick={(event) => {
+        if (shouldSkipCardNavigation(event.target)) return;
+        onListingClick?.(property.id);
+        router.push(detailsHref);
+      }}
+      onKeyDown={(event) => {
+        if (shouldSkipCardNavigation(event.target)) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onListingClick?.(property.id);
+          router.push(detailsHref);
+        }
+      }}
     >
       <div className={clsx("relative overflow-hidden", imageHeight)}>
         <Image
@@ -169,7 +195,7 @@ export function LandingPropertyCard({
             Curated by PropAd
           </span>
           <Link
-            href={`/properties/${property.id}`}
+            href={detailsHref}
             onClick={() => onListingClick?.(property.id)}
             className="text-xs font-semibold text-muted-foreground hover:text-emerald-500"
           >

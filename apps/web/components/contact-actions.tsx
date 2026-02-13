@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useCallback, useMemo, useState } from 'react';
-import { useSession } from 'next-auth/react';
-import type { Property } from '@propad/sdk';
-import { Button } from '@propad/ui';
-import { api } from '@/lib/api-client';
-import { PropertyMessenger } from './property-messenger';
+import { useCallback, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
+import type { Property } from "@propad/sdk";
+import { Button } from "@propad/ui";
+import { api } from "@/lib/api-client";
+import { PropertyMessenger } from "./property-messenger";
 
 interface ContactActionsProps {
   property: Property;
@@ -26,44 +26,49 @@ export function ContactActions({ property }: ContactActionsProps) {
       property.location.city?.name ??
       property.location.province?.name ??
       property.location.country?.name ??
-      'Zimbabwe'
+      "Zimbabwe"
     );
   }, [property]);
-  const typeLabel = useMemo(() => property.type.replace(/_/g, ' ').toLowerCase(), [property.type]);
+  const typeLabel = useMemo(
+    () => property.type.replace(/_/g, " ").toLowerCase(),
+    [property.type],
+  );
   const propertyDetails = property as Property & {
     landlord?: { id?: string | null } | null;
     agentOwner?: { id?: string | null } | null;
     landlordId?: string | null;
     agentOwnerId?: string | null;
   };
-  const landlordId = propertyDetails.landlord?.id ?? propertyDetails.landlordId ?? null;
-  const agentOwnerId = propertyDetails.agentOwner?.id ?? propertyDetails.agentOwnerId ?? null;
+  const landlordId =
+    propertyDetails.landlord?.id ?? propertyDetails.landlordId ?? null;
+  const agentOwnerId =
+    propertyDetails.agentOwner?.id ?? propertyDetails.agentOwnerId ?? null;
   const userId = session?.user?.id;
-  const role = session?.user?.role;
+  const role = String(session?.user?.role ?? "");
   const isParticipant =
-    (role === 'LANDLORD' && landlordId && landlordId === userId) ||
-    (role === 'AGENT' && agentOwnerId && agentOwnerId === userId);
+    (role === "LANDLORD" && landlordId && landlordId === userId) ||
+    (role === "AGENT" && agentOwnerId && agentOwnerId === userId);
 
   const ensureShortLink = useCallback(async () => {
     if (shortUrl) {
       return shortUrl;
     }
 
-    if (typeof window === 'undefined') {
-      return '';
+    if (typeof window === "undefined") {
+      return "";
     }
 
     setIsLoading(true);
     try {
-      const targetUrl = `${window.location.origin}/listings/${property.id}`;
+      const targetUrl = `${window.location.origin}/properties/${property.id}`;
       const link = await api.shortlinks.create({
         targetUrl,
         propertyId: property.id,
-        utmSource: 'whatsapp',
-        utmMedium: 'web-detail',
-        utmCampaign: 'whatsapp-share',
+        utmSource: "whatsapp",
+        utmMedium: "web-detail",
+        utmCampaign: "whatsapp-share",
         utmContent: property.type,
-        utmTerm: location ?? undefined
+        utmTerm: location ?? undefined,
       });
       const url = `${window.location.origin}/s/${link.code}`;
       setShortUrl(url);
@@ -80,15 +85,15 @@ export function ContactActions({ property }: ContactActionsProps) {
     }
 
     const message = encodeURIComponent(
-      `Hi, I'm interested in the ${typeLabel} in ${location}. See details here: ${url}`
+      `Hi, I'm interested in the ${typeLabel} in ${location}. See details here: ${url}`,
     );
 
-    window.open(`https://wa.me/?text=${message}`, '_blank', 'noopener');
+    window.open(`https://wa.me/?text=${message}`, "_blank", "noopener");
   }, [ensureShortLink, location, typeLabel]);
 
   const handleCopy = useCallback(async () => {
     const url = await ensureShortLink();
-    if (!url || typeof navigator === 'undefined' || !navigator.clipboard) {
+    if (!url || typeof navigator === "undefined" || !navigator.clipboard) {
       return;
     }
 
@@ -100,12 +105,19 @@ export function ContactActions({ property }: ContactActionsProps) {
   return (
     <div className="mt-4 grid gap-3">
       <Button onClick={handleWhatsApp} disabled={isLoading} className="w-full">
-        {isLoading ? 'Preparing WhatsApp link…' : 'Message on WhatsApp'}
+        {isLoading ? "Preparing WhatsApp link…" : "Message on WhatsApp"}
       </Button>
-      <Button onClick={handleCopy} variant="secondary" disabled={isLoading} className="w-full">
-        {copied ? 'Shortlink copied!' : 'Copy share shortlink'}
+      <Button
+        onClick={handleCopy}
+        variant="secondary"
+        disabled={isLoading}
+        className="w-full"
+      >
+        {copied ? "Shortlink copied!" : "Copy share shortlink"}
       </Button>
-      {shortUrl ? <p className="text-xs text-neutral-500">Sharing URL: {shortUrl}</p> : null}
+      {shortUrl ? (
+        <p className="text-xs text-neutral-500">Sharing URL: {shortUrl}</p>
+      ) : null}
       {isParticipant ? (
         <PropertyMessenger
           propertyId={property.id}

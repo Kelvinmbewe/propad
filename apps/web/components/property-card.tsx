@@ -77,7 +77,10 @@ export function PropertyCard({
             highlighted,
         })}
       >
-        <Link href={`/listings/${property.id}`} className="group block h-full">
+        <Link
+          href={`/properties/${property.id}`}
+          className="group block h-full"
+        >
           {primaryImage ? (
             <div className="relative h-52 w-full overflow-hidden">
               <Image
