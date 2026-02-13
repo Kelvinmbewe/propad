@@ -32,10 +32,10 @@ export function TopPartnersSection({
         <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">
           Trusted partners
         </span>
-        <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
+        <h2 className="text-3xl font-semibold text-foreground sm:text-4xl">
           Top agents and agencies near {locationLabel}
         </h2>
-        <p className="max-w-2xl text-base text-slate-600">
+        <p className="max-w-2xl text-base text-muted-foreground">
           Ranked by ratings, verified listings, and average trust scores.
         </p>
       </div>
@@ -47,7 +47,7 @@ export function TopPartnersSection({
             className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] ${
               activeTab === "agents"
                 ? "bg-emerald-600 text-white"
-                : "border border-slate-200 text-slate-600"
+                : "border border-border bg-card text-muted-foreground"
             }`}
           >
             Agents
@@ -58,7 +58,7 @@ export function TopPartnersSection({
             className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] ${
               activeTab === "agencies"
                 ? "bg-emerald-600 text-white"
-                : "border border-slate-200 text-slate-600"
+                : "border border-border bg-card text-muted-foreground"
             }`}
           >
             Agencies
@@ -73,12 +73,12 @@ export function TopPartnersSection({
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {activeTab === "agents" && !hasAgents ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+          <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
             No verified agents are available near this location yet.
           </div>
         ) : null}
         {activeTab === "agencies" && !hasAgencies ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+          <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
             No verified agencies are available near this location yet.
           </div>
         ) : null}
@@ -93,34 +93,34 @@ export function TopPartnersSection({
                     agentId: agent.id,
                   })
                 }
-                className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                       Agent
                     </p>
-                    <h3 className="mt-1 text-lg font-semibold text-slate-900">
+                    <h3 className="mt-1 text-lg font-semibold text-card-foreground">
                       {agent.name ?? "Verified agent"}
                     </h3>
                   </div>
                   <UserCheck className="h-6 w-6 text-emerald-500" />
                 </div>
-                <div className="flex items-center justify-between text-sm text-slate-600">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>Rating</span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-semibold text-card-foreground">
                     {agent.rating?.toFixed(1) ?? "0.0"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-sm text-slate-600">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>Verified listings</span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-semibold text-card-foreground">
                     {agent.verifiedListingsCount}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-sm text-slate-600">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>Avg listing trust</span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-semibold text-card-foreground">
                     {Math.round(agent.averageListingTrust)}
                   </span>
                 </div>
@@ -136,34 +136,34 @@ export function TopPartnersSection({
                     agencyId: agency.id,
                   })
                 }
-                className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                       Agency
                     </p>
-                    <h3 className="mt-1 text-lg font-semibold text-slate-900">
+                    <h3 className="mt-1 text-lg font-semibold text-card-foreground">
                       {agency.name}
                     </h3>
                   </div>
                   <Building2 className="h-6 w-6 text-emerald-500" />
                 </div>
-                <div className="flex items-center justify-between text-sm text-slate-600">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>Rating</span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-semibold text-card-foreground">
                     {agency.rating?.toFixed(1) ?? "0.0"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-sm text-slate-600">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>Verified listings</span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-semibold text-card-foreground">
                     {agency.verifiedListingsCount}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-sm text-slate-600">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>Avg listing trust</span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-semibold text-card-foreground">
                     {Math.round(agency.averageListingTrust)}
                   </span>
                 </div>

@@ -38,10 +38,10 @@ export function ExploreByAreaSection({
         <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">
           Explore by area
         </span>
-        <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
+        <h2 className="text-3xl font-semibold text-foreground sm:text-4xl">
           Browse cities and popular suburbs nearby
         </h2>
-        <p className="max-w-2xl text-base text-slate-600">
+        <p className="max-w-2xl text-base text-muted-foreground">
           Discover trusted homes across Zimbabwe with verified-only results by
           default.
         </p>
@@ -56,23 +56,25 @@ export function ExploreByAreaSection({
                 35,
               ),
             )}`}
-            className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-emerald-200 hover:shadow-md"
+            className="group rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:-translate-y-1 hover:border-emerald-200 hover:shadow-md"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                   City
                 </p>
-                <h3 className="mt-2 text-xl font-semibold text-slate-900">
+                <h3 className="mt-2 text-xl font-semibold text-card-foreground">
                   {location.name}
                 </h3>
                 {location.province ? (
-                  <p className="text-xs text-slate-400">{location.province}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {location.province}
+                  </p>
                 ) : null}
               </div>
               <MapPin className="h-6 w-6 text-emerald-500" />
             </div>
-            <p className="mt-4 text-sm text-slate-600">
+            <p className="mt-4 text-sm text-muted-foreground">
               Explore verified listings in {location.name}.
             </p>
             {location.count ? (
@@ -89,19 +91,19 @@ export function ExploreByAreaSection({
             <Link
               key={area.id}
               href={`/listings?verifiedOnly=true&suburb=${encodeURIComponent(area.name)}`}
-              className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/60 px-5 py-4 text-sm text-slate-700 transition hover:border-emerald-200 hover:text-emerald-600"
+              className="flex items-center justify-between rounded-2xl border border-border bg-muted/60 px-5 py-4 text-sm text-foreground transition hover:border-emerald-200 hover:text-emerald-600"
             >
               <span className="font-semibold">
                 {area.name}
                 {area.city ? `, ${area.city}` : ""}
               </span>
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-emerald-600">
+              <span className="rounded-full bg-card px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-300">
                 {area.count ?? 0} listings
               </span>
             </Link>
           ))
         ) : (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+          <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
             We are still mapping popular suburbs near you.
           </div>
         )}

@@ -483,7 +483,7 @@ export function HomePageClient({
             {Array.from({ length: 6 }).map((_, index) => (
               <div
                 key={index}
-                className="h-96 rounded-2xl bg-slate-200/70 animate-pulse"
+                className="h-96 animate-pulse rounded-2xl bg-muted"
               />
             ))}
           </div>
@@ -536,22 +536,22 @@ export function HomePageClient({
           <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">
             How verification works
           </span>
-          <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
+          <h2 className="text-3xl font-semibold text-foreground sm:text-4xl">
             Trust-first protections on every listing.
           </h2>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <div className="rounded-2xl border border-border bg-card p-6">
             <ShieldCheck className="h-6 w-6 text-emerald-500" />
-            <h3 className="mt-4 text-lg font-semibold text-slate-900">
+            <h3 className="mt-4 text-lg font-semibold text-card-foreground">
               Verified listings
             </h3>
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 text-sm text-muted-foreground">
               Listings earn trust points for photos, GPS, and documentation
               before they rank.
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <div className="rounded-2xl border border-border bg-card p-6">
             <TrustBadge
               trustScore={82}
               maxScore={110}
@@ -562,20 +562,20 @@ export function HomePageClient({
                 siteVisit: false,
               }}
             />
-            <h3 className="mt-4 text-lg font-semibold text-slate-900">
+            <h3 className="mt-4 text-lg font-semibold text-card-foreground">
               In-house chat safety
             </h3>
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 text-sm text-muted-foreground">
               Message verified agents instantly and track every conversation
               safely.
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-6">
+          <div className="rounded-2xl border border-border bg-card p-6">
             <UserCheck className="h-6 w-6 text-emerald-500" />
-            <h3 className="mt-4 text-lg font-semibold text-slate-900">
+            <h3 className="mt-4 text-lg font-semibold text-card-foreground">
               Verified agents
             </h3>
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 text-sm text-muted-foreground">
               Agencies and agents earn higher trust scores with verified
               listings and reviews.
             </p>

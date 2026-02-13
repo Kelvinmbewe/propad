@@ -35,10 +35,12 @@ export function ListingsGridSection({
           <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">
             Homes near {locationLabel}
           </span>
-          <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
+          <h2 className="text-3xl font-semibold text-foreground sm:text-4xl">
             {title}
           </h2>
-          <p className="max-w-2xl text-base text-slate-600">{subtitle}</p>
+          <p className="max-w-2xl text-base text-muted-foreground">
+            {subtitle}
+          </p>
         </div>
         <Link href={viewAllHref}>
           <Button variant="outline" className="rounded-full">
@@ -47,7 +49,7 @@ export function ListingsGridSection({
         </Link>
       </div>
       {listings.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-600">
+        <div className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">
           No verified listings match this area yet. Try another location or
           adjust filters.
         </div>

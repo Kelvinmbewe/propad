@@ -90,7 +90,7 @@ export function HeroSearchCard({
         sizes="100vw"
         className="absolute inset-0 object-cover"
       />
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(4,80,84,0.6),rgba(9,30,52,0.55))]" />
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(2,32,40,0.68),rgba(8,24,44,0.62))]" />
       <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-10 px-6 pb-16 pt-24 text-white sm:px-10 lg:px-16">
         <div className="flex flex-col gap-4 text-center">
           <p className="text-xs uppercase tracking-[0.4em] text-emerald-200">
@@ -106,20 +106,20 @@ export function HeroSearchCard({
         </div>
 
         <form
-          className="mx-auto w-full max-w-4xl rounded-3xl bg-white p-5 shadow-[0_30px_80px_-50px_rgba(15,23,42,0.85)]"
+          className="mx-auto w-full max-w-4xl rounded-3xl border border-border bg-card p-5 text-card-foreground shadow-[0_30px_80px_-50px_rgba(15,23,42,0.85)]"
           onSubmit={(event) => {
             event.preventDefault();
             onSearch();
           }}
         >
-          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
+          <div className="flex flex-wrap items-center gap-2 border-b border-border pb-4">
             <button
               type="button"
               onClick={() => onSearchStateChange({ intent: "FOR_SALE" })}
               className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] transition ${
                 searchState.intent === "FOR_SALE"
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-500 hover:text-slate-900"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               For Sale
@@ -129,13 +129,13 @@ export function HeroSearchCard({
               onClick={() => onSearchStateChange({ intent: "TO_RENT" })}
               className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] transition ${
                 searchState.intent === "TO_RENT"
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-500 hover:text-slate-900"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               To Rent
             </button>
-            <span className="ml-auto text-xs uppercase tracking-[0.3em] text-emerald-500">
+            <span className="ml-auto text-xs uppercase tracking-[0.3em] text-emerald-600 dark:text-emerald-400">
               Verified-only
             </span>
             <Switch
@@ -147,10 +147,10 @@ export function HeroSearchCard({
           </div>
 
           <div className="mt-5 grid gap-4 lg:grid-cols-[1.6fr_1fr_auto]">
-            <div className="rounded-2xl border border-slate-200 px-4 py-3">
+            <div className="rounded-2xl border border-border px-4 py-3">
               <Label
                 htmlFor="hero-location"
-                className="text-[11px] uppercase tracking-[0.3em] text-slate-400"
+                className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground"
               >
                 City, suburb, or town
               </Label>
@@ -166,22 +166,22 @@ export function HeroSearchCard({
                     })
                   }
                   placeholder="Start typing..."
-                  className="h-10 border-none px-0 text-base text-slate-900 shadow-none focus-visible:ring-0"
+                  className="h-10 border-none bg-transparent px-0 text-base text-foreground shadow-none focus-visible:ring-0"
                 />
                 <button
                   type="button"
                   onClick={onRequestLocation}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:border-emerald-200 hover:text-emerald-600"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:border-emerald-300 hover:text-emerald-600 dark:hover:text-emerald-300"
                   aria-label="Use my location"
                 >
                   <LocateFixed className="h-4 w-4" />
                 </button>
               </div>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {isLocating ? "Locating..." : helperLabel}
               </p>
               {suggestions.length > 0 && !searchState.locationId ? (
-                <div className="mt-3 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                <div className="mt-3 rounded-xl border border-border bg-popover p-2 text-popover-foreground shadow-sm">
                   {suggestions.map((item: any) => (
                     <button
                       key={item.id}
@@ -193,10 +193,10 @@ export function HeroSearchCard({
                           locationLevel: item.level,
                         })
                       }
-                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-emerald-50"
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-foreground hover:bg-emerald-50 dark:hover:bg-emerald-500/20"
                     >
                       <span>{item.name}</span>
-                      <span className="text-xs uppercase tracking-[0.25em] text-slate-400">
+                      <span className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
                         {item.level}
                       </span>
                     </button>
@@ -208,7 +208,7 @@ export function HeroSearchCard({
             <button
               type="button"
               onClick={() => setFiltersOpen((prev) => !prev)}
-              className="flex h-full items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:border-emerald-200 hover:text-emerald-600"
+              className="flex h-full items-center justify-between rounded-2xl border border-border px-4 py-3 text-sm font-semibold text-muted-foreground transition hover:border-emerald-300 hover:text-emerald-600 dark:hover:text-emerald-300"
             >
               <span className="flex items-center gap-2">
                 <SlidersHorizontal className="h-4 w-4" />
@@ -229,9 +229,9 @@ export function HeroSearchCard({
           </div>
 
           {filtersOpen ? (
-            <div className="mt-5 grid gap-4 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2">
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+            <div className="mt-5 grid gap-4 rounded-2xl bg-muted p-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-2 text-sm text-muted-foreground">
+                <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                   Property type
                 </span>
                 <select
@@ -239,7 +239,7 @@ export function HeroSearchCard({
                   onChange={(event) =>
                     onSearchStateChange({ propertyType: event.target.value })
                   }
-                  className="h-10 rounded-xl border border-slate-200 bg-white px-3"
+                  className="h-10 rounded-xl border border-input bg-background px-3 text-foreground"
                 >
                   {propertyTypes.map((type) => (
                     <option key={type.value} value={type.value}>
@@ -248,8 +248,8 @@ export function HeroSearchCard({
                   ))}
                 </select>
               </label>
-              <label className="flex flex-col gap-2 text-sm text-slate-600">
-                <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              <label className="flex flex-col gap-2 text-sm text-muted-foreground">
+                <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                   Price range
                 </span>
                 <select
@@ -257,7 +257,7 @@ export function HeroSearchCard({
                   onChange={(event) =>
                     onSearchStateChange({ priceRange: event.target.value })
                   }
-                  className="h-10 rounded-xl border border-slate-200 bg-white px-3"
+                  className="h-10 rounded-xl border border-input bg-background px-3 text-foreground"
                 >
                   {priceRanges.map((range) => (
                     <option key={range.value} value={range.value}>
@@ -266,8 +266,8 @@ export function HeroSearchCard({
                   ))}
                 </select>
               </label>
-              <label className="col-span-full flex flex-col gap-2 text-sm text-slate-600">
-                <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+              <label className="col-span-full flex flex-col gap-2 text-sm text-muted-foreground">
+                <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
                   Minimum trust score: {searchState.minTrust}
                 </span>
                 <input
@@ -294,7 +294,7 @@ export function HeroSearchCard({
                   key={location.label}
                   type="button"
                   onClick={() => onSelectQuickLocation(location)}
-                  className="rounded-full border border-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-500 transition hover:border-emerald-200 hover:text-emerald-600"
+                  className="rounded-full border border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-muted-foreground transition hover:border-emerald-300 hover:text-emerald-600 dark:hover:text-emerald-300"
                 >
                   {location.label}
                 </button>
@@ -303,7 +303,7 @@ export function HeroSearchCard({
             <button
               type="button"
               onClick={onCreateAlert}
-              className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-600 hover:text-emerald-500"
+              className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-600 hover:text-emerald-500 dark:text-emerald-300 dark:hover:text-emerald-200"
             >
               {isAuthenticated
                 ? "Create alert for this search"

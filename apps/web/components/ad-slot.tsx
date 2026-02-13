@@ -147,29 +147,27 @@ export function AdSlot({
       return (
         <div
           className={clsx(
-            "flex w-full flex-col gap-3 rounded-2xl border border-emerald-100 bg-gradient-to-br from-white via-emerald-50/40 to-cyan-50/40 p-5 text-sm text-slate-700 shadow-sm",
-            fallbackAd.tone === "cyan" &&
-              "border-cyan-100 from-white via-cyan-50/40 to-emerald-50/20",
-            fallbackAd.tone === "slate" &&
-              "border-slate-200 from-white via-slate-50/60 to-slate-100/40",
+            "flex w-full flex-col gap-3 rounded-2xl border border-border bg-card p-5 text-sm text-card-foreground shadow-sm",
+            fallbackAd.tone === "cyan" && "border-cyan-200/60",
+            fallbackAd.tone === "slate" && "border-border",
             className,
           )}
         >
-          <p className="text-xs uppercase tracking-[0.35em] text-emerald-400">
+          <p className="text-xs uppercase tracking-[0.35em] text-emerald-600 dark:text-emerald-400">
             Sponsor
           </p>
           <div className="flex flex-col gap-2">
-            <p className="text-base font-semibold text-slate-900">
+            <p className="text-base font-semibold text-foreground">
               {fallbackAd.title}
             </p>
             {fallbackAd.body ? (
-              <p className="text-sm text-slate-600">{fallbackAd.body}</p>
+              <p className="text-sm text-muted-foreground">{fallbackAd.body}</p>
             ) : null}
           </div>
           {fallbackAd.href ? (
             <a
               href={fallbackAd.href}
-              className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-50"
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-500/50 dark:text-emerald-300 dark:hover:bg-emerald-500/20"
             >
               {fallbackAd.ctaLabel ?? "Learn more"}
             </a>
@@ -181,7 +179,7 @@ export function AdSlot({
     return (
       <div
         className={clsx(
-          "flex h-36 w-full items-center justify-center rounded-md border border-dashed border-neutral-300 bg-neutral-100 text-sm text-neutral-500",
+          "flex h-36 w-full items-center justify-center rounded-md border border-dashed border-border bg-muted text-sm text-muted-foreground",
           className,
         )}
       >
@@ -193,7 +191,7 @@ export function AdSlot({
   return (
     <ins
       className={clsx(
-        "adsbygoogle block overflow-hidden rounded-lg bg-white shadow-sm",
+        "adsbygoogle block overflow-hidden rounded-lg bg-card shadow-sm",
         className,
       )}
       style={{ display: "block" }}

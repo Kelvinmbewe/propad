@@ -81,7 +81,7 @@ export function LandingPropertyCard({
       whileHover={{ scale: 1.015 }}
       transition={{ type: "spring", stiffness: 260, damping: 24 }}
       className={clsx(
-        "group flex flex-col overflow-hidden rounded-[24px] bg-white shadow-lg ring-1 ring-slate-100",
+        "group flex flex-col overflow-hidden rounded-[24px] bg-card text-card-foreground shadow-lg ring-1 ring-border",
         isCompact && "shadow-sm",
         isFeaturedVariant &&
           "ring-amber-200 shadow-[0_30px_60px_-40px_rgba(251,191,36,0.6)]",
@@ -134,12 +134,12 @@ export function LandingPropertyCard({
       <div
         className={clsx("flex flex-1 flex-col gap-4 p-6", isCompact && "gap-3")}
       >
-        <div className="flex flex-wrap items-center justify-between gap-3 text-slate-700">
-          <span className="text-sm font-medium uppercase tracking-[0.35em] text-slate-400">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-muted-foreground">
+          <span className="text-sm font-medium uppercase tracking-[0.35em] text-muted-foreground">
             Starting at
           </span>
           <div className="flex items-center gap-3">
-            <span className="text-lg font-semibold text-slate-900">
+            <span className="text-lg font-semibold text-card-foreground">
               {property.price}
             </span>
             <TrustBadge
@@ -150,7 +150,7 @@ export function LandingPropertyCard({
             />
           </div>
         </div>
-        <div className="flex items-center gap-4 text-sm text-slate-600">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span className="flex items-center gap-2">
             <BedDouble className="h-4 w-4" />
             {property.beds} Beds
@@ -171,7 +171,7 @@ export function LandingPropertyCard({
           <Link
             href={`/properties/${property.id}`}
             onClick={() => onListingClick?.(property.id)}
-            className="text-xs font-semibold text-slate-400 hover:text-emerald-500"
+            className="text-xs font-semibold text-muted-foreground hover:text-emerald-500"
           >
             View listing →
           </Link>

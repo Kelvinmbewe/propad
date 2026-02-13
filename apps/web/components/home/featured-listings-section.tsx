@@ -32,10 +32,10 @@ export function FeaturedListingsSection({
           <span className="text-xs uppercase tracking-[0.35em] text-amber-500">
             Featured properties
           </span>
-          <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">
+          <h2 className="text-3xl font-semibold text-foreground sm:text-4xl">
             Premium visibility, still verified.
           </h2>
-          <p className="max-w-2xl text-base text-slate-600">
+          <p className="max-w-2xl text-base text-muted-foreground">
             Featured homes maintain trust thresholds while receiving premium
             placement.
           </p>
