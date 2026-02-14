@@ -44,7 +44,7 @@ export default function PropertiesPage() {
             Discover Trusted Listings
           </h1>
           <p className="mt-2 text-lg text-slate-500">
-            Verified listings rank higher, with pending verification homes
+            Verified listings rank higher, with pending verification properties
             marked clearly.
           </p>
         </div>

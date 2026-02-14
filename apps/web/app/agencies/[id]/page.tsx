@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import { Metadata } from "next";
 import { TrustBadgeStack } from "@/components/trust/TrustBadgeStack";
 import { Star, MapPin, Building2, User } from "lucide-react";
 import { getPublicApiBaseUrl } from "@/lib/api-base-url";
+import { getImageUrl } from "@/lib/image-url";
+import { LandingNav } from "@/components/landing-nav";
+import { SiteFooter } from "@/components/site-footer";
 
 async function getAgencyProfile(id: string) {
   const apiBaseUrl = getPublicApiBaseUrl() ?? "http://localhost:3001/v1";
@@ -20,9 +22,9 @@ export async function generateMetadata({
   params: { id: string };
 }): Promise<Metadata> {
   const profile = await getAgencyProfile(params.id);
-  if (!profile) return { title: "Agency Not Found | ProPad" };
+  if (!profile) return { title: "Agency Not Found | PropAd" };
   return {
-    title: `${profile.name} - Verified Real Estate Agency | ProPad`,
+    title: `${profile.name} - Verified Real Estate Agency | PropAd`,
     description:
       profile.bio || `View properties and agents from ${profile.name}.`,
   };
@@ -36,10 +38,15 @@ export default async function AgencyProfilePage({
   const profile = await getAgencyProfile(params.id);
 
   if (!profile) return notFound();
+  const agencyName = profile?.name ?? "Agency";
+  const trustTier = profile?.stats?.trustTier ?? "Standard";
+  const agentCount = profile?.stats?.agentCount ?? 0;
+  const verified = Boolean(profile?.stats?.verified);
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12">
-      <div className="container mx-auto max-w-6xl px-4">
+    <div className="min-h-screen bg-slate-50">
+      <LandingNav />
+      <main className="container mx-auto max-w-6xl px-4 pb-12 pt-24">
         {/* Header Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-8">
           <div className="h-40 bg-slate-900 relative">
@@ -51,12 +58,10 @@ export default async function AgencyProfilePage({
               <div className="relative">
                 <div className="w-32 h-32 rounded-xl border-4 border-white bg-white shadow-lg flex items-center justify-center overflow-hidden">
                   {profile.logo ? (
-                    <Image
-                      src={profile.logo}
-                      alt={profile.name}
-                      width={128}
-                      height={128}
-                      className="object-contain p-2"
+                    <img
+                      src={getImageUrl(profile.logo)}
+                      alt={agencyName}
+                      className="h-full w-full object-contain p-2"
                     />
                   ) : (
                     <Building2 className="w-12 h-12 text-slate-300" />
@@ -65,8 +70,8 @@ export default async function AgencyProfilePage({
               </div>
               <div className="mb-2 flex-1">
                 <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-                  {profile.name}
-                  {profile.stats.verified && (
+                  {agencyName}
+                  {verified && (
                     <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100 uppercase tracking-wide">
                       Verified Agency
                     </span>
@@ -77,8 +82,7 @@ export default async function AgencyProfilePage({
                     <Building2 className="w-4 h-4" /> Real Estate Agency
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <User className="w-4 h-4" /> {profile.stats.agentCount}{" "}
-                    Agents
+                    <User className="w-4 h-4" /> {agentCount} Agents
                   </span>
                 </p>
               </div>
@@ -112,7 +116,7 @@ export default async function AgencyProfilePage({
                       Company Trust
                     </span>
                     <span className="text-emerald-700 font-bold">
-                      {profile.stats.trustTier}
+                      {trustTier}
                     </span>
                   </div>
                   <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
@@ -120,9 +124,9 @@ export default async function AgencyProfilePage({
                       className="bg-emerald-500 h-full rounded-full"
                       style={{
                         width:
-                          profile.stats.trustTier === "Elite"
+                          trustTier === "Elite"
                             ? "95%"
-                            : profile.stats.trustTier === "Trusted"
+                            : trustTier === "Trusted"
                               ? "80%"
                               : "50%",
                       }}
@@ -143,7 +147,7 @@ export default async function AgencyProfilePage({
           <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
             Our Agents{" "}
             <span className="text-slate-400 text-lg font-normal">
-              ({profile.stats.agentCount})
+              ({agentCount})
             </span>
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
@@ -155,11 +159,10 @@ export default async function AgencyProfilePage({
               >
                 <div className="aspect-square rounded-lg bg-slate-100 mb-4 overflow-hidden relative">
                   {agent.photo ? (
-                    <Image
-                      src={agent.photo}
+                    <img
+                      src={getImageUrl(agent.photo)}
                       alt={agent.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition"
+                      className="h-full w-full object-cover group-hover:scale-105 transition"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-300">
@@ -175,7 +178,9 @@ export default async function AgencyProfilePage({
             ))}
           </div>
         </div>
-      </div>
+      </main>
+
+      <SiteFooter showFollow={false} showVerificationLink={false} />
     </div>
   );
 }

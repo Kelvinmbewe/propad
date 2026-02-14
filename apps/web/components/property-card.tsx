@@ -15,6 +15,7 @@ import clsx from "clsx";
 import { motion } from "framer-motion";
 import { formatCurrency, formatFriendlyDate } from "@/lib/formatters";
 import { getImageUrl } from "@/lib/image-url";
+import { PROPERTY_PLACEHOLDER_IMAGE } from "@/lib/property-placeholder";
 
 interface PropertyCardProps {
   property: Property;
@@ -29,7 +30,7 @@ export function PropertyCard({
 }: PropertyCardProps) {
   const primaryImage = property.media?.[0]?.url
     ? getImageUrl(property.media[0].url)
-    : null;
+    : PROPERTY_PLACEHOLDER_IMAGE;
   const locationName =
     property.location.suburb?.name ??
     property.location.city?.name ??
@@ -81,42 +82,36 @@ export function PropertyCard({
           href={`/properties/${property.id}`}
           className="group block h-full"
         >
-          {primaryImage ? (
-            <div className="relative h-52 w-full overflow-hidden">
-              <Image
-                src={primaryImage}
-                alt={`${property.type} in ${locationName}`}
-                fill
-                className="object-cover transition-transform duration-[var(--motion-duration)] ease-[var(--motion-ease)] group-hover:scale-105"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              />
-              <div className="absolute right-3 top-3 flex flex-col items-end gap-2">
-                {isPromoted ? (
-                  <Badge className="bg-purple-600 text-white border-none shadow-md">
-                    Promoted
-                  </Badge>
-                ) : null}
-                {isFeatured ? (
-                  <Badge className="bg-amber-400 text-slate-900 border-none shadow-md">
-                    Featured
-                  </Badge>
-                ) : null}
-              </div>
-              {showPending ? (
-                <Badge className="absolute left-3 top-3 bg-white/80 text-slate-900">
-                  Pending Verify
+          <div className="relative h-52 w-full overflow-hidden">
+            <Image
+              src={primaryImage}
+              alt={`${property.type} in ${locationName}`}
+              fill
+              className="object-cover transition-transform duration-[var(--motion-duration)] ease-[var(--motion-ease)] group-hover:scale-105"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
+            <div className="absolute right-3 top-3 flex flex-col items-end gap-2">
+              {isPromoted ? (
+                <Badge className="bg-purple-600 text-white border-none shadow-md">
+                  Promoted
                 </Badge>
-              ) : showVerified ? (
-                <Badge className="absolute left-3 top-3 bg-emerald-600 text-white border-none">
-                  Verified
+              ) : null}
+              {isFeatured ? (
+                <Badge className="bg-amber-400 text-slate-900 border-none shadow-md">
+                  Featured
                 </Badge>
               ) : null}
             </div>
-          ) : (
-            <div className="flex h-52 w-full items-center justify-center bg-neutral-100 text-neutral-500">
-              No image
-            </div>
-          )}
+            {showPending ? (
+              <Badge className="absolute left-3 top-3 bg-white/80 text-slate-900">
+                Pending Verify
+              </Badge>
+            ) : showVerified ? (
+              <Badge className="absolute left-3 top-3 bg-emerald-600 text-white border-none">
+                Verified
+              </Badge>
+            ) : null}
+          </div>
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-lg">
               <span className="capitalize">{property.type.toLowerCase()}</span>

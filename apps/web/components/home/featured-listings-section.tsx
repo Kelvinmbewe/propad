@@ -36,8 +36,8 @@ export function FeaturedListingsSection({
             Premium visibility, still verified.
           </h2>
           <p className="max-w-2xl text-base text-muted-foreground">
-            Featured homes maintain trust thresholds while receiving premium
-            placement.
+            Featured properties maintain trust thresholds while receiving
+            premium placement.
           </p>
         </div>
         <Link href={viewAllHref}>

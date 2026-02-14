@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Bath, BedDouble, Ruler } from "lucide-react";
 import { getImageUrl } from "@/lib/image-url";
+import { PROPERTY_PLACEHOLDER_IMAGE } from "@/lib/property-placeholder";
 import { TrustBadge, type TrustBreakdown } from "@/components/trust/TrustBadge";
 import clsx from "clsx";
 
@@ -67,7 +68,7 @@ export function LandingPropertyCard({
   const fallbackImage = (property as any).media?.[0]?.url;
   const imageUrl =
     property.imageUrl ??
-    (fallbackImage ? getImageUrl(fallbackImage) : "/icons/icon-512.svg");
+    (fallbackImage ? getImageUrl(fallbackImage) : PROPERTY_PLACEHOLDER_IMAGE);
   const trustScore = Number(
     property.trustScore ?? (property as any).trustScore ?? 0,
   );
@@ -192,7 +193,7 @@ export function LandingPropertyCard({
         </div>
         <div className="mt-auto flex items-center justify-between">
           <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">
-            Curated by PropAd
+            Listed on PropAd
           </span>
           <Link
             href={detailsHref}

@@ -284,3 +284,32 @@
   border: 2px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 12px 24px -10px rgba(20, 184, 166, 0.55);
 }
+
+/* Keep required map attribution visible but very subtle */
+.leaflet-control-attribution {
+  font-size: 9px !important;
+  line-height: 1.1 !important;
+  padding: 1px 4px !important;
+  border-radius: 6px 0 0 0;
+  background: rgba(255, 255, 255, 0.42) !important;
+  color: rgba(51, 65, 85, 0.48) !important;
+  backdrop-filter: blur(1px);
+  opacity: 0.45;
+  transition: opacity 0.2s ease;
+}
+
+.dark .leaflet-control-attribution,
+[data-aurora-mode="dark"] .leaflet-control-attribution,
+.aurora-dark .leaflet-control-attribution {
+  background: rgba(15, 23, 42, 0.35) !important;
+  color: rgba(226, 232, 240, 0.52) !important;
+}
+
+.leaflet-control-attribution:hover {
+  opacity: 0.75;
+}
+
+.leaflet-control-attribution a {
+  color: inherit !important;
+  text-decoration: none;
+}

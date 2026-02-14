@@ -42,8 +42,8 @@ export function ExploreByAreaSection({
           Browse cities and popular suburbs nearby
         </h2>
         <p className="max-w-2xl text-base text-muted-foreground">
-          Discover trusted homes across Zimbabwe with verified-only results by
-          default.
+          Discover trusted properties across Zimbabwe with verified-only results
+          by default.
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

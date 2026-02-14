@@ -1,6 +1,6 @@
 "use client";
 
-import { MapContainer, Marker, TileLayer } from "react-leaflet";
+import { CircleMarker, MapContainer, TileLayer } from "react-leaflet";
 
 export function ListingLocationMapCanvas({
   lat,
@@ -21,7 +21,16 @@ export function ListingLocationMapCanvas({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <Marker position={[lat, lng]} />
+        <CircleMarker
+          center={[lat, lng]}
+          radius={8}
+          pathOptions={{
+            color: "#10b981",
+            fillColor: "#10b981",
+            fillOpacity: 0.95,
+            weight: 2,
+          }}
+        />
       </MapContainer>
     </div>
   );

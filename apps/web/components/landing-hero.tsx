@@ -101,7 +101,7 @@ export function LandingHero({
             Property magnet for Zimbabwe
           </span>
           <h1 className="bg-[linear-gradient(135deg,#009688,#2B6CB0)] bg-clip-text text-4xl font-semibold leading-tight text-transparent sm:text-5xl lg:text-6xl">
-            Find verified homes for sale and rent near you.
+            Find verified properties for sale and rent near you.
           </h1>
           <p className="max-w-2xl text-lg text-emerald-50/80 sm:text-xl">
             Personalized, trusted listings across Zimbabwe. Verified properties

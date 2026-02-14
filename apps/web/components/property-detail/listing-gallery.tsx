@@ -3,9 +3,9 @@
 import Image from "next/image";
 import { useMemo, useRef, useState } from "react";
 import { Button } from "@propad/ui";
-import { Images } from "lucide-react";
 import { LightboxModal } from "@/components/property-detail/lightbox-modal";
 import { getImageUrl } from "@/lib/image-url";
+import { PROPERTY_PLACEHOLDER_IMAGE } from "@/lib/property-placeholder";
 
 interface GalleryMedia {
   id?: string;
@@ -38,13 +38,13 @@ export function ListingGallery({
   if (!images.length) {
     return (
       <section className="rounded-2xl border border-border bg-card p-8 text-card-foreground">
-        <div className="flex h-80 items-center justify-center rounded-xl bg-muted">
-          <div className="text-center">
-            <Images className="mx-auto h-8 w-8 text-muted-foreground" />
-            <p className="mt-3 text-sm text-muted-foreground">
-              Premium gallery coming soon for this listing.
-            </p>
-          </div>
+        <div className="relative h-80 overflow-hidden rounded-xl bg-muted">
+          <Image
+            src={PROPERTY_PLACEHOLDER_IMAGE}
+            alt="Property"
+            fill
+            className="object-cover"
+          />
         </div>
       </section>
     );

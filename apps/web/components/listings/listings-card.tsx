@@ -29,6 +29,7 @@ import { PropertyMessenger } from "@/components/property-messenger";
 import { getRequiredPublicApiBaseUrl } from "@/lib/api-base-url";
 import { formatCurrency } from "@/lib/formatters";
 import { getImageUrl } from "@/lib/image-url";
+import { PROPERTY_PLACEHOLDER_IMAGE } from "@/lib/property-placeholder";
 import {
   listingIsFeatured,
   listingTrustScore,
@@ -57,7 +58,7 @@ export function ListingsCard({
   const [messageOpen, setMessageOpen] = useState(false);
   const image = property.media[0]?.url
     ? getImageUrl(property.media[0].url)
-    : null;
+    : PROPERTY_PLACEHOLDER_IMAGE;
   const location =
     property.location.suburb?.name ??
     property.location.city?.name ??
@@ -73,12 +74,6 @@ export function ListingsCard({
     !isPending && ["VERIFIED", "TRUSTED"].includes(property.verificationLevel);
   const intentLabel =
     property.listingIntent === "TO_RENT" ? "TO RENT" : "FOR SALE";
-  const curatedBy =
-    (property as Property & { agency?: { name?: string | null } | null }).agency
-      ?.name ??
-    (property as Property & { assignedAgent?: { name?: string | null } | null })
-      .assignedAgent?.name ??
-    "PropAd";
   const accessToken = (session as { accessToken?: string } | null)?.accessToken;
   const landlordId =
     (property as Property & { landlord?: { id?: string | null } | null })
@@ -187,19 +182,13 @@ export function ListingsCard({
       <div
         className={clsx("relative", listMode ? "md:w-[320px] md:shrink-0" : "")}
       >
-        {image ? (
-          <Image
-            src={image}
-            alt={property.title}
-            width={640}
-            height={420}
-            className="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-          />
-        ) : (
-          <div className="flex h-56 w-full items-center justify-center bg-slate-100 text-sm text-slate-500">
-            No image available
-          </div>
-        )}
+        <Image
+          src={image}
+          alt={property.title}
+          width={640}
+          height={420}
+          className="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+        />
 
         <div className="absolute left-3 top-3 flex flex-wrap items-center gap-2">
           {isFeatured ? (
@@ -304,7 +293,7 @@ export function ListingsCard({
         </div>
 
         <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
-          Curated by {curatedBy}
+          Listed on PropAd
         </p>
 
         <div className="mt-auto flex flex-wrap gap-2">

@@ -94,10 +94,10 @@ export function HeroSearchCard({
       <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-10 px-6 pb-16 pt-24 text-white sm:px-10 lg:px-16">
         <div className="flex flex-col gap-4 text-center">
           <p className="text-xs uppercase tracking-[0.4em] text-emerald-200">
-            PropAd Zimbabwe · Verified homes
+            PropAd Zimbabwe · Verified properties
           </p>
           <h1 className="text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-            Find verified homes to buy or rent, faster.
+            Find verified properties to buy or rent, faster.
           </h1>
           <p className="mx-auto max-w-2xl text-base text-emerald-100/80 sm:text-lg">
             Search across Zimbabwe with trust-first rankings, geo-personalized

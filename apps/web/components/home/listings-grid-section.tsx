@@ -33,7 +33,7 @@ export function ListingsGridSection({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-col gap-3">
           <span className="text-xs uppercase tracking-[0.35em] text-emerald-500">
-            Homes near {locationLabel}
+            Properties near {locationLabel}
           </span>
           <h2 className="text-3xl font-semibold text-foreground sm:text-4xl">
             {title}

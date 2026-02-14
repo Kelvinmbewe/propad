@@ -17,6 +17,7 @@ import { ApplicationModal } from "@/components/application-modal";
 import { AdSlot } from "@/components/ad-slot";
 import { PropertyMessenger } from "@/components/property-messenger";
 import { getRequiredPublicApiBaseUrl } from "@/lib/api-base-url";
+import { useAuthenticatedSDK } from "@/hooks/use-authenticated-sdk";
 
 interface SidebarEntity {
   name: string;
@@ -39,11 +40,17 @@ export function ListingSidebar({
   entity: SidebarEntity;
 }) {
   const { data: session } = useSession();
+  const sdk = useAuthenticatedSDK();
   const [messageOpen, setMessageOpen] = useState(false);
   const [viewingOpen, setViewingOpen] = useState(false);
   const [viewingDate, setViewingDate] = useState("");
   const [viewingNotes, setViewingNotes] = useState("");
   const [viewingLoading, setViewingLoading] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("Suspicious information");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportLoading, setReportLoading] = useState(false);
 
   const accessToken = (session as { accessToken?: string } | null)?.accessToken;
   const isAuthed = Boolean(session?.user?.id);
@@ -56,14 +63,18 @@ export function ListingSidebar({
     return `tel:${entity.phone.replace(/\s+/g, "")}`;
   }, [entity.phone]);
 
+  const ensureSignIn = () => {
+    signIn(undefined, {
+      callbackUrl:
+        typeof window !== "undefined"
+          ? window.location.href
+          : `/properties/${propertyId}`,
+    });
+  };
+
   const scheduleViewing = async () => {
     if (!isAuthed || !accessToken) {
-      signIn(undefined, {
-        callbackUrl:
-          typeof window !== "undefined"
-            ? window.location.href
-            : `/properties/${propertyId}`,
-      });
+      ensureSignIn();
       return;
     }
     if (!viewingDate) {
@@ -94,6 +105,76 @@ export function ListingSidebar({
       notify.error("Could not send viewing request now.");
     } finally {
       setViewingLoading(false);
+    }
+  };
+
+  const handleToggleInterest = async () => {
+    if (!isAuthed || !sdk) {
+      ensureSignIn();
+      return;
+    }
+    try {
+      const result = await sdk.interests.toggle(propertyId);
+      notify.success(
+        result.isSaved ? "Property saved" : "Property removed from saved",
+      );
+    } catch {
+      notify.error("Could not update saved property right now.");
+    }
+  };
+
+  const shareUrl =
+    typeof window !== "undefined"
+      ? window.location.href
+      : `https://propad.co.zw/properties/${propertyId}`;
+
+  const handleCopyLink = async () => {
+    if (typeof navigator === "undefined" || !navigator.clipboard) return;
+    await navigator.clipboard.writeText(shareUrl);
+    notify.success("Link copied");
+  };
+
+  const handleNativeShare = async () => {
+    if (typeof navigator === "undefined" || !("share" in navigator)) {
+      setShareOpen(true);
+      return;
+    }
+    try {
+      await navigator.share({
+        title: propertyTitle,
+        url: shareUrl,
+      });
+    } catch {
+      // ignore user cancellation
+    }
+  };
+
+  const handleReport = async () => {
+    if (!isAuthed) {
+      ensureSignIn();
+      return;
+    }
+    setReportLoading(true);
+    try {
+      const response = await fetch("/api/properties/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          propertyId,
+          reason: reportReason,
+          details: reportDetails,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("failed");
+      }
+      notify.success("Report submitted. Thank you.");
+      setReportOpen(false);
+      setReportDetails("");
+    } catch {
+      notify.error("We could not submit your report right now.");
+    } finally {
+      setReportLoading(false);
     }
   };
 
@@ -188,7 +269,13 @@ export function ListingSidebar({
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => setMessageOpen((v) => !v)}
+            onClick={() => {
+              if (!isAuthed) {
+                ensureSignIn();
+                return;
+              }
+              setMessageOpen((v) => !v);
+            }}
           >
             Message
           </Button>
@@ -205,39 +292,13 @@ export function ListingSidebar({
           Quick actions
         </h3>
         <div className="mt-3 grid gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              if (!isAuthed) {
-                signIn(undefined, {
-                  callbackUrl:
-                    typeof window !== "undefined"
-                      ? window.location.href
-                      : `/properties/${propertyId}`,
-                });
-                return;
-              }
-              notify.success("Saved properties will appear in your dashboard.");
-            }}
-          >
+          <Button variant="secondary" onClick={handleToggleInterest}>
             Save property
           </Button>
-          <Button
-            variant="secondary"
-            onClick={async () => {
-              if (typeof window === "undefined") return;
-              await navigator.clipboard.writeText(window.location.href);
-              notify.success("Link copied");
-            }}
-          >
+          <Button variant="secondary" onClick={() => setShareOpen(true)}>
             Share property
           </Button>
-          <Button
-            variant="secondary"
-            onClick={() =>
-              notify.success("Report flow will be enabled shortly.")
-            }
-          >
+          <Button variant="secondary" onClick={() => setReportOpen(true)}>
             Report listing
           </Button>
         </div>
@@ -299,6 +360,75 @@ export function ListingSidebar({
               </Button>
               <Button onClick={scheduleViewing} disabled={viewingLoading}>
                 {viewingLoading ? "Sending..." : "Send request"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Share property</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Button variant="secondary" onClick={handleNativeShare}>
+              Share via device
+            </Button>
+            <Button asChild variant="secondary">
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`${propertyTitle} ${shareUrl}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Share on WhatsApp
+              </a>
+            </Button>
+            <Button variant="secondary" onClick={handleCopyLink}>
+              Copy link
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="max-w-lg rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Report listing</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-foreground">
+                Reason
+              </label>
+              <select
+                value={reportReason}
+                onChange={(event) => setReportReason(event.target.value)}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+              >
+                <option>Suspicious information</option>
+                <option>Wrong price/details</option>
+                <option>Spam or duplicate</option>
+                <option>Scam risk</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <Textarea
+              rows={4}
+              value={reportDetails}
+              onChange={(event) => setReportDetails(event.target.value)}
+              placeholder="Add more details"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setReportOpen(false)}
+                disabled={reportLoading}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleReport} disabled={reportLoading}>
+                {reportLoading ? "Submitting..." : "Submit report"}
               </Button>
             </div>
           </div>

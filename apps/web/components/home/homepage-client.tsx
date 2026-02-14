@@ -32,6 +32,7 @@ import { useFeaturedListings } from "@/hooks/use-featured-listings";
 import { useHomeAreas } from "@/hooks/use-home-areas";
 import { useHomePartners } from "@/hooks/use-home-partners";
 import { getImageUrl } from "@/lib/image-url";
+import { PROPERTY_PLACEHOLDER_IMAGE } from "@/lib/property-placeholder";
 import { trackLocationEvent } from "@/lib/home-events";
 import { ShieldCheck, UserCheck } from "lucide-react";
 
@@ -104,7 +105,7 @@ function mapToLandingProperty(listing: any): LandingProperty {
   const statusLabel = intent === "rent" ? "FOR RENT" : "FOR SALE";
   const imageUrl = listing.media?.[0]?.url
     ? getImageUrl(listing.media[0].url)
-    : "/icons/icon-512.svg";
+    : PROPERTY_PLACEHOLDER_IMAGE;
 
   return {
     id: listing.id,
@@ -296,7 +297,7 @@ export function HomePageClient({
       {
         id: "hero-banner",
         title: "List with PropAd premium placement",
-        body: "Featured homes stay verified and earn priority spots across Zimbabwe.",
+        body: "Featured properties stay verified and earn priority spots across Zimbabwe.",
         ctaLabel: "Boost a listing",
         href: "/dashboard/listings",
         tone: "emerald" as const,
@@ -490,7 +491,7 @@ export function HomePageClient({
         </section>
       ) : (
         <ListingsGridSection
-          title="Verified homes near you"
+          title="Verified properties near you"
           subtitle="Trust scoring, distance, and recency shape your top results."
           listings={nearCards}
           viewAllHref={`/listings?${buildBrowseParams().toString()}`}

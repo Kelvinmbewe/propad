@@ -19,7 +19,7 @@ export function SavedSearchCTASection({
             Saved searches
           </span>
           <h3 className="text-2xl font-semibold text-card-foreground">
-            Get alerts for verified homes near you.
+            Get alerts for verified properties near you.
           </h3>
           <p className="max-w-xl text-sm text-muted-foreground">
             Save your search and we will notify you when new trusted listings

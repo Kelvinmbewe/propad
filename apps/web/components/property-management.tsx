@@ -18,6 +18,7 @@ import type { PropertyManagement as PropertyManagementType } from "@propad/sdk";
 import { useSdkClient } from "@/hooks/use-sdk-client";
 import { formatCurrency } from "@/lib/formatters";
 import { getImageUrl } from "@/lib/image-url";
+import { PROPERTY_PLACEHOLDER_IMAGE } from "@/lib/property-placeholder";
 import Link from "next/link";
 import { MapPin, Home } from "lucide-react";
 import { ClientState } from "@/components/client-state";
@@ -165,18 +166,15 @@ export function PropertyManagement() {
                     className="overflow-hidden hover:shadow-md transition-shadow"
                   >
                     <div className="h-40 bg-neutral-100 relative">
-                      {/* Placeholder for image - in real app would use proper media */}
-                      {property.media?.[0]?.url ? (
-                        <img
-                          src={getImageUrl(property.media[0].url)}
-                          alt={property.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-neutral-400">
-                          <Home className="h-10 w-10" />
-                        </div>
-                      )}
+                      <img
+                        src={
+                          property.media?.[0]?.url
+                            ? getImageUrl(property.media[0].url)
+                            : PROPERTY_PLACEHOLDER_IMAGE
+                        }
+                        alt={property.title}
+                        className="w-full h-full object-cover"
+                      />
                       <div className="absolute top-2 right-2">
                         <Badge
                           variant={
