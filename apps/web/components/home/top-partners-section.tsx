@@ -86,7 +86,7 @@ export function TopPartnersSection({
           ? agents.map((agent) => (
               <Link
                 key={agent.id}
-                href={`/agents/${agent.id}`}
+                href={`/profiles/users/${agent.id}`}
                 onClick={() =>
                   trackLocationEvent({
                     type: "VIEW_AGENT",
@@ -129,7 +129,7 @@ export function TopPartnersSection({
           : agencies.map((agency) => (
               <Link
                 key={agency.id}
-                href={`/agencies/${agency.id}`}
+                href={`/profiles/companies/${agency.id}`}
                 onClick={() =>
                   trackLocationEvent({
                     type: "VIEW_AGENCY",

@@ -91,7 +91,7 @@ function entityForSidebar(property: PropertyDetails) {
       roleLabel: "Agency",
       phone: property.agency.phone,
       profileHref: property.agency.id
-        ? `/agencies/${property.agency.id}`
+        ? `/profiles/companies/${property.agency.id}`
         : "/agencies",
     };
   }
@@ -101,7 +101,7 @@ function entityForSidebar(property: PropertyDetails) {
       roleLabel: "Agent",
       phone: property.assignedAgent.phone,
       profileHref: property.assignedAgent.id
-        ? `/agents/${property.assignedAgent.id}`
+        ? `/profiles/users/${property.assignedAgent.id}`
         : "/agencies",
     };
   }
@@ -111,7 +111,7 @@ function entityForSidebar(property: PropertyDetails) {
       roleLabel: "Agent",
       phone: property.agentOwner.phone,
       profileHref: property.agentOwner.id
-        ? `/agents/${property.agentOwner.id}`
+        ? `/profiles/users/${property.agentOwner.id}`
         : "/agencies",
     };
   }
