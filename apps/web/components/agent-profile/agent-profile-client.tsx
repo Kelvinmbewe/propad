@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { signIn, useSession } from "next-auth/react";
 import { Button, notify } from "@propad/ui";
 import { AgentHero } from "@/components/agent-profile/agent-hero";
 import { AgentListingsPanel } from "@/components/agent-profile/agent-listings-panel";
@@ -14,6 +13,7 @@ import {
   useAgentSummary,
   useNearbyAgents,
 } from "@/hooks/use-agent-profile";
+import { useMessagingEntry } from "@/features/messaging/use-messaging-entry";
 
 export function AgentProfileClient({
   agentId,
@@ -28,26 +28,22 @@ export function AgentProfileClient({
   initialPerformance: any;
   initialNearby: any;
 }) {
-  const { data: session } = useSession();
-  const [showMessenger, setShowMessenger] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
+  const { openMessageDrawer } = useMessagingEntry();
   const summaryQuery = useAgentSummary(agentId, initialSummary);
   const performanceQuery = useAgentPerformance(agentId, initialPerformance);
   const nearbyQuery = useNearbyAgents(agentId, "sale", initialNearby);
 
   const profile = summaryQuery.data;
 
-  const onMessage = () => {
-    if (!session?.user?.id) {
-      signIn(undefined, {
-        callbackUrl:
-          typeof window !== "undefined"
-            ? window.location.href
-            : `/profiles/users/${agentId}`,
-      });
-      return;
+  const onMessage = async () => {
+    if (startingChat) return;
+    setStartingChat(true);
+    try {
+      openMessageDrawer({ recipientId: agentId });
+    } finally {
+      setStartingChat(false);
     }
-    setShowMessenger((v) => !v);
-    notify.success("You can continue chat from any listing by this agent.");
   };
 
   return (
@@ -55,6 +51,7 @@ export function AgentProfileClient({
       <AgentHero
         profile={profile}
         onMessage={onMessage}
+        isStartingChat={startingChat}
         onViewListings={() =>
           document
             .getElementById("agent-listings")
@@ -70,8 +67,8 @@ export function AgentProfileClient({
           <p className="mt-1 text-sm text-muted-foreground">
             Need help listing your property? Get guidance from this agent.
           </p>
-          <Button className="mt-3" onClick={onMessage}>
-            Contact for appraisal
+          <Button className="mt-3" onClick={onMessage} disabled={startingChat}>
+            {startingChat ? "Opening chat..." : "Message agent"}
           </Button>
         </div>
         <div className="rounded-2xl border border-border bg-card p-4 text-card-foreground">
@@ -81,8 +78,13 @@ export function AgentProfileClient({
           <p className="mt-1 text-sm text-muted-foreground">
             Send your requirements and get matched to suitable listings.
           </p>
-          <Button variant="secondary" className="mt-3" onClick={onMessage}>
-            Contact agent
+          <Button
+            variant="secondary"
+            className="mt-3"
+            onClick={onMessage}
+            disabled={startingChat}
+          >
+            {startingChat ? "Opening chat..." : "Message agent"}
           </Button>
         </div>
       </section>
@@ -169,13 +171,6 @@ export function AgentProfileClient({
           </section>
         </aside>
       </section>
-
-      {showMessenger ? (
-        <div className="rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">
-          Open one of this agent&apos;s listings and use the in-house chat for
-          secure messaging.
-        </div>
-      ) : null}
     </div>
   );
 }

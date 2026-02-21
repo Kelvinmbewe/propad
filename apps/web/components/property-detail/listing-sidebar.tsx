@@ -15,9 +15,9 @@ import {
 } from "@propad/ui";
 import { ApplicationModal } from "@/components/application-modal";
 import { AdSlot } from "@/components/ad-slot";
-import { PropertyMessenger } from "@/components/property-messenger";
 import { getRequiredPublicApiBaseUrl } from "@/lib/api-base-url";
 import { useAuthenticatedSDK } from "@/hooks/use-authenticated-sdk";
+import { useMessagingEntry } from "@/features/messaging/use-messaging-entry";
 
 interface SidebarEntity {
   name: string;
@@ -41,7 +41,6 @@ export function ListingSidebar({
 }) {
   const { data: session } = useSession();
   const sdk = useAuthenticatedSDK();
-  const [messageOpen, setMessageOpen] = useState(false);
   const [viewingOpen, setViewingOpen] = useState(false);
   const [viewingDate, setViewingDate] = useState("");
   const [viewingNotes, setViewingNotes] = useState("");
@@ -54,6 +53,7 @@ export function ListingSidebar({
 
   const accessToken = (session as { accessToken?: string } | null)?.accessToken;
   const isAuthed = Boolean(session?.user?.id);
+  const { openMessageDrawer } = useMessagingEntry();
   const isOwner =
     Boolean(session?.user?.id) &&
     (session?.user?.id === landlordId || session?.user?.id === agentOwnerId);
@@ -208,9 +208,14 @@ export function ListingSidebar({
             <Button
               variant="secondary"
               className="w-full"
-              onClick={() => setMessageOpen((v) => !v)}
+              onClick={() =>
+                openMessageDrawer({
+                  listingId: propertyId,
+                  recipientId: agentOwnerId ?? landlordId ?? undefined,
+                })
+              }
             >
-              {messageOpen ? "Hide message" : "Message"}
+              Message
             </Button>
             <Button
               variant="secondary"
@@ -274,7 +279,10 @@ export function ListingSidebar({
                 ensureSignIn();
                 return;
               }
-              setMessageOpen((v) => !v);
+              openMessageDrawer({
+                listingId: propertyId,
+                recipientId: agentOwnerId ?? landlordId ?? undefined,
+              });
             }}
           >
             Message
@@ -303,15 +311,6 @@ export function ListingSidebar({
           </Button>
         </div>
       </section>
-
-      {messageOpen && isAuthed ? (
-        <PropertyMessenger
-          propertyId={propertyId}
-          landlordId={landlordId}
-          agentOwnerId={agentOwnerId}
-        />
-      ) : null}
-
       <section className="space-y-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
           Sponsored

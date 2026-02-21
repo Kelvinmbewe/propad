@@ -228,10 +228,13 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
     messaging: {
       conversations: {
         create: async (payload: {
-          propertyId: string;
+          propertyId?: string | null;
+          listingId?: string;
+          recipientId?: string;
+          companyId?: string;
           dealId?: string;
           applicationId?: string;
-          participantIds: string[];
+          participantIds?: string[];
         }) =>
           client
             .post("messaging/conversations", { json: payload })

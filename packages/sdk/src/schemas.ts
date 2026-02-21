@@ -862,18 +862,22 @@ export const ConversationParticipantSchema = z.object({
   user: UserSummarySchema.optional(),
 });
 
-export const ConversationSchema = z.object({
-  id: z.string(),
-  propertyId: z.string(),
-  dealId: z.string().nullable(),
-  applicationId: z.string().nullable(),
-  lastMessageAt: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  property: PropertySchema.optional(),
-  participants: z.array(ConversationParticipantSchema).optional(),
-  messages: z.array(MessageSchema).optional(),
-});
+export const ConversationSchema = z
+  .object({
+    id: z.string(),
+    propertyId: z.string().nullish(),
+    dealId: z.string().nullable(),
+    applicationId: z.string().nullable(),
+    type: z.enum(["LISTING_CHAT", "GENERAL_CHAT"]).optional(),
+    status: z.enum(["ACTIVE", "ARCHIVED"]).optional(),
+    lastMessageAt: z.string().nullish(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    property: PropertySchema.optional(),
+    participants: z.array(ConversationParticipantSchema).optional(),
+    messages: z.array(MessageSchema).optional(),
+  })
+  .passthrough();
 
 export type Message = z.infer<typeof MessageSchema>;
 export type ConversationParticipant = z.infer<

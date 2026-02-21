@@ -25,7 +25,6 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { TrustBadge } from "@/components/trust/TrustBadge";
-import { PropertyMessenger } from "@/components/property-messenger";
 import { getRequiredPublicApiBaseUrl } from "@/lib/api-base-url";
 import { formatCurrency } from "@/lib/formatters";
 import { getImageUrl } from "@/lib/image-url";
@@ -35,6 +34,7 @@ import {
   listingTrustScore,
   listingVerificationBreakdown,
 } from "@/lib/listings";
+import { useMessagingEntry } from "@/features/messaging/use-messaging-entry";
 
 export function ListingsCard({
   property,
@@ -55,7 +55,7 @@ export function ListingsCard({
   const [viewingDate, setViewingDate] = useState("");
   const [viewingNotes, setViewingNotes] = useState("");
   const [viewingLoading, setViewingLoading] = useState(false);
-  const [messageOpen, setMessageOpen] = useState(false);
+  const { openMessageDrawer } = useMessagingEntry();
   const image = property.media[0]?.url
     ? getImageUrl(property.media[0].url)
     : PROPERTY_PLACEHOLDER_IMAGE;
@@ -327,26 +327,16 @@ export function ListingsCard({
             variant="secondary"
             className="rounded-full"
             onClick={() => {
-              if (!session?.user?.id) {
-                promptSignIn();
-                return;
-              }
-              setMessageOpen((current) => !current);
+              openMessageDrawer({
+                listingId: property.id,
+                recipientId: agentOwnerId ?? landlordId ?? undefined,
+              });
             }}
           >
             <MessageSquare className="mr-1 h-3.5 w-3.5" />
-            {messageOpen ? "Hide chat" : "Message"}
+            Message
           </Button>
         </div>
-
-        {messageOpen ? (
-          <PropertyMessenger
-            propertyId={property.id}
-            landlordId={landlordId}
-            agentOwnerId={agentOwnerId}
-            className="mt-2"
-          />
-        ) : null}
       </div>
 
       <Dialog open={viewingOpen} onOpenChange={setViewingOpen}>
