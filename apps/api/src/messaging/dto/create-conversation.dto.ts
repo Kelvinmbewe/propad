@@ -1,20 +1,32 @@
-
-import { IsString, IsNotEmpty, IsArray, IsOptional } from 'class-validator';
+import { IsArray, IsOptional, IsString } from "class-validator";
 
 export class CreateConversationDto {
-    @IsString()
-    @IsNotEmpty()
-    propertyId!: string;
+  @IsString()
+  @IsOptional()
+  listingId?: string;
 
-    @IsString()
-    @IsOptional()
-    dealId?: string;
+  @IsString()
+  @IsOptional()
+  propertyId?: string;
 
-    @IsString()
-    @IsOptional()
-    applicationId?: string;
+  @IsString()
+  @IsOptional()
+  recipientId?: string;
 
-    @IsArray()
-    @IsNotEmpty()
-    participantIds!: string[];
+  @IsString()
+  @IsOptional()
+  companyId?: string;
+
+  // Legacy fields still accepted.
+  @IsString()
+  @IsOptional()
+  dealId?: string;
+
+  @IsString()
+  @IsOptional()
+  applicationId?: string;
+
+  @IsArray()
+  @IsOptional()
+  participantIds?: string[];
 }
