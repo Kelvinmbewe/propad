@@ -6,10 +6,16 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { calculateUserTrustScore } from "./trust-score";
-import { KycStatus } from "@prisma/client";
+import {
+  KycStatus,
+  ListingIntent,
+  PropertyStatus,
+  VerificationLevel,
+} from "@prisma/client";
 import { createHmac, timingSafeEqual } from "crypto";
 import { existsSync } from "fs";
 import { join, resolve } from "path";
+import { GetUserListingsDto } from "./dto/get-user-listings.dto";
 
 export interface AuthContext {
   userId: string;
@@ -128,6 +134,7 @@ export class UsersService {
     return {
       id: user.id,
       name: user.name ?? "Unnamed User",
+      phone: user.phone ?? null,
       profilePhoto: user.profilePhoto,
       role: user.role,
       location: user.location,
@@ -157,6 +164,136 @@ export class UsersService {
         author: review.reviewer?.name ?? "Anonymous",
         createdAt: review.createdAt,
       })),
+    };
+  }
+
+  async getPublicUserListings(userId: string, query: GetUserListingsDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 12;
+    const verifiedOnly = query.verifiedOnly ?? true;
+
+    const baseWhere: any = {
+      OR: [{ agentOwnerId: userId }, { assignedAgentId: userId }],
+      status: { in: [PropertyStatus.PUBLISHED, PropertyStatus.VERIFIED] },
+    };
+
+    if (query.intent) {
+      baseWhere.listingIntent = query.intent;
+    }
+
+    if (verifiedOnly) {
+      baseWhere.OR = [
+        {
+          ...baseWhere.OR[0],
+          verificationLevel: {
+            in: [VerificationLevel.VERIFIED, VerificationLevel.TRUSTED],
+          },
+        },
+        {
+          ...baseWhere.OR[1],
+          verificationLevel: {
+            in: [VerificationLevel.VERIFIED, VerificationLevel.TRUSTED],
+          },
+        },
+      ];
+    }
+
+    const orderBy =
+      query.sort === "PRICE_ASC"
+        ? { price: "asc" as const }
+        : query.sort === "PRICE_DESC"
+          ? { price: "desc" as const }
+          : query.sort === "TRUST"
+            ? { trustScore: "desc" as const }
+            : { createdAt: "desc" as const };
+
+    const [items, total, allActive] = await Promise.all([
+      this.prisma.property.findMany({
+        where: baseWhere,
+        include: {
+          city: { select: { name: true } },
+          suburb: { select: { name: true } },
+          province: { select: { name: true } },
+          media: { take: 1, orderBy: { order: "asc" } },
+        },
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.property.count({ where: baseWhere }),
+      this.prisma.property.findMany({
+        where: {
+          OR: [{ agentOwnerId: userId }, { assignedAgentId: userId }],
+          status: { in: [PropertyStatus.PUBLISHED, PropertyStatus.VERIFIED] },
+        },
+        select: {
+          id: true,
+          price: true,
+          listingIntent: true,
+          createdAt: true,
+          verificationLevel: true,
+        },
+      }),
+    ]);
+
+    const now = Date.now();
+    const sale = allActive
+      .filter((item) => item.listingIntent !== ListingIntent.TO_RENT)
+      .map((item) => Number(item.price ?? 0))
+      .filter((price) => Number.isFinite(price) && price > 0);
+    const rent = allActive
+      .filter((item) => item.listingIntent === ListingIntent.TO_RENT)
+      .map((item) => Number(item.price ?? 0))
+      .filter((price) => Number.isFinite(price) && price > 0);
+
+    const avg = (values: number[]) =>
+      values.length
+        ? values.reduce((sum, value) => sum + value, 0) / values.length
+        : null;
+
+    return {
+      items: items.map((listing) => ({
+        id: listing.id,
+        title: listing.title,
+        price: Number(listing.price ?? 0),
+        currency: listing.currency,
+        listingIntent: listing.listingIntent,
+        bedrooms: listing.bedrooms,
+        bathrooms: listing.bathrooms,
+        areaSqm: listing.areaSqm,
+        status: listing.status,
+        verificationLevel: listing.verificationLevel,
+        trustScore: listing.trustScore ?? listing.verificationScore ?? 0,
+        imageUrl: listing.media[0]?.url ?? null,
+        createdAt: listing.createdAt,
+        locationText: [
+          listing.suburb?.name,
+          listing.city?.name,
+          listing.province?.name,
+        ]
+          .filter(Boolean)
+          .join(", "),
+      })),
+      meta: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+      stats: {
+        activeListingsCount: allActive.length,
+        verifiedListingsCount: allActive.filter(
+          (item) =>
+            item.verificationLevel === VerificationLevel.VERIFIED ||
+            item.verificationLevel === VerificationLevel.TRUSTED,
+        ).length,
+        listingsLast30DaysCount: allActive.filter((item) => {
+          const createdAt = new Date(item.createdAt).getTime();
+          return now - createdAt <= 30 * 24 * 60 * 60 * 1000;
+        }).length,
+        avgSalePrice: avg(sale),
+        avgRentPrice: avg(rent),
+      },
     };
   }
 

@@ -145,13 +145,13 @@ const shouldUsePartialServerSchema = isNextRuntime || isBrowser;
 const serverEnv = (
   shouldUsePartialServerSchema
     ? baseServerSchema.partial().parse({
-        ...defaultServerEnv,
-        ...process.env,
-      })
+      ...defaultServerEnv,
+      ...process.env,
+    })
     : serverSchema.parse({
-        ...defaultServerEnv,
-        ...process.env,
-      })
+      ...defaultServerEnv,
+      ...process.env,
+    })
 ) as ServerEnv;
 const clientEnv = clientSchema.partial().parse(process.env);
 
@@ -197,7 +197,8 @@ export function getServerApiBaseUrl(): string {
 
   // Fallback for development
   if (process.env.NODE_ENV === "development") {
-    return normalizeApiBaseUrl("http://localhost:3001");
+    // Use 127.0.0.1 for better compatibility on Windows/IPv6 environments
+    return normalizeApiBaseUrl("http://127.0.0.1:3001");
   }
 
   // In production, this should be configured

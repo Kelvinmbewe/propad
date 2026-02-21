@@ -24,6 +24,8 @@ import {
   DocumentVerifyDto,
   documentVerifySchema,
 } from "./dto/document-verify.dto";
+import { GetCompanyListingsDto } from "./dto/get-company-listings.dto";
+import { GetPublicCompaniesDto } from "./dto/get-public-companies.dto";
 
 interface AuthenticatedRequest {
   user: {
@@ -37,6 +39,11 @@ interface AuthenticatedRequest {
 export class CompaniesController {
   constructor(private readonly companiesService: CompaniesService) {}
 
+  @Get("companies")
+  async getCompanies(@Query() query: GetPublicCompaniesDto) {
+    return this.companiesService.getPublicCompanies(query);
+  }
+
   @Get("companies/:id")
   async getCompany(@Param("id") id: string) {
     return this.companiesService.getPublicCompany(id);
@@ -45,6 +52,14 @@ export class CompaniesController {
   @Get("companies/:id/summary")
   async getCompanySummary(@Param("id") id: string) {
     return this.companiesService.getCompanySummary(id);
+  }
+
+  @Get("companies/:id/listings")
+  async getCompanyListings(
+    @Param("id") id: string,
+    @Query() query: GetCompanyListingsDto,
+  ) {
+    return this.companiesService.getPublicCompanyListings(id, query);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

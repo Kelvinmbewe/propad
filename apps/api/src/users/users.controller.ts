@@ -6,6 +6,7 @@ import {
   Body,
   UseGuards,
   Req,
+  Query,
 } from "@nestjs/common";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -14,6 +15,7 @@ import { Role } from "@propad/config";
 import { UsersService } from "./users.service";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { UserKycActionDto, userKycActionSchema } from "./dto/kyc-action.dto";
+import { GetUserListingsDto } from "./dto/get-user-listings.dto";
 
 interface AuthenticatedRequest {
   user: {
@@ -30,6 +32,14 @@ export class UsersController {
   @Get("users/:id")
   async getPublicUser(@Param("id") id: string) {
     return this.usersService.getPublicUser(id);
+  }
+
+  @Get("users/:id/listings")
+  async getPublicUserListings(
+    @Param("id") id: string,
+    @Query() query: GetUserListingsDto,
+  ) {
+    return this.usersService.getPublicUserListings(id, query);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -63,25 +63,40 @@ export class ConversationsService {
     const companyId = dto.companyId?.trim();
     if (!companyId) return null;
 
-    const company = await this.prisma.company.findUnique({
-      where: { id: companyId },
+    const company = await this.prisma.company.findFirst({
+      where: {
+        OR: [{ id: companyId }, { agencyId: companyId }, { slug: companyId }],
+      },
       select: { agencyId: true },
     });
 
-    if (!company?.agencyId) {
-      return null;
-    }
+    const agencyId = company?.agencyId ?? companyId;
 
     const member = await this.prisma.agencyMember.findFirst({
       where: {
-        agencyId: company.agencyId,
+        agencyId,
         userId: { not: userId },
+        isActive: true,
       },
       orderBy: { joinedAt: "asc" },
       select: { userId: true },
     });
 
-    return member?.userId ?? null;
+    if (member?.userId) {
+      return member.userId;
+    }
+
+    const affiliatedUser = await this.prisma.userCompanyAffiliation.findFirst({
+      where: {
+        agencyId,
+        userId: { not: userId },
+        status: "APPROVED",
+      },
+      orderBy: { updatedAt: "desc" },
+      select: { userId: true },
+    });
+
+    return affiliatedUser?.userId ?? null;
   }
 
   private async toConversationListItem(userId: string, conversation: any) {
@@ -110,6 +125,10 @@ export class ConversationsService {
   async create(userId: string, dto: CreateConversationDto) {
     const listingId = dto.listingId?.trim() ?? dto.propertyId?.trim() ?? null;
     const recipientId = await this.resolveRecipient(userId, dto);
+
+    if (!listingId && !recipientId && dto.companyId?.trim()) {
+      throw new BadRequestException("No available agency inbox recipient");
+    }
 
     if (!listingId && !recipientId) {
       throw new BadRequestException(

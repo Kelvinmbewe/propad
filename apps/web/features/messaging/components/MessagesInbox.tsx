@@ -24,6 +24,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  notify,
 } from "@propad/ui";
 import { EllipsisVertical, MessageSquare, Send } from "lucide-react";
 import { TrustBadge } from "@/components/trust/TrustBadge";
@@ -92,11 +93,19 @@ export function MessagesInbox({
 
   const onSend = async () => {
     if (!selectedId || !body.trim() || !canSend) return;
-    await sendMessage.mutateAsync({
-      conversationId: selectedId,
-      body: body.trim(),
-    });
-    setBody("");
+    try {
+      await sendMessage.mutateAsync({
+        conversationId: selectedId,
+        body: body.trim(),
+      });
+      setBody("");
+    } catch (error) {
+      notify.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Unable to send message right now",
+      );
+    }
   };
 
   const listPane = (

@@ -183,9 +183,16 @@ const config: NextAuthConfig = {
   },
   callbacks: {
     async jwt({ token, user }) {
+      const mutableToken = token as Record<string, unknown>;
       try {
         console.log("[Auth] JWT callback called, user:", user?.email);
-        const mutableToken = token as Record<string, unknown>;
+
+        if (!mutableToken.userId && typeof mutableToken.sub === "string") {
+          mutableToken.userId = mutableToken.sub;
+        }
+        if (!mutableToken.role && mutableToken.userRole) {
+          mutableToken.role = mutableToken.userRole;
+        }
 
         if (user) {
           const userData = user as {
@@ -197,6 +204,7 @@ const config: NextAuthConfig = {
           };
           mutableToken.role =
             userData.role ?? (mutableToken.role as Role | undefined) ?? "USER";
+          mutableToken.userRole = mutableToken.role;
           mutableToken.userId =
             userData.id ?? mutableToken.sub ?? mutableToken.userId;
           // Map tokens from API response
@@ -241,6 +249,14 @@ const config: NextAuthConfig = {
         const payload = decodeJwtPayload(refreshed.accessToken);
         return {
           ...mutableToken,
+          role:
+            (mutableToken.role as Role | undefined) ??
+            (mutableToken.userRole as Role | undefined) ??
+            "USER",
+          userRole:
+            (mutableToken.userRole as Role | undefined) ??
+            (mutableToken.role as Role | undefined) ??
+            "USER",
           apiAccessToken: refreshed.accessToken,
           apiRefreshToken: refreshed.refreshToken ?? refreshToken,
           apiAccessTokenExpires: payload?.exp
@@ -249,13 +265,15 @@ const config: NextAuthConfig = {
         };
       } catch (error) {
         console.error("[Auth] JWT callback error:", error);
-        throw error;
+        return mutableToken;
       }
     },
     async session({ session, token }) {
       const tokenData = token as Record<string, unknown>;
       const role: Role =
-        (tokenData.role as Role | undefined) ?? ("USER" as Role);
+        (tokenData.role as Role | undefined) ??
+        (tokenData.userRole as Role | undefined) ??
+        ("USER" as Role);
       const userId =
         (tokenData.sub as string | undefined) ??
         (tokenData.userId as string | undefined) ??

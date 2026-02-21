@@ -21,14 +21,16 @@ export function AgentListingsPanel({
   const [sort, setSort] = useState<"TRUST" | "PRICE" | "NEWEST">("TRUST");
   const [view, setView] = useState<"list" | "grid">("list");
   const [scope, setScope] = useState<"AGENT" | "AGENCY">("AGENT");
+  const [page, setPage] = useState(1);
 
   const listingsQuery = useAgentListings(
     agentId,
-    { intent, verifiedOnly, sort, scope },
+    { intent, verifiedOnly, sort, scope, page, pageSize: 12 },
     initialData,
   );
 
   const items = listingsQuery.data?.items ?? [];
+  const meta = listingsQuery.data?.meta ?? { page: 1, totalPages: 1 };
 
   return (
     <section
@@ -41,7 +43,10 @@ export function AgentListingsPanel({
             key={tab}
             size="sm"
             variant={intent === tab ? "default" : "secondary"}
-            onClick={() => setIntent(tab)}
+            onClick={() => {
+              setIntent(tab);
+              setPage(1);
+            }}
           >
             {tab === "ALL"
               ? "All"
@@ -54,9 +59,10 @@ export function AgentListingsPanel({
           <Button
             size="sm"
             variant="secondary"
-            onClick={() =>
-              setScope((v) => (v === "AGENT" ? "AGENCY" : "AGENT"))
-            }
+            onClick={() => {
+              setScope((v) => (v === "AGENT" ? "AGENCY" : "AGENT"));
+              setPage(1);
+            }}
           >
             {scope === "AGENT" ? "Agent listings" : "Agency listings"}
           </Button>
@@ -138,6 +144,32 @@ export function AgentListingsPanel({
           ))}
         </div>
       )}
+
+      {meta.totalPages > 1 ? (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={page <= 1}
+            onClick={() => setPage((value) => Math.max(1, value - 1))}
+          >
+            Previous
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Page {meta.page} of {meta.totalPages}
+          </span>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={page >= meta.totalPages}
+            onClick={() =>
+              setPage((value) => Math.min(meta.totalPages, value + 1))
+            }
+          >
+            Next
+          </Button>
+        </div>
+      ) : null}
     </section>
   );
 }

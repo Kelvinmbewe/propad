@@ -1,8 +1,8 @@
-import 'next-auth';
-import 'next-auth/jwt';
-import type { Role } from '@propad/sdk';
+import "next-auth";
+import "next-auth/jwt";
+import type { Role } from "@propad/sdk";
 
-declare module 'next-auth' {
+declare module "next-auth" {
   interface Session {
     accessToken?: string;
     user: {
@@ -14,9 +14,10 @@ declare module 'next-auth' {
   }
 }
 
-declare module 'next-auth/jwt' {
+declare module "next-auth/jwt" {
   interface JWT {
     role?: Role;
+    userRole?: Role;
     apiAccessToken?: string;
     userId?: string;
   }

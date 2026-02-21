@@ -46,7 +46,16 @@ export default async function UserProfilePage({ params }: { params: { id: string
                   <User className="h-12 w-12 text-slate-400" />
                 </div>
                 <h1 className="mt-4 text-xl font-bold text-slate-900">{user.name || 'Anonymous User'}</h1>
-                <p className="text-sm text-slate-500">Member since {new Date(user.createdAt).getFullYear()}</p>
+                <p className="text-sm text-slate-500">
+                  {/* Robust date handling with logging for debugging */}
+                  Member since {(() => {
+                    const dateStr = (user as any).stats?.joinedAt || user.createdAt;
+                    console.log('User Profile Render - Date:', { id: user.id, createdAt: user.createdAt, statsJoinedAt: (user as any).stats?.joinedAt, finalDateStr: dateStr });
+                    if (!dateStr) return new Date().getFullYear();
+                    const d = new Date(dateStr);
+                    return isNaN(d.getTime()) ? new Date().getFullYear() : d.getFullYear();
+                  })()}
+                </p>
 
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
                   {user.isVerified && (

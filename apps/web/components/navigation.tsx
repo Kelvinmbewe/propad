@@ -18,6 +18,7 @@ import {
   Users,
   Building2,
   Receipt,
+  MessageSquare,
 } from "lucide-react";
 
 const links = [
@@ -55,6 +56,22 @@ const links = [
     label: "Listings",
     roles: ["ADMIN", "AGENT", "LANDLORD"] as Role[],
     icon: <Compass className="h-4 w-4" />,
+  },
+  {
+    href: "/dashboard/messages",
+    label: "Messages",
+    roles: [
+      "ADMIN",
+      "VERIFIER",
+      "AGENT",
+      "LANDLORD",
+      "USER",
+      "MODERATOR",
+      "ADVERTISER",
+      "INDEPENDENT_AGENT",
+      "COMPANY_ADMIN",
+    ] as Role[],
+    icon: <MessageSquare className="h-4 w-4" />,
   },
   {
     href: "/dashboard/agency",
@@ -227,8 +244,18 @@ const links = [
   },
   {
     href: "/dashboard/profile",
-    label: "Profile",
-    roles: [] as Role[],
+    label: "Settings",
+    roles: [
+      "ADMIN",
+      "VERIFIER",
+      "AGENT",
+      "LANDLORD",
+      "USER",
+      "MODERATOR",
+      "ADVERTISER",
+      "INDEPENDENT_AGENT",
+      "COMPANY_ADMIN",
+    ] as Role[],
     icon: <Users className="h-4 w-4" />,
   },
 ];
@@ -239,8 +266,9 @@ import { Badge } from "@propad/ui";
 
 export function DashboardNav() {
   const pathname = usePathname();
-  const { data } = useSession();
-  const role = (data?.user?.role ?? "USER") as Role;
+  const { data, status } = useSession();
+  const role = data?.user?.role;
+  const isAuthenticated = status === "authenticated";
   const { data: trustData } = useTrustScore();
 
   return (
@@ -260,7 +288,7 @@ export function DashboardNav() {
 
       <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
         {links
-          .filter((link) => link.roles.includes(role))
+          .filter((link) => (role ? link.roles.includes(role) : false))
           .map((link) => (
             <Link
               key={link.href}
@@ -283,15 +311,17 @@ export function DashboardNav() {
       <div className="mt-auto rounded-xl border border-[color:var(--aurora-color-border)] bg-[color:var(--aurora-color-elevated)] p-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold">
-            {data?.user?.email?.[0]?.toUpperCase() || "U"}
+            {(data?.user?.email?.[0] || "G").toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm truncate">
-              {data?.user?.name || "User"}
+              {data?.user?.name || "Guest"}
             </p>
             <div className="flex items-center gap-2">
-              <p className="text-xs text-neutral-500 truncate">{role}</p>
-              {trustData?.score !== undefined && (
+              <p className="text-xs text-neutral-500 truncate">
+                {role ?? "NOT SIGNED IN"}
+              </p>
+              {isAuthenticated && trustData?.score !== undefined && (
                 <Badge
                   variant={
                     trustData.score >= 80
@@ -315,13 +345,22 @@ export function DashboardNav() {
           >
             Home
           </Link>
-          <button
-            type="button"
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="inline-flex flex-1 items-center justify-center rounded-lg bg-[color:var(--aurora-color-accent)]/10 px-3 py-1.5 text-xs font-medium text-[color:var(--aurora-color-accent)] hover:bg-[color:var(--aurora-color-accent)]/20"
-          >
-            Sign out
-          </button>
+          {isAuthenticated ? (
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="inline-flex flex-1 items-center justify-center rounded-lg bg-[color:var(--aurora-color-accent)]/10 px-3 py-1.5 text-xs font-medium text-[color:var(--aurora-color-accent)] hover:bg-[color:var(--aurora-color-accent)]/20"
+            >
+              Sign out
+            </button>
+          ) : (
+            <Link
+              href="/auth/signin"
+              className="inline-flex flex-1 items-center justify-center rounded-lg bg-[color:var(--aurora-color-accent)]/10 px-3 py-1.5 text-xs font-medium text-[color:var(--aurora-color-accent)] hover:bg-[color:var(--aurora-color-accent)]/20"
+            >
+              Sign in
+            </Link>
+          )}
         </div>
       </div>
     </nav>

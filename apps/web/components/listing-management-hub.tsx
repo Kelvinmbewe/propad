@@ -1679,6 +1679,19 @@ function InterestTab({ propertyId }: { propertyId: string }) {
 function ChatsTab({ propertyId }: { propertyId: string }) {
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
 
+  const { data: conversationChats } = useQuery<{ items: any[] }>({
+    queryKey: ["conversation-listing-chats", propertyId],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/messages/listing?propertyId=${encodeURIComponent(propertyId)}`,
+      );
+      if (!response.ok) return { items: [] };
+      return (await response.json()) as { items: any[] };
+    },
+    refetchInterval: 10000,
+    initialData: { items: [] },
+  });
+
   // List threads
   const {
     data: threads,
@@ -1721,36 +1734,62 @@ function ChatsTab({ propertyId }: { propertyId: string }) {
     );
 
   return (
-    <div className="space-y-2">
-      {threads.map((thread: any) => (
-        <div
-          key={thread.user.id}
-          className="flex items-center p-4 border rounded-lg hover:bg-neutral-50 cursor-pointer transition-colors"
-          onClick={() => setSelectedThread(thread.user.id)}
-        >
-          <div className="h-10 w-10 bg-neutral-200 rounded-full flex items-center justify-center text-neutral-500 font-bold mr-3">
-            {thread.user.name?.[0] || "?"}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex justify-between items-center mb-1">
-              <span className="font-semibold truncate">
-                {thread.user.name || "Anonymous"}
-              </span>
-              <span className="text-xs text-neutral-400">
-                {formatDate(thread.lastMessage.createdAt)}
-              </span>
+    <div className="space-y-4">
+      {(conversationChats?.items ?? []).length ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Messenger listing chats</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {(conversationChats?.items ?? []).map((conversation: any) => (
+              <Link
+                key={conversation.id}
+                href={`/dashboard/messages/${conversation.id}`}
+                className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm hover:border-emerald-300"
+              >
+                <span className="font-medium text-foreground">
+                  {conversation.property?.title || "Listing conversation"}
+                </span>
+                <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  Listing chat
+                </span>
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <div className="space-y-2">
+        {threads.map((thread: any) => (
+          <div
+            key={thread.user.id}
+            className="flex items-center p-4 border rounded-lg hover:bg-neutral-50 cursor-pointer transition-colors"
+            onClick={() => setSelectedThread(thread.user.id)}
+          >
+            <div className="h-10 w-10 bg-neutral-200 rounded-full flex items-center justify-center text-neutral-500 font-bold mr-3">
+              {thread.user.name?.[0] || "?"}
             </div>
-            <p className="text-sm text-neutral-600 truncate">
-              {thread.lastMessage.body}
-            </p>
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-center mb-1">
+                <span className="font-semibold truncate">
+                  {thread.user.name || "Anonymous"}
+                </span>
+                <span className="text-xs text-neutral-400">
+                  {formatDate(thread.lastMessage.createdAt)}
+                </span>
+              </div>
+              <p className="text-sm text-neutral-600 truncate">
+                {thread.lastMessage.body}
+              </p>
+            </div>
+            {thread.unreadCount > 0 && (
+              <span className="ml-2 h-5 w-5 bg-red-500 text-white text-xs flex items-center justify-center rounded-full">
+                {thread.unreadCount}
+              </span>
+            )}
           </div>
-          {thread.unreadCount > 0 && (
-            <span className="ml-2 h-5 w-5 bg-red-500 text-white text-xs flex items-center justify-center rounded-full">
-              {thread.unreadCount}
-            </span>
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

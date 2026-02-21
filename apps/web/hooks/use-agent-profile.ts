@@ -6,7 +6,7 @@ export function useAgentSummary(agentId: string, initialData?: any) {
   return useQuery({
     queryKey: ["agent-summary", agentId],
     queryFn: async () => {
-      const response = await fetch(`/api/profiles/agents/${agentId}/summary`);
+      const response = await fetch(`/api/agents/${agentId}/summary`);
       if (!response.ok) throw new Error("Failed to load agent summary");
       return response.json();
     },
@@ -22,6 +22,8 @@ export function useAgentListings(
     verifiedOnly: boolean;
     sort: string;
     scope: string;
+    page?: number;
+    pageSize?: number;
   },
   initialData?: any,
 ) {
@@ -33,8 +35,10 @@ export function useAgentListings(
       query.set("verifiedOnly", params.verifiedOnly ? "true" : "false");
       query.set("sort", params.sort);
       query.set("scope", params.scope);
+      query.set("page", String(params.page ?? 1));
+      query.set("pageSize", String(params.pageSize ?? 12));
       const response = await fetch(
-        `/api/profiles/agents/${agentId}/listings?${query.toString()}`,
+        `/api/agents/${agentId}/listings?${query.toString()}`,
       );
       if (!response.ok) throw new Error("Failed to load listings");
       return response.json();
@@ -48,9 +52,7 @@ export function useAgentPerformance(agentId: string, initialData?: any) {
   return useQuery({
     queryKey: ["agent-performance", agentId],
     queryFn: async () => {
-      const response = await fetch(
-        `/api/profiles/agents/${agentId}/performance`,
-      );
+      const response = await fetch(`/api/agents/${agentId}/performance`);
       if (!response.ok) throw new Error("Failed to load performance");
       return response.json();
     },
@@ -68,7 +70,7 @@ export function useNearbyAgents(
     queryKey: ["agent-nearby", agentId, mode],
     queryFn: async () => {
       const response = await fetch(
-        `/api/profiles/agents/${agentId}/nearby?mode=${mode}`,
+        `/api/agents/${agentId}/nearby?mode=${mode}`,
       );
       if (!response.ok) throw new Error("Failed to load nearby");
       return response.json();

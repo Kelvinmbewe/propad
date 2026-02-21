@@ -9,10 +9,12 @@ export function AgentHero({
   profile,
   onMessage,
   onViewListings,
+  isStartingChat = false,
 }: {
   profile: any;
   onMessage: () => void;
   onViewListings: () => void;
+  isStartingChat?: boolean;
 }) {
   const trustScore = Number(profile?.trust?.score ?? 0);
   const joinedYear = profile?.joinedAt
@@ -56,7 +58,11 @@ export function AgentHero({
                   <Calendar className="h-4 w-4" /> Joined {joinedYear}
                 </span>
               ) : null}
-              <span>Active listings: {(profile?.listings ?? []).length}</span>
+              <span>
+                Active listings:{" "}
+                {profile?.stats?.activeListingsCount ??
+                  (profile?.listings ?? []).length}
+              </span>
             </p>
             <div className="flex flex-wrap items-center gap-4 text-sm">
               <span className="font-semibold text-emerald-600">
@@ -64,7 +70,9 @@ export function AgentHero({
               </span>
               <span className="text-foreground">{trustScore}/100</span>
               <span className="text-muted-foreground">
-                {(profile?.reviews ?? []).length} reviews
+                {profile?.stats?.reviewsCount ??
+                  (profile?.reviews ?? []).length}{" "}
+                reviews
               </span>
               <span className="text-muted-foreground">
                 {avgRating.toFixed(1)} avg rating
@@ -91,8 +99,12 @@ export function AgentHero({
               </a>
             </Button>
           ) : null}
-          <Button variant="secondary" onClick={onMessage}>
-            Send message
+          <Button
+            variant="secondary"
+            onClick={onMessage}
+            disabled={isStartingChat}
+          >
+            {isStartingChat ? "Opening chat..." : "Message agent"}
           </Button>
           <Button variant="secondary" onClick={onViewListings}>
             View listings

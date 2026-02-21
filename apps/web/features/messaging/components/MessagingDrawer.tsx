@@ -10,6 +10,7 @@ import {
   Dialog,
   DialogContent,
   Input,
+  notify,
   ScrollArea,
 } from "@propad/ui";
 import { formatDistanceToNow } from "date-fns";
@@ -73,12 +74,20 @@ export function MessagingDrawer({
     const trimmed = body.trim();
     if (!trimmed) return;
 
-    const activeConversationId = await ensureConversation();
-    await sendMessage.mutateAsync({
-      conversationId: activeConversationId,
-      body: trimmed,
-    });
-    setBody("");
+    try {
+      const activeConversationId = await ensureConversation();
+      await sendMessage.mutateAsync({
+        conversationId: activeConversationId,
+        body: trimmed,
+      });
+      setBody("");
+    } catch (error) {
+      notify.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Unable to send message right now",
+      );
+    }
   };
 
   return (

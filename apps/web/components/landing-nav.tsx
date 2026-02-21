@@ -8,7 +8,7 @@ import { AuroraThemeToggle, Button, cn } from "@propad/ui";
 const navLinks = [
   { href: "/listings?intent=FOR_SALE", label: "Buy" },
   { href: "/listings?intent=TO_RENT", label: "Rent" },
-  { href: "#agents", label: "Agents" },
+  { href: "/agencies", label: "Agents" },
   { href: "/dashboard/advertiser", label: "Advertise" },
   { href: "#trust", label: "How verification works" },
 ];
