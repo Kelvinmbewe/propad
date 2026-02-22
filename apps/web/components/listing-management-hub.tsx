@@ -33,6 +33,9 @@ import {
 import { acceptInterest, rejectInterest } from "@/app/actions/landlord";
 import { PaymentGate } from "@/components/payment-gate";
 import { SlotCalendar } from "@/components/viewings/slot-calendar";
+import { ListingInterestTabV1 } from "@/components/listing-management/interest-tab-v1";
+import { ListingChatsTabV1 } from "@/components/listing-management/chats-tab-v1";
+import { ListingViewingsTabV1 } from "@/components/listing-management/viewings-tab-v1";
 import {
   ArrowLeft,
   Check,
@@ -722,11 +725,13 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
           />
         )}
         {activeTab === "interest" && (
-          <InterestTab propertyId={managedPropertyId} />
+          <ListingInterestTabV1 propertyId={managedPropertyId} />
         )}
-        {activeTab === "chats" && <ChatsTab propertyId={managedPropertyId} />}
+        {activeTab === "chats" && (
+          <ListingChatsTabV1 propertyId={managedPropertyId} />
+        )}
         {activeTab === "viewings" && (
-          <ViewingsTab propertyId={managedPropertyId} />
+          <ListingViewingsTabV1 propertyId={managedPropertyId} />
         )}
         {activeTab === "payments" && (
           <PaymentsTab propertyId={managedPropertyId} />

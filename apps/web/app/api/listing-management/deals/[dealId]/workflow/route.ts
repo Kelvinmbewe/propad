@@ -1,0 +1,32 @@
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { serverApiRequest } from "@/lib/server-api";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ dealId: string }> },
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const { dealId } = await context.params;
+
+  try {
+    const updated = await serverApiRequest<any>(`/deals/${dealId}/workflow`, {
+      method: "PATCH",
+      body,
+    });
+    return NextResponse.json(updated);
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error?.message || "Failed to update deal workflow" },
+      { status: error?.status || 500 },
+    );
+  }
+}
