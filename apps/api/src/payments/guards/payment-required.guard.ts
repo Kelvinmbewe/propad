@@ -1,5 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
-import { ChargeableItemType } from '@prisma/client';
+import { ChargeableItemType } from '@propad/config';
+// import { ChargeableItemType } from '@prisma/client';
 import { FeatureAccessService, FeatureAccessStatus } from '../feature-access.service';
 
 export interface PaymentRequiredMetadata {
@@ -9,7 +10,7 @@ export interface PaymentRequiredMetadata {
 
 @Injectable()
 export class PaymentRequiredGuard implements CanActivate {
-  constructor(private readonly featureAccess: FeatureAccessService) {}
+  constructor(private readonly featureAccess: FeatureAccessService) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();

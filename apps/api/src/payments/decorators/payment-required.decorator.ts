@@ -1,5 +1,6 @@
 import { SetMetadata } from '@nestjs/common';
-import { ChargeableItemType } from '@prisma/client';
+import { ChargeableItemType } from '@propad/config';
+// import { ChargeableItemType } from '@prisma/client';
 import { PaymentRequiredMetadata } from '../guards/payment-required.guard';
 
 export const PAYMENT_REQUIRED_KEY = 'paymentRequired';

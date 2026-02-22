@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
 import { notify } from '@propad/ui';
-import type { Invoice, PaymentIntent, Transaction } from '@propad/sdk';
-import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
+import type { Invoice, PaymentIntent } from '@propad/sdk';
+import { useSdkClient } from '@/hooks/use-sdk-client';
+import { ClientState } from '@/components/client-state';
 
 const INVOICE_STATUSES = ['DRAFT', 'OPEN', 'PAID', 'VOID'];
 const INTENT_STATUSES = ['REQUIRES_ACTION', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'CANCELLED'];
@@ -53,15 +55,20 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
 }
 
 function InvoicePanel() {
-  const sdk = useAuthenticatedSDK();
+  const { sdk, status: clientStatus, message } = useSdkClient();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<string>('OPEN');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['admin:invoices', status],
-    enabled: Boolean(sdk),
-    queryFn: () => sdk!.admin.invoices.list({ status })
+    enabled: clientStatus === 'ready',
+    queryFn: () => {
+      if (!sdk) {
+        return [];
+      }
+      return sdk.admin.invoices.list({ status });
+    }
   });
 
   const selected = useMemo<Invoice | null>(() => {
@@ -76,11 +83,13 @@ function InvoicePanel() {
 
   const markPaidMutation = useMutation({
     mutationFn: (payload: { id: string; amountCents: number; notes?: string; paidAt: string | Date }) =>
-      sdk!.admin.invoices.markPaid(payload.id, {
-        amountCents: payload.amountCents,
-        notes: payload.notes,
-        paidAt: payload.paidAt
-      }),
+      sdk
+        ? sdk.admin.invoices.markPaid(payload.id, {
+            amountCents: payload.amountCents,
+            notes: payload.notes,
+            paidAt: payload.paidAt
+          })
+        : Promise.reject(new Error('Billing client not ready')),
     onSuccess: () => {
       notify.success('Invoice marked as paid');
       queryClient.invalidateQueries({ queryKey: ['admin:invoices'] });
@@ -91,14 +100,21 @@ function InvoicePanel() {
   });
 
   const handleExport = async () => {
-    if (!sdk) return;
-    const csv = await sdk.admin.invoices.export({ status });
-    triggerDownload(`invoices-${status.toLowerCase()}.csv`, csv);
-    notify.success('Invoice export ready');
+    if (!sdk) {
+      notify.error('Billing client not ready');
+      return;
+    }
+    try {
+      const csv = await sdk.admin.invoices.export({ status });
+      triggerDownload(`invoices-${status.toLowerCase()}.csv`, csv);
+      notify.success('Invoice export ready');
+    } catch (error) {
+      notify.error('Failed to export invoices');
+    }
   };
 
-  if (!sdk) {
-    return <p className="text-sm text-neutral-500">Preparing billing client…</p>;
+  if (clientStatus !== 'ready') {
+    return <ClientState status={clientStatus} message={message} title="Billing operations" />;
   }
 
   return (
@@ -319,32 +335,43 @@ function InvoiceDetail({
 }
 
 function PaymentIntentsPanel() {
-  const sdk = useAuthenticatedSDK();
+  const { sdk, status: clientStatus, message } = useSdkClient();
   const [status, setStatus] = useState<string>('REQUIRES_ACTION');
   const [gateway, setGateway] = useState<string>('');
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['admin:intents', status, gateway],
-    enabled: Boolean(sdk),
-    queryFn: () =>
-      sdk!.admin.paymentIntents.list({
+    enabled: clientStatus === 'ready',
+    queryFn: () => {
+      if (!sdk) {
+        return [];
+      }
+      return sdk.admin.paymentIntents.list({
         status: status || undefined,
         gateway: gateway || undefined
-      })
+      });
+    }
   });
 
   const handleExport = async () => {
-    if (!sdk) return;
-    const csv = await sdk.admin.paymentIntents.export({
-      status: status || undefined,
-      gateway: gateway || undefined
-    });
-    triggerDownload('payment-intents.csv', csv);
-    notify.success('Payment intent export ready');
+    if (!sdk) {
+      notify.error('Billing client not ready');
+      return;
+    }
+    try {
+      const csv = await sdk.admin.paymentIntents.export({
+        status: status || undefined,
+        gateway: gateway || undefined
+      });
+      triggerDownload('payment-intents.csv', csv);
+      notify.success('Payment intent export ready');
+    } catch (error) {
+      notify.error('Failed to export payment intents');
+    }
   };
 
-  if (!sdk) {
-    return <p className="text-sm text-neutral-500">Preparing billing client…</p>;
+  if (clientStatus !== 'ready') {
+    return <ClientState status={clientStatus} message={message} title="Billing operations" />;
   }
 
   return (
@@ -438,32 +465,43 @@ function IntentRow({ intent }: { intent: PaymentIntent }) {
 }
 
 function TransactionsPanel() {
-  const sdk = useAuthenticatedSDK();
+  const { sdk, status: clientStatus, message } = useSdkClient();
   const [result, setResult] = useState<string>('');
   const [gateway, setGateway] = useState<string>('');
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['admin:transactions', result, gateway],
-    enabled: Boolean(sdk),
-    queryFn: () =>
-      sdk!.admin.transactions.list({
+    enabled: clientStatus === 'ready',
+    queryFn: () => {
+      if (!sdk) {
+        return [];
+      }
+      return sdk.admin.transactions.list({
         result: result || undefined,
         gateway: gateway || undefined
-      })
+      });
+    }
   });
 
   const handleExport = async () => {
-    if (!sdk) return;
-    const csv = await sdk.admin.transactions.export({
-      result: result || undefined,
-      gateway: gateway || undefined
-    });
-    triggerDownload('transactions.csv', csv);
-    notify.success('Transaction export ready');
+    if (!sdk) {
+      notify.error('Billing client not ready');
+      return;
+    }
+    try {
+      const csv = await sdk.admin.transactions.export({
+        result: result || undefined,
+        gateway: gateway || undefined
+      });
+      triggerDownload('transactions.csv', csv);
+      notify.success('Transaction export ready');
+    } catch (error) {
+      notify.error('Failed to export transactions');
+    }
   };
 
-  if (!sdk) {
-    return <p className="text-sm text-neutral-500">Preparing billing client…</p>;
+  if (clientStatus !== 'ready') {
+    return <ClientState status={clientStatus} message={message} title="Billing operations" />;
   }
 
   return (

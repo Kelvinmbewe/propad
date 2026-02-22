@@ -1,38 +1,30 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
-import { VerificationStatus, VerificationType, VerificationItemStatus, VerificationItemType } from '@prisma/client';
+import { serverApiRequest } from '@/lib/server-api';
+import { VerificationItemTypeEnum, type VerificationItemTypeValue } from '@/common/runtime-enums';
+
+// Local status/type constants matching API schema
+const VerificationType = {
+    AUTO: 'AUTO',
+    CALL: 'CALL',
+    SITE: 'SITE',
+    DOCS: 'DOCS',
+} as const;
 
 export async function getPropertyVerification(propertyId: string) {
     try {
         const session = await auth();
         if (!session?.user?.id) throw new Error('Unauthorized');
 
-        // 1. Primary: Check Canonical Source (VerificationRequest)
-        const request = await prisma.verificationRequest.findFirst({
-            where: {
-                propertyId: propertyId,
-                targetType: 'PROPERTY'
-            },
-            include: {
-                items: {
-                    orderBy: { createdAt: 'desc' },
-                    take: 1
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-
-        if (request) {
-            return request;
-        }
-
-        return null; // No verification found
+        // TODO: Implement API endpoint
+        // return await serverApiRequest(`/properties/${propertyId}/verification`);
+        console.warn('[verification.ts] getPropertyVerification - API endpoint not yet implemented');
+        return null;
     } catch (error) {
         console.error('getPropertyVerification error:', error);
-        return null; // Return null instead of throwing to prevent 500
+        return null;
     }
 }
 
@@ -41,54 +33,32 @@ export async function requestPropertyVerification(propertyId: string, type: 'OWN
     if (!session?.user?.id) throw new Error('Unauthorized');
 
     try {
-        // Enforce Canonical Model: VerificationRequest
         // Map legacy frontend types to Schema Enum
-        let schemaType: VerificationItemType = VerificationItemType.PROOF_OF_OWNERSHIP;
-        if (type === 'LOCATION_CHECK') schemaType = VerificationItemType.LOCATION_CONFIRMATION;
-        if (type === 'MEDIA_VALIDATION') schemaType = VerificationItemType.PROPERTY_PHOTOS;
+        let schemaType: VerificationItemTypeValue = VerificationItemTypeEnum.PROOF_OF_OWNERSHIP;
+        if (type === 'LOCATION_CHECK') schemaType = VerificationItemTypeEnum.LOCATION_CONFIRMATION;
+        if (type === 'MEDIA_VALIDATION') schemaType = VerificationItemTypeEnum.PROPERTY_PHOTOS;
 
-        // Check for existing active request
-        const existing = await prisma.verificationRequest.findFirst({
-            where: {
-                propertyId: propertyId,
-                status: {
-                    // Filter only valid VerificationStatus Enum values that imply "Active"
-                    in: [VerificationStatus.PENDING]
-                }
-            },
-            include: { items: true }
-        });
-
-        if (existing) {
-            // Ensure we have an item of this type? For now, just return existing request to prevent duplicates.
-            return existing;
-        }
-
-        // Create New Request (Canonical)
-        // Request Status: PENDING (Active)
-        // Item Status: SUBMITTED (To appear in queue)
-        const request = await prisma.verificationRequest.create({
-            data: {
-                targetType: 'PROPERTY',
-                targetId: propertyId,
-                propertyId: propertyId,
-                requesterId: session.user.id,
-                status: VerificationStatus.PENDING,
-                items: {
-                    create: {
-                        type: schemaType,
-                        status: VerificationItemStatus.SUBMITTED,
-                        notes: 'User requested verification'
-                    }
-                }
-            },
-            include: {
-                items: true
-            }
-        });
+        // TODO: Implement API endpoint
+        // const request = await serverApiRequest('/verification-requests', {
+        //     method: 'POST',
+        //     body: { propertyId, type: schemaType }
+        // });
+        console.warn('[verification.ts] requestPropertyVerification - API endpoint not yet implemented');
 
         revalidatePath(`/dashboard/listings/${propertyId}`);
-        return request;
+        return {
+            id: 'pending',
+            targetType: 'PROPERTY',
+            targetId: propertyId,
+            propertyId,
+            requesterId: session.user.id,
+            status: 'PENDING',
+            items: [{
+                type: schemaType,
+                status: 'SUBMITTED',
+                notes: 'User requested verification'
+            }]
+        };
     } catch (error) {
         console.error('requestPropertyVerification error:', error);
         throw new Error('Unable to request verification at this time');

@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Label, notify } from '@propad/ui';
 import { Loader2, Search, X, Upload, Plus, MapPin, Image as ImageIcon } from 'lucide-react';
 import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import type { GeoSearchResult, PendingGeo } from '@propad/sdk';
+
 
 const PROPERTY_TYPES = [
     { value: 'ROOM', label: 'Room' },
@@ -27,6 +29,19 @@ const LISTING_INTENTS = [
     { value: 'TO_RENT', label: 'To Rent' },
 ] as const;
 
+const SUGGESTED_AMENITIES = [
+    'Borehole',
+    'Solar',
+    'Security',
+    'Garage',
+    'Garden',
+    'Swimming Pool',
+    'Power Backup',
+    'Internet',
+    'Water Tank',
+    'Walled',
+] as const;
+
 interface LocationSelection {
     countryId?: string;
     provinceId?: string;
@@ -45,8 +60,10 @@ interface UploadedImage {
 export default function CreatePropertyPage() {
     const router = useRouter();
     const sdk = useAuthenticatedSDK();
+    const queryClient = useQueryClient();
     const [isLoading, setIsLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
 
     // Geo search state
     const [geoQuery, setGeoQuery] = useState('');
@@ -68,6 +85,8 @@ export default function CreatePropertyPage() {
     // Image upload state
     const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [amenities, setAmenities] = useState<string[]>([]);
+    const [amenityInput, setAmenityInput] = useState('');
 
     // Debounced geo search
     useEffect(() => {
@@ -251,6 +270,25 @@ export default function CreatePropertyPage() {
         });
     };
 
+    const addAmenity = (value: string) => {
+        const cleaned = value.trim();
+        if (!cleaned) return;
+        setAmenities((prev) => {
+            if (prev.some((item) => item.toLowerCase() === cleaned.toLowerCase())) {
+                return prev;
+            }
+            return [...prev, cleaned];
+        });
+    };
+
+    const toggleSuggestedAmenity = (value: string) => {
+        setAmenities((prev) =>
+            prev.some((item) => item.toLowerCase() === value.toLowerCase())
+                ? prev.filter((item) => item.toLowerCase() !== value.toLowerCase())
+                : [...prev, value],
+        );
+    };
+
     async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
         if (!sdk) {
@@ -344,6 +382,7 @@ export default function CreatePropertyPage() {
             if (bedrooms !== undefined && bedrooms > 0) payload.bedrooms = Math.floor(bedrooms);
             if (bathrooms !== undefined && bathrooms > 0) payload.bathrooms = Math.floor(bathrooms);
             if (areaSqm !== undefined && areaSqm > 0) payload.areaSqm = areaSqm;
+            if (amenities.length > 0) payload.amenities = amenities;
 
             // Only include location fields if they have values
             // If pendingGeoId is present, send it (validation allows countryId OR pendingGeoId)
@@ -421,8 +460,10 @@ export default function CreatePropertyPage() {
                 notify.success('Property listed successfully!');
             }
 
+            await queryClient.invalidateQueries({ queryKey: ['properties:owned'] });
             router.push('/dashboard/listings');
             router.refresh();
+
         } catch (error: any) {
             console.error('Create property error:', error);
             // Extract more detailed error message
@@ -514,6 +555,69 @@ export default function CreatePropertyPage() {
                         className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white"
                         placeholder="Describe the property..."
                     />
+                </div>
+
+                <div>
+                    <Label>Amenities</Label>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                        {SUGGESTED_AMENITIES.map((amenity) => {
+                            const selected = amenities.some((item) => item.toLowerCase() === amenity.toLowerCase());
+                            return (
+                                <button
+                                    key={amenity}
+                                    type="button"
+                                    onClick={() => toggleSuggestedAmenity(amenity)}
+                                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                                        selected
+                                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                                            : 'border-slate-300 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700'
+                                    }`}
+                                >
+                                    {amenity}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                        <Input
+                            value={amenityInput}
+                            onChange={(event) => setAmenityInput(event.target.value)}
+                            placeholder="Add custom amenity"
+                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                addAmenity(amenityInput);
+                                setAmenityInput('');
+                            }}
+                        >
+                            Add
+                        </Button>
+                    </div>
+                    {amenities.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {amenities.map((amenity) => (
+                                <span
+                                    key={amenity}
+                                    className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
+                                >
+                                    {amenity}
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setAmenities((prev) => prev.filter((item) => item !== amenity))
+                                        }
+                                        className="text-emerald-700"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="mt-2 text-xs text-slate-500">Select common amenities or add your own.</p>
+                    )}
                 </div>
 
                 {/* Image Upload */}

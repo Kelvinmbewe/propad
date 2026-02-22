@@ -1,0 +1,348 @@
+﻿#1 [internal] load local bake definitions
+#1 reading from stdin 516B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from api.Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 1.95kB 0.1s done
+#2 DONE 0.3s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 ...
+
+#4 [auth] library/node:pull token for registry-1.docker.io
+#4 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 DONE 3.5s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 2B 0.0s done
+#5 DONE 0.2s
+
+#6 [internal] load build context
+#6 DONE 0.0s
+
+#7 [builder  1/15] FROM docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520
+#7 resolve docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520 0.1s done
+#7 DONE 0.1s
+
+#6 [internal] load build context
+#6 transferring context: 147.04kB 7.7s
+#6 transferring context: 164.35kB 7.9s done
+#6 DONE 8.3s
+
+#8 [builder  3/15] RUN apt-get update -y     && apt-get install -y openssl ca-certificates curl     && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [builder  4/15] COPY package*.json ./
+#9 CACHED
+
+#10 [builder  5/15] COPY pnpm-workspace.yaml ./
+#10 CACHED
+
+#11 [builder  6/15] COPY tsconfig.json ./
+#11 CACHED
+
+#12 [builder  2/15] WORKDIR /app
+#12 CACHED
+
+#13 [builder  7/15] COPY packages ./packages
+#13 CACHED
+
+#14 [builder  8/15] COPY apps/api ./apps/api
+#14 DONE 11.8s
+
+#15 [builder  9/15] COPY apps/api/prisma ./prisma
+#15 DONE 0.4s
+
+#16 [builder 10/15] RUN npm install -g pnpm@10.19.0
+#16 14.73 
+#16 14.73 added 1 package in 10s
+#16 14.73 
+#16 14.73 1 package is looking for funding
+#16 14.73   run `npm fund` for details
+#16 14.74 npm notice
+#16 14.74 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+#16 14.74 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+#16 14.74 npm notice To update run: npm install -g npm@11.7.0
+#16 14.74 npm notice
+#16 DONE 15.1s
+
+#17 [builder 11/15] RUN pnpm config set fetch-retries 5     && pnpm config set fetch-retry-mintimeout 20000     && pnpm config set fetch-retry-maxtimeout 120000
+#17 DONE 3.7s
+
+#18 [builder 12/15] RUN pnpm install --filter @propad/api... --frozen-lockfile=false
+#18 1.743 Scope: 3 of 7 workspace projects
+#18 2.659 Progress: resolved 1, reused 0, downloaded 0, added 0
+#18 3.666 Progress: resolved 5, reused 0, downloaded 0, added 0
+#18 4.146 
+#18 4.146    Ôò¡ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò«
+#18 4.146    Ôöé                                          Ôöé
+#18 4.146    Ôöé   Update available! 10.19.0 ÔåÆ 10.27.0.   Ôöé
+#18 4.146    Ôöé   Changelog: https://pnpm.io/v/10.27.0   Ôöé
+#18 4.146    Ôöé     To update, run: pnpm add -g pnpm     Ôöé
+#18 4.146    Ôöé                                          Ôöé
+#18 4.146    Ôò░ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò»
+#18 4.146 
+#18 4.666 Progress: resolved 17, reused 0, downloaded 0, added 0
+#18 5.669 Progress: resolved 31, reused 0, downloaded 0, added 0
+#18 6.866 Progress: resolved 46, reused 0, downloaded 0, added 0
+#18 7.867 Progress: resolved 60, reused 0, downloaded 0, added 0
+#18 9.228 Progress: resolved 69, reused 0, downloaded 0, added 0
+#18 10.42 Progress: resolved 71, reused 0, downloaded 0, added 0
+#18 12.03 Progress: resolved 73, reused 0, downloaded 0, added 0
+#18 13.82 Progress: resolved 75, reused 0, downloaded 0, added 0
+#18 14.82 Progress: resolved 85, reused 0, downloaded 0, added 0
+#18 15.82 Progress: resolved 116, reused 0, downloaded 0, added 0
+#18 16.82 Progress: resolved 147, reused 0, downloaded 0, added 0
+#18 17.83 Progress: resolved 173, reused 0, downloaded 0, added 0
+#18 18.83 Progress: resolved 211, reused 0, downloaded 0, added 0
+#18 19.83 Progress: resolved 226, reused 0, downloaded 0, added 0
+#18 20.83 Progress: resolved 265, reused 0, downloaded 0, added 0
+#18 21.84 Progress: resolved 289, reused 0, downloaded 0, added 0
+#18 22.84 Progress: resolved 318, reused 0, downloaded 0, added 0
+#18 23.84 Progress: resolved 365, reused 0, downloaded 0, added 0
+#18 24.84 Progress: resolved 425, reused 0, downloaded 0, added 0
+#18 25.84 Progress: resolved 442, reused 0, downloaded 0, added 0
+#18 26.84 Progress: resolved 479, reused 0, downloaded 0, added 0
+#18 27.84 Progress: resolved 510, reused 0, downloaded 0, added 0
+#18 28.84 Progress: resolved 538, reused 0, downloaded 0, added 0
+#18 29.84 Progress: resolved 567, reused 0, downloaded 0, added 0
+#18 30.93 Progress: resolved 576, reused 0, downloaded 0, added 0
+#18 32.46 Progress: resolved 599, reused 0, downloaded 0, added 0
+#18 33.48 Progress: resolved 619, reused 0, downloaded 0, added 0
+#18 34.71 Progress: resolved 625, reused 0, downloaded 0, added 0
+#18 35.71 Progress: resolved 696, reused 0, downloaded 0, added 0
+#18 36.72 Progress: resolved 733, reused 0, downloaded 0, added 0
+#18 37.73 Progress: resolved 795, reused 0, downloaded 0, added 0
+#18 38.73 Progress: resolved 830, reused 0, downloaded 0, added 0
+#18 39.73 Progress: resolved 836, reused 0, downloaded 0, added 0
+#18 41.50 Progress: resolved 845, reused 0, downloaded 0, added 0
+#18 41.57 Progress: resolved 845, reused 0, downloaded 0, added 0, done
+#18 42.36 .                                        | +704 ++++++++++++++++++++++++++++++++
+#18 69.89 .../node_modules/@prisma/engines postinstall$ node scripts/postinstall.js
+#18 70.05 .../node_modules/@nestjs/core postinstall$ opencollective || exit 0
+#18 70.05 .../node_modules/msgpackr-extract install$ node-gyp-build-optional-packages
+#18 70.16 .../esbuild@0.21.5/node_modules/esbuild postinstall$ node install.js
+#18 70.52 .../esbuild@0.21.5/node_modules/esbuild postinstall: Done
+#18 70.72 .../node_modules/msgpackr-extract install: Done
+#18 71.76 .../node_modules/@nestjs/core postinstall:                            Thanks for installing nest 
+#18 71.76 .../node_modules/@nestjs/core postinstall:                  Please consider donating to our open collective
+#18 71.76 .../node_modules/@nestjs/core postinstall:                         to help us maintain this package.
+#18 71.76 .../node_modules/@nestjs/core postinstall:                                          
+#18 71.77 .../node_modules/@nestjs/core postinstall:                             Number of contributors: 0
+#18 71.77 .../node_modules/@nestjs/core postinstall:                              Number of backers: 1157
+#18 72.59 .../node_modules/@nestjs/core postinstall:                              Annual budget: $129,083
+#18 72.59 .../node_modules/@nestjs/core postinstall:                              Current balance: $6,068
+#18 72.60 .../node_modules/@nestjs/core postinstall:                                          
+#18 72.60 .../node_modules/@nestjs/core postinstall:              Become a partner: https://opencollective.com/nest/donate
+#18 72.60 .../node_modules/@nestjs/core postinstall:                                          
+#18 72.74 .../node_modules/@nestjs/core postinstall: Done
+#18 75.11 .../node_modules/@prisma/engines postinstall: Done
+#18 75.70 .../prisma@5.22.0/node_modules/prisma preinstall$ node scripts/preinstall-entry.js
+#18 75.92 .../prisma@5.22.0/node_modules/prisma preinstall: Done
+#18 76.13 .../node_modules/@prisma/client postinstall$ node scripts/postinstall.js
+#18 77.86 .../node_modules/@prisma/client postinstall: Prisma schema loaded from prisma/schema.prisma
+#18 82.58 .../node_modules/@prisma/client postinstall: info The postinstall script automatically ran `prisma generate`, which failed.
+#18 82.58 .../node_modules/@prisma/client postinstall: The postinstall script still succeeds but won't generate the Prisma Client.
+#18 82.58 .../node_modules/@prisma/client postinstall: Please run `prisma generate` to see the errors.
+#18 82.72 .../node_modules/@prisma/client postinstall: Done
+#18 83.34 . preinstall$ node -e "const ua=process.env.npm_config_user_agent||''; if(!ua.includes('pnpm')) console.warn('[warn] Please use pnpm. Detected UA:', ua);"
+#18 83.46 . preinstall: Done
+#18 83.56 apps/api postinstall$ pnpm run prisma:generate
+#18 84.52 apps/api postinstall: > @propad/api@0.1.0 prisma:generate /app/apps/api
+#18 84.52 apps/api postinstall: > prisma generate
+#18 85.79 apps/api postinstall: Environment variables loaded from .env
+#18 85.80 apps/api postinstall: Prisma schema loaded from prisma/schema.prisma
+#18 92.37 apps/api postinstall: Ô£ö Generated Prisma Client (v5.22.0) to ./node_modules/.prisma/client in 4.90s
+#18 92.37 apps/api postinstall: Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#18 92.38 apps/api postinstall: Help us improve the Prisma ORM for everyone. Share your feedback in a short 2-min survey: https://pris.ly/orm/survey/release-5-22
+#18 92.63 apps/api postinstall: Done
+#18 92.74 Done in 1m 32s using pnpm v10.19.0
+#18 DONE 94.0s
+
+#19 [builder 13/15] RUN pnpm --filter @propad/sdk run build
+#19 3.894 
+#19 3.894 > @propad/sdk@0.1.0 build /app/packages/sdk
+#19 3.894 > tsc -p tsconfig.json
+#19 3.894 
+#19 DONE 12.4s
+
+#20 [builder 14/15] RUN pnpm --filter @propad/api... run prisma:generate
+#20 1.492 Scope: 3 of 7 workspace projects
+#20 1.504 apps/api prisma:generate$ prisma generate
+#20 2.767 apps/api prisma:generate: Environment variables loaded from .env
+#20 2.777 apps/api prisma:generate: Prisma schema loaded from prisma/schema.prisma
+#20 10.77 apps/api prisma:generate: Ô£ö Generated Prisma Client (v5.22.0) to ./node_modules/.prisma/client in 5.46s
+#20 10.77 apps/api prisma:generate: Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#20 10.77 apps/api prisma:generate: Help us improve the Prisma ORM for everyone. Share your feedback in a short 2-min survey: https://pris.ly/orm/survey/release-5-22
+#20 10.95 apps/api prisma:generate: Done
+#20 DONE 11.3s
+
+#21 [builder 15/15] RUN pnpm --filter @propad/api... run build
+#21 2.139 Scope: 3 of 7 workspace projects
+#21 2.176 packages/config build$ tsc -p tsconfig.json
+#21 2.179 packages/sdk build$ tsc -p tsconfig.json
+#21 8.303 packages/config build: Done
+#21 13.06 packages/sdk build: Done
+#21 13.06 apps/api build$ nest build
+#21 34.90 apps/api build: Done
+#21 DONE 35.1s
+
+#22 [runner  3/14] RUN apt-get update -y     && apt-get install -y openssl ca-certificates curl     && rm -rf /var/lib/apt/lists/*
+#22 CACHED
+
+#23 [runner  4/14] RUN npm install -g pnpm@10.19.0
+#23 CACHED
+
+#24 [runner  5/14] COPY --from=builder /app/package*.json ./
+#24 CACHED
+
+#25 [runner  6/14] COPY --from=builder /app/pnpm-workspace.yaml ./
+#25 CACHED
+
+#26 [runner  7/14] COPY --from=builder /app/packages ./packages
+#26 DONE 0.5s
+
+#27 [runner  8/14] COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
+#27 DONE 0.4s
+
+#28 [runner  9/14] COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+#28 DONE 1.0s
+
+#29 [runner 10/14] RUN pnpm install --filter @propad/api... --frozen-lockfile=false
+#29 3.700 Scope: 3 of 7 workspace projects
+#29 4.316 Progress: resolved 1, reused 0, downloaded 0, added 0
+#29 5.188 
+#29 5.188    Ôò¡ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò«
+#29 5.188    Ôöé                                          Ôöé
+#29 5.188    Ôöé   Update available! 10.19.0 ÔåÆ 10.27.0.   Ôöé
+#29 5.188    Ôöé   Changelog: https://pnpm.io/v/10.27.0   Ôöé
+#29 5.188    Ôöé     To update, run: pnpm add -g pnpm     Ôöé
+#29 5.188    Ôöé                                          Ôöé
+#29 5.188    Ôò░ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò»
+#29 5.188 
+#29 5.323 Progress: resolved 11, reused 0, downloaded 0, added 0
+#29 6.323 Progress: resolved 37, reused 0, downloaded 0, added 0
+#29 7.462 Progress: resolved 52, reused 0, downloaded 0, added 0
+#29 9.109 Progress: resolved 56, reused 0, downloaded 0, added 0
+#29 10.11 Progress: resolved 68, reused 0, downloaded 0, added 0
+#29 11.50 Progress: resolved 71, reused 0, downloaded 0, added 0
+#29 14.00 ÔÇëWARNÔÇë Request took 10090ms: https://registry.npmjs.org/prisma
+#29 14.83 Progress: resolved 73, reused 0, downloaded 0, added 0
+#29 19.41 ÔÇëWARNÔÇë Request took 14045ms: https://registry.npmjs.org/@prisma%2Fclient
+#29 20.45 Progress: resolved 75, reused 0, downloaded 0, added 0
+#29 21.45 Progress: resolved 76, reused 0, downloaded 0, added 0
+#29 23.61 Progress: resolved 80, reused 0, downloaded 0, added 0
+#29 24.62 Progress: resolved 104, reused 0, downloaded 0, added 0
+#29 25.63 Progress: resolved 144, reused 0, downloaded 0, added 0
+#29 26.63 Progress: resolved 197, reused 0, downloaded 0, added 0
+#29 27.86 Progress: resolved 208, reused 0, downloaded 0, added 0
+#29 28.86 Progress: resolved 255, reused 0, downloaded 0, added 0
+#29 29.90 Progress: resolved 277, reused 0, downloaded 0, added 0
+#29 30.90 Progress: resolved 312, reused 0, downloaded 0, added 0
+#29 32.13 Progress: resolved 330, reused 0, downloaded 0, added 0
+#29 33.13 Progress: resolved 379, reused 0, downloaded 0, added 0
+#29 34.13 Progress: resolved 437, reused 0, downloaded 0, added 0
+#29 35.13 Progress: resolved 481, reused 0, downloaded 0, added 0
+#29 36.15 Progress: resolved 519, reused 0, downloaded 0, added 0
+#29 37.16 Progress: resolved 539, reused 0, downloaded 0, added 0
+#29 38.17 Progress: resolved 548, reused 0, downloaded 0, added 0
+#29 39.87 Progress: resolved 562, reused 0, downloaded 0, added 0
+#29 41.70 Progress: resolved 580, reused 0, downloaded 0, added 0
+#29 43.17 Progress: resolved 602, reused 0, downloaded 0, added 0
+#29 44.21 Progress: resolved 611, reused 0, downloaded 0, added 0
+#29 46.22 Progress: resolved 628, reused 0, downloaded 0, added 0
+#29 47.25 Progress: resolved 688, reused 0, downloaded 0, added 0
+#29 48.31 Progress: resolved 736, reused 0, downloaded 0, added 0
+#29 49.31 Progress: resolved 787, reused 0, downloaded 0, added 0
+#29 50.31 Progress: resolved 833, reused 0, downloaded 0, added 0
+#29 51.31 Progress: resolved 840, reused 0, downloaded 0, added 0
+#29 52.84 Progress: resolved 845, reused 0, downloaded 0, added 0
+#29 52.88 Progress: resolved 845, reused 0, downloaded 0, added 0, done
+#29 53.36 .                                        | +704 ++++++++++++++++++++++++++++++++
+#29 78.54 .../node_modules/@prisma/engines postinstall$ node scripts/postinstall.js
+#29 78.65 .../node_modules/@nestjs/core postinstall$ opencollective || exit 0
+#29 78.66 .../node_modules/msgpackr-extract install$ node-gyp-build-optional-packages
+#29 78.71 .../esbuild@0.21.5/node_modules/esbuild postinstall$ node install.js
+#29 79.33 .../esbuild@0.21.5/node_modules/esbuild postinstall: Done
+#29 79.52 .../node_modules/@nestjs/core postinstall: Done
+#29 79.57 .../node_modules/msgpackr-extract install: Done
+#29 85.95 .../node_modules/@prisma/engines postinstall: Done
+#29 86.76 .../prisma@5.22.0/node_modules/prisma preinstall$ node scripts/preinstall-entry.js
+#29 87.02 .../prisma@5.22.0/node_modules/prisma preinstall: Done
+#29 87.66 .../node_modules/@prisma/client postinstall$ node scripts/postinstall.js
+#29 90.55 .../node_modules/@prisma/client postinstall: prisma:warn We could not find your Prisma schema in the default locations (see: https://pris.ly/d/prisma-schema-location).
+#29 90.55 .../node_modules/@prisma/client postinstall: If you have a Prisma schema file in a custom path, you will need to run
+#29 90.55 .../node_modules/@prisma/client postinstall: `prisma generate --schema=./path/to/your/schema.prisma` to generate Prisma Client.
+#29 90.55 .../node_modules/@prisma/client postinstall: If you do not have a Prisma schema file yet, you can ignore this message.
+#29 90.62 .../node_modules/@prisma/client postinstall: Done
+#29 91.12 . preinstall$ node -e "const ua=process.env.npm_config_user_agent||''; if(!ua.includes('pnpm')) console.warn('[warn] Please use pnpm. Detected UA:', ua);"
+#29 91.25 . preinstall: Done
+#29 91.34 apps/api postinstall$ pnpm run prisma:generate
+#29 92.52 apps/api postinstall: > @propad/api@0.1.0 prisma:generate /app/apps/api
+#29 92.52 apps/api postinstall: > prisma generate
+#29 95.44 apps/api postinstall: Prisma schema loaded from prisma/schema.prisma
+#29 103.6 apps/api postinstall: Ô£ö Generated Prisma Client (v5.22.0) to ./node_modules/.prisma/client in 4.13s
+#29 103.6 apps/api postinstall: Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#29 103.6 apps/api postinstall: Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+#29 103.9 apps/api postinstall: Done
+#29 104.1 Done in 1m 42.3s using pnpm v10.19.0
+#29 DONE 105.4s
+
+#30 [runner 11/14] RUN pnpm --filter @propad/api... run prisma:generate
+#30 8.536 Scope: 3 of 7 workspace projects
+#30 8.549 apps/api prisma:generate$ prisma generate
+#30 9.908 apps/api prisma:generate: Prisma schema loaded from prisma/schema.prisma
+#30 14.13 apps/api prisma:generate: Ô£ö Generated Prisma Client (v5.22.0) to ./node_modules/.prisma/client in 2.30s
+#30 14.13 apps/api prisma:generate: Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#30 14.13 apps/api prisma:generate: Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+#30 14.37 apps/api prisma:generate: Done
+#30 DONE 15.1s
+
+#31 [runner 12/14] COPY --from=builder /app/apps/api/dist ./apps/api/dist
+#31 DONE 3.6s
+
+#32 [runner 13/14] COPY apps/api/start.sh ./apps/api/start.sh
+#32 DONE 0.3s
+
+#33 [runner 14/14] RUN chmod +x ./apps/api/start.sh
+#33 DONE 0.9s
+
+#34 exporting to image
+#34 exporting layers
+#34 exporting layers 160.9s done
+#34 exporting manifest sha256:23877921f4c7738d6604cb4c514179bf75be02c1b96f8b6ad4f701e5bf7d0228 0.0s done
+#34 exporting config sha256:64c4579cefccdde8376fcbe0eb416769d571d84413d77f279fa4b4b681250615 0.0s done
+#34 exporting attestation manifest sha256:f7f0ca2f65ad078fbb450286c23cdc20f4b579afc5832c511d3b2d7bdff6a15d
+#34 exporting attestation manifest sha256:f7f0ca2f65ad078fbb450286c23cdc20f4b579afc5832c511d3b2d7bdff6a15d 0.1s done
+#34 exporting manifest list sha256:1203587f105cc3f3604f673d062f89bc3021d86837821636ab72d9eb2d71db36 0.0s done
+#34 naming to docker.io/library/infrastructure-api:latest 0.0s done
+#34 unpacking to docker.io/library/infrastructure-api:latest
+#34 unpacking to docker.io/library/infrastructure-api:latest 113.6s done
+#34 DONE 275.2s
+
+#35 resolving provenance for metadata file
+#35 DONE 0.2s
+docker :  
+infrastructure-api  
+Built
+At line:1 char:1
++ docker compose 
+build api 2>&1 | 
+Out-File -FilePath 
+"c:\projects\propa 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: ( infras   
+ tructure-api  Bu    
+ilt:String) [],     
+RemoteException
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 

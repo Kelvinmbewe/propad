@@ -1,126 +1,270 @@
-import { prisma } from '@/lib/prisma';
-import { LandingNav } from '@/components/landing-nav';
-import { InterestButton } from '@/components/interest-button';
-import { auth } from '@/auth';
-import { PropertyMessenger } from '@/components/property-messenger';
-import { PropertyImage } from '@/components/property-image';
-import { notFound } from 'next/navigation';
-import { Bath, BedDouble, MapPin, Ruler } from 'lucide-react';
-import { getImageUrl } from '@/lib/image-url';
+import { notFound } from "next/navigation";
+import { Badge } from "@propad/ui";
+import { LandingNav } from "@/components/landing-nav";
+import { ViewTracker } from "@/components/view-tracker";
+import { ListingGallery } from "@/components/property-detail/listing-gallery";
+import { PropertyOffersCard } from "@/components/property-detail/property-offers-card";
+import { ListingSidebar } from "@/components/property-detail/listing-sidebar";
+import { ListingLocationMap } from "@/components/property-detail/listing-location-map";
+import { NearbyListingsPanel } from "@/components/property-detail/nearby-listings-panel";
+import { formatCurrency } from "@/lib/formatters";
+import { serverPublicApiRequest } from "@/lib/server-api";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-async function getProperty(id: string, userId?: string) {
-    const property = await prisma.property.findUnique({
-        where: { id },
-        include: {
-            suburb: true,
-            city: true,
-            media: true,
-            interests: userId ? {
-                where: { userId }
-            } : false
-        }
-    });
-
-  if (!property) return null;
-
-  const rawImageUrl = property.media[0]?.url;
-  const imageUrl = getImageUrl(rawImageUrl);
-
-  return {
-    ...property,
-    title: property.title || `${property.bedrooms} Bed ${property.type} in ${property.suburb?.name || 'Harare'}`,
-    location: `${property.suburb?.name || 'Harare'}, ${property.city?.name || 'Zimbabwe'}`,
-    imageUrl,
-        price: Number(property.price),
-        isInterested: property.interests && property.interests.length > 0,
-        listingIntent: (property as any).listingIntent ?? 'FOR_SALE',
-        areaSqm: (property as any).areaSqm ?? null
-    };
+interface PropertyDetails {
+  id: string;
+  title: string;
+  description?: string | null;
+  price: string | number;
+  currency?: string;
+  type: string;
+  listingIntent: "FOR_SALE" | "TO_RENT";
+  status?: string;
+  verificationLevel?: string;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  areaSqm?: number | null;
+  furnishing?: string | null;
+  amenities?: string[] | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  media?: Array<{ id?: string; url: string }>;
+  location?: {
+    lat?: number;
+    lng?: number;
+    suburb?: { name?: string };
+    city?: { name?: string };
+    province?: { name?: string };
+  };
+  suburbName?: string | null;
+  cityName?: string | null;
+  provinceName?: string | null;
+  landlordId?: string | null;
+  agentOwnerId?: string | null;
+  landlord?: {
+    id?: string;
+    name?: string | null;
+    phone?: string | null;
+  } | null;
+  agentOwner?: {
+    id?: string;
+    name?: string | null;
+    phone?: string | null;
+  } | null;
+  assignedAgent?: {
+    id?: string;
+    name?: string | null;
+    phone?: string | null;
+  } | null;
+  agency?: { id?: string; name?: string | null; phone?: string | null } | null;
+  commercialFields?: {
+    floorAreaSqm?: number | null;
+    parkingBays?: number | null;
+    powerPhase?: string | null;
+    loadingBay?: boolean | null;
+  } | null;
 }
 
-export default async function PropertyDetailsPage({ params }: { params: { id: string } }) {
-    const session = await auth();
-    const property: any = await getProperty(params.id, session?.user?.id);
+async function getProperty(id: string) {
+  try {
+    return await serverPublicApiRequest<PropertyDetails>(`/properties/${id}`);
+  } catch {
+    return null;
+  }
+}
 
-    if (!property) {
-        notFound();
-    }
+function locationText(property: PropertyDetails) {
+  return [
+    property.suburbName ?? property.location?.suburb?.name,
+    property.cityName ?? property.location?.city?.name,
+    property.provinceName ?? property.location?.province?.name,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
 
-    return (
-        <div className="min-h-screen bg-slate-50">
-            <LandingNav />
-            <main className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
-                <div className="overflow-hidden rounded-2xl bg-white shadow-xl">
-                    <div className="relative h-96 w-full sm:h-[500px]">
-                        <PropertyImage
-                            src={property.imageUrl}
-                            alt={property.title}
-                            className="h-full w-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                        <div className="absolute bottom-0 left-0 p-8 text-white">
-                            <div className="mb-2 flex items-center gap-2">
-                                <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${property.listingIntent === 'TO_RENT' ? 'bg-blue-500' : 'bg-emerald-500'
-                                    }`}>
-                                    {property.listingIntent === 'TO_RENT' ? 'For Rent' : 'For Sale'}
-                                </span>
-                                <span className="flex items-center gap-1 text-sm font-medium">
-                                    {/* MapPin removed for debugging */}
-                                    {property.location}
-                                </span>
-                            </div>
-                            <h1 className="text-3xl font-bold sm:text-4xl">{property.title}</h1>
-                            <p className="mt-2 text-2xl font-semibold text-emerald-400">
-                                ${property.price.toLocaleString()}{property.listingIntent === 'TO_RENT' ? '/month' : ''}
-                            </p>
-                        </div>
-                    </div>
+function entityForSidebar(property: PropertyDetails) {
+  if (property.agency?.name) {
+    return {
+      name: property.agency.name,
+      roleLabel: "Agency",
+      phone: property.agency.phone,
+      profileHref: property.agency.id
+        ? `/profiles/companies/${property.agency.id}`
+        : "/agencies",
+    };
+  }
+  if (property.assignedAgent?.name) {
+    return {
+      name: property.assignedAgent.name,
+      roleLabel: "Agent",
+      phone: property.assignedAgent.phone,
+      profileHref: property.assignedAgent.id
+        ? `/profiles/users/${property.assignedAgent.id}`
+        : "/agencies",
+    };
+  }
+  if (property.agentOwner?.name) {
+    return {
+      name: property.agentOwner.name,
+      roleLabel: "Agent",
+      phone: property.agentOwner.phone,
+      profileHref: property.agentOwner.id
+        ? `/profiles/users/${property.agentOwner.id}`
+        : "/agencies",
+    };
+  }
+  return {
+    name: property.landlord?.name ?? "Property owner",
+    roleLabel: "Landlord",
+    phone: property.landlord?.phone,
+    profileHref: null,
+  };
+}
 
-                    <div className="grid gap-8 p-8 lg:grid-cols-3">
-                        <div className="lg:col-span-2">
-                            <h2 className="text-xl font-bold text-slate-900">Description</h2>
-                            <p className="mt-4 text-slate-600 leading-relaxed">
-                                {property.description || 'No description available for this property.'}
-                            </p>
+function offeringExtras(property: PropertyDetails) {
+  const extras: string[] = [];
+  const amenityText = (property.amenities ?? []).map((entry) =>
+    entry.toLowerCase(),
+  );
+  const hasAmenity = (name: string) =>
+    amenityText.some((entry) => entry.includes(name));
+  if (hasAmenity("borehole")) extras.push("Borehole");
+  if (hasAmenity("solar")) extras.push("Solar");
+  if (hasAmenity("security")) extras.push("Security");
+  if (hasAmenity("water")) extras.push("Water");
+  if (hasAmenity("backup") || property.commercialFields?.powerPhase)
+    extras.push("Power backup");
+  if (property.commercialFields?.loadingBay) extras.push("Loading bay");
+  return extras;
+}
 
-                            <div className="mt-8 grid grid-cols-3 gap-4 rounded-xl bg-slate-50 p-6">
-                                <div className="flex flex-col items-center justify-center gap-2 text-slate-600">
-                                    <BedDouble className="h-6 w-6 text-emerald-600" />
-                                    <span className="font-semibold">{property.bedrooms} Bedrooms</span>
-                                </div>
-                                <div className="flex flex-col items-center justify-center gap-2 text-slate-600">
-                                    <Bath className="h-6 w-6 text-emerald-600" />
-                                    <span className="font-semibold">{property.bathrooms} Bathrooms</span>
-                                </div>
-                                <div className="flex flex-col items-center justify-center gap-2 text-slate-600">
-                                    <Ruler className="h-6 w-6 text-emerald-600" />
-                                    <span className="font-semibold">{property.areaSqm ? `${property.areaSqm} m²` : '-- m²'}</span>
-                                </div>
-                            </div>
-                        </div>
+export default async function PropertyDetailsPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const property = await getProperty(params.id);
+  if (!property) notFound();
 
-                        <div className="space-y-6">
-                            <InterestButton propertyId={property.id} isInterested={property.isInterested} />
+  const location = locationText(property) || "Zimbabwe";
+  const price = formatCurrency(
+    Number(property.price ?? 0),
+    property.currency ?? "USD",
+  );
+  const isRent = property.listingIntent === "TO_RENT";
+  const verificationStatus = (property.status ?? "").toUpperCase();
+  const verificationLevel = (property.verificationLevel ?? "").toUpperCase();
+  const isVerified =
+    verificationLevel === "VERIFIED" || verificationLevel === "TRUSTED";
+  const extras = offeringExtras(property);
+  const lat =
+    typeof property.location?.lat === "number"
+      ? property.location.lat
+      : undefined;
+  const lng =
+    typeof property.location?.lng === "number"
+      ? property.location.lng
+      : undefined;
 
-                            {session?.user ? (
-                                <div id="chat">
-                                    <PropertyMessenger
-                                        propertyId={property.id}
-                                        landlordId={property.landlordId}
-                                        agentOwnerId={property.agentOwnerId}
-                                    />
-                                </div>
-                            ) : (
-                                <div className="rounded-lg border border-neutral-200 bg-white p-4 text-center">
-                                    <p className="text-sm text-neutral-600">Sign in to chat with the owner</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <LandingNav />
+      <ViewTracker propertyId={property.id} />
+
+      <main className="mx-auto max-w-7xl px-4 pb-12 pt-24 sm:px-6 lg:px-8">
+        <div className="space-y-5">
+          <ListingGallery media={property.media ?? []} title={property.title} />
+
+          <section className="rounded-2xl border border-border bg-card p-5 text-card-foreground">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-2">
+                <h1 className="text-3xl font-semibold text-foreground">
+                  {property.title}
+                </h1>
+                <p className="text-sm text-muted-foreground">{location}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-emerald-600 text-white">
+                    {isRent ? "FOR RENT" : "FOR SALE"}
+                  </Badge>
+                  <Badge variant="secondary">
+                    {isVerified ? "VERIFIED" : "PENDING_VERIFY"}
+                  </Badge>
+                  {verificationStatus ? (
+                    <Badge variant="outline">{verificationStatus}</Badge>
+                  ) : null}
                 </div>
-            </main>
+              </div>
+
+              <p className="text-3xl font-semibold text-emerald-600">
+                {price}
+                {isRent ? (
+                  <span className="ml-1 text-base text-muted-foreground">
+                    /month
+                  </span>
+                ) : null}
+              </p>
+            </div>
+          </section>
+
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="space-y-6">
+              <PropertyOffersCard
+                bedrooms={property.bedrooms}
+                bathrooms={property.bathrooms}
+                floorArea={
+                  property.areaSqm ??
+                  property.commercialFields?.floorAreaSqm ??
+                  null
+                }
+                propertyType={property.type}
+                furnished={property.furnishing}
+                parking={property.commercialFields?.parkingBays ?? null}
+                extras={extras}
+                createdAt={property.createdAt}
+                updatedAt={property.updatedAt}
+              />
+
+              <section className="rounded-2xl border border-border bg-card p-5 text-card-foreground">
+                <h2 className="text-lg font-semibold text-foreground">
+                  Description
+                </h2>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
+                  {property.description ||
+                    "No description available for this listing yet."}
+                </p>
+              </section>
+
+              <ListingLocationMap
+                lat={lat}
+                lng={lng}
+                locationLabel={location}
+              />
+
+              <NearbyListingsPanel
+                currentId={property.id}
+                lat={lat}
+                lng={lng}
+                intent={property.listingIntent}
+                price={Number(property.price ?? 0)}
+                locationLabel={
+                  property.suburbName ?? property.cityName ?? location
+                }
+                areaQuery={property.suburbName ?? property.cityName ?? location}
+              />
+            </div>
+
+            <ListingSidebar
+              propertyId={property.id}
+              propertyTitle={property.title}
+              landlordId={property.landlord?.id ?? property.landlordId}
+              agentOwnerId={property.agentOwner?.id ?? property.agentOwnerId}
+              entity={entityForSidebar(property)}
+            />
+          </div>
         </div>
-    );
+      </main>
+    </div>
+  );
 }

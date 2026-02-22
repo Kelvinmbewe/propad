@@ -1,66 +1,119 @@
-import { prisma } from '@/lib/prisma';
-import { LandingPropertyCard, type LandingProperty } from '@/components/landing-property-card';
-import { LandingNav } from '@/components/landing-nav';
+"use client";
 
-export const dynamic = 'force-dynamic';
+import { useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
+import { LandingPropertyCard } from "@/components/landing-property-card";
+import { LandingNav } from "@/components/landing-nav";
+import {
+  Button,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Card,
+} from "@propad/ui";
+import { usePropertySearch } from "@/hooks/use-property-search";
+import { useDebounce } from "@/hooks/use-debounce"; // Assuming this hook exists or we create it
+import { Filter, Search } from "lucide-react";
 
-async function getProperties() {
-    const properties = await prisma.property.findMany({
-        where: {
-            status: 'VERIFIED'
-        },
-        orderBy: {
-            createdAt: 'desc'
-        },
-        include: {
-            suburb: true,
-            city: true,
-            media: true
-        }
-    });
+export default function PropertiesPage() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [priceRange, setPriceRange] = useState<string>("all");
+  const [propertyType, setPropertyType] = useState<string>("all");
 
-    return properties.map((p) => ({
-        id: p.id,
-        title: p.title || `${p.bedrooms} Bed ${p.type} in ${p.suburb?.name || 'Harare'}`,
-        location: `${p.suburb?.name || 'Harare'}, ${p.city?.name || 'Zimbabwe'}`,
-        price: `$${Number(p.price).toLocaleString()}`,
-        status: 'FOR SALE',
-        statusTone: 'sale',
-        imageUrl: p.media[0]?.url || 'https://images.unsplash.com/photo-1600596542815-2a4d9f0152e3?auto=format&fit=crop&w=800&q=80',
-        beds: p.bedrooms || 0,
-        baths: p.bathrooms || 0,
-        area: 0
-    } as LandingProperty));
-}
+  // Debounce search term
+  const debouncedSearch = useDebounce(searchTerm, 500);
 
-export default async function PropertiesPage() {
-    const properties = await getProperties();
+  const { data: properties, isLoading } = usePropertySearch({
+    location: debouncedSearch,
+    type: propertyType !== "all" ? propertyType : undefined,
+  });
 
-    return (
-        <div className="min-h-screen bg-slate-50">
-            <LandingNav />
-            <main className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
-                <div className="mb-12">
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-                        All Properties
-                    </h1>
-                    <p className="mt-4 text-lg text-slate-500">
-                        Browse our curated selection of premium properties.
-                    </p>
-                </div>
+  const results = Array.isArray(properties)
+    ? properties
+    : (properties as any)?.properties || [];
 
-                <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-                    {properties.map((property) => (
-                        <LandingPropertyCard key={property.id} property={property} />
-                    ))}
-                </div>
-
-                {properties.length === 0 && (
-                    <div className="text-center py-24">
-                        <p className="text-lg text-slate-500">No properties found.</p>
-                    </div>
-                )}
-            </main>
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <LandingNav />
+      <main className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+            Discover Trusted Listings
+          </h1>
+          <p className="mt-2 text-lg text-slate-500">
+            Verified listings rank higher, with pending verification properties
+            marked clearly.
+          </p>
         </div>
-    );
+
+        {/* Search & Filters Bar */}
+        <Card className="p-4 mb-8 bg-white/80 backdrop-blur-md sticky top-20 z-10 border-slate-200/60 shadow-sm">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search by city, suburb..."
+                className="pl-9 bg-slate-50 border-slate-200"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <Select value={propertyType} onValueChange={setPropertyType}>
+              <SelectTrigger className="w-[180px] bg-slate-50">
+                <SelectValue placeholder="Property Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="APARTMENT">Apartment</SelectItem>
+                <SelectItem value="HOUSE">House</SelectItem>
+                <SelectItem value="COMMERCIAL">Commercial</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value="price" disabled>
+              <SelectTrigger className="w-[180px] bg-slate-50">
+                <SelectValue placeholder="Price Range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="price">Any Price</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </Card>
+
+        {isLoading ? (
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div
+                key={i}
+                className="h-96 rounded-2xl bg-slate-200 animate-pulse"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {results.map((property: any) => (
+              <LandingPropertyCard key={property.id} property={property} />
+            ))}
+          </div>
+        )}
+
+        {!isLoading && results.length === 0 && (
+          <div className="text-center py-24">
+            <div className="bg-slate-100 rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-4">
+              <Search className="h-8 w-8 text-slate-400" />
+            </div>
+            <h3 className="text-lg font-medium text-slate-900">
+              No properties found
+            </h3>
+            <p className="text-slate-500">
+              Try adjusting your filters or search area.
+            </p>
+          </div>
+        )}
+      </main>
+    </div>
+  );
 }

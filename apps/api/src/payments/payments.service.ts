@@ -1,6 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
-  ChargeableItemType,
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import {
   Currency,
   FxRate,
   Invoice,
@@ -9,35 +12,53 @@ import {
   InvoiceStatus,
   PaymentGateway,
   PaymentIntentStatus,
-  PaymentStatus,
   Prisma,
   PrismaClient,
-  TransactionResult
-} from '@prisma/client';
-import { startOfDay } from 'date-fns';
-import { Buffer } from 'node:buffer';
-import PDFDocument from 'pdfkit';
-import { env } from '@propad/config';
-import { PrismaService } from '../prisma/prisma.service';
-import { AuditService } from '../audit/audit.service';
-import { PaymentGatewayRegistry } from './payment-gateway.registry';
-import { MailService } from '../mail/mail.service';
-import { PaymentPollingService } from './payment-polling.service';
-import { PricingService } from './pricing.service';
+  TransactionResult,
+  WalletLedgerSourceType,
+} from "@prisma/client";
+import {
+  ChargeableItemType,
+  PaymentProvider,
+  PaymentStatus,
+} from "@propad/config";
+
+import { startOfDay } from "date-fns";
+import { Buffer } from "node:buffer";
+import PDFDocument from "pdfkit";
+import { env } from "@propad/config";
+import { PrismaService } from "../prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
+import { PaymentGatewayRegistry } from "./payment-gateway.registry";
+import { AppConfigService } from "../app-config/app-config.service";
+import { MailService } from "../mail/mail.service";
+import { PaymentPollingService } from "./payment-polling.service";
+import { PricingService } from "./pricing.service";
+import { CommissionsService } from "../commissions/commissions.service";
+import { RewardsService } from "../rewards/rewards.service";
+import { PaymentProviderSettingsService } from "./payment-provider-settings.service";
+import { WalletLedgerService } from "../wallets/wallet-ledger.service";
 
 const VAT_SCALE = 100;
 const MICRO_SCALE = 1_000_000;
-const BASE_CURRENCY = Currency.USD;
 
-type PrismaTx = PrismaClient;
-type PrismaClientOrTx = PrismaClient;
+type PrismaTx = Omit<
+  PrismaClient,
+  "$on" | "$connect" | "$disconnect" | "$use" | "$transaction" | "$extends"
+>;
+type PrismaClientOrTx = PrismaTx;
 
 type InvoiceWithRelations = Invoice & {
   lines: InvoiceLine[];
   buyerUser?: { name?: string | null; email?: string | null } | null;
   buyerAgency?: { name: string; email?: string | null } | null;
   promoBoost?: { id: string; startAt: Date; endAt: Date } | null;
-  campaign?: { id: string; status: string; startAt: Date; flights: { id: string; placementId: string }[] } | null;
+  campaign?: {
+    id: string;
+    status: string;
+    startAt: Date;
+    flights: { id: string; placementId: string }[];
+  } | null;
   fxRate?: FxRate | null;
 };
 
@@ -86,9 +107,14 @@ type OfflinePaymentOptions = {
   paidAt?: Date;
 };
 
+import { ReferralsService } from "../growth/referrals/referrals.service";
+
 @Injectable()
 export class PaymentsService {
-  private readonly vatRate = env.VAT_RATE ?? (env.VAT_PERCENT ?? 15) / VAT_SCALE;
+  private get vatRate() {
+    const configRate = this.appConfig.getConfig().billing.taxRate / VAT_SCALE;
+    return configRate || env.VAT_RATE || (env.VAT_PERCENT ?? 15) / VAT_SCALE;
+  }
 
   constructor(
     private readonly prisma: PrismaService,
@@ -96,41 +122,52 @@ export class PaymentsService {
     private readonly registry: PaymentGatewayRegistry,
     private readonly mail: MailService,
     private readonly polling: PaymentPollingService,
-    private readonly pricing: PricingService
-  ) { }
+    private readonly pricing: PricingService,
+    private readonly commissions: CommissionsService,
+    private readonly rewards: RewardsService,
+    private readonly referrals: ReferralsService,
+    private readonly providerSettings: PaymentProviderSettingsService,
+    private readonly appConfig: AppConfigService,
+    private readonly ledger: WalletLedgerService,
+  ) {}
+
+  // Property injection to avoid constructor overload if preferred, but standard is constructor.
+  // Actually, let's use ModuleRef later if circular.
+  // For now, let's keep constructor clean and use `await this.moduleRef.get(CommissionsService, { strict: false })` if needed?
+  // No, let's just add them.
 
   async createInvoiceForFeature(
     featureType: ChargeableItemType,
     featureId: string,
     userId: string,
     currency: Currency = Currency.USD,
-    description?: string
+    description?: string,
   ) {
     // Check for existing open invoice for this feature (idempotency)
     const existingInvoice = await this.prisma.invoice.findFirst({
       where: {
         buyerUserId: userId,
         status: {
-          in: [InvoiceStatus.DRAFT, InvoiceStatus.OPEN]
+          in: [InvoiceStatus.DRAFT, InvoiceStatus.OPEN],
         },
         lines: {
           some: {
             metaJson: {
-              path: ['featureType'],
-              equals: featureType
+              path: ["featureType"],
+              equals: featureType,
             },
             sku: {
-              startsWith: `${featureType}-${featureId}`
-            }
-          }
-        }
+              startsWith: `${featureType}-${featureId}`,
+            },
+          },
+        },
       },
       include: {
-        lines: true
+        lines: true,
       },
       orderBy: {
-        createdAt: 'desc'
-      }
+        createdAt: "desc",
+      },
     });
 
     // Return existing invoice if found (idempotent)
@@ -139,9 +176,30 @@ export class PaymentsService {
     }
 
     // Get pricing from PricingService - enforces pricing rules
-    const pricing = await this.pricing.calculatePrice(featureType, undefined, currency);
+    const pricing = await this.pricing.calculatePrice(
+      featureType,
+      undefined,
+      currency,
+    );
 
     const featureDisplayName = this.getFeatureDisplayName(featureType);
+
+    // Resolve Agent for Property features
+    let agentId: string | undefined;
+    if (
+      (featureType === ChargeableItemType.FEATURE ||
+        featureType === ChargeableItemType.BOOST) &&
+      featureId
+    ) {
+      const property = await this.prisma.property.findUnique({
+        where: { id: featureId },
+        select: { agentOwnerId: true, landlordId: true },
+      });
+      // Prefer agentOwnerId, fallback to landlord if needed (though usually landlords don't get commission)
+      if (property?.agentOwnerId) {
+        agentId = property.agentOwnerId;
+      }
+    }
 
     const invoice = await this.createInvoice(
       {
@@ -151,26 +209,29 @@ export class PaymentsService {
         lines: [
           {
             sku: `${featureType}-${featureId}`,
-            description: description || `${featureDisplayName} for ${featureId.substring(0, 8)}...`,
+            description:
+              description ||
+              `${featureDisplayName} for ${featureId.substring(0, 8)}...`,
             qty: 1,
             unitPriceCents: pricing.priceCents,
             taxable: true,
             meta: {
               featureType,
               featureId,
+              agentId, // Injected Agent ID
               pricingBreakdown: {
                 basePriceUsdCents: pricing.basePriceUsdCents,
                 commissionCents: pricing.commissionCents,
                 platformFeeCents: pricing.platformFeeCents,
                 agentShareCents: pricing.agentShareCents,
                 referralShareCents: pricing.referralShareCents,
-                rewardPoolShareCents: pricing.rewardPoolShareCents
-              }
-            }
-          }
-        ]
+                rewardPoolShareCents: pricing.rewardPoolShareCents,
+              },
+            },
+          },
+        ],
       },
-      undefined
+      undefined,
     );
 
     return invoice;
@@ -178,29 +239,25 @@ export class PaymentsService {
 
   private getFeatureDisplayName(featureType: ChargeableItemType): string {
     const names: Record<ChargeableItemType, string> = {
-      [ChargeableItemType.PROPERTY_VERIFICATION]: 'Property Verification',
-      [ChargeableItemType.AGENT_ASSIGNMENT]: 'Agent Assignment',
-      [ChargeableItemType.FEATURED_LISTING]: 'Featured Listing',
-      [ChargeableItemType.TRUST_BOOST]: 'Trust Boost',
-      [ChargeableItemType.IN_HOUSE_ADVERT_BUYING]: 'In-House Ad (Buying)',
-      [ChargeableItemType.IN_HOUSE_ADVERT_SELLING]: 'In-House Ad (Selling)',
-      [ChargeableItemType.PREMIUM_VERIFICATION]: 'Premium Verification',
-      [ChargeableItemType.OTHER]: 'Other Feature'
+      [ChargeableItemType.FEATURE]: "Feature",
+      [ChargeableItemType.BOOST]: "Boost",
+      [ChargeableItemType.SUBSCRIPTION]: "Subscription",
+      [ChargeableItemType.OTHER]: "Other",
     };
     return names[featureType] || featureType;
   }
 
-  private mapFeatureTypeToPurpose(featureType: ChargeableItemType): InvoicePurpose {
+  private mapFeatureTypeToPurpose(
+    featureType: ChargeableItemType,
+  ): InvoicePurpose {
     switch (featureType) {
-      case ChargeableItemType.PROPERTY_VERIFICATION:
+      case ChargeableItemType.FEATURE:
         return InvoicePurpose.VERIFICATION;
-      case ChargeableItemType.FEATURED_LISTING:
+      case ChargeableItemType.BOOST:
         return InvoicePurpose.BOOST;
-      case ChargeableItemType.AGENT_ASSIGNMENT:
-      case ChargeableItemType.IN_HOUSE_ADVERT_BUYING:
-      case ChargeableItemType.IN_HOUSE_ADVERT_SELLING:
-      case ChargeableItemType.TRUST_BOOST:
-      case ChargeableItemType.PREMIUM_VERIFICATION:
+      case ChargeableItemType.SUBSCRIPTION:
+        return InvoicePurpose.OTHER;
+      case ChargeableItemType.OTHER:
         return InvoicePurpose.OTHER;
       default:
         return InvoicePurpose.OTHER;
@@ -211,21 +268,41 @@ export class PaymentsService {
     const client = tx ?? this.prisma;
 
     if (options.lines.length === 0) {
-      throw new BadRequestException('Invoice requires at least one line item');
+      throw new BadRequestException("Invoice requires at least one line item");
     }
 
-    const subtotalUsd = options.lines.reduce((acc: number, line: InvoiceLineInput) => acc + line.qty * line.unitPriceCents, 0);
-    const taxableSubtotalUsd = options.lines.reduce(
-      (acc: number, line: InvoiceLineInput) => (line.taxable ? acc + line.qty * line.unitPriceCents : acc),
-      0
+    const subtotalUsd = options.lines.reduce(
+      (acc: number, line: InvoiceLineInput) =>
+        acc + line.qty * line.unitPriceCents,
+      0,
     );
-    const taxUsd = Math.round(taxableSubtotalUsd * this.vatRate);
+    const taxableSubtotalUsd = options.lines.reduce(
+      (acc: number, line: InvoiceLineInput) =>
+        line.taxable ? acc + line.qty * line.unitPriceCents : acc,
+      0,
+    );
+    const taxUsd = this.getTaxEnabled()
+      ? Math.round(taxableSubtotalUsd * this.vatRate)
+      : 0;
 
+    const config = this.appConfig.getConfig();
+    const billingCurrency = config.billing.currency;
+    if (!billingCurrency.supportedCurrencies.includes(options.currency)) {
+      throw new BadRequestException("Unsupported invoice currency");
+    }
+
+    const baseCurrency = billingCurrency.fxBase as Currency;
     let fxRate: FxRate | null = null;
-    if (options.currency === Currency.ZWG) {
-      fxRate = await this.resolveFxRate(client, BASE_CURRENCY, Currency.ZWG, new Date());
-    } else if (options.currency !== BASE_CURRENCY) {
-      throw new BadRequestException('Unsupported invoice currency');
+    if (options.currency !== baseCurrency) {
+      if (!billingCurrency.allowManualFxRates) {
+        throw new BadRequestException("FX conversion is disabled");
+      }
+      fxRate = await this.resolveFxRate(
+        client,
+        baseCurrency,
+        options.currency,
+        new Date(),
+      );
     }
 
     const rateMicros = fxRate?.rateMicros;
@@ -243,7 +320,7 @@ export class PaymentsService {
         taxUsdCents: taxUsd,
         status: InvoiceStatus.OPEN,
         dueAt: options.dueAt ?? this.defaultDueDate(),
-        fxRate: fxRate ? { connect: { id: fxRate.id } } : undefined,
+        fxRateId: fxRate?.id,
         lines: {
           create: options.lines.map((line: InvoiceLineInput) => {
             const baseUnit = line.unitPriceCents;
@@ -251,11 +328,11 @@ export class PaymentsService {
             const convertedUnit = convert(baseUnit);
             const convertedTotal = convert(baseTotal);
             const meta: Record<string, unknown> = {
-              baseCurrency: BASE_CURRENCY,
+              baseCurrency: baseCurrency,
               baseUnitPriceCents: baseUnit,
               baseTotalCents: baseTotal,
               taxable: line.taxable ?? false,
-              ...(line.meta ?? {})
+              ...(line.meta ?? {}),
             };
 
             return {
@@ -264,20 +341,26 @@ export class PaymentsService {
               qty: line.qty,
               unitPriceCents: convertedUnit,
               totalCents: convertedTotal,
-              metaJson: meta
+              metaJson: meta as Prisma.InputJsonValue,
             };
-          })
-        }
+          }),
+        },
       },
-      include: { lines: true, fxRate: true }
+      include: { lines: true, fxRate: true },
     });
 
     if (options.link?.promoBoostId) {
-      await client.promoBoost.update({ where: { id: options.link.promoBoostId }, data: { invoiceId: invoice.id } });
+      await client.promoBoost.update({
+        where: { id: options.link.promoBoostId },
+        data: { invoiceId: invoice.id },
+      });
     }
 
     if (options.link?.campaignId) {
-      await client.adCampaign.update({ where: { id: options.link.campaignId }, data: { invoiceId: invoice.id } });
+      await client.adCampaign.update({
+        where: { id: options.link.campaignId },
+        data: { invoiceId: invoice.id },
+      });
     }
 
     return invoice;
@@ -286,18 +369,23 @@ export class PaymentsService {
   async createPaymentIntent(options: CreatePaymentIntentOptions) {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id: options.invoiceId },
-      include: { lines: true, fxRate: true }
+      include: { lines: true, fxRate: true },
     });
     if (!invoice) {
-      throw new NotFoundException('Invoice not found');
+      throw new NotFoundException("Invoice not found");
     }
 
     if (invoice.status !== InvoiceStatus.OPEN) {
-      throw new BadRequestException('Only open invoices can be paid');
+      throw new BadRequestException("Only open invoices can be paid");
     }
 
     const amountDue = invoice.amountCents + invoice.taxCents;
     const reference = this.buildReference(invoice.id);
+
+    const requestedProvider = this.mapGatewayToProvider(options.gateway);
+    if (requestedProvider) {
+      await this.assertProviderEnabled(requestedProvider, options.gateway);
+    }
 
     const paymentIntent = await this.prisma.paymentIntent.create({
       data: {
@@ -306,14 +394,14 @@ export class PaymentsService {
         amountCents: amountDue,
         currency: invoice.currency,
         reference,
-        status: PaymentIntentStatus.REQUIRES_ACTION
-      }
+        status: PaymentIntentStatus.REQUIRES_ACTION,
+      },
     });
 
     const handler = this.registry.get(options.gateway);
     const returnUrl = options.returnUrl ?? env.PAYNOW_RETURN_URL;
     if (!returnUrl) {
-      throw new BadRequestException('Missing return URL for payment gateway');
+      throw new BadRequestException("Missing return URL for payment gateway");
     }
 
     const description = `Invoice ${invoice.invoiceNo ?? invoice.id}`;
@@ -323,7 +411,7 @@ export class PaymentsService {
       currency: invoice.currency,
       reference,
       description,
-      returnUrl
+      returnUrl,
     });
 
     const updated = await this.prisma.paymentIntent.update({
@@ -331,24 +419,59 @@ export class PaymentsService {
       data: {
         redirectUrl: result.redirectUrl,
         gatewayRef: result.gatewayReference ?? null,
-        status: result.status ?? PaymentIntentStatus.REQUIRES_ACTION
-      }
+        status: result.status ?? PaymentIntentStatus.REQUIRES_ACTION,
+      },
     });
 
     // Start polling for Paynow payments
     if (options.gateway === PaymentGateway.PAYNOW && result.gatewayReference) {
       this.polling.startPolling(updated.id).catch((error) => {
-        console.error('Failed to start polling:', error);
+        console.error("Failed to start polling:", error);
       });
     }
 
     return { id: updated.id, redirectUrl: updated.redirectUrl };
   }
 
+  private mapGatewayToProvider(gateway: PaymentGateway) {
+    if (gateway === PaymentGateway.PAYNOW) {
+      return PaymentProvider.PAYNOW;
+    }
+    if (gateway === PaymentGateway.STRIPE) {
+      return PaymentProvider.STRIPE;
+    }
+    if (gateway === PaymentGateway.PAYPAL) {
+      return PaymentProvider.PAYPAL;
+    }
+    return null;
+  }
+
+  private async assertProviderEnabled(
+    provider: PaymentProvider,
+    gateway: PaymentGateway,
+  ) {
+    const settings = await this.providerSettings.findOne(provider);
+    if (!settings.enabled) {
+      throw new BadRequestException(
+        `Payment provider ${provider} is disabled. Enable it before using ${gateway}.`,
+      );
+    }
+
+    const handlers = this.registry.list();
+    const hasHandler = handlers.some((handler) => handler.gateway === gateway);
+    if (!hasHandler) {
+      throw new BadRequestException(
+        `Payment gateway ${gateway} is not configured.`,
+      );
+    }
+  }
+
   async markIntentProcessing(id: string) {
-    const intent = await this.prisma.paymentIntent.findUnique({ where: { id } });
+    const intent = await this.prisma.paymentIntent.findUnique({
+      where: { id },
+    });
     if (!intent) {
-      throw new NotFoundException('Payment intent not found');
+      throw new NotFoundException("Payment intent not found");
     }
 
     if (intent.status === PaymentIntentStatus.PROCESSING) {
@@ -356,10 +479,15 @@ export class PaymentsService {
     }
 
     if (intent.status !== PaymentIntentStatus.REQUIRES_ACTION) {
-      throw new BadRequestException('Intent can no longer transition to processing');
+      throw new BadRequestException(
+        "Intent can no longer transition to processing",
+      );
     }
 
-    return this.prisma.paymentIntent.update({ where: { id }, data: { status: PaymentIntentStatus.PROCESSING } });
+    return this.prisma.paymentIntent.update({
+      where: { id },
+      data: { status: PaymentIntentStatus.PROCESSING },
+    });
   }
 
   async pollPaymentStatus(id: string) {
@@ -380,23 +508,25 @@ export class PaymentsService {
             buyerAgency: true,
             promoBoost: true,
             campaign: { include: { flights: true } },
-            fxRate: true
-          }
-        }
-      }
+            fxRate: true,
+          },
+        },
+      },
     });
 
     if (!intent) {
-      throw new NotFoundException('Payment intent for webhook not found');
+      throw new NotFoundException("Payment intent for webhook not found");
     }
 
     const receiptContext = await this.prisma.$transaction(async (tx) => {
       await tx.paymentIntent.update({
         where: { id: intent.id },
         data: {
-          status: result.success ? PaymentIntentStatus.SUCCEEDED : PaymentIntentStatus.FAILED,
-          gatewayRef: intent.gatewayRef ?? result.externalRef ?? null
-        }
+          status: result.success
+            ? PaymentIntentStatus.SUCCEEDED
+            : PaymentIntentStatus.FAILED,
+          gatewayRef: intent.gatewayRef ?? result.externalRef ?? null,
+        },
       });
 
       const transaction = await tx.transaction.create({
@@ -408,20 +538,36 @@ export class PaymentsService {
           currency: result.currency,
           feeCents: result.feeCents ?? 0,
           netCents: result.amountCents - (result.feeCents ?? 0),
-          result: result.success ? TransactionResult.SUCCESS : TransactionResult.FAILED,
-          rawWebhookJson: this.toJsonObject(result.rawPayload)
-        }
+          result: result.success
+            ? TransactionResult.SUCCESS
+            : TransactionResult.FAILED,
+          rawWebhookJson: this.toJsonObject(result.rawPayload),
+        },
       });
 
       if (result.success) {
         // Create PaymentTransaction if invoice has feature metadata
         const invoiceLine = intent.invoice.lines.find(
-          (line: InvoiceLine) => line.metaJson && typeof line.metaJson === 'object' && 'featureType' in line.metaJson
+          (line: InvoiceLine) =>
+            line.metaJson &&
+            typeof line.metaJson === "object" &&
+            "featureType" in line.metaJson,
         );
 
-        if (invoiceLine && invoiceLine.metaJson && typeof invoiceLine.metaJson === 'object') {
-          const meta = invoiceLine.metaJson as { featureType?: string; featureId?: string };
-          if (meta.featureType && meta.featureId && intent.invoice.buyerUserId) {
+        if (
+          invoiceLine &&
+          invoiceLine.metaJson &&
+          typeof invoiceLine.metaJson === "object"
+        ) {
+          const meta = invoiceLine.metaJson as {
+            featureType?: string;
+            featureId?: string;
+          };
+          if (
+            meta.featureType &&
+            meta.featureId &&
+            intent.invoice.buyerUserId
+          ) {
             await tx.paymentTransaction.upsert({
               where: { transactionRef: result.externalRef || result.reference },
               create: {
@@ -432,18 +578,33 @@ export class PaymentsService {
                 paymentIntentId: intent.id,
                 amountCents: result.amountCents,
                 currency: result.currency,
-                status: PaymentStatus.PAID,
+                status: PaymentStatus.PAID as any,
                 gateway: intent.gateway,
                 gatewayRef: result.externalRef,
                 transactionRef: result.externalRef || result.reference,
-                metadata: { webhook: true, webhookAt: new Date().toISOString() }
+                metadata: {
+                  webhook: true,
+                  webhookAt: new Date().toISOString(),
+                },
               },
               update: {
-                status: PaymentStatus.PAID,
-                gatewayRef: result.externalRef
-              }
+                status: PaymentStatus.PAID as any,
+                gatewayRef: result.externalRef,
+              },
             });
           }
+        }
+
+        // Distribute Commissions and Rewards
+        try {
+          await this.commissions.distribute(
+            transaction as any,
+            intent.invoice as any,
+          );
+          // TODO: Implement rewards processing when method is available
+          // await this.rewards.processPaymentRewards(intent.invoice as any);
+        } catch (error) {
+          console.error("Failed to distribute commissions/rewards:", error);
         }
 
         const updatedInvoice = await this.finalizeInvoice(tx, intent.invoice);
@@ -455,15 +616,18 @@ export class PaymentsService {
             currency: transaction.currency,
             externalRef: transaction.externalRef,
             gateway: transaction.gateway,
-            createdAt: transaction.createdAt
-          }
+            createdAt: transaction.createdAt,
+          },
         };
       }
       return null;
     });
 
     if (receiptContext) {
-      await this.deliverPaymentReceipt(receiptContext.invoice, receiptContext.transaction);
+      await this.deliverPaymentReceipt(
+        receiptContext.invoice,
+        receiptContext.transaction,
+      );
     }
   }
 
@@ -476,12 +640,12 @@ export class PaymentsService {
         buyerAgency: true,
         promoBoost: true,
         campaign: { include: { flights: true } },
-        fxRate: true
-      }
+        fxRate: true,
+      },
     });
 
     if (!invoice) {
-      throw new NotFoundException('Invoice not found');
+      throw new NotFoundException("Invoice not found");
     }
 
     if (invoice.status === InvoiceStatus.PAID) {
@@ -489,7 +653,7 @@ export class PaymentsService {
     }
 
     if (invoice.status !== InvoiceStatus.OPEN) {
-      throw new BadRequestException('Invoice cannot be manually settled');
+      throw new BadRequestException("Invoice cannot be manually settled");
     }
 
     const paidAt = options.paidAt ?? new Date();
@@ -505,8 +669,8 @@ export class PaymentsService {
           feeCents: 0,
           netCents: options.amountCents,
           result: TransactionResult.SUCCESS,
-          rawWebhookJson: options.notes ? { notes: options.notes } : undefined
-        }
+          rawWebhookJson: options.notes ? { notes: options.notes } : undefined,
+        },
       });
 
       const updatedInvoice = await this.finalizeInvoice(tx, invoice);
@@ -518,20 +682,23 @@ export class PaymentsService {
           currency: transaction.currency,
           externalRef: transaction.externalRef,
           gateway: transaction.gateway,
-          createdAt: transaction.createdAt
-        }
+          createdAt: transaction.createdAt,
+        },
       };
     });
 
-    await this.audit.log({
-      action: 'invoice.manualPaid',
+    await this.audit.logAction({
+      action: "invoice.manualPaid",
       actorId: options.actorId,
-      targetType: 'invoice',
+      targetType: "invoice",
       targetId: invoice.id,
-      metadata: { amountCents: options.amountCents, notes: options.notes }
+      metadata: { amountCents: options.amountCents, notes: options.notes },
     });
 
-    await this.deliverPaymentReceipt(receiptContext.invoice, receiptContext.transaction);
+    await this.deliverPaymentReceipt(
+      receiptContext.invoice,
+      receiptContext.transaction,
+    );
     return receiptContext.invoice;
   }
 
@@ -545,8 +712,13 @@ export class PaymentsService {
     }
 
     const issuedAt = new Date();
-    const invoiceNo = invoice.invoiceNo ?? this.generateInvoiceNumber(invoice, issuedAt);
-    const pdfUrl = await this.generateInvoicePdf({ ...invoice, invoiceNo, issuedAt });
+    const invoiceNo =
+      invoice.invoiceNo ?? this.generateInvoiceNumber(invoice, issuedAt);
+    const pdfUrl = await this.generateInvoicePdf({
+      ...invoice,
+      invoiceNo,
+      issuedAt,
+    });
 
     const updated = await tx.invoice.update({
       where: { id: invoice.id },
@@ -554,13 +726,13 @@ export class PaymentsService {
         status: InvoiceStatus.PAID,
         issuedAt,
         invoiceNo,
-        pdfUrl
+        pdfUrl,
       },
       include: {
         lines: true,
         buyerUser: true,
-        buyerAgency: true
-      }
+        buyerAgency: true,
+      },
     });
 
     if (invoice.promoBoost) {
@@ -571,20 +743,62 @@ export class PaymentsService {
       await this.activateCampaign(tx, invoice.campaign, issuedAt);
     }
 
-    return { ...updated, promoBoost: invoice.promoBoost, campaign: invoice.campaign } as InvoiceWithRelations;
+    const topupLine = updated.lines.find((line) => {
+      if (!line.metaJson || typeof line.metaJson !== "object") {
+        return false;
+      }
+      return "adTopup" in line.metaJson;
+    });
+
+    if (topupLine && updated.advertiserId) {
+      const advertiser = await tx.advertiser.findUnique({
+        where: { id: updated.advertiserId },
+        select: { ownerId: true },
+      });
+      if (advertiser?.ownerId) {
+        const totalUsdCents =
+          (updated.amountUsdCents ?? 0) + (updated.taxUsdCents ?? 0);
+        if (totalUsdCents > 0) {
+          await this.ledger.credit(
+            advertiser.ownerId,
+            totalUsdCents,
+            Currency.USD,
+            WalletLedgerSourceType.ADJUSTMENT,
+            `TOPUP-${updated.id}`,
+            "Advertiser Top Up",
+            tx,
+          );
+        }
+      }
+    }
+
+    // Growth: Qualify Referral for Advertiser (First Paid Invoice)
+    if (updated.buyerUserId) {
+      try {
+        await this.referrals.qualifyReferral(updated.buyerUserId);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    return {
+      ...updated,
+      promoBoost: invoice.promoBoost,
+      campaign: invoice.campaign,
+    } as InvoiceWithRelations;
   }
 
   private async activateCampaign(
     tx: PrismaTx,
     campaign: { id: string; flights: { id: string; placementId: string }[] },
-    activatedAt: Date
+    activatedAt: Date,
   ) {
     await tx.adCampaign.update({
       where: { id: campaign.id },
       data: {
-        status: 'ACTIVE',
-        startAt: activatedAt
-      }
+        status: "ACTIVE",
+        startAt: activatedAt,
+      },
     });
 
     for (const flight of campaign.flights) {
@@ -594,8 +808,8 @@ export class PaymentsService {
             campaignId: campaign.id,
             flightId: flight.id,
             placementId: flight.placementId,
-            date: startOfDay(activatedAt)
-          }
+            date: startOfDay(activatedAt),
+          },
         },
         update: {},
         create: {
@@ -605,8 +819,8 @@ export class PaymentsService {
           date: startOfDay(activatedAt),
           impressions: 0,
           clicks: 0,
-          revenueMicros: 0
-        }
+          revenueMicros: 0,
+        },
       });
     }
   }
@@ -614,16 +828,19 @@ export class PaymentsService {
   private async activatePromo(
     tx: PrismaTx,
     promo: { id: string; startAt: Date; endAt: Date },
-    activatedAt: Date
+    activatedAt: Date,
   ) {
-    const endAt = promo.endAt > activatedAt ? promo.endAt : new Date(activatedAt.getTime() + 7 * 24 * 3600 * 1000);
+    const endAt =
+      promo.endAt > activatedAt
+        ? promo.endAt
+        : new Date(activatedAt.getTime() + 7 * 24 * 3600 * 1000);
 
     await tx.promoBoost.update({
       where: { id: promo.id },
       data: {
         startAt: activatedAt,
-        endAt
-      }
+        endAt,
+      },
     });
   }
 
@@ -635,19 +852,26 @@ export class PaymentsService {
     return Math.round((usdCents * rateMicros) / MICRO_SCALE);
   }
 
-  private async resolveFxRate(client: PrismaClientOrTx, base: Currency, quote: Currency, at: Date) {
+  private async resolveFxRate(
+    client: PrismaClientOrTx,
+    base: Currency,
+    quote: Currency,
+    at: Date,
+  ) {
     const targetDate = startOfDay(at);
     const rate = await client.fxRate.findFirst({
       where: {
         base,
         quote,
-        date: { lte: at }
+        date: { lte: at },
       },
-      orderBy: { date: 'desc' }
+      orderBy: { date: "desc" },
     });
 
     if (!rate) {
-      throw new BadRequestException(`No FX rate configured for ${base}/${quote} on or before ${targetDate.toISOString()}`);
+      throw new BadRequestException(
+        `No FX rate configured for ${base}/${quote} on or before ${targetDate.toISOString()}`,
+      );
     }
 
     return rate;
@@ -656,6 +880,10 @@ export class PaymentsService {
   private defaultDueDate() {
     const now = new Date();
     return new Date(now.getTime() + 7 * 24 * 3600 * 1000);
+  }
+
+  private getTaxEnabled() {
+    return this.appConfig.getConfig().billing.taxEnabled;
   }
 
   private buildReference(invoiceId: string) {
@@ -668,17 +896,27 @@ export class PaymentsService {
     return `PP-${year}-${suffix}`;
   }
 
-  private async deliverPaymentReceipt(invoice: InvoiceWithRelations, transaction: TransactionSummary) {
+  private async deliverPaymentReceipt(
+    invoice: InvoiceWithRelations,
+    transaction: TransactionSummary,
+  ) {
     const pdfUrl = await this.generatePaymentReceiptPdf(invoice, transaction);
-    await this.prisma.transaction.update({ where: { id: transaction.id }, data: { receiptPdfUrl: pdfUrl } });
+    await this.prisma.transaction.update({
+      where: { id: transaction.id },
+      data: { receiptPdfUrl: pdfUrl },
+    });
 
-    const recipient = invoice.buyerUser?.email ?? invoice.buyerAgency?.email ?? null;
+    const recipient =
+      invoice.buyerUser?.email ?? invoice.buyerAgency?.email ?? null;
     if (!recipient) {
       return;
     }
 
     const amountPaid = (transaction.amountCents / 100).toFixed(2);
-    const totalUsd = ((invoice.amountUsdCents + invoice.taxUsdCents) / 100).toFixed(2);
+    const totalUsd = (
+      (invoice.amountUsdCents + invoice.taxUsdCents) /
+      100
+    ).toFixed(2);
     const amountPaidMessage =
       invoice.currency === Currency.ZWG
         ? `${amountPaid} ${transaction.currency} (USD ${totalUsd})`
@@ -686,68 +924,92 @@ export class PaymentsService {
     const rateNote =
       invoice.currency === Currency.ZWG && invoice.fxRate
         ? ` at an exchange rate of 1 ${invoice.fxRate.base} = ${(invoice.fxRate.rateMicros / MICRO_SCALE).toFixed(6)} ${invoice.fxRate.quote}`
-        : '';
+        : "";
     const invoiceLabel = invoice.invoiceNo ?? invoice.id;
-    const recipientName = invoice.buyerUser?.name ?? invoice.buyerAgency?.name ?? 'Valued customer';
+    const recipientName =
+      invoice.buyerUser?.name ?? invoice.buyerAgency?.name ?? "Valued customer";
 
     await this.mail.send({
       to: recipient,
       subject: `Receipt for invoice ${invoiceLabel}`,
       text: `Hi ${recipientName},\n\nThank you for your payment of ${amountPaidMessage} for invoice ${invoiceLabel}${rateNote}. Your receipt is attached for your records.\n\n-- Propad`,
       filename: `receipt-${invoiceLabel}.pdf`,
-      pdfDataUrl: pdfUrl
+      pdfDataUrl: pdfUrl,
     });
   }
 
-  private async generatePaymentReceiptPdf(invoice: InvoiceWithRelations, transaction: TransactionSummary) {
+  private async generatePaymentReceiptPdf(
+    invoice: InvoiceWithRelations,
+    transaction: TransactionSummary,
+  ) {
     return new Promise<string>((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });
       const buffers: Buffer[] = [];
 
-      doc.on('data', (chunk: unknown) => {
+      doc.on("data", (chunk: unknown) => {
         if (chunk instanceof Buffer) {
           buffers.push(chunk);
         }
       });
-      doc.on('error', (err: unknown) => {
+      doc.on("error", (err: unknown) => {
         reject(err instanceof Error ? err : new Error(String(err)));
       });
-      doc.on('end', () => {
+      doc.on("end", () => {
         const buffer = Buffer.concat(buffers);
-        resolve(`data:application/pdf;base64,${buffer.toString('base64')}`);
+        resolve(`data:application/pdf;base64,${buffer.toString("base64")}`);
       });
 
-      doc.fontSize(20).text('Propad Payment Receipt', { align: 'center' });
+      const config = this.appConfig.getConfig().billing;
+      doc.fontSize(20).text(config.labels.receiptTitle, { align: "center" });
       doc.moveDown();
-      doc.fontSize(12).text(`Invoice Number: ${invoice.invoiceNo ?? invoice.id}`);
+      doc
+        .fontSize(12)
+        .text(`Invoice Number: ${invoice.invoiceNo ?? invoice.id}`);
       doc.text(`Transaction Reference: ${transaction.externalRef}`);
       doc.text(`Payment Date: ${transaction.createdAt.toISOString()}`);
       doc.text(`Gateway: ${transaction.gateway}`);
-      doc.text(`Amount Paid: ${(transaction.amountCents / 100).toFixed(2)} ${transaction.currency}`);
+      doc.text(
+        `Amount Paid: ${(transaction.amountCents / 100).toFixed(2)} ${transaction.currency}`,
+      );
       doc.moveDown();
-      doc.text(`Subtotal: ${(invoice.amountCents / 100).toFixed(2)} ${invoice.currency}`);
-      doc.text(`VAT: ${(invoice.taxCents / 100).toFixed(2)} ${invoice.currency}`);
-      doc.text(`Total: ${((invoice.amountCents + invoice.taxCents) / 100).toFixed(2)} ${invoice.currency}`);
+      doc.text(
+        `Subtotal: ${(invoice.amountCents / 100).toFixed(2)} ${invoice.currency}`,
+      );
+      doc.text(
+        `${config.labels.taxLabel}: ${(invoice.taxCents / 100).toFixed(2)} ${invoice.currency}`,
+      );
+      doc.text(
+        `Total: ${((invoice.amountCents + invoice.taxCents) / 100).toFixed(2)} ${invoice.currency}`,
+      );
       if (invoice.currency === Currency.ZWG) {
-        doc.text(`Subtotal (USD): ${(invoice.amountUsdCents / 100).toFixed(2)} USD`);
-        doc.text(`VAT (USD): ${(invoice.taxUsdCents / 100).toFixed(2)} USD`);
         doc.text(
-          `Total (USD): ${((invoice.amountUsdCents + invoice.taxUsdCents) / 100).toFixed(2)} USD`
+          `Subtotal (USD): ${(invoice.amountUsdCents / 100).toFixed(2)} USD`,
+        );
+        doc.text(
+          `${config.labels.taxLabel} (USD): ${(invoice.taxUsdCents / 100).toFixed(2)} USD`,
+        );
+        doc.text(
+          `Total (USD): ${((invoice.amountUsdCents + invoice.taxUsdCents) / 100).toFixed(2)} USD`,
         );
         if (invoice.fxRate) {
           doc.text(
-            `Exchange Rate: 1 ${invoice.fxRate.base} = ${(invoice.fxRate.rateMicros / MICRO_SCALE).toFixed(6)} ${invoice.fxRate.quote}`
+            `Exchange Rate: 1 ${invoice.fxRate.base} = ${(invoice.fxRate.rateMicros / MICRO_SCALE).toFixed(6)} ${invoice.fxRate.quote}`,
           );
         }
       }
+
       doc.moveDown();
 
-      doc.fontSize(14).text('Line Items');
+      doc.fontSize(14).text("Line Items");
       doc.moveDown(0.5);
       doc.fontSize(12);
       invoice.lines.forEach((line: InvoiceLine) => {
-        doc.text(`${line.qty} x ${line.description} @ ${(line.unitPriceCents / 100).toFixed(2)} ${invoice.currency}`);
-        doc.text(`Total: ${(line.totalCents / 100).toFixed(2)} ${invoice.currency}`);
+        doc.text(
+          `${line.qty} x ${line.description} @ ${(line.unitPriceCents / 100).toFixed(2)} ${invoice.currency}`,
+        );
+        doc.text(
+          `Total: ${(line.totalCents / 100).toFixed(2)} ${invoice.currency}`,
+        );
         doc.moveDown(0.5);
       });
 
@@ -756,54 +1018,74 @@ export class PaymentsService {
   }
 
   private async generateInvoicePdf(
-    invoice: Invoice & { lines: InvoiceLine[]; invoiceNo: string; issuedAt: Date; fxRate?: FxRate | null }
+    invoice: Invoice & {
+      lines: InvoiceLine[];
+      invoiceNo: string;
+      issuedAt: Date;
+      fxRate?: FxRate | null;
+    },
   ) {
     return new Promise<string>((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });
       const buffers: Buffer[] = [];
 
-      doc.on('data', (chunk: unknown) => {
+      doc.on("data", (chunk: unknown) => {
         if (chunk instanceof Buffer) {
           buffers.push(chunk);
         }
       });
-      doc.on('error', (err: unknown) => {
+      doc.on("error", (err: unknown) => {
         reject(err instanceof Error ? err : new Error(String(err)));
       });
-      doc.on('end', () => {
+      doc.on("end", () => {
         const buffer = Buffer.concat(buffers);
-        resolve(`data:application/pdf;base64,${buffer.toString('base64')}`);
+        resolve(`data:application/pdf;base64,${buffer.toString("base64")}`);
       });
 
-      doc.fontSize(20).text('Propad Tax Invoice', { align: 'center' });
+      const config = this.appConfig.getConfig().billing;
+      doc.fontSize(20).text(config.labels.invoiceTitle, { align: "center" });
       doc.moveDown();
       doc.fontSize(12).text(`Invoice Number: ${invoice.invoiceNo}`);
       doc.text(`Issued At: ${invoice.issuedAt.toISOString()}`);
       doc.moveDown();
 
-      doc.text(`Subtotal: ${(invoice.amountCents / 100).toFixed(2)} ${invoice.currency}`);
-      doc.text(`VAT: ${(invoice.taxCents / 100).toFixed(2)} ${invoice.currency}`);
-      doc.text(`Total: ${((invoice.amountCents + invoice.taxCents) / 100).toFixed(2)} ${invoice.currency}`);
+      doc.text(
+        `Subtotal: ${(invoice.amountCents / 100).toFixed(2)} ${invoice.currency}`,
+      );
+      doc.text(
+        `${config.labels.taxLabel}: ${(invoice.taxCents / 100).toFixed(2)} ${invoice.currency}`,
+      );
+      doc.text(
+        `Total: ${((invoice.amountCents + invoice.taxCents) / 100).toFixed(2)} ${invoice.currency}`,
+      );
       if (invoice.currency === Currency.ZWG) {
-        doc.text(`Subtotal (USD): ${(invoice.amountUsdCents / 100).toFixed(2)} USD`);
-        doc.text(`VAT (USD): ${(invoice.taxUsdCents / 100).toFixed(2)} USD`);
         doc.text(
-          `Total (USD): ${((invoice.amountUsdCents + invoice.taxUsdCents) / 100).toFixed(2)} USD`
+          `Subtotal (USD): ${(invoice.amountUsdCents / 100).toFixed(2)} USD`,
+        );
+        doc.text(
+          `${config.labels.taxLabel} (USD): ${(invoice.taxUsdCents / 100).toFixed(2)} USD`,
+        );
+        doc.text(
+          `Total (USD): ${((invoice.amountUsdCents + invoice.taxUsdCents) / 100).toFixed(2)} USD`,
         );
         if (invoice.fxRate) {
           doc.text(
-            `Exchange Rate: 1 ${invoice.fxRate.base} = ${(invoice.fxRate.rateMicros / MICRO_SCALE).toFixed(6)} ${invoice.fxRate.quote}`
+            `Exchange Rate: 1 ${invoice.fxRate.base} = ${(invoice.fxRate.rateMicros / MICRO_SCALE).toFixed(6)} ${invoice.fxRate.quote}`,
           );
         }
       }
       doc.moveDown();
 
-      doc.fontSize(14).text('Line Items');
+      doc.fontSize(14).text("Line Items");
       doc.moveDown(0.5);
       doc.fontSize(12);
       invoice.lines.forEach((line: InvoiceLine) => {
-        doc.text(`${line.qty} x ${line.description} @ ${(line.unitPriceCents / 100).toFixed(2)} ${invoice.currency}`);
-        doc.text(`Total: ${(line.totalCents / 100).toFixed(2)} ${invoice.currency}`);
+        doc.text(
+          `${line.qty} x ${line.description} @ ${(line.unitPriceCents / 100).toFixed(2)} ${invoice.currency}`,
+        );
+        doc.text(
+          `Total: ${(line.totalCents / 100).toFixed(2)} ${invoice.currency}`,
+        );
         doc.moveDown(0.5);
       });
 
@@ -814,7 +1096,7 @@ export class PaymentsService {
   async listMyInvoices(userId: string) {
     const invoices = await this.prisma.invoice.findMany({
       where: {
-        buyerUserId: userId
+        buyerUserId: userId,
       },
       include: {
         lines: true,
@@ -822,17 +1104,17 @@ export class PaymentsService {
           select: {
             id: true,
             status: true,
-            gatewayRef: true
+            gatewayRef: true,
           },
           orderBy: {
-            createdAt: 'desc'
+            createdAt: "desc",
           },
-          take: 1
-        }
+          take: 1,
+        },
       },
       orderBy: {
-        createdAt: 'desc'
-      }
+        createdAt: "desc",
+      },
     });
 
     return invoices;

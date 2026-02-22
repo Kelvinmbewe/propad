@@ -1,163 +1,263 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getServerApiBaseUrl } from '@propad/config';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-interface PayoutRequest {
-  id: string;
-  amountCents: number;
-  method: 'ECOCASH' | 'BANK' | 'WALLET';
-  status: string;
-  createdAt: string;
-  wallet: {
-    ownerType: string;
-    ownerId: string;
-    currency: string;
-  };
-  payoutAccount: {
-    displayName: string;
-    type: string;
-  };
-}
+import { format } from 'date-fns';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Button,
+  Badge,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  Textarea,
+  notify
+} from '@propad/ui';
+import { formatCurrency } from '@/lib/formatters';
+import { Loader2, Check, X } from 'lucide-react';
+import { useState } from 'react';
+import { useSdkClient } from '@/hooks/use-sdk-client';
+import { ClientState } from '@/components/client-state';
 
-export default function PayoutsManagementPage() {
-  const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function AdminPayoutsPage() {
+  const queryClient = useQueryClient();
+  const { sdk, status, message } = useSdkClient();
+  const [rejectId, setRejectId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
-  useEffect(() => {
-    loadPayouts();
-  }, []);
-
-  const loadPayouts = async () => {
-    try {
-      const response = await fetch(`${getServerApiBaseUrl()}/payouts/pending`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('apiToken')}`
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setPayouts(data);
+  const { data: payouts, isLoading, isError } = useQuery({
+    queryKey: ['admin-payouts'],
+    enabled: status === 'ready',
+    queryFn: async () => {
+      if (!sdk) {
+        return [];
       }
-    } catch (error) {
-      console.error('Failed to load payouts:', error);
-    } finally {
-      setLoading(false);
+      return sdk.admin.payouts.list();
+    }
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!sdk) {
+        throw new Error('Payout client not ready');
+      }
+      return sdk.admin.payouts.approve(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-payouts'] });
+      notify.success('Payout request approved for processing.');
+    },
+    onError: () => {
+      notify.error('Failed to approve payout request.');
+    }
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      sdk ? sdk.admin.payouts.reject(id, reason) : Promise.reject(new Error('Payout client not ready')),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-payouts'] });
+      notify.success('Payout request rejected.');
+      setRejectId(null);
+      setRejectReason('');
+    },
+    onError: () => {
+      notify.error('Failed to reject payout request.');
+    }
+  });
+
+  const handleRejectSubmit = () => {
+    if (rejectId && rejectReason) {
+      rejectMutation.mutate({ id: rejectId, reason: rejectReason });
     }
   };
 
-  const handleApprove = async (id: string) => {
-    try {
-      const response = await fetch(`${getServerApiBaseUrl()}/payouts/${id}/approve`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('apiToken')}`
-        }
-      });
-      if (response.ok) {
-        loadPayouts();
-      }
-    } catch (error) {
-      console.error('Failed to approve payout:', error);
-    }
-  };
+  const pendingPayouts = payouts?.filter(p => ['REQUESTED', 'REVIEW'].includes(p.status)) || [];
+  const approvedPayouts = payouts?.filter(p => p.status === 'APPROVED') || [];
 
-  const handleReject = async (id: string, reason: string) => {
-    try {
-      const response = await fetch(`${getServerApiBaseUrl()}/payouts/${id}/reject`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('apiToken')}`
-        },
-        body: JSON.stringify({ reason })
-      });
-      if (response.ok) {
-        loadPayouts();
-      }
-    } catch (error) {
-      console.error('Failed to reject payout:', error);
-    }
-  };
+  // Payouts that are ready to be EXECUTED (Approved).
+  // In this simple UI, we might just list them separately or auto-execute?
+  // Our backend logic says Approve -> APPROVED.
+  // Then separate step to Process/Execute.
+  // We should add a "Process" button for Approved payouts if we want manual control.
+  // Or maybe "Approve" moves to APPROVED, and then a cron picks it up?
+  // The plan said: "Approve -> IN_PROGRESS". Current code: Approve -> APPROVED.
+  // Then `processPayout` -> SENT.
+  // Let's add a "Process" button for Approved items? Or just assume Approve is enough?
+  // The Controller has `executePayout` (via processPayout).
+  // I'll add "Process" action for APPROVED items.
 
-  if (loading) {
-    return <div>Loading payouts...</div>;
+  const processMutation = useMutation({
+    mutationFn: (id: string) =>
+      sdk ? sdk.admin.payouts.process(id, `MANUAL-${Date.now()}`) : Promise.reject(new Error('Payout client not ready')),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-payouts'] });
+      notify.success('Payout sent to gateway.');
+    },
+    onError: () => {
+      notify.error('Failed to process payout.');
+    }
+  });
+
+  if (status !== 'ready') {
+    return <ClientState status={status} message={message} title="Payout approvals" />;
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-bold">Payout Management</h1>
-        <p className="text-sm text-gray-600">Review and approve payout requests</p>
+    <div className="flex-1 space-y-4 p-8 pt-6">
+      <div className="flex items-center justify-between space-y-2">
+        <h2 className="text-3xl font-bold tracking-tight">Payout Requests</h2>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Amount
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Method
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Account
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Created
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
-            {payouts.map((payout) => (
-              <tr key={payout.id}>
-                <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                  ${(payout.amountCents / 100).toFixed(2)} {payout.wallet.currency}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {payout.method}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {payout.payoutAccount.displayName}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm">
-                  <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
-                    {payout.status}
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {new Date(payout.createdAt).toLocaleDateString()}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleApprove(payout.id)}
-                      className="rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => handleReject(payout.id, 'Rejected by admin')}
-                      className="rounded-md bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="col-span-7">
+          <CardHeader>
+            <CardTitle>Pending Approval ({pendingPayouts.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+            ) : isError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-600">
+                Unable to load payouts right now. Please try again.
+              </div>
+            ) : pendingPayouts.length === 0 ? (
+              <div className="text-center p-8 text-muted-foreground">No pending requests</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Account</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingPayouts.map((payout) => (
+                    <TableRow key={payout.id}>
+                      <TableCell>{format(new Date(payout.createdAt), 'MMM d, yyyy')}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{payout.wallet?.ownerId}</span>
+                          <span className="text-xs text-muted-foreground">{payout.wallet?.ownerType}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium">{formatCurrency(payout.amountCents / 100)}</TableCell>
+                      <TableCell><Badge variant="outline">{payout.method}</Badge></TableCell>
+                      <TableCell className="max-w-[200px] truncate text-xs">
+                        {payout.payoutAccount?.displayName}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setRejectId(payout.id)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => approveMutation.mutate(payout.id)}
+                            disabled={approveMutation.isPending}
+                          >
+                            {approveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {approvedPayouts.length > 0 && (
+          <Card className="col-span-7">
+            <CardHeader>
+              <CardTitle>Ready for Processing ({approvedPayouts.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {approvedPayouts.map((payout) => (
+                    <TableRow key={payout.id}>
+                      <TableCell>{format(new Date(payout.createdAt), 'MMM d, yyyy')}</TableCell>
+                      <TableCell>{payout.wallet?.ownerId}</TableCell>
+                      <TableCell>{formatCurrency(payout.amountCents / 100)}</TableCell>
+                      <TableCell><Badge variant="outline">{payout.method}</Badge></TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          onClick={() => processMutation.mutate(payout.id)}
+                          disabled={processMutation.isPending}
+                        >
+                          {processMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Execute Payout'}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      <Dialog open={!!rejectId} onOpenChange={(open) => !open && setRejectId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Payout Request</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting this payout request. This will be visible to the user.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Textarea
+              placeholder="Reason for rejection..."
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setRejectId(null)}>Cancel</Button>
+              <Button
+                variant="destructive"
+                onClick={handleRejectSubmit}
+                disabled={!rejectReason || rejectMutation.isPending}
+              >
+                {rejectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Confirm Reject
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-

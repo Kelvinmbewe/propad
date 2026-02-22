@@ -1,0 +1,25 @@
+-- CreateTable
+CREATE TABLE "SavedSearch" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "name" TEXT,
+    "intent" TEXT,
+    "locationLabel" TEXT,
+    "locationId" TEXT,
+    "locationLevel" TEXT,
+    "propertyType" TEXT,
+    "priceRange" TEXT,
+    "verifiedOnly" BOOLEAN NOT NULL DEFAULT true,
+    "minTrust" INTEGER NOT NULL DEFAULT 0,
+    "queryJson" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SavedSearch_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "SavedSearch_userId_createdAt_idx" ON "SavedSearch"("userId", "createdAt" DESC);
+
+-- AddForeignKey
+ALTER TABLE "SavedSearch" ADD CONSTRAINT "SavedSearch_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -8,8 +8,10 @@ import { TrustModule } from '../trust/trust.module';
 
 import { PaymentsModule } from '../payments/payments.module';
 
+import { NotificationsModule } from '../notifications/notifications.module';
+
 @Module({
-  imports: [PrismaModule, AuditModule, TrustModule, PaymentsModule],
+  imports: [PrismaModule, AuditModule, TrustModule, PaymentsModule, NotificationsModule],
   controllers: [VerificationsController],
   providers: [VerificationsService, VerificationFingerprintService],
   exports: [VerificationsService, VerificationFingerprintService]

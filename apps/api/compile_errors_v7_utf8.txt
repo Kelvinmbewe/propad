@@ -1,0 +1,20 @@
+﻿src/agencies/agency-members.controller.ts(43,49): error TS2554: Expected 1 arguments, but got 4.
+src/agencies/agency-members.controller.ts(59,49): error TS2554: Expected 1 arguments, but got 4.
+src/commissions/commissions.service.ts(53,25): error TS2345: Argument of type '"AGENT_COMMISSION"' is not assignable to parameter of type 'WalletLedgerSourceType'.
+src/common/logging.interceptor.ts(10,30): error TS2307: Cannot find module 'uuid' or its corresponding type declarations.
+src/dashboard/dashboard.service.ts(18,23): error TS2339: Property 'ADVERTISER' does not exist on type 'LiteralEnum<"ADMIN" | "VERIFIER" | "AGENT" | "LANDLORD" | "USER" | "MODERATOR" | "COMPANY_ADMIN" | "COMPANY_AGENT" | "INDEPENDENT_AGENT" | "SELLER" | "TENANT" | "BUYER">'.
+src/growth/promos/promos.service.ts(2,31): error TS2307: Cannot find module '../prisma/prisma.service' or its corresponding type declarations.
+src/growth/promos/promos.service.ts(3,31): error TS2307: Cannot find module '../wallet/ledger.service' or its corresponding type declarations.
+src/growth/promos/promos.service.ts(4,58): error TS2307: Cannot find module '../wallet/enums' or its corresponding type declarations.
+src/growth/referrals/referrals.service.ts(2,31): error TS2307: Cannot find module '../prisma/prisma.service' or its corresponding type declarations.
+src/growth/referrals/referrals.service.ts(4,32): error TS2307: Cannot find module '../pricing/pricing.service' or its corresponding type declarations.
+src/growth/referrals/referrals.service.ts(5,31): error TS2307: Cannot find module '../wallet/ledger.service' or its corresponding type declarations.
+src/interests/interests.controller.ts(23,26): error TS7006: Parameter 'req' implicitly has an 'any' type.
+src/metrics/metrics.service.ts(44,23): error TS2339: Property 'get' does not exist on type 'MetricsCacheService'.
+src/properties/properties.service.ts(997,46): error TS2339: Property 'PUBLISHED' does not exist on type 'LiteralEnum<"DRAFT" | "PENDING_VERIFY" | "VERIFIED" | "UNDER_OFFER" | "RENTED" | "SOLD" | "ARCHIVED" | "OCCUPIED">'.
+src/properties/properties.service.ts(1248,34): error TS2339: Property 'PUBLISHED' does not exist on type 'LiteralEnum<"DRAFT" | "PENDING_VERIFY" | "VERIFIED" | "UNDER_OFFER" | "RENTED" | "SOLD" | "ARCHIVED" | "OCCUPIED">'.
+src/properties/properties.service.ts(1252,34): error TS2339: Property 'PUBLISHED' does not exist on type 'LiteralEnum<"DRAFT" | "PENDING_VERIFY" | "VERIFIED" | "UNDER_OFFER" | "RENTED" | "SOLD" | "ARCHIVED" | "OCCUPIED">'.
+src/properties/properties.service.ts(1260,46): error TS2554: Expected 1 arguments, but got 4.
+src/verifications/verifications.service.ts(423,32): error TS2339: Property 'VERIFICATION_UPDATE' does not exist on type 'LiteralEnum<"RENTED" | "SOLD" | "DISCOUNT" | "REOPENED" | "REWARD" | "CHAT" | "SYSTEM">'.
+src/verifications/verifications.service.ts(430,32): error TS2339: Property 'VERIFICATION_UPDATE' does not exist on type 'LiteralEnum<"RENTED" | "SOLD" | "DISCOUNT" | "REOPENED" | "REWARD" | "CHAT" | "SYSTEM">'.
+src/verifications/verifications.service.ts(521,26): error TS2339: Property 'VERIFICATION_UPDATE' does not exist on type 'LiteralEnum<"RENTED" | "SOLD" | "DISCOUNT" | "REOPENED" | "REWARD" | "CHAT" | "SYSTEM">'.

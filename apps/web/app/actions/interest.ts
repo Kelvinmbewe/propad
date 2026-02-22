@@ -1,8 +1,8 @@
 'use server';
 
 import { auth } from '@/auth';
-import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { serverApiRequest } from '@/lib/server-api';
 
 export async function submitInterest(formData: FormData) {
   const session = await auth();
@@ -21,14 +21,9 @@ export async function submitInterest(formData: FormData) {
   const offerAmount = offerAmountStr ? parseFloat(offerAmountStr) : undefined;
 
   try {
-    await prisma.interest.create({
-      data: {
-        propertyId,
-        userId: session.user.id,
-        message,
-        offerAmount,
-        status: 'PENDING'
-      }
+    await serverApiRequest(`/properties/${propertyId}/interest`, {
+      method: 'POST',
+      body: { message, offerAmount }
     });
 
     revalidatePath(`/properties/${propertyId}`);

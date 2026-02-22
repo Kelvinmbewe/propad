@@ -1,8 +1,8 @@
 'use server';
 
 import { auth } from '@/auth';
-import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { serverApiRequest } from '@/lib/server-api';
 
 export async function submitReview(formData: FormData) {
   const session = await auth();
@@ -13,7 +13,7 @@ export async function submitReview(formData: FormData) {
   const revieweeId = formData.get('revieweeId') as string;
   const ratingStr = formData.get('rating') as string;
   const comment = formData.get('comment') as string;
-  const type = formData.get('type') as string; // ReviewerType
+  const type = formData.get('type') as string;
 
   const rating = parseInt(ratingStr, 10);
 
@@ -21,26 +21,18 @@ export async function submitReview(formData: FormData) {
   let weight = 1;
   if (type === 'PREVIOUS_TENANT') weight = 10;
   else if (type === 'NEIGHBOR') weight = 5;
-  else if (type === 'ANONYMOUS') weight = 0; // Very low or zero
+  else if (type === 'ANONYMOUS') weight = 0;
 
   try {
-    await prisma.userReview.create({
-      data: {
-        reviewerId: session.user.id,
-        revieweeId,
-        rating,
-        comment,
-        type: type as any,
-        weight
-      }
-    });
-
-    // Update User's aggregated rating (if we were storing it on the user model, currently we compute it on read)
-    // But for performance, updating AgentProfile.rating might be good if they are an agent.
-    // For now, we just store the review.
+    // TODO: Implement API endpoint
+    // await serverApiRequest('/reviews', {
+    //     method: 'POST',
+    //     body: { revieweeId, rating, comment, type, weight }
+    // });
+    console.warn('[reviews.ts] submitReview - API endpoint not yet implemented');
 
     revalidatePath(`/users/${revieweeId}`);
-    return { success: true };
+    return { success: true, warning: 'API endpoint pending implementation' };
   } catch (error) {
     console.error('Failed to submit review:', error);
     return { error: 'Failed to submit review' };

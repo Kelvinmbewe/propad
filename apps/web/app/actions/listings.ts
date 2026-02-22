@@ -1,176 +1,192 @@
-'use server';
+"use server";
 
-import { prisma } from '@/lib/prisma';
-import { auth } from '@/auth';
-import { revalidatePath } from 'next/cache';
+import { auth } from "@/auth";
+import { revalidatePath } from "next/cache";
+import { serverApiRequest } from "@/lib/server-api";
+
+export interface PropertyInterestUser {
+  id: string;
+  name: string | null;
+  email: string | null;
+  isVerified: boolean | null;
+}
+
+export interface PropertyInterest {
+  id: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  offerAmount: number | string | null;
+  message: string | null;
+  user: PropertyInterestUser;
+}
+
+export interface PropertyViewing {
+  id: string;
+  propertyId: string;
+  viewerId: string;
+  agentId: string | null;
+  landlordId: string | null;
+  scheduledAt: string;
+  status: string;
+  notes: string | null;
+  locationLat: number | null;
+  locationLng: number | null;
+  createdAt: string;
+  updatedAt: string;
+  viewer: {
+    id: string;
+    name: string | null;
+    phone: string | null;
+  };
+  agent: {
+    id: string;
+    name: string | null;
+  } | null;
+  landlord: {
+    id: string;
+    name: string | null;
+  } | null;
+}
 
 export async function getInterestsForProperty(propertyId: string) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error('Unauthorized');
+  const session = await auth();
+  if (!session?.user?.id) return [] as PropertyInterest[];
 
-    try {
-        // Verify ownership or agent assignment
-        const property = await prisma.property.findFirst({
-            where: {
-                id: propertyId,
-                OR: [
-                    { landlordId: session.user.id },
-                    { agentOwnerId: session.user.id }
-                ]
-            }
-        });
-
-        if (!property) throw new Error('Property not found or access denied');
-
-        return await prisma.interest.findMany({
-            where: { propertyId },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        isVerified: true
-                    }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-    } catch (error) {
-        console.error('getInterestsForProperty error:', error);
-        return []; // Return empty array to prevent 500
-    }
+  try {
+    return await serverApiRequest<PropertyInterest[]>(
+      `/properties/${propertyId}/interests`,
+    );
+  } catch (error) {
+    console.error("getInterestsForProperty error:", error);
+    return [] as PropertyInterest[];
+  }
 }
 
 export async function getChatThreads(propertyId: string) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error('Unauthorized');
+  const session = await auth();
+  if (!session?.user?.id) return [];
 
-    try {
-        // Verify access
-        const property = await prisma.property.findFirst({
-            where: {
-                id: propertyId,
-                OR: [
-                    { landlordId: session.user.id },
-                    { agentOwnerId: session.user.id }
-                ]
-            }
+  try {
+    const messages = await serverApiRequest<any[]>(
+      `/properties/${propertyId}/messages`,
+    );
+    const threads = new Map<
+      string,
+      { user: any; lastMessage: any; unreadCount: number }
+    >();
+
+    for (const message of messages) {
+      const isSender = message.senderId === session.user.id;
+      const counterparty = isSender ? message.recipient : message.sender;
+      if (!counterparty) continue;
+
+      const existing = threads.get(counterparty.id);
+      const unreadCount = !isSender && !message.readAt ? 1 : 0;
+
+      if (
+        !existing ||
+        new Date(message.createdAt) > new Date(existing.lastMessage.createdAt)
+      ) {
+        threads.set(counterparty.id, {
+          user: counterparty,
+          lastMessage: message,
+          unreadCount: (existing?.unreadCount ?? 0) + unreadCount,
         });
-
-        if (!property) throw new Error('Access denied');
-
-        const messages = await prisma.propertyMessage.findMany({
-            where: { propertyId },
-            orderBy: { createdAt: 'desc' },
-            include: {
-                sender: { select: { id: true, name: true } },
-                recipient: { select: { id: true, name: true } }
-            }
+      } else if (unreadCount) {
+        threads.set(counterparty.id, {
+          ...existing,
+          unreadCount: existing.unreadCount + unreadCount,
         });
-
-        const threads = new Map();
-
-        messages.forEach((msg: any) => {
-            const isMe = msg.senderId === session.user.id;
-            const counterparty = isMe ? msg.recipient : msg.sender;
-            const threadId = counterparty.id;
-
-            if (!threads.has(threadId)) {
-                threads.set(threadId, {
-                    user: counterparty,
-                    lastMessage: msg,
-                    unreadCount: (!isMe && !msg.readAt) ? 1 : 0
-                });
-            } else {
-                if (!isMe && !msg.readAt) {
-                    const t = threads.get(threadId);
-                    t.unreadCount++;
-                }
-            }
-        });
-
-        return Array.from(threads.values());
-    } catch (error) {
-        console.error('getChatThreads error:', error);
-        return []; // Return empty array to prevent 500
+      }
     }
+
+    return Array.from(threads.values()).sort(
+      (a, b) =>
+        new Date(b.lastMessage.createdAt).getTime() -
+        new Date(a.lastMessage.createdAt).getTime(),
+    );
+  } catch (error) {
+    console.error("getChatThreads error:", error);
+    return [];
+  }
 }
 
-export async function getThreadMessages(propertyId: string, counterpartyId: string) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error('Unauthorized');
+export async function getThreadMessages(
+  propertyId: string,
+  counterpartyId: string,
+) {
+  const session = await auth();
+  if (!session?.user?.id) return [];
 
-    try {
-        return await prisma.propertyMessage.findMany({
-            where: {
-                propertyId,
-                OR: [
-                    { senderId: session.user.id, recipientId: counterpartyId },
-                    { senderId: counterpartyId, recipientId: session.user.id }
-                ]
-            },
-            orderBy: { createdAt: 'asc' },
-            include: {
-                sender: { select: { id: true, name: true } }
-            }
-        });
-    } catch (error) {
-        console.error('getThreadMessages error:', error);
-        return []; // Return empty array to prevent 500
-    }
+  try {
+    const messages = await serverApiRequest<any[]>(
+      `/properties/${propertyId}/messages`,
+    );
+    return messages.filter(
+      (message) =>
+        (message.senderId === session.user.id &&
+          message.recipientId === counterpartyId) ||
+        (message.senderId === counterpartyId &&
+          message.recipientId === session.user.id),
+    );
+  } catch (error) {
+    console.error("getThreadMessages error:", error);
+    return [];
+  }
 }
 
-export async function sendMessage(propertyId: string, recipientId: string, body: string) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error('Unauthorized');
+export async function sendMessage(
+  propertyId: string,
+  recipientId: string,
+  body: string,
+) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
 
-    const msg = await prisma.propertyMessage.create({
-        data: {
-            propertyId,
-            senderId: session.user.id,
-            recipientId,
-            body
-        }
+  try {
+    const msg = await serverApiRequest(`/properties/${propertyId}/messages`, {
+      method: "POST",
+      body: { body, recipientId },
     });
-
     revalidatePath(`/dashboard/listings/${propertyId}`);
     return msg;
+  } catch (error) {
+    console.error("sendMessage error:", error);
+    throw error;
+  }
 }
 
-export async function updateInterestStatus(interestId: string, status: 'ACCEPTED' | 'REJECTED') {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error('Unauthorized');
+export async function updateInterestStatus(
+  interestId: string,
+  status: "ACCEPTED" | "REJECTED",
+) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
 
-    await prisma.interest.update({
-        where: { id: interestId },
-        data: { status }
+  try {
+    await serverApiRequest(`/interests/${interestId}/status`, {
+      method: "PATCH",
+      body: { status },
     });
 
-    revalidatePath('/dashboard/listings');
+    revalidatePath("/dashboard/listings");
+  } catch (error) {
+    console.error("updateInterestStatus error:", error);
+    throw error;
+  }
 }
 
 export async function getViewings(propertyId: string) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error('Unauthorized');
+  const session = await auth();
+  if (!session?.user?.id) return [] as PropertyViewing[];
 
-    try {
-        const property = await prisma.property.findFirst({
-            where: { id: propertyId, OR: [{ landlordId: session.user.id }, { agentOwnerId: session.user.id }] }
-        });
-        if (!property) throw new Error('Access denied');
-
-        return await prisma.viewing.findMany({
-            where: { propertyId },
-            include: {
-                viewer: { select: { id: true, name: true, phone: true } },
-                agent: { select: { id: true, name: true } },
-                landlord: { select: { id: true, name: true } }
-            },
-            orderBy: { scheduledAt: 'asc' }
-        });
-    } catch (error) {
-        console.error('getViewings error:', error);
-        return []; // Return empty array to prevent 500
-    }
+  try {
+    return await serverApiRequest<PropertyViewing[]>(
+      `/properties/${propertyId}/viewings`,
+    );
+  } catch (error) {
+    console.error("getViewings error:", error);
+    return [] as PropertyViewing[];
+  }
 }

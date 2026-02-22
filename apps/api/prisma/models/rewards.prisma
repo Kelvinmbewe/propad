@@ -1,0 +1,30 @@
+// Reward Models Extensions
+
+model RewardPool {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  totalUsdCents Int       @default(0)
+  spentUsdCents Int       @default(0)
+  currency      Currency  @default(USD)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  distributions RewardDistribution[]
+  campaigns     AdCampaign[] // Some campaigns might contribute to specific pools
+}
+
+model RewardDistribution {
+  id          String   @id @default(cuid())
+  poolId      String
+  amountCents Int
+  currency    Currency
+  reason      String?
+  status      String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  pool        RewardPool @relation(fields: [poolId], references: [id])
+  ledgerEntries WalletLedger[] // Links to the ledger entries created for users
+}

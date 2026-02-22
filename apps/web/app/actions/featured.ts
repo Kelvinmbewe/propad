@@ -1,25 +1,34 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import { revalidatePath } from 'next/cache';
+import { serverApiRequest } from '@/lib/server-api';
 
-export async function getFeaturedStatus(listingId: string) {
+export interface FeaturedListing {
+    id: string;
+    listingId: string;
+    startsAt: Date | string;
+    endsAt: Date | string;
+    priorityLevel: number;
+    status: string;
+}
+
+export async function getFeaturedStatus(listingId: string): Promise<FeaturedListing | null> {
     try {
         const session = await auth();
         if (!session?.user?.id) throw new Error('Unauthorized');
 
-        return await prisma.featuredListing.findFirst({
-            where: { listingId },
-            orderBy: { endsAt: 'desc' }
-        });
+        // TODO: Implement API endpoint
+        // return await serverApiRequest<FeaturedListing>(`/listings/${listingId}/featured`);
+        console.warn('[featured.ts] getFeaturedStatus - API endpoint not yet implemented');
+        return null;
     } catch (error) {
         console.error('getFeaturedStatus error:', error);
-        return null; // Return null instead of throwing to prevent 500
+        return null;
     }
 }
 
-export async function createFeaturedListing(listingId: string, durationDays: number, priorityLevel: number = 1) {
+export async function createFeaturedListing(listingId: string, durationDays: number, priorityLevel: number = 1): Promise<FeaturedListing> {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Unauthorized');
 
@@ -28,33 +37,36 @@ export async function createFeaturedListing(listingId: string, durationDays: num
         const endsAt = new Date();
         endsAt.setDate(startsAt.getDate() + durationDays);
 
-        const featured = await prisma.featuredListing.create({
-            data: {
-                listingId,
-                startsAt,
-                endsAt,
-                priorityLevel,
-                status: 'PENDING_PAYMENT'
-            }
-        });
+        // TODO: Implement API endpoint
+        // const featured = await serverApiRequest<FeaturedListing>('/featured-listings', {
+        //     method: 'POST',
+        //     body: { listingId, startsAt, endsAt, priorityLevel }
+        // });
+        console.warn('[featured.ts] createFeaturedListing - API endpoint not yet implemented');
 
         revalidatePath(`/dashboard/listings/${listingId}`);
-        return featured;
+        return {
+            id: 'pending',
+            listingId,
+            startsAt,
+            endsAt,
+            priorityLevel,
+            status: 'PENDING_PAYMENT'
+        };
     } catch (error) {
         console.error('createFeaturedListing error:', error);
         throw new Error('Unable to create featured listing at this time');
     }
 }
 
-export async function completeFeaturedPayment(featuredId: string) {
+export async function completeFeaturedPayment(featuredId: string): Promise<void> {
     const session = await auth();
     if (!session?.user?.id) throw new Error('Unauthorized');
 
     try {
-        await prisma.featuredListing.update({
-            where: { id: featuredId },
-            data: { status: 'ACTIVE' }
-        });
+        // TODO: Implement API endpoint
+        // await serverApiRequest(`/featured-listings/${featuredId}/complete`, { method: 'POST' });
+        console.warn('[featured.ts] completeFeaturedPayment - API endpoint not yet implemented');
 
         revalidatePath('/dashboard/listings');
     } catch (error) {

@@ -1,14 +1,35 @@
-import { Module } from '@nestjs/common';
-import { PrismaModule } from '../prisma/prisma.module';
-import { AdsController } from './ads.controller';
-import { AdsService } from './ads.service';
-import { PaymentsModule } from '../payments/payments.module';
-import { AuditModule } from '../audit/audit.module';
+import { Module } from "@nestjs/common";
+import { AdsService } from "./ads.service";
+import { AdsCron } from "./ads.cron";
+import { AdsController } from "./ads.controller";
+import { AdEventsService } from "./events/ad-events.service";
+import { AdvertiserBalanceService } from "./advertiser-balance.service";
+import { AuditModule } from "../audit/audit.module";
+import { AdsInvoicesService } from "./ads-invoices.service";
+import { FraudDetectionService } from "./fraud/fraud-detection.service";
+
+import { AdsFraudController } from "./ads-fraud.controller";
+
+import { WalletsModule } from "../wallets/wallets.module";
+import { PaymentsModule } from "../payments/payments.module";
 
 @Module({
-  imports: [PrismaModule, PaymentsModule, AuditModule],
-  controllers: [AdsController],
-  providers: [AdsService],
-  exports: [AdsService]
+  imports: [AuditModule, WalletsModule, PaymentsModule],
+  providers: [
+    AdsService,
+    AdsCron,
+    AdEventsService,
+    AdvertiserBalanceService,
+    AdsInvoicesService,
+    FraudDetectionService,
+  ],
+  controllers: [AdsController, AdsFraudController],
+  exports: [
+    AdsService,
+    AdEventsService,
+    AdvertiserBalanceService,
+    AdsInvoicesService,
+    FraudDetectionService,
+  ],
 })
-export class AdsModule { }
+export class AdsModule {}

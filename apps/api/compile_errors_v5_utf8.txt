@@ -1,0 +1,131 @@
+﻿src/admin/admin.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/admin/admin.controller.ts(4,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/admin/admin.controller.ts(5,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/ads/ads.controller.ts(13,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/ads/ads.controller.ts(14,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/ads/ads.controller.ts(15,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/ads/advertiser-balance.service.ts(66,22): error TS2339: Property 'advertiserBalanceLog' does not exist on type 'PrismaClientOrTx'.
+  Property 'advertiserBalanceLog' does not exist on type 'TransactionClient'.
+src/ads/advertiser-balance.service.ts(167,22): error TS2339: Property 'advertiserBalanceLog' does not exist on type 'PrismaClientOrTx'.
+  Property 'advertiserBalanceLog' does not exist on type 'TransactionClient'.
+src/ads/advertiser-balance.service.ts(282,22): error TS2339: Property 'advertiserBalanceLog' does not exist on type 'PrismaClientOrTx'.
+  Property 'advertiserBalanceLog' does not exist on type 'TransactionClient'.
+src/adsense/adsense.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/adsense/adsense.controller.ts(4,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/adsense/adsense.controller.ts(5,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/advertisers/advertisers.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/advertisers/advertisers.controller.ts(4,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/advertisers/advertisers.controller.ts(5,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/agencies/agencies.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/agencies/agencies.controller.ts(4,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/agencies/agencies.controller.ts(5,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/agencies/agencies.service.ts(62,44): error TS2554: Expected 1 arguments, but got 4.
+src/agencies/agencies.service.ts(70,44): error TS2554: Expected 1 arguments, but got 4.
+src/agencies/agencies.service.ts(87,45): error TS2554: Expected 1 arguments, but got 4.
+src/agencies/agency-members.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/agencies/agency-members.controller.ts(4,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/agencies/agency-members.controller.ts(5,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/agencies/agency-members.controller.ts(43,49): error TS2554: Expected 1 arguments, but got 4.
+src/agencies/agency-members.controller.ts(59,49): error TS2554: Expected 1 arguments, but got 4.
+src/auth/auth.controller.ts(4,30): error TS2307: Cannot find module './jwt-auth.guard' or its corresponding type declarations.
+src/commissions/commissions.service.ts(53,48): error TS2339: Property 'COMMISSION' does not exist on type 'LiteralEnum<"VERIFICATION" | "REWARD" | "PAYOUT" | "REFERRAL" | "ADJUSTMENT" | "AGENT_COMMISSION">'.
+src/common/logging.interceptor.ts(10,30): error TS2307: Cannot find module 'uuid' or its corresponding type declarations.
+src/dashboard/dashboard.controller.ts(2,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/dashboard/dashboard.service.ts(18,23): error TS2339: Property 'ADVERTISER' does not exist on type 'LiteralEnum<"ADMIN" | "VERIFIER" | "AGENT" | "LANDLORD" | "USER" | "MODERATOR" | "COMPANY_ADMIN" | "COMPANY_AGENT" | "INDEPENDENT_AGENT" | "SELLER" | "TENANT" | "BUYER">'.
+src/deals/deals.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/geo/geo.controller.ts(12,22): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/geo/geo.controller.ts(13,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/geo/geo.controller.ts(14,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/geo/geo.controller.ts(15,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/growth/promos/promos.controller.ts(3,30): error TS2307: Cannot find module '../../auth/jwt-auth.guard' or its corresponding type declarations.
+src/growth/promos/promos.service.ts(2,31): error TS2307: Cannot find module '../prisma/prisma.service' or its corresponding type declarations.
+src/growth/promos/promos.service.ts(3,31): error TS2307: Cannot find module '../wallet/ledger.service' or its corresponding type declarations.
+src/growth/promos/promos.service.ts(4,58): error TS2307: Cannot find module '../wallet/enums' or its corresponding type declarations.
+src/growth/referrals/referrals.controller.ts(3,30): error TS2307: Cannot find module '../../auth/jwt-auth.guard' or its corresponding type declarations.
+src/growth/referrals/referrals.service.ts(2,31): error TS2307: Cannot find module '../prisma/prisma.service' or its corresponding type declarations.
+src/growth/referrals/referrals.service.ts(4,32): error TS2307: Cannot find module '../pricing/pricing.service' or its corresponding type declarations.
+src/growth/referrals/referrals.service.ts(5,31): error TS2307: Cannot find module '../wallet/ledger.service' or its corresponding type declarations.
+src/interests/interests.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/interests/interests.controller.ts(5,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/interests/interests.controller.ts(6,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/interests/interests.controller.ts(23,26): error TS7006: Parameter 'req' implicitly has an 'any' type.
+src/leads/leads.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/leads/leads.controller.ts(4,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/leads/leads.controller.ts(5,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/metrics/metrics.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/metrics/metrics.controller.ts(4,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/metrics/metrics.controller.ts(5,29): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/metrics/metrics.service.ts(44,23): error TS2339: Property 'get' does not exist on type 'MetricsCacheService'.
+src/monetization/monetization.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/monetization/monetization.controller.ts(4,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/monetization/monetization.controller.ts(5,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/notifications/notifications.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/notifications/push.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/ops/ops.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/ops/ops.controller.ts(4,28): error TS2307: Cannot find module '../roles/roles.guard' or its corresponding type declarations.
+src/ops/ops.controller.ts(5,23): error TS2307: Cannot find module '../roles/roles.decorator' or its corresponding type declarations.
+src/payments/feature-access.controller.ts(4,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/payments/feature-access.controller.ts(5,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/payments/feature-access.controller.ts(6,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/payments/payment-methods.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/payments/payment-methods.controller.ts(4,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/payments/payment-methods.controller.ts(5,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/payments/payment-provider-settings.controller.ts(5,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/payments/payment-provider-settings.controller.ts(6,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/payments/payment-provider-settings.controller.ts(7,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/payments/payments.controller.ts(4,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/payments/payouts.controller.ts(5,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/payments/payouts.controller.ts(6,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/payments/payouts.controller.ts(7,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/payments/pricing.controller.ts(5,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/payments/pricing.controller.ts(6,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/payments/pricing.controller.ts(7,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/payments/referrals.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/payments/referrals.controller.ts(4,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/payments/referrals.controller.ts(5,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/payouts/payouts.controller.ts(4,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/payouts/payouts.controller.ts(5,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/payouts/payouts.controller.ts(6,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/pricing/pricing.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/pricing/pricing.controller.ts(4,28): error TS2307: Cannot find module '../roles/roles.guard' or its corresponding type declarations.
+src/pricing/pricing.controller.ts(5,23): error TS2307: Cannot find module '../roles/roles.decorator' or its corresponding type declarations.
+src/promos/promos.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/promos/promos.controller.ts(4,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/promos/promos.controller.ts(5,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/properties/properties.controller.ts(18,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/properties/properties.controller.ts(19,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/properties/properties.controller.ts(20,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/properties/properties.service.ts(997,46): error TS2339: Property 'PUBLISHED' does not exist on type 'LiteralEnum<"DRAFT" | "PENDING_VERIFY" | "VERIFIED" | "UNDER_OFFER" | "RENTED" | "SOLD" | "ARCHIVED" | "OCCUPIED">'.
+src/properties/properties.service.ts(1244,52): error TS2551: Property 'PENDING_VERIFICATION' does not exist on type 'LiteralEnum<"DRAFT" | "PENDING_VERIFY" | "VERIFIED" | "UNDER_OFFER" | "RENTED" | "SOLD" | "ARCHIVED" | "OCCUPIED">'. Did you mean 'PENDING_VERIFY'?
+src/properties/properties.service.ts(1248,34): error TS2339: Property 'PUBLISHED' does not exist on type 'LiteralEnum<"DRAFT" | "PENDING_VERIFY" | "VERIFIED" | "UNDER_OFFER" | "RENTED" | "SOLD" | "ARCHIVED" | "OCCUPIED">'.
+src/properties/properties.service.ts(1252,34): error TS2339: Property 'PUBLISHED' does not exist on type 'LiteralEnum<"DRAFT" | "PENDING_VERIFY" | "VERIFIED" | "UNDER_OFFER" | "RENTED" | "SOLD" | "ARCHIVED" | "OCCUPIED">'.
+src/properties/properties.service.ts(1260,46): error TS2554: Expected 1 arguments, but got 4.
+src/reconciliation/reconciliation.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/reconciliation/reconciliation.controller.ts(4,28): error TS2307: Cannot find module '../roles/roles.guard' or its corresponding type declarations.
+src/reconciliation/reconciliation.controller.ts(5,23): error TS2307: Cannot find module '../roles/roles.decorator' or its corresponding type declarations.
+src/rewards/rewards.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/rewards/rewards.controller.ts(4,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/rewards/rewards.controller.ts(5,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/security/security.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/security/security.controller.ts(4,28): error TS2307: Cannot find module '../roles/roles.guard' or its corresponding type declarations.
+src/security/security.controller.ts(5,23): error TS2307: Cannot find module '../roles/roles.decorator' or its corresponding type declarations.
+src/site-visits/site-visits.controller.ts(4,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/site-visits/site-visits.controller.ts(5,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/site-visits/site-visits.controller.ts(6,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/trust/risk.controller.ts(5,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/trust/risk.controller.ts(6,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/trust/risk.controller.ts(7,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/trust/trust.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/verifications/verifications.controller.ts(8,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/verifications/verifications.controller.ts(9,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/verifications/verifications.controller.ts(18,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/verifications/verifications.service.ts(422,32): error TS2339: Property 'VERIFICATION_UPDATE' does not exist on type 'LiteralEnum<"RENTED" | "SOLD" | "DISCOUNT" | "REOPENED" | "REWARD" | "CHAT" | "SYSTEM">'.
+src/verifications/verifications.service.ts(429,32): error TS2339: Property 'VERIFICATION_UPDATE' does not exist on type 'LiteralEnum<"RENTED" | "SOLD" | "DISCOUNT" | "REOPENED" | "REWARD" | "CHAT" | "SYSTEM">'.
+src/verifications/verifications.service.ts(520,26): error TS2339: Property 'VERIFICATION_UPDATE' does not exist on type 'LiteralEnum<"RENTED" | "SOLD" | "DISCOUNT" | "REOPENED" | "REWARD" | "CHAT" | "SYSTEM">'.
+src/wallet/wallet.controller.ts(2,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/wallet/wallet.controller.ts(3,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/wallet/wallet.controller.ts(4,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.
+src/wallet/wallet.controller.ts(36,24): error TS2339: Property 'getLedger' does not exist on type 'WalletLedgerService'.
+src/wallets/wallets.controller.ts(3,30): error TS2307: Cannot find module '../auth/jwt-auth.guard' or its corresponding type declarations.
+src/wallets/wallets.controller.ts(4,28): error TS2307: Cannot find module '../auth/roles.guard' or its corresponding type declarations.
+src/wallets/wallets.controller.ts(5,23): error TS2307: Cannot find module '../auth/roles.decorator' or its corresponding type declarations.

@@ -37,6 +37,8 @@
   ],
   "exclude": [
     "node_modules",
-    "prisma/migrations/**/*"
+    "prisma/migrations/**/*",
+    "src/_monetization_disabled/**/*",
+    "src/_payments_disabled/**/*"
   ]
 }

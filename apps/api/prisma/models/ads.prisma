@@ -1,0 +1,35 @@
+// Ad Models Extensions
+
+enum AdEventType {
+  IMPRESSION
+  CLICK
+  HOVER
+  CONVERSION
+  VIDEO_START
+  VIDEO_COMPLETE
+}
+
+model AdEvent {
+  id           String      @id @default(cuid())
+  campaignId   String
+  flightId     String
+  placementId  String
+  creativeId   String
+  userId       String?
+  type         AdEventType
+  metadata     Json?
+  userAgent    String?
+  ipAddress    String?
+  sessionId    String?
+  createdAt    DateTime    @default(now())
+
+  campaign     AdCampaign  @relation(fields: [campaignId], references: [id])
+  flight       AdFlight    @relation(fields: [flightId], references: [id])
+  placement    AdPlacement @relation(fields: [placementId], references: [id])
+  creative     AdCreative  @relation(fields: [creativeId], references: [id])
+  user         User?       @relation("AdEventUser", fields: [userId], references: [id])
+
+  @@index([campaignId, type, createdAt])
+  @@index([userId, type])
+  @@index([sessionId])
+}

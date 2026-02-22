@@ -1,0 +1,8 @@
+﻿src/finance/finance-report.service.ts(111,39): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+src/finance/finance-report.service.ts(111,44): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+src/finance/finance-report.service.ts(138,22): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/growth/promos/promos.service.ts(38,38): error TS2339: Property 'recordTransaction' does not exist on type 'WalletLedgerService'.
+src/payments/payments.service.ts(473,30): error TS2339: Property 'processPaymentRewards' does not exist on type 'RewardsService'.
+src/payouts/payouts.service.ts(441,48): error TS2339: Property 'calculatePrice' does not exist on type 'PricingService'.
+src/payouts/payouts.service.ts(459,50): error TS7006: Parameter 'w' implicitly has an 'any' type.
+src/rewards/engine/distribution.engine.ts(50,31): error TS2339: Property 'recordTransaction' does not exist on type 'WalletLedgerService'.

@@ -6,8 +6,10 @@ const sections = [
   { href: '/dashboard/admin/geo', title: 'Geo admin', description: 'Review and merge pending geo submissions.' },
   { href: '/dashboard/admin/billing', title: 'Billing admin', description: 'Monitor invoices, intents, and transactions.' },
   { href: '/dashboard/admin/wallet', title: 'Wallet admin', description: 'Handle KYC, payout approvals, and AML policies.' },
-  { href: '/dashboard/admin/rates', title: 'Rate admin', description: 'Set manual FX rates for billing operations.' }
+  { href: '/dashboard/admin/rates', title: 'Rate admin', description: 'Set manual FX rates for billing operations.' },
+  { href: '/dashboard/admin/settings', title: 'Settings', description: 'Manage tax, invoice labels, and currency defaults.' }
 ];
+
 
 export default function AdminHomePage() {
   return (

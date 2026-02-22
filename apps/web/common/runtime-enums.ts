@@ -1,0 +1,15 @@
+export const VerificationItemTypeEnum = {
+    PROOF_OF_OWNERSHIP: 'PROOF_OF_OWNERSHIP',
+    LOCATION_CONFIRMATION: 'LOCATION_CONFIRMATION',
+    PROPERTY_PHOTOS: 'PROPERTY_PHOTOS',
+    COMPANY_REGS: 'COMPANY_REGS',
+    IDENTITY_DOC: 'IDENTITY_DOC',
+    PROOF_OF_ADDRESS: 'PROOF_OF_ADDRESS',
+    SELFIE_VERIFICATION: 'SELFIE_VERIFICATION',
+    TAX_CLEARANCE: 'TAX_CLEARANCE',
+    DIRECTOR_ID: 'DIRECTOR_ID',
+    BUSINESS_ADDRESS: 'BUSINESS_ADDRESS',
+} as const;
+
+export type VerificationItemTypeValue =
+    (typeof VerificationItemTypeEnum)[keyof typeof VerificationItemTypeEnum];

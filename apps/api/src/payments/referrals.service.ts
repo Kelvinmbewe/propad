@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Currency, OwnerType, Prisma, WalletLedgerSourceType, ReferralEarning } from '@prisma/client';
+import { ChargeableItemType } from '@propad/config';
+import { Currency, OwnerType, Prisma, ReferralEarning } from '@prisma/client';
+import { WalletLedgerSourceType } from '../wallet/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { PricingService } from './pricing.service';
@@ -76,7 +78,7 @@ export class ReferralsService {
       earning.id
     );
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'referralEarning.created',
       actorId: referrerId,
       targetType: 'referralEarning',
@@ -137,7 +139,7 @@ export class ReferralsService {
 
     // Get pricing rule to determine referral share
     try {
-      const pricing = await this.pricing.calculatePrice(payment.featureType);
+      const pricing = await this.pricing.calculatePrice(payment.featureType as ChargeableItemType);
       if (!pricing.referralShareCents || pricing.referralShareCents === 0) {
         return null; // No referral share configured
       }
@@ -212,7 +214,7 @@ export class ReferralsService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'referralConfig.updated',
       actorId,
       targetType: 'config',

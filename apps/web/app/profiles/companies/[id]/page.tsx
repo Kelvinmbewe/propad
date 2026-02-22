@@ -1,131 +1,263 @@
-import { notFound } from 'next/navigation';
-import Image from 'next/image';
-import { Metadata } from 'next';
-import { TrustBadgeStack } from '@/components/trust/TrustBadgeStack';
-import { Star, MapPin, Building2, User } from 'lucide-react';
+import { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Button } from "@propad/ui";
+import { LandingNav } from "@/components/landing-nav";
+import { SiteFooter } from "@/components/site-footer";
+import { ListingLocationMap } from "@/components/property-detail/listing-location-map";
+import { CompanyHeroCard } from "@/components/company-profile/company-hero-card";
+import { CompanyListings } from "@/components/company-profile/company-listings";
+import { PerformanceCard } from "@/components/company-profile/performance-card";
+import { TeamPreview } from "@/components/company-profile/team-preview";
+import { NearbyPartners } from "@/components/company-profile/nearby-partners";
+import { QuickLinks } from "@/components/company-profile/quick-links";
+import { TrustScoreBar } from "@/components/company-profile/trust-score-bar";
+import { getCompanyProfilePageData } from "@/lib/queries/company-profile";
 
-async function getAgencyProfile(id: string) {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333'}/api/profiles/companies/${id}`, {
-        cache: 'no-store'
-    });
-    if (!res.ok) return null;
-    return res.json();
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+}): Promise<Metadata> {
+  const payload = await getCompanyProfilePageData(params.id).catch(() => null);
+  if (!payload) return { title: "Agency Not Found | PropAd" };
+  return {
+    title: `${payload.company.name} | PropAd Agency Profile`,
+    description:
+      payload.company.shortDescription ||
+      payload.company.description ||
+      `Browse ${payload.company.name} listings, performance, and trust profile on PropAd.`,
+  };
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-    const profile = await getAgencyProfile(params.id);
-    if (!profile) return { title: 'Agency Not Found | ProPad' };
-    return {
-        title: `${profile.name} - Verified Real Estate Agency | ProPad`,
-        description: profile.bio || `View properties and agents from ${profile.name}.`,
-    };
+function formatMoney(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return "--";
+  }
+  return value.toLocaleString();
 }
 
-export default async function AgencyProfilePage({ params }: { params: { id: string } }) {
-    const profile = await getAgencyProfile(params.id);
+export default async function CompanyProfilePage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const data = await getCompanyProfilePageData(params.id).catch(() => null);
+  if (!data) return notFound();
 
-    if (!profile) return notFound();
+  const trustBreakdown = data.trust.breakdown ?? {};
+  const trustSignals = {
+    photos: Number(trustBreakdown.photos ?? trustBreakdown.media ?? 0) > 0,
+    gps: Number(trustBreakdown.gps ?? trustBreakdown.location ?? 0) > 0,
+    docs: Number(trustBreakdown.docs ?? trustBreakdown.kyc ?? 0) > 0,
+    siteVisit:
+      Number(trustBreakdown.siteVisit ?? trustBreakdown.transactions ?? 0) > 0,
+  };
 
-    return (
-        <div className="min-h-screen bg-slate-50 py-12">
-            <div className="container mx-auto max-w-6xl px-4">
-                {/* Header Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-8">
-                    <div className="h-40 bg-slate-900 relative">
-                        {/* Cover Image Placeholder */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <LandingNav />
+
+      <main className="mx-auto max-w-7xl space-y-6 px-4 pb-12 pt-24 sm:px-6 lg:px-8">
+        <CompanyHeroCard
+          companyId={params.id}
+          company={data.company}
+          activeListingsCount={data.stats.activeListingsCount}
+        />
+
+        <section className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-border bg-card p-4 text-card-foreground">
+            <h2 className="text-base font-semibold text-foreground">
+              Request a market appraisal
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Need an expert estimate? Connect with this agency team.
+            </p>
+            <Button asChild className="mt-3">
+              <Link
+                href={`/appraisal/request?companyId=${encodeURIComponent(params.id)}`}
+              >
+                Start appraisal request
+              </Link>
+            </Button>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-4 text-card-foreground">
+            <h2 className="text-base font-semibold text-foreground">
+              Need help finding a property?
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Create alerts and get matched to verified listings in your area.
+            </p>
+            <Button asChild variant="secondary" className="mt-3">
+              <Link href="/listings">Browse verified listings</Link>
+            </Button>
+          </div>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-12">
+          <div className="space-y-6 lg:col-span-8">
+            <CompanyListings
+              companyId={params.id}
+              initialData={{
+                items: data.listings,
+                meta: data.listingsMeta,
+                stats: {
+                  activeListingsCount: data.stats.activeListingsCount,
+                  verifiedListingsCount: data.stats.verifiedListingsCount,
+                  listingsLast30DaysCount: data.performance.listingsLast30d,
+                  avgSalePrice: data.performance.avgSalePrice,
+                  avgRentPrice: data.performance.avgRentPrice,
+                },
+              }}
+            />
+
+            <ListingLocationMap
+              lat={data.location.lat}
+              lng={data.location.lng}
+              locationLabel={
+                data.location.address ||
+                [data.location.city, data.location.province]
+                  .filter(Boolean)
+                  .join(", ") ||
+                "Zimbabwe"
+              }
+            />
+
+            <section className="rounded-2xl border border-border bg-card p-5 text-card-foreground">
+              <h2 className="text-lg font-semibold text-foreground">Reviews</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {data.stats.reviewsCount} reviews, average rating{" "}
+                {data.stats.avgRating ?? "--"}
+              </p>
+              {(data.reviews ?? []).length ? (
+                <div className="mt-3 space-y-3">
+                  {data.reviews.slice(0, 6).map((review) => (
+                    <div
+                      key={review.id}
+                      className="rounded-xl border border-border bg-background p-3"
+                    >
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{review.author ?? "Anonymous"}</span>
+                        <span>
+                          {review.createdAt
+                            ? new Date(review.createdAt).toLocaleDateString()
+                            : ""}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-foreground">
+                        {review.comment || "No written feedback."}
+                      </p>
                     </div>
-                    <div className="px-10 pb-10">
-                        <div className="relative flex flex-col md:flex-row justify-between items-end -mt-16 mb-6 gap-6">
-                            <div className="relative">
-                                <div className="w-32 h-32 rounded-xl border-4 border-white bg-white shadow-lg flex items-center justify-center overflow-hidden">
-                                    {profile.logo ? (
-                                        <Image src={profile.logo} alt={profile.name} width={128} height={128} className="object-contain p-2" />
-                                    ) : (
-                                        <Building2 className="w-12 h-12 text-slate-300" />
-                                    )}
-                                </div>
-                            </div>
-                            <div className="mb-2 flex-1">
-                                <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-                                    {profile.name}
-                                    {profile.stats.verified && (
-                                        <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100 uppercase tracking-wide">
-                                            Verified Agency
-                                        </span>
-                                    )}
-                                </h1>
-                                <p className="text-slate-500 mt-2 flex items-center gap-6 text-sm font-medium">
-                                    <span className="flex items-center gap-1.5"><Building2 className="w-4 h-4" /> Real Estate Agency</span>
-                                    <span className="flex items-center gap-1.5"><User className="w-4 h-4" /> {profile.stats.agentCount} Agents</span>
-                                </p>
-                            </div>
-                            <div className="flex gap-3">
-                                <button className="px-6 py-3 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition shadow-sm hover:shadow-md">
-                                    Browse Listings
-                                </button>
-                                <button className="px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition">
-                                    Contact Office
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="grid md:grid-cols-12 gap-10">
-                            <div className="md:col-span-8">
-                                <div className="prose prose-sm max-w-none text-slate-600 mb-8">
-                                    <p>{profile.bio || "No description provided."}</p>
-                                </div>
-                                <div className="mb-6">
-                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Trust & Accreditation</h3>
-                                    <TrustBadgeStack badges={profile.badges} size="md" />
-                                </div>
-                            </div>
-
-                            <div className="md:col-span-4 space-y-4">
-                                <div className="bg-slate-50 rounded-xl p-6 border border-slate-100">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Company Trust</span>
-                                        <span className="text-emerald-700 font-bold">{profile.stats.trustTier}</span>
-                                    </div>
-                                    <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                                        <div
-                                            className="bg-emerald-500 h-full rounded-full"
-                                            style={{ width: profile.stats.trustTier === 'Elite' ? '95%' : profile.stats.trustTier === 'Trusted' ? '80%' : '50%' }}
-                                        ></div>
-                                    </div>
-                                    <p className="text-xs text-slate-500 mt-3 leading-relaxed">
-                                        This score is based on verified transactions, client reviews, and years of operation.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                  ))}
                 </div>
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  No published reviews yet for this agency.
+                </p>
+              )}
+            </section>
+          </div>
 
-                {/* Agents List */}
-                <div className="mb-12">
-                    <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-                        Our Agents <span className="text-slate-400 text-lg font-normal">({profile.stats.agentCount})</span>
-                    </h2>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                        {profile.agents?.map((agent: any) => (
-                            <a href={`/profiles/users/${agent.id}`} key={agent.id} className="group block bg-white rounded-xl border border-slate-100 p-4 hover:shadow-md transition">
-                                <div className="aspect-square rounded-lg bg-slate-100 mb-4 overflow-hidden relative">
-                                    {agent.photo ? (
-                                        <Image src={agent.photo} alt={agent.name} fill className="object-cover group-hover:scale-105 transition" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                            <User className="w-8 h-8" />
-                                        </div>
-                                    )}
-                                </div>
-                                <h3 className="font-bold text-slate-900 truncate">{agent.name}</h3>
-                                <p className="text-xs text-slate-500">View Profile</p>
-                            </a>
-                        ))}
-                    </div>
+          <aside className="space-y-4 lg:col-span-4 lg:sticky lg:top-24">
+            <PerformanceCard
+              data={{
+                avgSalePrice: data.performance.avgSalePrice,
+                avgRentPrice: data.performance.avgRentPrice,
+                listingsLast30d: data.performance.listingsLast30d,
+                listingsPerMonth: data.performance.listingsPerMonth,
+                activeListingsCount: data.stats.activeListingsCount,
+                verifiedListingsCount: data.stats.verifiedListingsCount,
+              }}
+            />
+
+            <TeamPreview companyId={params.id} members={data.team} />
+
+            <NearbyPartners data={data.nearby} />
+
+            <QuickLinks city={data.quickLinks.city} />
+
+            <section className="rounded-2xl border border-border bg-card p-4 text-card-foreground">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Trust & Compliance
+              </h3>
+              <div className="mt-3 space-y-3">
+                <TrustScoreBar score={data.trust.score} />
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full border border-border bg-background px-2 py-1">
+                    Photos: {trustSignals.photos ? "Yes" : "No"}
+                  </span>
+                  <span className="rounded-full border border-border bg-background px-2 py-1">
+                    GPS: {trustSignals.gps ? "Yes" : "No"}
+                  </span>
+                  <span className="rounded-full border border-border bg-background px-2 py-1">
+                    Docs: {trustSignals.docs ? "Yes" : "No"}
+                  </span>
+                  <span className="rounded-full border border-border bg-background px-2 py-1">
+                    Site visit: {trustSignals.siteVisit ? "Yes" : "No"}
+                  </span>
                 </div>
-            </div>
-        </div>
-    );
+                <p className="text-sm text-muted-foreground">
+                  Complaint resolution:{" "}
+                  {data.trust.complaintResolutionRate != null
+                    ? `${Math.round(data.trust.complaintResolutionRate * 100)}%`
+                    : "--"}
+                </p>
+                <Link href="/" className="text-sm font-medium text-emerald-600">
+                  How verification works
+                </Link>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-border bg-card p-4 text-card-foreground">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Snapshot
+              </h3>
+              <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                <p>
+                  Avg sale:{" "}
+                  <span className="font-medium text-foreground">
+                    {formatMoney(data.performance.avgSalePrice)}
+                  </span>
+                </p>
+                <p>
+                  Avg rent:{" "}
+                  <span className="font-medium text-foreground">
+                    {formatMoney(data.performance.avgRentPrice)}
+                  </span>
+                </p>
+                <p>
+                  Team size:{" "}
+                  <span className="font-medium text-foreground">
+                    {data.stats.teamCount}
+                  </span>
+                </p>
+                <p>
+                  Active listings:{" "}
+                  <span className="font-medium text-foreground">
+                    {data.stats.activeListingsCount}
+                  </span>
+                </p>
+                <p>
+                  Verified listings:{" "}
+                  <span className="font-medium text-foreground">
+                    {data.stats.verifiedListingsCount}
+                  </span>
+                </p>
+                <p>
+                  Listings last 30 days:{" "}
+                  <span className="font-medium text-foreground">
+                    {data.performance.listingsLast30d}
+                  </span>
+                </p>
+              </div>
+            </section>
+          </aside>
+        </section>
+      </main>
+
+      <SiteFooter showFollow showVerificationLink={false} />
+    </div>
+  );
 }

@@ -1,0 +1,65 @@
+﻿
+> @propad/web@0.1.0 build C:\projects\propad\apps\web
+> next build
+
+  Ôû▓ Next.js 14.2.3
+  - Environments: .env.local, .env
+  - Experiments (use with caution):
+    ┬À instrumentationHook
+
+   Creating an optimized production build ...
+ Ô£ô (pwa) Compiling for server...
+ Ô£ô (pwa) Compiling for server...
+ Ô£ô (pwa) Compiling for client (static)...
+ Ôùï (pwa) Service worker: C:\projects\propad\apps\web\public\sw.js
+ Ôùï (pwa)   URL: /sw.js
+ Ôùï (pwa)   Scope: /
+node.exe : Failed to 
+compile.
+At C:\Program Files\node
+js\pnpm.ps1:16 char:5
++     & 
+"$basedir/node$exe"  "$b
+asedir/node_modules/core
+pack/dist/pnpm. ...
++     ~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo      
+        : NotSpecified  
+  : (Failed to compil   
+ e.:String) [], Remo    
+teException
+    + FullyQualifiedErr 
+   orId : NativeComman  
+  dError
+ 
+
+./app/(dashboard)/layout
+.tsx
+Error: 
+  [31mx[0m Unexpected 
+eof
+    ,-[[36;1;4mC:\proje
+cts\propad\apps\web\app\
+(dashboard)\layout.tsx[
+0m:23:1]
+ [2m23[0m |   );
+ [2m24[0m | }
+ [2m25[0m | ```
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for 
+requested module:
+./app/(dashboard)/layout
+.tsx
+
+
+> Build failed because 
+of webpack errors
+C:\projects\propad\apps\web:
+ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/web@0.1.0 build: `next build`
+Exit status 1

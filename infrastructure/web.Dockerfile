@@ -1,35 +1,50 @@
-ARG NODE_IMAGE=node:20-slim
+ARG NODE_IMAGE=node:20.11.1-slim
 FROM ${NODE_IMAGE} AS builder
+RUN apt-get update && apt-get install -y \
+  openssl \
+  git \
+  ca-certificates \
+  curl \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-ENV PRISMA_SKIP_AUTOINSTALL=true
-ENV NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+ENV NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/v1
+ENV NEXTAUTH_URL=http://localhost:3000
 
 COPY package*.json ./
 COPY pnpm-workspace.yaml ./
 COPY tsconfig.json ./
 COPY packages ./packages
 COPY apps/web ./apps/web
-COPY apps/api/prisma ./apps/web/prisma
 
 RUN npm install -g pnpm@10.19.0
 
-RUN pnpm config set fetch-retries 5 \
-    && pnpm config set fetch-retry-mintimeout 20000 \
-    && pnpm config set fetch-retry-maxtimeout 120000
+# Environment variables for build stability
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
+ENV NODE_OPTIONS=--max-old-space-size=4096
 
-RUN pnpm install --recursive --frozen-lockfile=false
+# Configure pnpm for network stability (EOF fix)
+RUN pnpm config set store-dir /pnpm-store \
+  && pnpm config set network-concurrency 1 \
+  && pnpm config set fetch-retries 5 \
+  && pnpm config set fetch-timeout 60000 \
+  && pnpm config set fetch-retry-mintimeout 20000 \
+  && pnpm config set fetch-retry-maxtimeout 120000 \
+  && pnpm config set child-concurrency 1
 
-WORKDIR /app/apps/web
-RUN pnpm exec prisma generate --schema ./prisma/schema.prisma
-WORKDIR /app
+RUN pnpm install --recursive --frozen-lockfile=false --prefer-offline
 
 RUN pnpm --filter @propad/web... run build
 
 FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+ENV NEXTAUTH_URL=http://localhost:3000
 
-RUN apt-get update -y && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+  curl \
+  openssl \
+  git \
+  && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm@10.19.0
 
 COPY --from=builder /app/package*.json ./

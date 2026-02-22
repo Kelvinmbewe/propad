@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { PayoutMethod, PaymentProvider } from '@prisma/client';
+import { PayoutMethod, PaymentProvider } from '@propad/config';
+// import { PayoutMethod, PaymentProvider } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   PayoutGatewayHandler,
@@ -12,7 +13,7 @@ export class StripePayoutGateway implements PayoutGatewayHandler {
   readonly provider = PaymentProvider.STRIPE;
   readonly supportedMethods: PayoutMethod[] = [PayoutMethod.BANK];
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async executePayout(input: {
     payoutTransactionId: string;
@@ -24,7 +25,7 @@ export class StripePayoutGateway implements PayoutGatewayHandler {
   }): Promise<PayoutExecutionResponse> {
     // Check if user has connected Stripe account
     const connectedAccountId = input.recipientDetails.stripeAccountId as string;
-    
+
     if (!connectedAccountId) {
       return {
         result: PayoutExecutionResult.NOT_CONFIGURED,

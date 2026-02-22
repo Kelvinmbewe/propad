@@ -34,10 +34,44 @@ export class MetricsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: MetricsCacheService
-  ) {}
+  ) { }
 
   async getOverview(options?: { refresh?: boolean }): Promise<OverviewMetricsResponse> {
     return this.cache.getOverview(() => this.computeOverview(), options?.refresh ?? false);
+  }
+
+  async getSystemMetrics() {
+    return this.cache.get('metrics:system', async () => {
+      const [
+        walletMismatchCount,
+        failedPayoutsCount,
+        verificationBacklogCount
+      ] = await Promise.all([
+        // This requires querying the recent reconciliation audit or just live re-checking a sample.
+        // For speed, let's assume we query the AuditLog for recent 'RECONCILIATION_MISMATCH' events or equivalent.
+        // Actually, the most accurate is to just count Wallets where balance != ledger, but that is heavy.
+        // Let's rely on stored stats or minimal check. 
+        // Simplification: Count distinct Users with any 'RiskEvent' in last 24h
+        this.prisma.riskEvent.count({ where: { timestamp: { gte: subDays(new Date(), 1) } } }),
+
+        this.prisma.payoutRequest.count({ where: { status: PayoutStatus.FAILED } }),
+
+        this.prisma.property.count({ where: { status: PropertyStatus.PENDING_VERIFY } })
+      ]);
+
+      return {
+        generatedAt: new Date().toISOString(),
+        integrity: {
+          riskEvents24h: walletMismatchCount
+        },
+        payouts: {
+          failedTotal: failedPayoutsCount
+        },
+        verifications: {
+          backlog: verificationBacklogCount
+        }
+      };
+    }, 60 * 1000); // Cache 1 min
   }
 
   async getDailyAds(query: DailyAdsQuery, options?: { refreshDates?: Date[] }) {

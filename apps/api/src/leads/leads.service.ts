@@ -12,7 +12,7 @@ interface AuthContext {
 
 @Injectable()
 export class LeadsService {
-  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
+  constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) { }
 
   async create(dto: CreateLeadDto) {
     const lead = await this.prisma.lead.create({
@@ -25,7 +25,7 @@ export class LeadsService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'lead.create',
       actorId: dto.userId,
       targetType: 'property',
@@ -47,7 +47,7 @@ export class LeadsService {
       data: { status: dto.status }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'lead.updateStatus',
       actorId: actor.userId,
       targetType: 'lead',
@@ -58,12 +58,30 @@ export class LeadsService {
     return updated;
   }
 
-  async analytics() {
+  async analytics(actor?: AuthContext & { role: string }) {
+    const where: any = {};
+    if (actor && actor.role === 'AGENT') {
+      where.property = { agentOwnerId: actor.userId };
+    } else if (actor && actor.role === 'LANDLORD') {
+      where.property = { landlordId: actor.userId };
+    }
+
     const [statusCounts, sourceCounts, recentLeads] = await Promise.all([
-      this.prisma.lead.groupBy({ by: ['status'], _count: { _all: true } }),
-      this.prisma.lead.groupBy({ by: ['source'], _count: { _all: true } }),
+      this.prisma.lead.groupBy({
+        by: ['status'],
+        _count: { _all: true },
+        where
+      }),
+      this.prisma.lead.groupBy({
+        by: ['source'],
+        _count: { _all: true },
+        where
+      }),
       this.prisma.lead.findMany({
-        where: { createdAt: { gte: subDays(new Date(), 30) } },
+        where: {
+          ...where,
+          createdAt: { gte: subDays(new Date(), 30) }
+        },
         select: { id: true, createdAt: true, source: true }
       })
     ]);
@@ -90,5 +108,36 @@ export class LeadsService {
       source: sourceBreakdown,
       daily
     };
+  }
+
+  async findAll(actor: AuthContext & { role: string }) {
+    const where: any = {};
+    if (actor.role === 'AGENT') {
+      where.property = { agentOwnerId: actor.userId };
+    } else if (actor.role === 'LANDLORD') {
+      where.property = { landlordId: actor.userId };
+    } else if (actor.role === 'ADMIN') {
+      // No filter, show all
+    } else {
+      // Empty for others
+      return [];
+    }
+
+    return this.prisma.lead.findMany({
+      where,
+      include: {
+        property: {
+          select: {
+            id: true,
+            title: true,
+            suburb: true,
+            city: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
   }
 }

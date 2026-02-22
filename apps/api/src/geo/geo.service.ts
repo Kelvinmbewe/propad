@@ -2,21 +2,22 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  OnModuleInit
-} from '@nestjs/common';
+  OnModuleInit,
+} from "@nestjs/common";
 import {
   GeoLevel,
   PendingGeoStatus,
+  Prisma,
   PrismaClient,
   type City,
   type Country,
   type PendingGeo,
   type Province,
-  type Suburb
-} from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import type { ListPendingGeoDto } from './dto/list-pending-geo.dto';
-import { ZIMBABWE_SEED } from './suburbs.data';
+  type Suburb,
+} from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import type { ListPendingGeoDto } from "./dto/list-pending-geo.dto";
+import { ZIMBABWE_SEED } from "./suburbs.data";
 
 type LocationInput = {
   countryId?: string | null;
@@ -43,6 +44,8 @@ export interface SearchResult<T extends GeoLevel> {
   countryId?: string;
   cityName?: string;
   provinceName?: string;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 @Injectable()
@@ -50,18 +53,35 @@ export class GeoService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) { }
 
   listPending({ level, status, search }: ListPendingGeoDto) {
+    const whereCondition: any = {
+      proposedName: search
+        ? { contains: search, mode: "insensitive" }
+        : undefined,
+    };
+
+    if (level) {
+      whereCondition.level = level;
+    }
+
+    if (status) {
+      whereCondition.status =
+        status === "PENDING"
+          ? PendingGeoStatus.PENDING
+          : status === "APPROVED"
+            ? PendingGeoStatus.APPROVED
+            : PendingGeoStatus.REJECTED;
+    } else {
+      whereCondition.status = PendingGeoStatus.PENDING;
+    }
+
     return this.prisma.pendingGeo.findMany({
-      where: {
-        level: level ?? undefined,
-        status: status ?? PendingGeoStatus.PENDING,
-        proposedName: search ? { contains: search, mode: 'insensitive' } : undefined
-      },
+      where: whereCondition,
       include: {
         proposedBy: { select: { id: true, name: true, email: true } },
-        properties: { select: { id: true } }
+        properties: { select: { id: true } },
       },
-      orderBy: { createdAt: 'asc' },
-      take: 100
+      orderBy: { createdAt: "asc" },
+      take: 100,
     });
   }
 
@@ -71,7 +91,7 @@ export class GeoService implements OnModuleInit {
 
   async listCountries() {
     return this.prisma.country.findMany({
-      orderBy: { name: 'asc' }
+      orderBy: { name: "asc" },
     });
   }
 
@@ -79,7 +99,7 @@ export class GeoService implements OnModuleInit {
     await this.ensureCountryExists(countryId);
     return this.prisma.province.findMany({
       where: { countryId },
-      orderBy: { name: 'asc' }
+      orderBy: { name: "asc" },
     });
   }
 
@@ -87,7 +107,7 @@ export class GeoService implements OnModuleInit {
     await this.ensureProvinceExists(provinceId);
     return this.prisma.city.findMany({
       where: { provinceId },
-      orderBy: { name: 'asc' }
+      orderBy: { name: "asc" },
     });
   }
 
@@ -95,7 +115,7 @@ export class GeoService implements OnModuleInit {
     await this.ensureCityExists(cityId);
     return this.prisma.suburb.findMany({
       where: { cityId },
-      orderBy: { name: 'asc' }
+      orderBy: { name: "asc" },
     });
   }
 
@@ -107,33 +127,37 @@ export class GeoService implements OnModuleInit {
 
     const [countries, provinces, cities, suburbs] = await Promise.all([
       this.prisma.country.findMany({
-        where: { name: { contains: normalized, mode: 'insensitive' } },
-        orderBy: { name: 'asc' },
-        take: 10
+        where: { name: { contains: normalized, mode: "insensitive" } },
+        orderBy: { name: "asc" },
+        take: 10,
       }),
       this.prisma.province.findMany({
-        where: { name: { contains: normalized, mode: 'insensitive' } },
-        orderBy: { name: 'asc' },
-        take: 10
+        where: { name: { contains: normalized, mode: "insensitive" } },
+        orderBy: { name: "asc" },
+        take: 10,
       }),
       this.prisma.city.findMany({
-        where: { name: { contains: normalized, mode: 'insensitive' } },
-        orderBy: { name: 'asc' },
+        where: { name: { contains: normalized, mode: "insensitive" } },
+        orderBy: { name: "asc" },
         take: 10,
-        include: { province: true }
+        include: { province: true },
       }),
       this.prisma.suburb.findMany({
-        where: { name: { contains: normalized, mode: 'insensitive' } },
-        orderBy: { name: 'asc' },
+        where: { name: { contains: normalized, mode: "insensitive" } },
+        orderBy: { name: "asc" },
         take: 15,
-        include: { city: true, province: true }
-      })
+        include: { city: true, province: true },
+      }),
     ]);
 
     const results: SearchResult<GeoLevel>[] = [];
 
     for (const country of countries) {
-      results.push({ id: country.id, name: country.name, level: GeoLevel.COUNTRY });
+      results.push({
+        id: country.id,
+        name: country.name,
+        level: GeoLevel.COUNTRY,
+      });
     }
     for (const province of provinces) {
       results.push({
@@ -141,7 +165,7 @@ export class GeoService implements OnModuleInit {
         name: province.name,
         level: GeoLevel.PROVINCE,
         parentId: province.countryId,
-        countryId: province.countryId
+        countryId: province.countryId,
       });
     }
     for (const city of cities) {
@@ -152,7 +176,9 @@ export class GeoService implements OnModuleInit {
         parentId: city.provinceId,
         provinceId: city.provinceId,
         countryId: city.countryId,
-        provinceName: city.province?.name
+        provinceName: city.province?.name,
+        lat: city.lat,
+        lng: city.lng,
       });
     }
     for (const suburb of suburbs) {
@@ -164,7 +190,9 @@ export class GeoService implements OnModuleInit {
         provinceId: suburb.provinceId,
         countryId: suburb.countryId,
         cityName: suburb.city?.name,
-        provinceName: suburb.province?.name
+        provinceName: suburb.province?.name,
+        lat: suburb.lat,
+        lng: suburb.lng,
       });
     }
 
@@ -175,11 +203,11 @@ export class GeoService implements OnModuleInit {
     level: GeoLevel,
     proposedName: string,
     proposedByUserId: string,
-    parentId?: string | null
+    parentId?: string | null,
   ) {
     const normalized = proposedName.trim();
     if (!normalized) {
-      throw new BadRequestException('proposedName is required');
+      throw new BadRequestException("proposedName is required");
     }
 
     await this.assertParentExists(level, parentId);
@@ -190,23 +218,23 @@ export class GeoService implements OnModuleInit {
         level,
         proposedName: normalized,
         parentId: parentId ?? null,
-        proposedByUserId
+        proposedByUserId,
       },
       include: {
         properties: { select: { id: true } },
-        proposedBy: { select: { id: true, name: true, email: true } }
-      }
+        proposedBy: { select: { id: true, name: true, email: true } },
+      },
     });
   }
 
   async approvePending(id: string) {
     const pending = await this.prisma.pendingGeo.findUnique({ where: { id } });
     if (!pending) {
-      throw new NotFoundException('Pending geo not found');
+      throw new NotFoundException("Pending geo not found");
     }
 
     if (pending.status !== PendingGeoStatus.PENDING) {
-      throw new BadRequestException('Pending geo is not awaiting approval');
+      throw new BadRequestException("Pending geo is not awaiting approval");
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -217,59 +245,65 @@ export class GeoService implements OnModuleInit {
           data: {
             name: pending.proposedName,
             iso2: pending.proposedName.slice(0, 2).toUpperCase(),
-            phoneCode: ''
-          }
+            phoneCode: "",
+          },
         });
         createdId = country.id;
       } else if (pending.level === GeoLevel.PROVINCE) {
         if (!pending.parentId) {
-          throw new BadRequestException('Province pending geo requires a countryId parent');
+          throw new BadRequestException(
+            "Province pending geo requires a countryId parent",
+          );
         }
         await this.ensureCountryExists(pending.parentId);
         const province = await tx.province.create({
           data: {
             name: pending.proposedName,
-            countryId: pending.parentId
-          }
+            countryId: pending.parentId,
+          },
         });
         createdId = province.id;
       } else if (pending.level === GeoLevel.CITY) {
         if (!pending.parentId) {
-          throw new BadRequestException('City pending geo requires a provinceId parent');
+          throw new BadRequestException(
+            "City pending geo requires a provinceId parent",
+          );
         }
         const province = await tx.province.findUnique({
           where: { id: pending.parentId },
-          include: { country: true }
+          include: { country: true },
         });
         if (!province) {
-          throw new BadRequestException('Parent province not found');
+          throw new BadRequestException("Parent province not found");
         }
         const city = await tx.city.create({
           data: {
             name: pending.proposedName,
             provinceId: province.id,
-            countryId: province.countryId
-          }
+            countryId: province.countryId,
+          },
         });
         createdId = city.id;
       } else {
         if (!pending.parentId) {
-          throw new BadRequestException('Suburb pending geo requires a cityId parent');
+          throw new BadRequestException(
+            "Suburb pending geo requires a cityId parent",
+          );
         }
         const city = await tx.city.findUnique({
           where: { id: pending.parentId },
-          include: { province: true }
+          include: { province: true },
         });
         if (!city) {
-          throw new BadRequestException('Parent city not found');
+          throw new BadRequestException("Parent city not found");
         }
         const suburb = await tx.suburb.create({
           data: {
             name: pending.proposedName,
             cityId: city.id,
             provinceId: city.provinceId,
-            countryId: city.countryId
-          }
+            countryId: city.countryId,
+          },
         });
         createdId = suburb.id;
       }
@@ -278,8 +312,8 @@ export class GeoService implements OnModuleInit {
         where: { id },
         data: {
           status: PendingGeoStatus.APPROVED,
-          mergedIntoId: createdId
-        }
+          mergedIntoId: createdId,
+        },
       });
 
       await this.syncPropertiesForApproval(
@@ -287,7 +321,7 @@ export class GeoService implements OnModuleInit {
         id,
         createdId,
         pending.parentId ?? null,
-        tx
+        tx,
       );
 
       return createdId;
@@ -299,25 +333,35 @@ export class GeoService implements OnModuleInit {
   async mergePending(id: string, targetId: string) {
     const pending = await this.prisma.pendingGeo.findUnique({ where: { id } });
     if (!pending) {
-      throw new NotFoundException('Pending geo not found');
+      throw new NotFoundException("Pending geo not found");
     }
 
     if (pending.status !== PendingGeoStatus.PENDING) {
-      throw new BadRequestException('Pending geo is not awaiting approval');
+      throw new BadRequestException("Pending geo is not awaiting approval");
     }
 
-    const parentId = await this.validateMergeTarget(pending.level, targetId, pending.parentId);
+    const parentId = await this.validateMergeTarget(
+      pending.level,
+      targetId,
+      pending.parentId,
+    );
 
     await this.prisma.$transaction(async (tx) => {
       await tx.pendingGeo.update({
         where: { id },
         data: {
           status: PendingGeoStatus.APPROVED,
-          mergedIntoId: targetId
-        }
+          mergedIntoId: targetId,
+        },
       });
 
-      await this.syncPropertiesForApproval(pending.level, id, targetId, parentId, tx);
+      await this.syncPropertiesForApproval(
+        pending.level,
+        id,
+        targetId,
+        parentId,
+        tx,
+      );
     });
 
     return { id: targetId };
@@ -326,16 +370,16 @@ export class GeoService implements OnModuleInit {
   async rejectPending(id: string) {
     const pending = await this.prisma.pendingGeo.findUnique({ where: { id } });
     if (!pending) {
-      throw new NotFoundException('Pending geo not found');
+      throw new NotFoundException("Pending geo not found");
     }
 
     if (pending.status !== PendingGeoStatus.PENDING) {
-      throw new BadRequestException('Pending geo is not awaiting approval');
+      throw new BadRequestException("Pending geo is not awaiting approval");
     }
 
     await this.prisma.pendingGeo.update({
       where: { id },
-      data: { status: PendingGeoStatus.REJECTED }
+      data: { status: PendingGeoStatus.REJECTED },
     });
   }
 
@@ -344,14 +388,15 @@ export class GeoService implements OnModuleInit {
 
     // If absolutely no location information is provided, return all nulls
     // This allows for graceful handling of properties without location data
-    const hasAnyLocationInput = countryId || provinceId || cityId || suburbId || pendingGeoId;
+    const hasAnyLocationInput =
+      countryId || provinceId || cityId || suburbId || pendingGeoId;
     if (!hasAnyLocationInput) {
       return {
         country: null,
         province: null,
         city: null,
         suburb: null,
-        pendingGeo: null
+        pendingGeo: null,
       };
     }
 
@@ -360,72 +405,99 @@ export class GeoService implements OnModuleInit {
     let pendingProvince: Province | null = null;
     let pendingCity: City | null = null;
     if (pendingGeoId) {
-      pendingGeo = await this.prisma.pendingGeo.findUnique({ where: { id: pendingGeoId } });
+      pendingGeo = await this.prisma.pendingGeo.findUnique({
+        where: { id: pendingGeoId },
+      });
       if (!pendingGeo || pendingGeo.status !== PendingGeoStatus.PENDING) {
-        throw new BadRequestException('Invalid pendingGeoId');
+        throw new BadRequestException("Invalid pendingGeoId");
       }
 
       if (pendingGeo.level === GeoLevel.PROVINCE) {
         if (!pendingGeo.parentId) {
-          throw new BadRequestException('Pending province requires a country parent');
+          throw new BadRequestException(
+            "Pending province requires a country parent",
+          );
         }
-        pendingCountry = await this.prisma.country.findUnique({ where: { id: pendingGeo.parentId } });
+        pendingCountry = await this.prisma.country.findUnique({
+          where: { id: pendingGeo.parentId },
+        });
         if (!pendingCountry) {
-          throw new BadRequestException('Parent country not found');
+          throw new BadRequestException("Parent country not found");
         }
       } else if (pendingGeo.level === GeoLevel.CITY) {
         if (!pendingGeo.parentId) {
-          throw new BadRequestException('Pending city requires a province parent');
+          throw new BadRequestException(
+            "Pending city requires a province parent",
+          );
         }
         pendingProvince = await this.prisma.province.findUnique({
           where: { id: pendingGeo.parentId },
-          include: { country: true }
         });
         if (!pendingProvince) {
-          throw new BadRequestException('Parent province not found');
+          throw new BadRequestException("Parent province not found");
         }
-        pendingCountry = pendingProvince.country;
+        pendingCountry = null;
+        // pendingCountry = pendingProvince.country; // Need to fetch country separately
       } else if (pendingGeo.level === GeoLevel.SUBURB) {
         if (!pendingGeo.parentId) {
-          throw new BadRequestException('Pending suburb requires a city parent');
+          throw new BadRequestException(
+            "Pending suburb requires a city parent",
+          );
         }
         pendingCity = await this.prisma.city.findUnique({
           where: { id: pendingGeo.parentId },
-          include: { province: { include: { country: true } }, country: true }
+          include: { province: { include: { country: true } } },
         });
         if (!pendingCity) {
-          throw new BadRequestException('Parent city not found');
+          throw new BadRequestException("Parent city not found");
         }
-        pendingProvince = pendingCity.province;
-        pendingCountry = pendingCity.country;
+        pendingProvince = (pendingCity as any).province;
+        pendingCountry = (pendingCity as any).province?.country || null;
       }
     }
 
-    let suburb: (Suburb & {
-      city?: (City & { province?: Province | null; country?: Country | null }) | null;
-      province?: Province | null;
-      country?: Country | null;
-    }) | null = null;
+    let suburb:
+      | (Suburb & {
+        city?:
+        | (City & { province?: Province | null; country?: Country | null })
+        | null;
+        province?: Province | null;
+        country?: Country | null;
+      })
+      | null = null;
     if (suburbId) {
       suburb = await this.prisma.suburb.findUnique({
         where: { id: suburbId },
-        include: { city: { include: { province: { include: { country: true } }, country: true } }, province: true, country: true }
+        include: {
+          city: {
+            include: {
+              province: { include: { country: true } },
+            },
+          },
+          province: true,
+          country: true,
+        },
       });
       if (!suburb) {
-        throw new BadRequestException('Suburb not found');
+        throw new BadRequestException("Suburb not found");
       }
     }
 
-    let city: (City & { province?: (Province & { country?: Country | null }) | null; country?: Country | null }) | null = null;
+    let city:
+      | (City & {
+        province?: (Province & { country?: Country | null }) | null;
+        country?: Country | null;
+      })
+      | null = null;
     if (suburb?.city) {
       city = suburb.city;
     } else if (cityId) {
       city = await this.prisma.city.findUnique({
         where: { id: cityId },
-        include: { province: { include: { country: true } }, country: true }
+        include: { province: { include: { country: true } }, country: true },
       });
       if (!city) {
-        throw new BadRequestException('City not found');
+        throw new BadRequestException("City not found");
       }
     } else if (pendingCity) {
       city = pendingCity;
@@ -435,20 +507,20 @@ export class GeoService implements OnModuleInit {
     if (city) {
       province = await this.prisma.province.findUnique({
         where: { id: city.provinceId },
-        include: { country: true }
+        include: { country: true },
       });
     } else if (suburb) {
       province = await this.prisma.province.findUnique({
         where: { id: suburb.provinceId },
-        include: { country: true }
+        include: { country: true },
       });
     } else if (provinceId) {
       province = await this.prisma.province.findUnique({
         where: { id: provinceId },
-        include: { country: true }
+        include: { country: true },
       });
       if (!province) {
-        throw new BadRequestException('Province not found');
+        throw new BadRequestException("Province not found");
       }
     } else if (pendingProvince) {
       province = pendingProvince;
@@ -456,31 +528,45 @@ export class GeoService implements OnModuleInit {
 
     let country: Country | null = null;
     if (province) {
-      country = await this.prisma.country.findUnique({ where: { id: province.countryId } });
+      country = await this.prisma.country.findUnique({
+        where: { id: province.countryId },
+      });
     } else if (city) {
-      country = await this.prisma.country.findUnique({ where: { id: city.countryId } });
+      country = await this.prisma.country.findUnique({
+        where: { id: city.countryId },
+      });
     } else if (suburb) {
-      country = await this.prisma.country.findUnique({ where: { id: suburb.countryId } });
+      country = await this.prisma.country.findUnique({
+        where: { id: suburb.countryId },
+      });
     } else if (countryId) {
-      country = await this.prisma.country.findUnique({ where: { id: countryId } });
+      country = await this.prisma.country.findUnique({
+        where: { id: countryId },
+      });
       if (!country) {
-        throw new BadRequestException('Country not found');
+        throw new BadRequestException("Country not found");
       }
     } else if (pendingCountry) {
       country = pendingCountry;
     }
 
     if (countryId && country && country.id !== countryId) {
-      throw new BadRequestException('countryId does not match derived hierarchy');
+      throw new BadRequestException(
+        "countryId does not match derived hierarchy",
+      );
     }
     if (provinceId && province && province.id !== provinceId) {
-      throw new BadRequestException('provinceId does not match derived hierarchy');
+      throw new BadRequestException(
+        "provinceId does not match derived hierarchy",
+      );
     }
     if (cityId && city && city.id !== cityId) {
-      throw new BadRequestException('cityId does not match derived hierarchy');
+      throw new BadRequestException("cityId does not match derived hierarchy");
     }
     if (suburbId && suburb && suburb.id !== suburbId) {
-      throw new BadRequestException('suburbId does not match derived hierarchy');
+      throw new BadRequestException(
+        "suburbId does not match derived hierarchy",
+      );
     }
 
     // If we have location IDs but couldn't resolve a country (and no pendingGeo),
@@ -499,7 +585,7 @@ export class GeoService implements OnModuleInit {
       province: province ?? null,
       city: city ?? null,
       suburb: suburb ?? null,
-      pendingGeo
+      pendingGeo,
     };
   }
 
@@ -510,8 +596,8 @@ export class GeoService implements OnModuleInit {
       create: {
         iso2: ZIMBABWE_SEED.iso2,
         name: ZIMBABWE_SEED.name,
-        phoneCode: ZIMBABWE_SEED.phoneCode
-      }
+        phoneCode: ZIMBABWE_SEED.phoneCode,
+      },
     });
 
     for (const provinceSeed of ZIMBABWE_SEED.provinces) {
@@ -522,21 +608,21 @@ export class GeoService implements OnModuleInit {
       // Let's safe-guard by checking first.
 
       let province = await this.prisma.province.findFirst({
-        where: { name: provinceSeed.name, countryId: country.id }
+        where: { name: provinceSeed.name, countryId: country.id },
       });
 
       if (!province) {
         province = await this.prisma.province.create({
           data: {
             name: provinceSeed.name,
-            countryId: country.id
-          }
+            countryId: country.id,
+          },
         });
       }
 
       for (const citySeed of provinceSeed.cities) {
         let city = await this.prisma.city.findFirst({
-          where: { name: citySeed.name, provinceId: province.id }
+          where: { name: citySeed.name, provinceId: province.id },
         });
 
         if (!city) {
@@ -546,27 +632,55 @@ export class GeoService implements OnModuleInit {
               provinceId: province.id,
               countryId: country.id,
               lat: citySeed.lat ?? null,
-              lng: citySeed.lng ?? null
-            }
+              lng: citySeed.lng ?? null,
+            },
+          });
+        } else {
+          // Update GPS data if it exists
+          await this.prisma.city.update({
+            where: { id: city.id },
+            data: {
+              lat: citySeed.lat ?? null,
+              lng: citySeed.lng ?? null,
+            },
           });
         }
 
         for (const suburbSeed of citySeed.suburbs ?? []) {
           const existingSuburb = await this.prisma.suburb.findFirst({
-            where: { name: suburbSeed.name, cityId: city.id }
+            where: { name: suburbSeed.name, cityId: city.id },
           });
+
+          const suburbData: any = {
+            name: suburbSeed.name,
+            cityId: city.id,
+            provinceId: province.id,
+            countryId: country.id,
+            lat: suburbSeed.lat ?? null,
+            lng: suburbSeed.lng ?? null,
+          };
+          if (
+            suburbSeed.polygonGeoJson !== null &&
+            suburbSeed.polygonGeoJson !== undefined
+          ) {
+            suburbData.polygonGeoJson = suburbSeed.polygonGeoJson;
+          }
 
           if (!existingSuburb) {
             await this.prisma.suburb.create({
+              data: suburbData,
+            });
+          } else {
+            // Update GPS data
+            await this.prisma.suburb.update({
+              where: { id: existingSuburb.id },
               data: {
-                name: suburbSeed.name,
-                cityId: city.id,
-                provinceId: province.id,
-                countryId: country.id,
                 lat: suburbSeed.lat ?? null,
                 lng: suburbSeed.lng ?? null,
-                polygonGeoJson: suburbSeed.polygonGeoJson ?? null
-              }
+                ...(suburbData.polygonGeoJson
+                  ? { polygonGeoJson: suburbData.polygonGeoJson }
+                  : {}),
+              },
             });
           }
         }
@@ -575,23 +689,27 @@ export class GeoService implements OnModuleInit {
   }
 
   private async ensureCountryExists(countryId: string) {
-    const exists = await this.prisma.country.count({ where: { id: countryId } });
+    const exists = await this.prisma.country.count({
+      where: { id: countryId },
+    });
     if (!exists) {
-      throw new BadRequestException('Country not found');
+      throw new BadRequestException("Country not found");
     }
   }
 
   private async ensureProvinceExists(provinceId: string) {
-    const exists = await this.prisma.province.count({ where: { id: provinceId } });
+    const exists = await this.prisma.province.count({
+      where: { id: provinceId },
+    });
     if (!exists) {
-      throw new BadRequestException('Province not found');
+      throw new BadRequestException("Province not found");
     }
   }
 
   private async ensureCityExists(cityId: string) {
     const exists = await this.prisma.city.count({ where: { id: cityId } });
     if (!exists) {
-      throw new BadRequestException('City not found');
+      throw new BadRequestException("City not found");
     }
   }
 
@@ -601,7 +719,7 @@ export class GeoService implements OnModuleInit {
     }
 
     if (!parentId) {
-      throw new BadRequestException('Parent id is required');
+      throw new BadRequestException("Parent id is required");
     }
 
     if (level === GeoLevel.PROVINCE) {
@@ -617,7 +735,11 @@ export class GeoService implements OnModuleInit {
     await this.ensureCityExists(parentId);
   }
 
-  private async ensureNotDuplicate(level: GeoLevel, name: string, parentId?: string) {
+  private async ensureNotDuplicate(
+    level: GeoLevel,
+    name: string,
+    parentId?: string,
+  ) {
     const normalized = name.trim();
     if (!normalized) {
       return;
@@ -625,40 +747,40 @@ export class GeoService implements OnModuleInit {
 
     if (level === GeoLevel.COUNTRY) {
       const exists = await this.prisma.country.count({
-        where: { name: { equals: normalized, mode: 'insensitive' } }
+        where: { name: { equals: normalized, mode: "insensitive" } },
       });
       if (exists) {
-        throw new BadRequestException('Country already exists');
+        throw new BadRequestException("Country already exists");
       }
     } else if (level === GeoLevel.PROVINCE) {
       const exists = await this.prisma.province.count({
         where: {
-          name: { equals: normalized, mode: 'insensitive' },
-          countryId: parentId
-        }
+          name: { equals: normalized, mode: "insensitive" },
+          countryId: parentId,
+        },
       });
       if (exists) {
-        throw new BadRequestException('Province already exists');
+        throw new BadRequestException("Province already exists");
       }
     } else if (level === GeoLevel.CITY) {
       const exists = await this.prisma.city.count({
         where: {
-          name: { equals: normalized, mode: 'insensitive' },
-          provinceId: parentId
-        }
+          name: { equals: normalized, mode: "insensitive" },
+          provinceId: parentId,
+        },
       });
       if (exists) {
-        throw new BadRequestException('City already exists');
+        throw new BadRequestException("City already exists");
       }
     } else {
       const exists = await this.prisma.suburb.count({
         where: {
-          name: { equals: normalized, mode: 'insensitive' },
-          cityId: parentId
-        }
+          name: { equals: normalized, mode: "insensitive" },
+          cityId: parentId,
+        },
       });
       if (exists) {
-        throw new BadRequestException('Suburb already exists');
+        throw new BadRequestException("Suburb already exists");
       }
     }
   }
@@ -666,12 +788,14 @@ export class GeoService implements OnModuleInit {
   private async validateMergeTarget(
     level: GeoLevel,
     targetId: string,
-    pendingParentId: string | null
+    pendingParentId: string | null,
   ): Promise<string | null> {
     if (level === GeoLevel.COUNTRY) {
-      const country = await this.prisma.country.findUnique({ where: { id: targetId } });
+      const country = await this.prisma.country.findUnique({
+        where: { id: targetId },
+      });
       if (!country) {
-        throw new BadRequestException('Target country not found');
+        throw new BadRequestException("Target country not found");
       }
       return null;
     }
@@ -681,33 +805,45 @@ export class GeoService implements OnModuleInit {
     }
 
     if (level === GeoLevel.PROVINCE) {
-      const province = await this.prisma.province.findUnique({ where: { id: targetId } });
+      const province = await this.prisma.province.findUnique({
+        where: { id: targetId },
+      });
       if (!province) {
-        throw new BadRequestException('Target province not found');
+        throw new BadRequestException("Target province not found");
       }
       if (pendingParentId && province.countryId !== pendingParentId) {
-        throw new BadRequestException('Target province belongs to a different country');
+        throw new BadRequestException(
+          "Target province belongs to a different country",
+        );
       }
       return province.countryId;
     }
 
     if (level === GeoLevel.CITY) {
-      const city = await this.prisma.city.findUnique({ where: { id: targetId } });
+      const city = await this.prisma.city.findUnique({
+        where: { id: targetId },
+      });
       if (!city) {
-        throw new BadRequestException('Target city not found');
+        throw new BadRequestException("Target city not found");
       }
       if (pendingParentId && city.provinceId !== pendingParentId) {
-        throw new BadRequestException('Target city belongs to a different province');
+        throw new BadRequestException(
+          "Target city belongs to a different province",
+        );
       }
       return city.provinceId;
     }
 
-    const suburb = await this.prisma.suburb.findUnique({ where: { id: targetId } });
+    const suburb = await this.prisma.suburb.findUnique({
+      where: { id: targetId },
+    });
     if (!suburb) {
-      throw new BadRequestException('Target suburb not found');
+      throw new BadRequestException("Target suburb not found");
     }
     if (pendingParentId && suburb.cityId !== pendingParentId) {
-      throw new BadRequestException('Target suburb belongs to a different city');
+      throw new BadRequestException(
+        "Target suburb belongs to a different city",
+      );
     }
     return suburb.cityId;
   }
@@ -717,24 +853,30 @@ export class GeoService implements OnModuleInit {
     pendingId: string,
     locationId: string,
     parentId: string | null,
-    tx: PrismaClient
+    tx: any,
   ) {
     if (level === GeoLevel.COUNTRY) {
       await tx.property.updateMany({
         where: { pendingGeoId: pendingId },
-        data: { countryId: locationId, pendingGeoId: null }
+        data: { countryId: locationId, pendingGeoId: null },
       });
       return;
     }
 
     if (!parentId) {
-      throw new BadRequestException('Parent id required for pending geo linkage');
+      throw new BadRequestException(
+        "Parent id required for pending geo linkage",
+      );
     }
 
     if (level === GeoLevel.PROVINCE) {
       await tx.property.updateMany({
         where: { pendingGeoId: pendingId },
-        data: { provinceId: locationId, countryId: parentId, pendingGeoId: null }
+        data: {
+          provinceId: locationId,
+          countryId: parentId,
+          pendingGeoId: null,
+        },
       });
       return;
     }
@@ -746,18 +888,18 @@ export class GeoService implements OnModuleInit {
           cityId: locationId,
           provinceId: parentId,
           countryId: await this.resolveCountryIdForProvince(parentId, tx),
-          pendingGeoId: null
-        }
+          pendingGeoId: null,
+        },
       });
       return;
     }
 
     const city = await tx.city.findUnique({
       where: { id: parentId },
-      include: { province: true }
+      include: { province: true },
     });
     if (!city) {
-      throw new NotFoundException('Parent city not found');
+      throw new NotFoundException("Parent city not found");
     }
 
     await tx.property.updateMany({
@@ -767,18 +909,20 @@ export class GeoService implements OnModuleInit {
         cityId: city.id,
         provinceId: city.provinceId,
         countryId: city.countryId,
-        pendingGeoId: null
-      }
+        pendingGeoId: null,
+      },
     });
   }
 
   private async resolveCountryIdForProvince(
     provinceId: string,
-    tx: PrismaClient
+    tx: PrismaClient,
   ) {
-    const province = await tx.province.findUnique({ where: { id: provinceId } });
+    const province = await tx.province.findUnique({
+      where: { id: provinceId },
+    });
     if (!province) {
-      throw new NotFoundException('Province not found');
+      throw new NotFoundException("Province not found");
     }
     return province.countryId;
   }

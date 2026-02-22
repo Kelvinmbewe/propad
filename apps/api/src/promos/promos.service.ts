@@ -13,7 +13,7 @@ export class PromosService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly payments: PaymentsService
-  ) {}
+  ) { }
 
   async create(dto: CreatePromoDto) {
     const { promo, invoice } = await this.prisma.$transaction(async (tx) => {
@@ -50,7 +50,7 @@ export class PromosService {
       return { promo: created, invoice: createdInvoice };
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'promo.create',
       actorId: dto.agentId,
       targetType: 'promo',
@@ -76,7 +76,7 @@ export class PromosService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'promo.activate',
       actorId: promo.agentId,
       targetType: 'promo',
@@ -132,7 +132,7 @@ export class PromosService {
       throw new NotFoundException('Promo not found');
     }
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'promo.rebate',
       actorId: promo.agentId,
       targetType: 'promo',

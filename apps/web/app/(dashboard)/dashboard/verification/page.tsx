@@ -4,14 +4,17 @@ import { useSession } from 'next-auth/react';
 import { CheckCircle, ShieldCheck } from 'lucide-react';
 import { PaymentGate } from '@/components/payment-gate';
 import { useQuery } from '@tanstack/react-query';
+import { ChargeableItemType } from '@propad/config';
+import { getRequiredPublicApiBaseUrl } from '@/lib/api-base-url';
 
 export default function VerificationPage() {
   const { data: session } = useSession();
+  const apiBaseUrl = getRequiredPublicApiBaseUrl();
 
   const { data: user } = useQuery({
     queryKey: ['user-me'],
     queryFn: async () => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/me`, {
+      const response = await fetch(`${apiBaseUrl}/users/me`, {
         headers: {
           Authorization: `Bearer ${session?.accessToken}`
         }
@@ -45,7 +48,7 @@ export default function VerificationPage() {
       </div>
 
       <PaymentGate
-        featureType="TRUST_BOOST"
+        featureType={ChargeableItemType.BOOST}
         targetId={user?.id || ''}
         featureName="User Verification"
         featureDescription="Get verified to build trust with landlords and tenants"

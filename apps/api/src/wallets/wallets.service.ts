@@ -1,46 +1,49 @@
-import { randomUUID } from 'crypto';
+import { randomUUID } from "crypto";
 import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  NotFoundException
-} from '@nestjs/common';
+  NotFoundException,
+} from "@nestjs/common";
 import {
+  AgencyStatus,
   Currency,
   KycStatus,
   OwnerType,
-  PayoutMethod,
   PayoutStatus,
   Prisma,
   PrismaClient,
-  Role,
   Wallet,
   WalletTransactionSource,
-  WalletTransactionType
-} from '@prisma/client';
-import { addDays, startOfDay } from 'date-fns';
-import { Buffer } from 'node:buffer';
-import PDFDocument from 'pdfkit';
-import { env } from '@propad/config';
-import { PrismaService } from '../prisma/prisma.service';
-import { AuditService } from '../audit/audit.service';
-import { RequestPayoutDto } from './dto/request-payout.dto';
-import { ApprovePayoutDto } from './dto/approve-payout.dto';
-import { PayoutWebhookDto } from './dto/payout-webhook.dto';
-import { CreatePayoutAccountDto } from './dto/create-payout-account.dto';
-import { SubmitKycDto } from './dto/submit-kyc.dto';
-import { UpdateKycStatusDto } from './dto/update-kyc-status.dto';
-import { VerifyPayoutAccountDto } from './dto/verify-payout-account.dto';
-import { ListKycRecordsDto } from './dto/list-kyc-records.dto';
-import { ListPayoutRequestsDto } from './dto/list-payout-requests.dto';
-import { ListPayoutAccountsDto } from './dto/list-payout-accounts.dto';
-import { ManageAmlBlocklistDto } from './dto/manage-aml-blocklist.dto';
+  WalletTransactionType,
+} from "@prisma/client";
+import { addDays, startOfDay } from "date-fns";
+import { Buffer } from "node:buffer";
+import PDFDocument from "pdfkit";
+import { existsSync } from "fs";
+import { mkdir, writeFile } from "fs/promises";
+import { join, resolve } from "path";
+import { env, Role, PayoutMethod } from "@propad/config";
+import { TrustService } from "../trust/trust.service";
+import { PrismaService } from "../prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
+import { RequestPayoutDto } from "./dto/request-payout.dto";
+import { ApprovePayoutDto } from "./dto/approve-payout.dto";
+import { PayoutWebhookDto } from "./dto/payout-webhook.dto";
+import { CreatePayoutAccountDto } from "./dto/create-payout-account.dto";
+import { SubmitKycDto } from "./dto/submit-kyc.dto";
+import { UpdateKycStatusDto } from "./dto/update-kyc-status.dto";
+import { VerifyPayoutAccountDto } from "./dto/verify-payout-account.dto";
+import { ListKycRecordsDto } from "./dto/list-kyc-records.dto";
+import { ListPayoutRequestsDto } from "./dto/list-payout-requests.dto";
+import { ListPayoutAccountsDto } from "./dto/list-payout-accounts.dto";
+import { ManageAmlBlocklistDto } from "./dto/manage-aml-blocklist.dto";
 import {
   UpsertWalletThresholdDto,
-  walletThresholdTypes
-} from './dto/upsert-wallet-threshold.dto';
-import { MailService } from '../mail/mail.service';
-import { WalletLedgerService } from './wallet-ledger.service';
+  walletThresholdTypes,
+} from "./dto/upsert-wallet-threshold.dto";
+import { MailService } from "../mail/mail.service";
+import { WalletLedgerService } from "./wallet-ledger.service";
 
 type FeatureFlagRecord = {
   key: string;
@@ -56,12 +59,15 @@ type WalletThresholdEntry = {
   currency: Currency;
   amountCents: number;
   note: string | null;
-  source: 'custom' | 'env';
+  source: "custom" | "env";
   createdAt: Date | null;
   updatedAt: Date | null;
 };
 
-type PrismaClientOrTx = PrismaClient;
+type PrismaClientOrTx = Omit<
+  PrismaClient,
+  "$on" | "$connect" | "$disconnect" | "$use" | "$transaction" | "$extends"
+>;
 
 interface AuthContext {
   userId: string;
@@ -73,67 +79,94 @@ const ACTIVE_PAYOUT_STATUSES: PayoutStatus[] = [
   PayoutStatus.REQUESTED,
   PayoutStatus.REVIEW,
   PayoutStatus.APPROVED,
-  PayoutStatus.SENT
+  PayoutStatus.SENT,
 ];
 
 const APPROVABLE_PAYOUT_STATUSES: PayoutStatus[] = [
   PayoutStatus.REQUESTED,
-  PayoutStatus.REVIEW
+  PayoutStatus.REVIEW,
 ];
 
-const AML_BLOCKLIST_PREFIX = 'wallet.aml.blocklist.';
-const WALLET_THRESHOLD_PREFIX = 'wallet.threshold.';
+const AML_BLOCKLIST_PREFIX = "wallet.aml.blocklist.";
+const WALLET_THRESHOLD_PREFIX = "wallet.threshold.";
 
 @Injectable()
 export class WalletsService {
+  private resolveUploadsRoot() {
+    const runtimeCwd = process.env.INIT_CWD ?? process.env.PWD ?? ".";
+    const candidates = [
+      process.env.UPLOADS_DIR,
+      resolve(runtimeCwd, "uploads"),
+      resolve(runtimeCwd, "apps", "api", "uploads"),
+      resolve(runtimeCwd, "..", "uploads"),
+      resolve(runtimeCwd, "..", "..", "uploads"),
+    ].filter((value): value is string => !!value);
+
+    for (const candidate of candidates) {
+      if (existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    return resolve(runtimeCwd, "uploads");
+  }
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly mail: MailService,
-    private readonly ledger: WalletLedgerService
+    private readonly ledger: WalletLedgerService,
+    private readonly trust: TrustService,
   ) {}
 
   async getMyWallet(actor: AuthContext) {
     const owner = this.resolveOwner(actor);
-    
+
     // Only USER wallets support ledger system for now
     if (owner.ownerType !== OwnerType.USER) {
       return this.prisma.$transaction(async (tx: PrismaClientOrTx) => {
-        const wallet = await this.getOrCreateWallet(owner.ownerType, owner.ownerId, DEFAULT_CURRENCY, tx);
+        const wallet = await this.getOrCreateWallet(
+          owner.ownerType,
+          owner.ownerId,
+          DEFAULT_CURRENCY,
+          tx,
+        );
         await this.releasePendingTransactions(wallet.id, tx);
         return this.buildWalletResponse(wallet.id, tx);
       });
     }
 
     // Use ledger-based calculation for USER wallets
-    const balance = await this.ledger.calculateBalance(owner.ownerId, DEFAULT_CURRENCY);
-    
+    const balance = await this.ledger.calculateBalance(
+      owner.ownerId,
+      DEFAULT_CURRENCY,
+    );
+
     const wallet = await this.prisma.wallet.findUnique({
       where: {
         ownerType_ownerId_currency: {
           ownerType: owner.ownerType,
           ownerId: owner.ownerId,
-          currency: DEFAULT_CURRENCY
-        }
+          currency: DEFAULT_CURRENCY,
+        },
       },
       include: {
         payoutAccounts: {
           where: { verifiedAt: { not: null } },
-          orderBy: { createdAt: 'desc' }
-        }
-      }
+          orderBy: { createdAt: "desc" },
+        },
+      },
     });
 
     const latestKyc = await this.prisma.kycRecord.findFirst({
       where: {
         ownerType: owner.ownerType,
-        ownerId: owner.ownerId
+        ownerId: owner.ownerId,
       },
-      orderBy: { updatedAt: 'desc' }
+      orderBy: { updatedAt: "desc" },
     });
 
     return {
-      id: wallet?.id ?? 'pending',
+      id: wallet?.id ?? "pending",
       currency: DEFAULT_CURRENCY,
       balanceCents: balance.balanceCents,
       pendingCents: balance.pendingCents,
@@ -142,10 +175,10 @@ export class WalletsService {
         ? {
             id: latestKyc.id,
             status: latestKyc.status,
-            updatedAt: latestKyc.updatedAt
+            updatedAt: latestKyc.updatedAt,
           }
         : null,
-      payoutAccounts: wallet?.payoutAccounts ?? []
+      payoutAccounts: wallet?.payoutAccounts ?? [],
     };
   }
 
@@ -153,14 +186,14 @@ export class WalletsService {
     return this.prisma.$transaction(async (tx: PrismaClientOrTx) => {
       const wallet = await tx.wallet.findUnique({ where: { id: walletId } });
       if (!wallet) {
-        throw new NotFoundException('Wallet not found');
+        throw new NotFoundException("Wallet not found");
       }
       this.assertAccess(actor, wallet);
       await this.releasePendingTransactions(wallet.id, tx);
       const transactions = await tx.walletTransaction.findMany({
         where: { walletId },
-        orderBy: { createdAt: 'desc' },
-        take: 100
+        orderBy: { createdAt: "desc" },
+        take: 100,
       });
       return { walletId, transactions };
     });
@@ -169,48 +202,59 @@ export class WalletsService {
   async createPayoutAccount(dto: CreatePayoutAccountDto, actor: AuthContext) {
     const owner = this.resolveOwner(actor);
     return this.prisma.$transaction(async (tx: PrismaClientOrTx) => {
-      await this.getOrCreateWallet(owner.ownerType, owner.ownerId, DEFAULT_CURRENCY, tx);
+      await this.getOrCreateWallet(
+        owner.ownerType,
+        owner.ownerId,
+        DEFAULT_CURRENCY,
+        tx,
+      );
       const account = await tx.payoutAccount.create({
         data: {
           ownerType: owner.ownerType,
           ownerId: owner.ownerId,
-          type: dto.type,
+          type: dto.type as any,
           displayName: dto.displayName,
           detailsJson: dto.details,
-          verifiedAt: null
-        }
+          verifiedAt: null,
+        },
       });
 
-      await this.audit.log({
-        action: 'wallet.payoutAccount.create',
+      await this.audit.logAction({
+        action: "wallet.payoutAccount.create",
         actorId: actor.userId,
-        targetType: 'payoutAccount',
+        targetType: "payoutAccount",
         targetId: account.id,
-        metadata: { type: dto.type }
+        metadata: { type: dto.type },
       });
 
       return account;
     });
   }
 
-  async verifyPayoutAccount(id: string, dto: VerifyPayoutAccountDto, actor: AuthContext) {
-    const account = await this.prisma.payoutAccount.findUnique({ where: { id } });
+  async verifyPayoutAccount(
+    id: string,
+    dto: VerifyPayoutAccountDto,
+    actor: AuthContext,
+  ) {
+    const account = await this.prisma.payoutAccount.findUnique({
+      where: { id },
+    });
     if (!account) {
-      throw new NotFoundException('Payout account not found');
+      throw new NotFoundException("Payout account not found");
     }
 
     const verifiedAt = dto.verified ? new Date() : null;
     const updated = await this.prisma.payoutAccount.update({
       where: { id },
-      data: { verifiedAt }
+      data: { verifiedAt },
     });
 
-    await this.audit.log({
-      action: 'wallet.payoutAccount.verify',
+    await this.audit.logAction({
+      action: "wallet.payoutAccount.verify",
       actorId: actor.userId,
-      targetType: 'payoutAccount',
+      targetType: "payoutAccount",
       targetId: id,
-      metadata: { verified: dto.verified }
+      metadata: { verified: dto.verified },
     });
 
     return updated;
@@ -226,10 +270,10 @@ export class WalletsService {
             ? undefined
             : filters.verified
               ? { not: null }
-              : null
+              : null,
       },
-      orderBy: { createdAt: 'desc' },
-      take: 200
+      orderBy: { createdAt: "desc" },
+      take: 200,
     });
   }
 
@@ -241,135 +285,400 @@ export class WalletsService {
         ownerId: owner.ownerId,
         idType: dto.idType,
         idNumber: dto.idNumber,
+        idExpiryDate: dto.idExpiryDate ? new Date(dto.idExpiryDate) : null,
         docUrls: dto.docUrls,
+        docTypes: dto.docTypes ?? [],
         notes: dto.notes ?? null,
-        status: KycStatus.PENDING
-      }
+        status: KycStatus.PENDING,
+      } as any,
     });
 
-    await this.audit.log({
-      action: 'wallet.kyc.submit',
+    await this.prisma.user.update({
+      where: { id: owner.ownerId },
+      data: { kycStatus: KycStatus.PENDING },
+    });
+
+    await this.audit.logAction({
+      action: "wallet.kyc.submit",
       actorId: actor.userId,
-      targetType: 'kycRecord',
+      targetType: "kycRecord",
       targetId: record.id,
-      metadata: { idType: dto.idType }
+      metadata: { idType: dto.idType },
     });
 
     return record;
   }
 
   listKycRecords(filters: ListKycRecordsDto) {
+    return this.prisma.kycRecord
+      .findMany({
+        where: {
+          status: filters.status ?? undefined,
+          ownerId: filters.ownerId ?? undefined,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      })
+      .then(async (records) => {
+        const enriched = await Promise.all(
+          records.map(async (record) => {
+            if (record.ownerType === OwnerType.USER) {
+              const user = await this.prisma.user.findUnique({
+                where: { id: record.ownerId },
+                select: {
+                  name: true,
+                  email: true,
+                  dateOfBirth: true,
+                  idNumber: true,
+                  addressLine1: true,
+                  addressCity: true,
+                  addressProvince: true,
+                  addressCountry: true,
+                },
+              });
+              return { ...record, ownerDetails: user };
+            }
+            if (record.ownerType === OwnerType.AGENCY) {
+              const agency = await this.prisma.agency.findUnique({
+                where: { id: record.ownerId },
+                select: {
+                  name: true,
+                  registrationNumber: true,
+                  address: true,
+                  directorsJson: true,
+                },
+              });
+              return { ...record, ownerDetails: agency };
+            }
+            return record;
+          }),
+        );
+        return enriched;
+      });
+  }
+
+  async listMyKycRecords(actor: AuthContext) {
+    const owner = this.resolveOwner(actor);
     return this.prisma.kycRecord.findMany({
-      where: {
-        status: filters.status ?? undefined,
-        ownerId: filters.ownerId ?? undefined
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 200
+      where: { ownerId: owner.ownerId, ownerType: owner.ownerType },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
     });
   }
 
-  async updateKycStatus(id: string, dto: UpdateKycStatusDto, actor: AuthContext) {
+  async listAgencyKycRecords(agencyId: string, actor: AuthContext) {
+    const owner = await this.resolveAgencyOwner(agencyId, actor.userId);
+    return this.prisma.kycRecord.findMany({
+      where: { ownerId: owner.ownerId, ownerType: owner.ownerType },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+    });
+  }
+
+  async updateKycStatus(
+    id: string,
+    dto: UpdateKycStatusDto,
+    actor: AuthContext,
+  ) {
     const record = await this.prisma.kycRecord.findUnique({ where: { id } });
     if (!record) {
-      throw new NotFoundException('KYC record not found');
+      throw new NotFoundException("KYC record not found");
     }
 
     const updated = await this.prisma.kycRecord.update({
       where: { id },
-      data: { status: dto.status, notes: dto.notes ?? null }
+      data: { status: dto.status, notes: dto.notes ?? null },
     });
 
-    await this.audit.log({
-      action: 'wallet.kyc.update',
+    await this.audit.logAction({
+      action: "wallet.kyc.update",
       actorId: actor.userId,
-      targetType: 'kycRecord',
+      targetType: "kycRecord",
       targetId: id,
-      metadata: { status: dto.status }
+      metadata: { status: dto.status },
     });
+
+    if (dto.status === KycStatus.VERIFIED) {
+      const verifiedRecords = await this.prisma.kycRecord.findMany({
+        where: {
+          ownerType: record.ownerType,
+          ownerId: record.ownerId,
+          status: KycStatus.VERIFIED,
+        },
+      });
+      const verifiedDocCount = verifiedRecords.reduce((total, item) => {
+        const types = Array.isArray(item.docTypes) ? item.docTypes.length : 0;
+        const urls = Array.isArray(item.docUrls) ? item.docUrls.length : 0;
+        return total + Math.max(types, urls, 0);
+      }, 0);
+
+      if (record.ownerType === OwnerType.USER) {
+        const user = await this.prisma.user.findUnique({
+          where: { id: record.ownerId },
+          select: { role: true },
+        });
+        const expectedDocs = user?.role === Role.INDEPENDENT_AGENT ? 3 : 2;
+        const verificationScore = Math.min(
+          100,
+          Math.round((verifiedDocCount / expectedDocs) * 100),
+        );
+        await this.prisma.user.update({
+          where: { id: record.ownerId },
+          data: {
+            kycStatus: KycStatus.VERIFIED,
+            isVerified: true,
+            verificationScore,
+          },
+        });
+        await this.trust.calculateUserTrust(record.ownerId);
+      }
+
+      if (record.ownerType === OwnerType.AGENCY) {
+        const expectedDocs = 6;
+        const verificationScore = Math.min(
+          100,
+          Math.round((verifiedDocCount / expectedDocs) * 100),
+        );
+        await this.prisma.agency.update({
+          where: { id: record.ownerId },
+          data: {
+            kycStatus: KycStatus.VERIFIED,
+            verificationScore,
+            status: AgencyStatus.ACTIVE,
+          },
+        });
+        await this.trust.calculateCompanyTrust(record.ownerId);
+      }
+    }
+
+    if (dto.status === KycStatus.REJECTED) {
+      if (record.ownerType === OwnerType.USER) {
+        await this.prisma.user.update({
+          where: { id: record.ownerId },
+          data: { kycStatus: KycStatus.REJECTED },
+        });
+      }
+      if (record.ownerType === OwnerType.AGENCY) {
+        await this.prisma.agency.update({
+          where: { id: record.ownerId },
+          data: { kycStatus: KycStatus.REJECTED },
+        });
+      }
+    }
 
     return updated;
   }
 
+  async requestUserKycUpdate(actor: AuthContext) {
+    const owner = this.resolveOwner(actor);
+    await this.prisma.user.update({
+      where: { id: owner.ownerId },
+      data: { kycStatus: KycStatus.PENDING },
+    });
+    await this.prisma.kycRecord.create({
+      data: {
+        ownerType: OwnerType.USER,
+        ownerId: owner.ownerId,
+        idType: "NATIONAL_ID",
+        idNumber: "UPDATE_REQUEST",
+        docUrls: [],
+        docTypes: [],
+        notes: "KYC update requested",
+        status: KycStatus.PENDING,
+      } as any,
+    });
+    await this.audit.logAction({
+      action: "wallet.kyc.request_update",
+      actorId: actor.userId,
+      targetType: "user",
+      targetId: owner.ownerId,
+      metadata: { reason: "profile_update" },
+    });
+    return { status: "PENDING" };
+  }
+
+  async requestAgencyKycUpdate(agencyId: string, actor: AuthContext) {
+    const owner = await this.resolveAgencyOwner(agencyId, actor.userId);
+    await this.prisma.agency.update({
+      where: { id: owner.ownerId },
+      data: { kycStatus: KycStatus.PENDING },
+    });
+    await this.prisma.kycRecord.create({
+      data: {
+        ownerType: OwnerType.AGENCY,
+        ownerId: owner.ownerId,
+        idType: "CERT_OF_INC",
+        idNumber: "UPDATE_REQUEST",
+        docUrls: [],
+        docTypes: [],
+        notes: "KYC update requested",
+        status: KycStatus.PENDING,
+      } as any,
+    });
+    await this.audit.logAction({
+      action: "wallet.kyc.request_update",
+      actorId: actor.userId,
+      targetType: "agency",
+      targetId: owner.ownerId,
+      metadata: { reason: "company_update" },
+    });
+    return { status: "PENDING" };
+  }
+
+  async uploadKycDocument(
+    file: { filename: string; mimetype: string; buffer: Buffer },
+    actor: AuthContext,
+  ) {
+    const owner = this.resolveOwner(actor);
+    return this.uploadKycDocumentForOwner(owner, file, actor.userId);
+  }
+
+  async uploadAgencyKycDocument(
+    agencyId: string,
+    file: { filename: string; mimetype: string; buffer: Buffer },
+    actor: AuthContext,
+  ) {
+    const owner = await this.resolveAgencyOwner(agencyId, actor.userId);
+    return this.uploadKycDocumentForOwner(owner, file, actor.userId);
+  }
+
+  async submitAgencyKyc(
+    agencyId: string,
+    dto: SubmitKycDto,
+    actor: AuthContext,
+  ) {
+    const owner = await this.resolveAgencyOwner(agencyId, actor.userId);
+    const record = await this.prisma.kycRecord.create({
+      data: {
+        ownerType: owner.ownerType,
+        ownerId: owner.ownerId,
+        idType: dto.idType,
+        idNumber: dto.idNumber,
+        idExpiryDate: dto.idExpiryDate ? new Date(dto.idExpiryDate) : null,
+        docUrls: dto.docUrls,
+        docTypes: dto.docTypes ?? [],
+        notes: dto.notes ?? null,
+        status: KycStatus.PENDING,
+      } as any,
+    });
+
+    await this.prisma.agency.update({
+      where: { id: owner.ownerId },
+      data: { kycStatus: KycStatus.PENDING },
+    });
+
+    await this.audit.logAction({
+      action: "wallet.kyc.submit",
+      actorId: actor.userId,
+      targetType: "kycRecord",
+      targetId: record.id,
+      metadata: {
+        idType: dto.idType,
+        ownerType: owner.ownerType,
+        ownerId: owner.ownerId,
+      },
+    });
+
+    return record;
+  }
+
   async requestPayout(dto: RequestPayoutDto, actor: AuthContext) {
     return this.prisma.$transaction(async (tx: PrismaClientOrTx) => {
-      const wallet = await tx.wallet.findUnique({ where: { id: dto.walletId } });
+      const wallet = await tx.wallet.findUnique({
+        where: { id: dto.walletId },
+      });
       if (!wallet) {
-        throw new NotFoundException('Wallet not found');
+        throw new NotFoundException("Wallet not found");
       }
       this.assertAccess(actor, wallet);
 
       await this.releasePendingTransactions(wallet.id, tx);
 
       if (wallet.currency !== DEFAULT_CURRENCY) {
-        throw new BadRequestException('Unsupported wallet currency');
+        throw new BadRequestException("Unsupported wallet currency");
       }
 
       const minPayoutCents =
-        (await this.resolveThreshold('MIN_PAYOUT', wallet.currency, tx)) ??
+        (await this.resolveThreshold("MIN_PAYOUT", wallet.currency, tx)) ??
         env.WALLET_MIN_PAYOUT_CENTS;
 
       if (dto.amountCents < minPayoutCents) {
-        throw new BadRequestException('Amount is below minimum payout threshold');
+        throw new BadRequestException(
+          "Amount is below minimum payout threshold",
+        );
       }
 
       const { _sum: reservedSum } = await tx.payoutRequest.aggregate({
         where: { walletId: wallet.id, status: { in: ACTIVE_PAYOUT_STATUSES } },
-        _sum: { amountCents: true }
+        _sum: { amountCents: true },
       });
       const reservedCents = reservedSum.amountCents ?? 0;
       const availableCents = wallet.balanceCents - reservedCents;
       if (availableCents < dto.amountCents) {
-        throw new BadRequestException('Insufficient available balance for payout');
+        throw new BadRequestException(
+          "Insufficient available balance for payout",
+        );
       }
 
-      const account = await tx.payoutAccount.findUnique({ where: { id: dto.payoutAccountId } });
-      if (!account || account.ownerId !== wallet.ownerId || account.ownerType !== wallet.ownerType) {
-        throw new ForbiddenException('Payout account not available for this wallet');
+      const account = await tx.payoutAccount.findUnique({
+        where: { id: dto.payoutAccountId },
+      });
+      if (
+        !account ||
+        account.ownerId !== wallet.ownerId ||
+        account.ownerType !== wallet.ownerType
+      ) {
+        throw new ForbiddenException(
+          "Payout account not available for this wallet",
+        );
       }
       if (!account.verifiedAt) {
-        throw new BadRequestException('Payout account is not verified');
+        throw new BadRequestException("Payout account is not verified");
       }
-      if (account.type !== dto.method) {
-        throw new BadRequestException('Payout method does not match payout account');
+      if ((account.type as any) !== dto.method) {
+        throw new BadRequestException(
+          "Payout method does not match payout account",
+        );
       }
 
       const kycRecord = await tx.kycRecord.findFirst({
         where: { ownerId: wallet.ownerId, ownerType: wallet.ownerType },
-        orderBy: { updatedAt: 'desc' }
+        orderBy: { updatedAt: "desc" },
       });
       if (!kycRecord || kycRecord.status !== KycStatus.VERIFIED) {
-        throw new BadRequestException('Verified KYC is required before requesting payouts');
+        throw new BadRequestException(
+          "Verified KYC is required before requesting payouts",
+        );
       }
 
       const start = startOfDay(new Date());
       const rateLimitCount = await tx.payoutRequest.count({
         where: {
           walletId: wallet.id,
-          createdAt: { gte: start }
-        }
+          createdAt: { gte: start },
+        },
       });
       if (rateLimitCount >= env.WALLET_MAX_PAYOUTS_PER_DAY) {
-        throw new BadRequestException('Daily payout request limit reached');
+        throw new BadRequestException("Daily payout request limit reached");
       }
 
       const payout = await tx.payoutRequest.create({
         data: {
           walletId: wallet.id,
           amountCents: dto.amountCents,
-          method: dto.method,
+          method: dto.method as any,
           payoutAccountId: dto.payoutAccountId,
           scheduledFor: dto.scheduledFor ?? null,
-          status: PayoutStatus.REQUESTED
-        }
+          status: PayoutStatus.REQUESTED,
+        },
       });
 
-      await this.audit.log({
-        action: 'wallet.payout.request',
+      await this.audit.logAction({
+        action: "wallet.payout.request",
         actorId: actor.userId,
-        targetType: 'payoutRequest',
+        targetType: "payoutRequest",
         targetId: payout.id,
-        metadata: { amountCents: dto.amountCents }
+        metadata: { amountCents: dto.amountCents },
       });
 
       return payout;
@@ -380,10 +689,10 @@ export class WalletsService {
     return this.prisma.$transaction(async (tx: PrismaClientOrTx) => {
       const payout = await tx.payoutRequest.findUnique({ where: { id } });
       if (!payout) {
-        throw new NotFoundException('Payout request not found');
+        throw new NotFoundException("Payout request not found");
       }
       if (!APPROVABLE_PAYOUT_STATUSES.includes(payout.status)) {
-        throw new BadRequestException('Payout cannot be approved');
+        throw new BadRequestException("Payout cannot be approved");
       }
 
       const txRef = dto.txRef ?? payout.txRef ?? randomUUID();
@@ -392,16 +701,16 @@ export class WalletsService {
         data: {
           status: PayoutStatus.APPROVED,
           txRef,
-          scheduledFor: dto.scheduledFor ?? payout.scheduledFor
-        }
+          scheduledFor: dto.scheduledFor ?? payout.scheduledFor,
+        },
       });
 
-      await this.audit.log({
-        action: 'wallet.payout.approve',
+      await this.audit.logAction({
+        action: "wallet.payout.approve",
         actorId: actor.userId,
-        targetType: 'payoutRequest',
+        targetType: "payoutRequest",
         targetId: id,
-        metadata: { txRef }
+        metadata: { txRef },
       });
 
       return updated;
@@ -412,14 +721,14 @@ export class WalletsService {
     return this.prisma.payoutRequest.findMany({
       where: {
         status: filters.status ?? undefined,
-        walletId: filters.walletId ?? undefined
+        walletId: filters.walletId ?? undefined,
       },
       include: {
         wallet: true,
-        payoutAccount: true
+        payoutAccount: true,
       },
-      orderBy: { createdAt: 'desc' },
-      take: 200
+      orderBy: { createdAt: "desc" },
+      take: 200,
     });
   }
 
@@ -435,56 +744,64 @@ export class WalletsService {
       paidAt: Date;
     } | null = null;
 
-    const result = await this.prisma.$transaction(async (tx: PrismaClientOrTx) => {
-      const payout = await tx.payoutRequest.findFirst({ where: { txRef: dto.txRef }, include: { wallet: true } });
-      if (!payout) {
-        throw new NotFoundException('Payout not found for webhook');
-      }
-
-      if (payout.status === dto.status) {
-        return payout;
-      }
-
-      const updated = await tx.payoutRequest.update({
-        where: { id: payout.id },
-        data: { status: dto.status },
-        include: { wallet: true }
-      });
-
-      if (dto.status === PayoutStatus.PAID) {
-        await this.applyPayoutDebit(updated, tx);
-        receiptContext = {
-          payoutId: updated.id,
-          ownerType: updated.wallet.ownerType,
-          ownerId: updated.wallet.ownerId,
-          amountCents: updated.amountCents,
-          currency: updated.wallet.currency,
-          method: updated.method,
-          txRef: updated.txRef ?? dto.txRef,
-          paidAt: updated.updatedAt
-        };
-      }
-
-      if (dto.status === PayoutStatus.FAILED || dto.status === PayoutStatus.CANCELLED) {
-        await this.audit.log({
-          action: 'wallet.payout.failed',
-          actorId: null,
-          targetType: 'payoutRequest',
-          targetId: payout.id,
-          metadata: { reason: dto.failureReason }
+    const result = await this.prisma.$transaction(
+      async (tx: PrismaClientOrTx) => {
+        const payout = await tx.payoutRequest.findFirst({
+          where: { txRef: dto.txRef },
+          include: { wallet: true },
         });
-      } else {
-        await this.audit.log({
-          action: 'wallet.payout.webhook',
-          actorId: null,
-          targetType: 'payoutRequest',
-          targetId: payout.id,
-          metadata: { status: dto.status }
-        });
-      }
+        if (!payout) {
+          throw new NotFoundException("Payout not found for webhook");
+        }
 
-      return updated;
-    });
+        if (payout.status === dto.status) {
+          return payout;
+        }
+
+        const updated = await tx.payoutRequest.update({
+          where: { id: payout.id },
+          data: { status: dto.status },
+          include: { wallet: true },
+        });
+
+        if (dto.status === PayoutStatus.PAID) {
+          await this.applyPayoutDebit(updated, tx);
+          receiptContext = {
+            payoutId: updated.id,
+            ownerType: updated.wallet.ownerType,
+            ownerId: updated.wallet.ownerId,
+            amountCents: updated.amountCents,
+            currency: updated.wallet.currency,
+            method: updated.method as unknown as PayoutMethod,
+            txRef: updated.txRef ?? dto.txRef,
+            paidAt: updated.updatedAt,
+          };
+        }
+
+        if (
+          dto.status === PayoutStatus.FAILED ||
+          dto.status === PayoutStatus.CANCELLED
+        ) {
+          await this.audit.logAction({
+            action: "wallet.payout.failed",
+            actorId: undefined,
+            targetType: "payoutRequest",
+            targetId: payout.id,
+            metadata: { reason: dto.failureReason },
+          });
+        } else {
+          await this.audit.logAction({
+            action: "wallet.payout.webhook",
+            actorId: undefined,
+            targetType: "payoutRequest",
+            targetId: payout.id,
+            metadata: { status: dto.status },
+          });
+        }
+
+        return updated;
+      },
+    );
 
     if (receiptContext) {
       await this.issuePayoutReceipt(receiptContext);
@@ -505,9 +822,15 @@ export class WalletsService {
   }) {
     const currency = params.currency ?? DEFAULT_CURRENCY;
     return this.prisma.$transaction(async (tx: PrismaClientOrTx) => {
-      const wallet = await this.getOrCreateWallet(params.ownerType, params.ownerId, currency, tx);
+      const wallet = await this.getOrCreateWallet(
+        params.ownerType,
+        params.ownerId,
+        currency,
+        tx,
+      );
       const now = new Date();
-      const availableAt = params.availableAt ?? addDays(now, env.WALLET_EARNINGS_COOL_OFF_DAYS);
+      const availableAt =
+        params.availableAt ?? addDays(now, env.WALLET_EARNINGS_COOL_OFF_DAYS);
       const immediate = availableAt <= now;
 
       await tx.walletTransaction.create({
@@ -519,8 +842,8 @@ export class WalletsService {
           sourceId: params.sourceId ?? null,
           description: params.description ?? null,
           availableAt,
-          appliedToBalance: immediate
-        }
+          appliedToBalance: immediate,
+        },
       });
 
       const update: Prisma.WalletUpdateInput = immediate
@@ -536,10 +859,12 @@ export class WalletsService {
   async listAmlBlocklist() {
     const flags = await this.prisma.featureFlag.findMany({
       where: { key: { startsWith: AML_BLOCKLIST_PREFIX } },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: "desc" },
     });
 
-    return (flags as FeatureFlagRecord[]).map((flag) => this.mapAmlBlocklistFlag(flag));
+    return (flags as FeatureFlagRecord[]).map((flag) =>
+      this.mapAmlBlocklistFlag(flag),
+    );
   }
 
   async addAmlBlocklistEntry(dto: ManageAmlBlocklistDto, actor: AuthContext) {
@@ -549,21 +874,21 @@ export class WalletsService {
       value: dto.value,
       normalized,
       reason: dto.reason ?? null,
-      addedBy: actor.userId
+      addedBy: actor.userId,
     };
 
     const flag = await this.prisma.featureFlag.upsert({
       where: { key },
       update: { description: JSON.stringify(payload), enabled: true },
-      create: { key, description: JSON.stringify(payload), enabled: true }
+      create: { key, description: JSON.stringify(payload), enabled: true },
     });
 
-    await this.audit.log({
-      action: 'wallet.aml.add',
+    await this.audit.logAction({
+      action: "wallet.aml.add",
       actorId: actor.userId,
-      targetType: 'amlBlocklist',
+      targetType: "amlBlocklist",
       targetId: key,
-      metadata: payload
+      metadata: payload,
     });
 
     return this.mapAmlBlocklistFlag(flag);
@@ -573,16 +898,16 @@ export class WalletsService {
     const key = `${AML_BLOCKLIST_PREFIX}${id}`;
     const flag = await this.prisma.featureFlag.findUnique({ where: { key } });
     if (!flag) {
-      throw new NotFoundException('Blocklist entry not found');
+      throw new NotFoundException("Blocklist entry not found");
     }
 
     await this.prisma.featureFlag.delete({ where: { key } });
 
-    await this.audit.log({
-      action: 'wallet.aml.remove',
+    await this.audit.logAction({
+      action: "wallet.aml.remove",
       actorId: actor.userId,
-      targetType: 'amlBlocklist',
-      targetId: key
+      targetType: "amlBlocklist",
+      targetId: key,
     });
 
     return { success: true };
@@ -591,67 +916,117 @@ export class WalletsService {
   async listWalletThresholds() {
     const flags = await this.prisma.featureFlag.findMany({
       where: { key: { startsWith: WALLET_THRESHOLD_PREFIX } },
-      orderBy: { key: 'asc' }
+      orderBy: { key: "asc" },
     });
 
-    const entries: WalletThresholdEntry[] = (flags as FeatureFlagRecord[]).map((flag) =>
-      this.mapWalletThreshold(flag)
+    const entries: WalletThresholdEntry[] = (flags as FeatureFlagRecord[]).map(
+      (flag) => this.mapWalletThreshold(flag),
     );
-    const hasMin = entries.some((entry) => entry.type === 'MIN_PAYOUT');
+    const hasMin = entries.some((entry) => entry.type === "MIN_PAYOUT");
     if (!hasMin) {
       entries.push({
         id: null,
-        type: 'MIN_PAYOUT',
+        type: "MIN_PAYOUT",
         currency: DEFAULT_CURRENCY,
         amountCents: env.WALLET_MIN_PAYOUT_CENTS,
-        note: 'Configured via environment',
-        source: 'env',
+        note: "Configured via environment",
+        source: "env",
         updatedAt: null,
-        createdAt: null
+        createdAt: null,
       });
     }
 
     return entries;
   }
 
-  async upsertWalletThreshold(dto: UpsertWalletThresholdDto, actor: AuthContext) {
+  async upsertWalletThreshold(
+    dto: UpsertWalletThresholdDto,
+    actor: AuthContext,
+  ) {
     if (!walletThresholdTypes.includes(dto.type)) {
-      throw new BadRequestException('Unsupported threshold type');
+      throw new BadRequestException("Unsupported threshold type");
     }
 
     const key = `${WALLET_THRESHOLD_PREFIX}${dto.type}.${dto.currency}`;
     const payload = {
       amountCents: dto.amountCents,
       note: dto.note ?? null,
-      updatedBy: actor.userId
+      updatedBy: actor.userId,
     };
 
     const flag = await this.prisma.featureFlag.upsert({
       where: { key },
       update: { description: JSON.stringify(payload), enabled: true },
-      create: { key, description: JSON.stringify(payload), enabled: true }
+      create: { key, description: JSON.stringify(payload), enabled: true },
     });
 
-    await this.audit.log({
-      action: 'wallet.threshold.upsert',
+    await this.audit.logAction({
+      action: "wallet.threshold.upsert",
       actorId: actor.userId,
-      targetType: 'walletThreshold',
+      targetType: "walletThreshold",
       targetId: key,
-      metadata: payload
+      metadata: payload,
     });
 
     return this.mapWalletThreshold(flag);
   }
 
-  private resolveOwner(actor: AuthContext): { ownerType: OwnerType; ownerId: string } {
+  private resolveOwner(actor: AuthContext): {
+    ownerType: OwnerType;
+    ownerId: string;
+  } {
     if (actor.role === Role.ADMIN) {
-      throw new ForbiddenException('Administrators do not have personal wallets');
+      throw new ForbiddenException(
+        "Administrators do not have personal wallets",
+      );
     }
     return { ownerType: OwnerType.USER, ownerId: actor.userId };
   }
 
+  private async resolveAgencyOwner(agencyId: string, userId: string) {
+    const member = await this.prisma.agencyMember.findFirst({
+      where: { agencyId, userId, isActive: true },
+    });
+    if (!member) {
+      throw new ForbiddenException("You are not a member of this agency");
+    }
+    return { ownerType: OwnerType.AGENCY, ownerId: agencyId };
+  }
+
+  private async uploadKycDocumentForOwner(
+    owner: { ownerType: OwnerType; ownerId: string },
+    file: { filename: string; mimetype: string; buffer: Buffer },
+    actorId: string,
+  ) {
+    const uploadsRoot = this.resolveUploadsRoot();
+    const uploadsDir = join(
+      uploadsRoot,
+      "kyc",
+      owner.ownerType.toLowerCase(),
+      owner.ownerId,
+    );
+    await mkdir(uploadsDir, { recursive: true });
+
+    const safeName = file.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const uniqueName = `${Date.now()}-${safeName}`;
+    const filePath = join(uploadsDir, uniqueName);
+    await writeFile(filePath, file.buffer as Uint8Array);
+
+    const url = `/uploads/kyc/${owner.ownerType.toLowerCase()}/${owner.ownerId}/${uniqueName}`;
+
+    await this.audit.logAction({
+      action: "wallet.kyc.upload",
+      actorId,
+      targetType: "kycDocument",
+      targetId: owner.ownerId,
+      metadata: { url, ownerType: owner.ownerType },
+    });
+
+    return { url };
+  }
+
   private normalizeBlocklistValue(value: string) {
-    return value.replace(/[\s+\-]/g, '').toLowerCase();
+    return value.replace(/[\s+\-]/g, "").toLowerCase();
   }
 
   private mapAmlBlocklistFlag(flag: {
@@ -661,7 +1036,7 @@ export class WalletsService {
     updatedAt: Date;
     enabled: boolean;
   }) {
-    const id = flag.key.replace(AML_BLOCKLIST_PREFIX, '');
+    const id = flag.key.replace(AML_BLOCKLIST_PREFIX, "");
     let payload: {
       value?: string;
       normalized?: string;
@@ -687,20 +1062,20 @@ export class WalletsService {
       addedBy: payload.addedBy ?? null,
       createdAt: flag.createdAt,
       updatedAt: flag.updatedAt,
-      enabled: flag.enabled
+      enabled: flag.enabled,
     };
   }
 
   private mapWalletThreshold(flag: FeatureFlagRecord): WalletThresholdEntry {
-    const suffix = flag.key.replace(WALLET_THRESHOLD_PREFIX, '');
-    const [type, currency] = suffix.split('.');
+    const suffix = flag.key.replace(WALLET_THRESHOLD_PREFIX, "");
+    const [type, currency] = suffix.split(".");
     let amountCents: number | null = null;
     let note: string | null = null;
 
     if (flag.description) {
       try {
         const parsed = JSON.parse(flag.description);
-        if (typeof parsed.amountCents === 'number') {
+        if (typeof parsed.amountCents === "number") {
           amountCents = parsed.amountCents;
         } else {
           const numeric = Number(parsed.amountCents ?? parsed);
@@ -708,7 +1083,7 @@ export class WalletsService {
             amountCents = numeric;
           }
         }
-        if (typeof parsed.note === 'string') {
+        if (typeof parsed.note === "string") {
           note = parsed.note;
         }
       } catch (error) {
@@ -721,7 +1096,7 @@ export class WalletsService {
       }
     }
 
-    const fallback = type === 'MIN_PAYOUT' ? env.WALLET_MIN_PAYOUT_CENTS : 0;
+    const fallback = type === "MIN_PAYOUT" ? env.WALLET_MIN_PAYOUT_CENTS : 0;
 
     return {
       id: flag.key,
@@ -729,16 +1104,16 @@ export class WalletsService {
       currency: (currency as Currency) ?? DEFAULT_CURRENCY,
       amountCents: amountCents ?? fallback,
       note,
-      source: 'custom',
+      source: "custom",
       createdAt: flag.createdAt,
-      updatedAt: flag.updatedAt
+      updatedAt: flag.updatedAt,
     };
   }
 
   private async resolveThreshold(
     type: (typeof walletThresholdTypes)[number],
     currency: Currency,
-    tx: PrismaClientOrTx = this.prisma
+    tx: PrismaClientOrTx = this.prisma,
   ) {
     const key = `${WALLET_THRESHOLD_PREFIX}${type}.${currency}`;
     const flag = await tx.featureFlag.findUnique({ where: { key } });
@@ -753,8 +1128,11 @@ export class WalletsService {
     if (actor.role === Role.ADMIN) {
       return;
     }
-    if (wallet.ownerType !== OwnerType.USER || wallet.ownerId !== actor.userId) {
-      throw new ForbiddenException('Not permitted to access this wallet');
+    if (
+      wallet.ownerType !== OwnerType.USER ||
+      wallet.ownerId !== actor.userId
+    ) {
+      throw new ForbiddenException("Not permitted to access this wallet");
     }
   }
 
@@ -762,61 +1140,67 @@ export class WalletsService {
     ownerType: OwnerType,
     ownerId: string,
     currency: Currency,
-    tx: PrismaClientOrTx = this.prisma
+    tx: PrismaClientOrTx = this.prisma,
   ) {
     return tx.wallet.upsert({
       where: { ownerType_ownerId_currency: { ownerType, ownerId, currency } },
       update: {},
-      create: { ownerType, ownerId, currency }
+      create: { ownerType, ownerId, currency },
     });
   }
 
-  private async releasePendingTransactions(walletId: string, tx: PrismaClientOrTx) {
+  private async releasePendingTransactions(
+    walletId: string,
+    tx: PrismaClientOrTx,
+  ) {
     const now = new Date();
     const pending = (await tx.walletTransaction.findMany({
       where: {
         walletId,
         type: WalletTransactionType.CREDIT,
         appliedToBalance: false,
-        availableAt: { lte: now }
+        availableAt: { lte: now },
       },
-      select: { id: true, amountCents: true }
+      select: { id: true, amountCents: true },
     })) as Array<{ id: string; amountCents: number }>;
     if (!pending.length) {
       return;
     }
-    const total = pending.reduce<number>((sum, item) => sum + item.amountCents, 0);
+    const total = pending.reduce<number>(
+      (sum, item) => sum + item.amountCents,
+      0,
+    );
     await tx.wallet.update({
       where: { id: walletId },
       data: {
         balanceCents: { increment: total },
-        pendingCents: { decrement: total }
-      }
+        pendingCents: { decrement: total },
+      },
     });
     await tx.walletTransaction.updateMany({
       where: { id: { in: pending.map((item) => item.id) } },
-      data: { appliedToBalance: true }
+      data: { appliedToBalance: true },
     });
   }
 
   private async buildWalletResponse(walletId: string, tx: PrismaClientOrTx) {
     const wallet = await tx.wallet.findUnique({ where: { id: walletId } });
     if (!wallet) {
-      throw new NotFoundException('Wallet not found');
+      throw new NotFoundException("Wallet not found");
     }
     const [{ _sum }, latestKyc, payoutAccounts] = await Promise.all([
       tx.payoutRequest.aggregate({
         where: { walletId, status: { in: ACTIVE_PAYOUT_STATUSES } },
-        _sum: { amountCents: true }
+        _sum: { amountCents: true },
       }),
       tx.kycRecord.findFirst({
         where: { ownerId: wallet.ownerId, ownerType: wallet.ownerType },
-        orderBy: { updatedAt: 'desc' }
+        orderBy: { updatedAt: "desc" },
       }),
       tx.payoutAccount.findMany({
         where: { ownerId: wallet.ownerId, ownerType: wallet.ownerType },
-        orderBy: { createdAt: 'desc' }
-      })
+        orderBy: { createdAt: "desc" },
+      }),
     ]);
     const reservedCents = _sum.amountCents ?? 0;
     return {
@@ -824,16 +1208,20 @@ export class WalletsService {
       reservedCents,
       availableCents: Math.max(wallet.balanceCents - reservedCents, 0),
       latestKyc,
-      payoutAccounts
+      payoutAccounts,
     };
   }
 
   private async applyPayoutDebit(
     payout: { id: string; walletId: string; amountCents: number },
-    tx: PrismaClientOrTx
+    tx: PrismaClientOrTx,
   ) {
     const existing = await tx.walletTransaction.findFirst({
-      where: { walletId: payout.walletId, source: WalletTransactionSource.PAYOUT, sourceId: payout.id }
+      where: {
+        walletId: payout.walletId,
+        source: WalletTransactionSource.PAYOUT,
+        sourceId: payout.id,
+      },
     });
     if (existing) {
       return;
@@ -846,17 +1234,17 @@ export class WalletsService {
         type: WalletTransactionType.DEBIT,
         source: WalletTransactionSource.PAYOUT,
         sourceId: payout.id,
-        description: 'Payout settled',
+        description: "Payout settled",
         availableAt: new Date(),
-        appliedToBalance: true
-      }
+        appliedToBalance: true,
+      },
     });
 
     await tx.wallet.update({
       where: { id: payout.walletId },
       data: {
-        balanceCents: { decrement: payout.amountCents }
-      }
+        balanceCents: { decrement: payout.amountCents },
+      },
     });
   }
 
@@ -870,13 +1258,16 @@ export class WalletsService {
     txRef?: string | null;
     paidAt: Date;
   }) {
-    const owner = await this.resolveOwnerContact(context.ownerType, context.ownerId);
-    const ownerName = owner.name ?? 'Account holder';
+    const owner = await this.resolveOwnerContact(
+      context.ownerType,
+      context.ownerId,
+    );
+    const ownerName = owner.name ?? "Account holder";
     const pdfUrl = await this.generatePayoutReceiptPdf(context, ownerName);
 
     await this.prisma.payoutRequest.update({
       where: { id: context.payoutId },
-      data: { receiptPdfUrl: pdfUrl }
+      data: { receiptPdfUrl: pdfUrl },
     });
 
     if (!owner.email) {
@@ -891,7 +1282,7 @@ export class WalletsService {
       subject: `Payout receipt ${reference}`,
       text: `Hi ${ownerName},\n\nWe have sent ${amount} ${context.currency} via ${context.method}. Your payout receipt is attached for your records.\n\n-- Propad`,
       filename: `payout-${reference}.pdf`,
-      pdfDataUrl: pdfUrl
+      pdfDataUrl: pdfUrl,
     });
   }
 
@@ -904,43 +1295,51 @@ export class WalletsService {
       txRef?: string | null;
       paidAt: Date;
     },
-    ownerName: string
+    ownerName: string,
   ) {
     return new Promise<string>((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });
       const buffers: Buffer[] = [];
 
-      doc.on('data', (chunk: unknown) => {
+      doc.on("data", (chunk: unknown) => {
         if (chunk instanceof Buffer) {
           buffers.push(chunk);
         }
       });
-      doc.on('error', (err: unknown) => {
+      doc.on("error", (err: unknown) => {
         reject(err instanceof Error ? err : new Error(String(err)));
       });
-      doc.on('end', () => {
+      doc.on("end", () => {
         const buffer = Buffer.concat(buffers);
-        resolve(`data:application/pdf;base64,${buffer.toString('base64')}`);
+        resolve(`data:application/pdf;base64,${buffer.toString("base64")}`);
       });
 
-      doc.fontSize(20).text('Propad Payout Receipt', { align: 'center' });
+      doc.fontSize(20).text("Propad Payout Receipt", { align: "center" });
       doc.moveDown();
       doc.fontSize(12).text(`Recipient: ${ownerName}`);
       doc.text(`Reference: ${context.txRef ?? context.payoutId}`);
       doc.text(`Method: ${context.method}`);
       doc.text(`Paid At: ${context.paidAt.toISOString()}`);
-      doc.text(`Amount: ${(context.amountCents / 100).toFixed(2)} ${context.currency}`);
+      doc.text(
+        `Amount: ${(context.amountCents / 100).toFixed(2)} ${context.currency}`,
+      );
       doc.end();
     });
   }
 
   private async resolveOwnerContact(ownerType: OwnerType, ownerId: string) {
     if (ownerType === OwnerType.USER) {
-      const user = await this.prisma.user.findUnique({ where: { id: ownerId }, select: { email: true, name: true } });
+      const user = await this.prisma.user.findUnique({
+        where: { id: ownerId },
+        select: { email: true, name: true },
+      });
       return { email: user?.email ?? null, name: user?.name ?? null };
     }
     if (ownerType === OwnerType.AGENCY) {
-      const agency = await this.prisma.agency.findUnique({ where: { id: ownerId }, select: { email: true, name: true } });
+      const agency = await this.prisma.agency.findUnique({
+        where: { id: ownerId },
+        select: { email: true, name: true },
+      });
       return { email: agency?.email ?? null, name: agency?.name ?? null };
     }
     return { email: null, name: null };

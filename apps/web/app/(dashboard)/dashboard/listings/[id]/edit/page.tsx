@@ -29,6 +29,19 @@ const LISTING_INTENTS = [
     { value: 'TO_RENT', label: 'To Rent' },
 ] as const;
 
+const SUGGESTED_AMENITIES = [
+    'Borehole',
+    'Solar',
+    'Security',
+    'Garage',
+    'Garden',
+    'Swimming Pool',
+    'Power Backup',
+    'Internet',
+    'Water Tank',
+    'Walled',
+] as const;
+
 interface LocationSelection {
     countryId?: string;
     provinceId?: string;
@@ -45,6 +58,8 @@ export default function EditPropertyPage() {
     const sdk = useAuthenticatedSDK();
     const queryClient = useQueryClient();
     const [isLoading, setIsLoading] = useState(false);
+    const [externalImageUrl, setExternalImageUrl] = useState('');
+    const [isAddingExternalImage, setIsAddingExternalImage] = useState(false);
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -55,6 +70,8 @@ export default function EditPropertyPage() {
         bathrooms: '',
         areaSqm: '',
     });
+    const [amenities, setAmenities] = useState<string[]>([]);
+    const [amenityInput, setAmenityInput] = useState('');
 
     // Geo search state
     const [geoQuery, setGeoQuery] = useState('');
@@ -104,8 +121,29 @@ export default function EditPropertyPage() {
                     displayName: locationParts.join(', ') || 'Pending location',
                 });
             }
+
+            setAmenities(Array.isArray((property as any).amenities) ? (property as any).amenities : []);
         }
     }, [property]);
+
+    const addAmenity = (value: string) => {
+        const cleaned = value.trim();
+        if (!cleaned) return;
+        setAmenities((prev) => {
+            if (prev.some((item) => item.toLowerCase() === cleaned.toLowerCase())) {
+                return prev;
+            }
+            return [...prev, cleaned];
+        });
+    };
+
+    const toggleSuggestedAmenity = (value: string) => {
+        setAmenities((prev) =>
+            prev.some((item) => item.toLowerCase() === value.toLowerCase())
+                ? prev.filter((item) => item.toLowerCase() !== value.toLowerCase())
+                : [...prev, value],
+        );
+    };
 
     // Debounced geo search
     useEffect(() => {
@@ -213,10 +251,11 @@ export default function EditPropertyPage() {
             if (bedrooms !== undefined) payload.bedrooms = bedrooms;
             if (bathrooms !== undefined) payload.bathrooms = bathrooms;
             if (areaSqm !== undefined) payload.areaSqm = areaSqm;
+            payload.amenities = amenities;
 
             // Only include location fields if they have values
             // If pendingGeoId is present, only send that (not regular location fields)
-            const location = selectedLocation as LocationSelection | null;
+            const location = selectedLocation;
             if (location?.pendingGeoId) {
                 payload.pendingGeoId = location.pendingGeoId;
             } else if (location) {
@@ -323,6 +362,74 @@ export default function EditPropertyPage() {
                         placeholder="Describe the property..."
                         disabled={isReadOnly}
                     />
+                </div>
+
+                <div>
+                    <Label>Amenities</Label>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                        {SUGGESTED_AMENITIES.map((amenity) => {
+                            const selected = amenities.some((item) => item.toLowerCase() === amenity.toLowerCase());
+                            return (
+                                <button
+                                    key={amenity}
+                                    type="button"
+                                    disabled={isReadOnly}
+                                    onClick={() => toggleSuggestedAmenity(amenity)}
+                                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                                        selected
+                                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                                            : 'border-slate-300 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700'
+                                    }`}
+                                >
+                                    {amenity}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                        <Input
+                            value={amenityInput}
+                            onChange={(event) => setAmenityInput(event.target.value)}
+                            placeholder="Add custom amenity"
+                            disabled={isReadOnly}
+                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={isReadOnly}
+                            onClick={() => {
+                                addAmenity(amenityInput);
+                                setAmenityInput('');
+                            }}
+                        >
+                            Add
+                        </Button>
+                    </div>
+                    {amenities.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {amenities.map((amenity) => (
+                                <span
+                                    key={amenity}
+                                    className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
+                                >
+                                    {amenity}
+                                    {!isReadOnly ? (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setAmenities((prev) => prev.filter((item) => item !== amenity))
+                                            }
+                                            className="text-emerald-700"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    ) : null}
+                                </span>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="mt-2 text-xs text-slate-500">Select common amenities or add your own.</p>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -581,6 +688,54 @@ export default function EditPropertyPage() {
                             }}
                             disabled={isReadOnly}
                         />
+                    </div>
+
+                    <div className="mt-6 space-y-2">
+                        <Label htmlFor="externalImageUrl">Add external image URL (S3/hosted)</Label>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                            <Input
+                                id="externalImageUrl"
+                                value={externalImageUrl}
+                                onChange={(e) => setExternalImageUrl(e.target.value)}
+                                placeholder="https://your-bucket.s3.amazonaws.com/property.jpg"
+                                disabled={isReadOnly || isAddingExternalImage}
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={isReadOnly || isAddingExternalImage}
+                                onClick={async () => {
+                                    if (!sdk) {
+                                        notify.error('Please wait for authentication');
+                                        return;
+                                    }
+                                    if (!externalImageUrl.trim()) {
+                                        notify.error('Please enter a valid URL');
+                                        return;
+                                    }
+                                    setIsAddingExternalImage(true);
+                                    try {
+                                        await sdk.request(`properties/${propertyId}/media/link`, {
+                                            method: 'POST',
+                                            body: { url: externalImageUrl.trim() }
+                                        });
+                                        setExternalImageUrl('');
+                                        queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
+                                        notify.success('External image added');
+                                    } catch (error) {
+                                        console.error('Failed to link external image:', error);
+                                        notify.error('Failed to add external image');
+                                    } finally {
+                                        setIsAddingExternalImage(false);
+                                    }
+                                }}
+                            >
+                                {isAddingExternalImage ? 'Adding...' : 'Add URL'}
+                            </Button>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                            Use this if you host images on S3 or another CDN. The URL must be publicly accessible.
+                        </p>
                     </div>
                 </div>
 

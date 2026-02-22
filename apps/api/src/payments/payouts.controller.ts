@@ -1,9 +1,11 @@
 import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { Currency, OwnerType, PayoutMethod } from '@prisma/client';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-import { PayoutsService } from './payouts.service';
+import { Currency, OwnerType } from '@prisma/client';
+import { PayoutMethod } from '@propad/config';
+// import { Currency, OwnerType, PayoutMethod } from '@prisma/client';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { PayoutsService } from '../payouts/payouts.service';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { z } from 'zod';
 
@@ -25,7 +27,7 @@ const createPayoutRequestSchema = z.object({
 @Controller('payouts')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PayoutsController {
-  constructor(private readonly service: PayoutsService) {}
+  constructor(private readonly service: PayoutsService) { }
 
   @Post('request')
   createRequest(

@@ -1,0 +1,94 @@
+﻿
+> @propad/web@0.1.0 build C:\projects\propad\apps\web
+> next build
+
+  Ôû▓ Next.js 14.2.3
+  - Environments: .env.local, .env
+  - Experiments (use with caution):
+    ┬À instrumentationHook
+
+   Creating an optimized production build ...
+ Ô£ô (pwa) Compiling for server...
+ Ô£ô (pwa) Compiling for server...
+ Ô£ô (pwa) Compiling for client (static)...
+ Ôùï (pwa) Service worker: C:\projects\propad\apps\web\public\sw.js
+ Ôùï (pwa)   URL: /sw.js
+ Ôùï (pwa)   Scope: /
+node.exe : Failed to 
+compile.
+At C:\Program Files\node
+js\pnpm.ps1:16 char:5
++     & 
+"$basedir/node$exe"  "$b
+asedir/node_modules/core
+pack/dist/pnpm. ...
++     ~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo      
+        : NotSpecified  
+  : (Failed to compil   
+ e.:String) [], Remo    
+teException
+    + FullyQualifiedErr 
+   orId : NativeComman  
+  dError
+ 
+
+./app/(dashboard)/dashbo
+ard/applications/page.ts
+x
+Module not found: Can't 
+resolve 
+'@/hooks/use-user'
+
+https://nextjs.org/docs/
+messages/module-not-foun
+d
+
+./app/(dashboard)/leads/
+page.tsx
+Module not found: Can't 
+resolve 
+'@propad/ui/card'
+
+https://nextjs.org/docs/
+messages/module-not-foun
+d
+
+./app/(dashboard)/leads/
+page.tsx
+Module not found: Can't 
+resolve 
+'@propad/ui/skeleton'
+
+https://nextjs.org/docs/
+messages/module-not-foun
+d
+
+./app/(dashboard)/leads/
+page.tsx
+Module not found: Can't 
+resolve 
+'@propad/ui/badge'
+
+https://nextjs.org/docs/
+messages/module-not-foun
+d
+
+./app/(dashboard)/leads/
+page.tsx
+Module not found: Can't 
+resolve 
+'@propad/ui/button'
+
+https://nextjs.org/docs/
+messages/module-not-foun
+d
+
+
+> Build failed because 
+of webpack errors
+C:\projects\propad\apps\web:
+ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/web@0.1.0 build: `next build`
+Exit status 1

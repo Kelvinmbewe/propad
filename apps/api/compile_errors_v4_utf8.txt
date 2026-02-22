@@ -1,0 +1,68 @@
+﻿src/ads/advertiser-balance.service.ts(66,22): error TS2339: Property 'advertiserBalanceLog' does not exist on type 'PrismaClientOrTx'.
+  Property 'advertiserBalanceLog' does not exist on type 'TransactionClient'.
+src/ads/advertiser-balance.service.ts(167,22): error TS2339: Property 'advertiserBalanceLog' does not exist on type 'PrismaClientOrTx'.
+  Property 'advertiserBalanceLog' does not exist on type 'TransactionClient'.
+src/ads/advertiser-balance.service.ts(282,22): error TS2339: Property 'advertiserBalanceLog' does not exist on type 'PrismaClientOrTx'.
+  Property 'advertiserBalanceLog' does not exist on type 'TransactionClient'.
+src/agencies/agencies.controller.ts(6,16): error TS2305: Module '"@propad/config"' has no exported member 'AgencyStatus'.
+src/agencies/agencies.service.ts(3,10): error TS2305: Module '"@propad/config"' has no exported member 'AgencyStatus'.
+src/agencies/agencies.service.ts(3,30): error TS2305: Module '"@propad/config"' has no exported member 'AgencyMemberRole'.
+src/agencies/agencies.service.ts(62,44): error TS2554: Expected 1 arguments, but got 4.
+src/agencies/agencies.service.ts(70,44): error TS2554: Expected 1 arguments, but got 4.
+src/agencies/agencies.service.ts(87,45): error TS2554: Expected 1 arguments, but got 4.
+src/agencies/agency-members.controller.ts(6,16): error TS2305: Module '"@propad/config"' has no exported member 'AgencyMemberRole'.
+src/agencies/agency-members.controller.ts(43,49): error TS2554: Expected 1 arguments, but got 4.
+src/agencies/agency-members.controller.ts(59,49): error TS2554: Expected 1 arguments, but got 4.
+src/app.module.ts(89,5): error TS2304: Cannot find name 'MessagingModule'.
+src/app.module.ts(92,5): error TS2304: Cannot find name 'AuthenticationModule'.
+src/app.module.ts(93,5): error TS2304: Cannot find name 'AuthenticationModule'.
+src/app.module.ts(100,5): error TS2304: Cannot find name 'MessagingModule'.
+src/app.module.ts(102,5): error TS2304: Cannot find name 'ApplicationsModule'.
+src/app.module.ts(108,17): error TS2304: Cannot find name 'ThrottlerGuard'.
+src/applications/applications.controller.ts(5,30): error TS2307: Cannot find module '../auth/guards/jwt-auth.guard' or its corresponding type declarations.
+src/applications/applications.controller.ts(6,38): error TS2307: Cannot find module '../auth/interfaces/authenticated-request.interface' or its corresponding type declarations.
+src/applications/applications.service.ts(6,29): error TS2307: Cannot find module '../auth/interfaces/auth-context.interface' or its corresponding type declarations.
+src/applications/dto/create-application.dto.ts(6,5): error TS2564: Property 'propertyId' has no initializer and is not definitely assigned in the constructor.
+src/applications/dto/update-application-status.dto.ts(7,5): error TS2564: Property 'status' has no initializer and is not definitely assigned in the constructor.
+src/auth/auth.module.ts(22,5): error TS2552: Cannot find name 'PrismaService'. Did you mean 'RiskService'?
+src/commissions/commissions.service.ts(53,48): error TS2339: Property 'COMMISSION' does not exist on type 'LiteralEnum<"VERIFICATION" | "REWARD" | "PAYOUT" | "REFERRAL" | "ADJUSTMENT" | "AGENT_COMMISSION">'.
+src/common/logging.interceptor.ts(10,30): error TS2307: Cannot find module 'uuid' or its corresponding type declarations.
+src/dashboard/dashboard.service.ts(18,23): error TS2339: Property 'ADVERTISER' does not exist on type 'LiteralEnum<"ADMIN" | "VERIFIER" | "AGENT" | "LANDLORD" | "USER" | "MODERATOR" | "COMPANY_ADMIN" | "COMPANY_AGENT" | "INDEPENDENT_AGENT" | "SELLER" | "TENANT" | "BUYER">'.
+src/deals/deals.controller.ts(4,29): error TS2307: Cannot find module '../auth/interfaces/auth-context.interface' or its corresponding type declarations.
+src/growth/promos/promos.service.ts(2,31): error TS2307: Cannot find module '../prisma/prisma.service' or its corresponding type declarations.
+src/growth/promos/promos.service.ts(3,31): error TS2307: Cannot find module '../wallet/ledger.service' or its corresponding type declarations.
+src/growth/promos/promos.service.ts(4,58): error TS2307: Cannot find module '../wallet/enums' or its corresponding type declarations.
+src/growth/referrals/referrals.service.ts(2,31): error TS2307: Cannot find module '../prisma/prisma.service' or its corresponding type declarations.
+src/growth/referrals/referrals.service.ts(4,32): error TS2307: Cannot find module '../pricing/pricing.service' or its corresponding type declarations.
+src/growth/referrals/referrals.service.ts(5,31): error TS2307: Cannot find module '../wallet/ledger.service' or its corresponding type declarations.
+src/interests/interests.controller.ts(15,26): error TS7006: Parameter 'req' implicitly has an 'any' type.
+src/interests/interests.controller.ts(21,26): error TS7006: Parameter 'req' implicitly has an 'any' type.
+src/messaging/conversations.service.ts(97,62): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/messaging/dto/create-conversation.dto.ts(7,5): error TS2564: Property 'propertyId' has no initializer and is not definitely assigned in the constructor.
+src/messaging/dto/create-conversation.dto.ts(19,5): error TS2564: Property 'participantIds' has no initializer and is not definitely assigned in the constructor.
+src/messaging/dto/create-message.dto.ts(7,5): error TS2564: Property 'conversationId' has no initializer and is not definitely assigned in the constructor.
+src/messaging/dto/create-message.dto.ts(11,5): error TS2564: Property 'body' has no initializer and is not definitely assigned in the constructor.
+src/messaging/messages.service.ts(22,62): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/messaging/messages.service.ts(53,62): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/messaging/messaging.controller.ts(7,30): error TS2307: Cannot find module '../auth/guards/jwt-auth.guard' or its corresponding type declarations.
+src/messaging/messaging.controller.ts(8,22): error TS2307: Cannot find module '../users/user.decorator' or its corresponding type declarations.
+src/messaging/messaging.gateway.ts(15,5): error TS2564: Property 'server' has no initializer and is not definitely assigned in the constructor.
+src/metrics/metrics.service.ts(44,23): error TS2339: Property 'get' does not exist on type 'MetricsCacheService'.
+src/ops/ops.controller.ts(4,28): error TS2307: Cannot find module '../roles/roles.guard' or its corresponding type declarations.
+src/ops/ops.controller.ts(5,23): error TS2307: Cannot find module '../roles/roles.decorator' or its corresponding type declarations.
+src/pricing/pricing.controller.ts(4,28): error TS2307: Cannot find module '../roles/roles.guard' or its corresponding type declarations.
+src/pricing/pricing.controller.ts(5,23): error TS2307: Cannot find module '../roles/roles.decorator' or its corresponding type declarations.
+src/properties/properties.service.ts(997,46): error TS2339: Property 'PUBLISHED' does not exist on type 'LiteralEnum<"DRAFT" | "PENDING_VERIFY" | "VERIFIED" | "UNDER_OFFER" | "RENTED" | "SOLD" | "ARCHIVED" | "OCCUPIED">'.
+src/properties/properties.service.ts(1244,52): error TS2551: Property 'PENDING_VERIFICATION' does not exist on type 'LiteralEnum<"DRAFT" | "PENDING_VERIFY" | "VERIFIED" | "UNDER_OFFER" | "RENTED" | "SOLD" | "ARCHIVED" | "OCCUPIED">'. Did you mean 'PENDING_VERIFY'?
+src/properties/properties.service.ts(1248,34): error TS2339: Property 'PUBLISHED' does not exist on type 'LiteralEnum<"DRAFT" | "PENDING_VERIFY" | "VERIFIED" | "UNDER_OFFER" | "RENTED" | "SOLD" | "ARCHIVED" | "OCCUPIED">'.
+src/properties/properties.service.ts(1252,34): error TS2339: Property 'PUBLISHED' does not exist on type 'LiteralEnum<"DRAFT" | "PENDING_VERIFY" | "VERIFIED" | "UNDER_OFFER" | "RENTED" | "SOLD" | "ARCHIVED" | "OCCUPIED">'.
+src/properties/properties.service.ts(1260,46): error TS2554: Expected 1 arguments, but got 4.
+src/reconciliation/reconciliation.controller.ts(4,28): error TS2307: Cannot find module '../roles/roles.guard' or its corresponding type declarations.
+src/reconciliation/reconciliation.controller.ts(5,23): error TS2307: Cannot find module '../roles/roles.decorator' or its corresponding type declarations.
+src/security/security.controller.ts(4,28): error TS2307: Cannot find module '../roles/roles.guard' or its corresponding type declarations.
+src/security/security.controller.ts(5,23): error TS2307: Cannot find module '../roles/roles.decorator' or its corresponding type declarations.
+src/verifications/verifications.service.ts(422,32): error TS2339: Property 'VERIFICATION_UPDATE' does not exist on type 'LiteralEnum<"RENTED" | "SOLD" | "DISCOUNT" | "REOPENED" | "REWARD" | "CHAT" | "SYSTEM">'.
+src/verifications/verifications.service.ts(429,32): error TS2339: Property 'VERIFICATION_UPDATE' does not exist on type 'LiteralEnum<"RENTED" | "SOLD" | "DISCOUNT" | "REOPENED" | "REWARD" | "CHAT" | "SYSTEM">'.
+src/verifications/verifications.service.ts(446,49): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/verifications/verifications.service.ts(520,26): error TS2339: Property 'VERIFICATION_UPDATE' does not exist on type 'LiteralEnum<"RENTED" | "SOLD" | "DISCOUNT" | "REOPENED" | "REWARD" | "CHAT" | "SYSTEM">'.
+src/wallet/wallet.controller.ts(36,24): error TS2339: Property 'getLedger' does not exist on type 'WalletLedgerService'.

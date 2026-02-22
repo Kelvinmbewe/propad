@@ -1,0 +1,274 @@
+﻿#1 [internal] load local bake definitions
+#1 reading from stdin 516B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from api.Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 1.95kB 0.2s done
+#2 DONE 0.5s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 ...
+
+#4 [auth] library/node:pull token for registry-1.docker.io
+#4 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:20-slim
+#3 DONE 2.9s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 2B done
+#5 DONE 0.1s
+
+#6 [internal] load build context
+#6 DONE 0.0s
+
+#7 [builder  1/15] FROM docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520
+#7 resolve docker.io/library/node:20-slim@sha256:a270640213033657548b7ed57852709a0d2ee3b277f902f912367216aa8e9520 0.1s done
+#7 DONE 0.1s
+
+#6 [internal] load build context
+#6 transferring context: 105.97kB 9.0s
+#6 transferring context: 123.29kB 9.2s done
+#6 DONE 9.4s
+
+#8 [builder  5/15] COPY pnpm-workspace.yaml ./
+#8 CACHED
+
+#9 [builder  6/15] COPY tsconfig.json ./
+#9 CACHED
+
+#10 [builder  2/15] WORKDIR /app
+#10 CACHED
+
+#11 [builder  3/15] RUN apt-get update -y     && apt-get install -y openssl ca-certificates curl     && rm -rf /var/lib/apt/lists/*
+#11 CACHED
+
+#12 [builder  4/15] COPY package*.json ./
+#12 CACHED
+
+#13 [builder  7/15] COPY packages ./packages
+#13 CACHED
+
+#14 [builder  8/15] COPY apps/api ./apps/api
+#14 DONE 7.3s
+
+#15 [builder  9/15] COPY apps/api/prisma ./prisma
+#15 DONE 0.3s
+
+#16 [builder 10/15] RUN npm install -g pnpm@10.19.0
+#16 10.74 
+#16 10.74 added 1 package in 9s
+#16 10.74 
+#16 10.74 1 package is looking for funding
+#16 10.74   run `npm fund` for details
+#16 10.75 npm notice
+#16 10.75 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+#16 10.75 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+#16 10.75 npm notice To update run: npm install -g npm@11.7.0
+#16 10.75 npm notice
+#16 DONE 11.1s
+
+#17 [builder 11/15] RUN pnpm config set fetch-retries 5     && pnpm config set fetch-retry-mintimeout 20000     && pnpm config set fetch-retry-maxtimeout 120000
+#17 DONE 4.5s
+
+#18 [builder 12/15] RUN pnpm install --filter @propad/api... --frozen-lockfile=false
+#18 3.026 Scope: 3 of 7 workspace projects
+#18 4.044 Progress: resolved 1, reused 0, downloaded 0, added 0
+#18 5.049 Progress: resolved 10, reused 0, downloaded 0, added 0
+#18 6.074 
+#18 6.074    Ôò¡ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò«
+#18 6.074    Ôöé                                          Ôöé
+#18 6.074    Ôöé   Update available! 10.19.0 ÔåÆ 10.27.0.   Ôöé
+#18 6.074    Ôöé   Changelog: https://pnpm.io/v/10.27.0   Ôöé
+#18 6.074    Ôöé     To update, run: pnpm add -g pnpm     Ôöé
+#18 6.074    Ôöé                                          Ôöé
+#18 6.074    Ôò░ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔò»
+#18 6.074 
+#18 6.080 Progress: resolved 22, reused 0, downloaded 0, added 0
+#18 7.107 Progress: resolved 36, reused 0, downloaded 0, added 0
+#18 8.170 Progress: resolved 50, reused 0, downloaded 0, added 0
+#18 9.210 Progress: resolved 57, reused 0, downloaded 0, added 0
+#18 10.39 Progress: resolved 69, reused 0, downloaded 0, added 0
+#18 13.50 Progress: resolved 71, reused 0, downloaded 0, added 0
+#18 14.79 Progress: resolved 72, reused 0, downloaded 0, added 0
+#18 17.57 ÔÇëWARNÔÇë Request took 14167ms: https://registry.npmjs.org/prisma
+#18 19.19 Progress: resolved 73, reused 0, downloaded 0, added 0
+#18 22.94 ÔÇëWARNÔÇë Request took 17799ms: https://registry.npmjs.org/@prisma%2Fclient
+#18 25.41 Progress: resolved 75, reused 0, downloaded 0, added 0
+#18 26.41 Progress: resolved 91, reused 0, downloaded 0, added 0
+#18 27.41 Progress: resolved 123, reused 0, downloaded 0, added 0
+#18 28.41 Progress: resolved 173, reused 0, downloaded 0, added 0
+#18 29.42 Progress: resolved 221, reused 0, downloaded 0, added 0
+#18 30.43 Progress: resolved 259, reused 0, downloaded 0, added 0
+#18 31.43 Progress: resolved 282, reused 0, downloaded 0, added 0
+#18 32.55 Progress: resolved 320, reused 0, downloaded 0, added 0
+#18 33.67 Progress: resolved 373, reused 0, downloaded 0, added 0
+#18 34.70 Progress: resolved 399, reused 0, downloaded 0, added 0
+#18 35.72 Progress: resolved 476, reused 0, downloaded 0, added 0
+#18 36.72 Progress: resolved 526, reused 0, downloaded 0, added 0
+#18 37.72 Progress: resolved 536, reused 0, downloaded 0, added 0
+#18 38.73 Progress: resolved 545, reused 0, downloaded 0, added 0
+#18 39.73 Progress: resolved 559, reused 0, downloaded 0, added 0
+#18 40.73 Progress: resolved 583, reused 0, downloaded 0, added 0
+#18 41.74 Progress: resolved 586, reused 0, downloaded 0, added 0
+#18 42.74 Progress: resolved 591, reused 0, downloaded 0, added 0
+#18 43.74 Progress: resolved 612, reused 0, downloaded 0, added 0
+#18 44.75 Progress: resolved 642, reused 0, downloaded 0, added 0
+#18 45.77 Progress: resolved 690, reused 0, downloaded 0, added 0
+#18 46.77 Progress: resolved 750, reused 0, downloaded 0, added 0
+#18 47.77 Progress: resolved 830, reused 0, downloaded 0, added 0
+#18 48.79 Progress: resolved 844, reused 0, downloaded 0, added 0
+#18 49.81 Progress: resolved 845, reused 0, downloaded 0, added 0
+#18 50.02 Progress: resolved 845, reused 0, downloaded 0, added 0, done
+#18 51.34 .                                        | +704 ++++++++++++++++++++++++++++++++
+#18 54.89 ÔÇëWARNÔÇë Tarball download average speed 36 KiB/s (size 43 KiB) is below 50 KiB/s: https://registry.npmjs.org/node-fetch/-/node-fetch-2.7.0.tgz (GET)
+#18 105.3 .../node_modules/@prisma/engines postinstall$ node scripts/postinstall.js
+#18 105.5 .../node_modules/@nestjs/core postinstall$ opencollective || exit 0
+#18 105.6 .../node_modules/msgpackr-extract install$ node-gyp-build-optional-packages
+#18 105.7 .../esbuild@0.21.5/node_modules/esbuild postinstall$ node install.js
+#18 107.0 .../esbuild@0.21.5/node_modules/esbuild postinstall: Done
+#18 107.4 .../node_modules/msgpackr-extract install: Done
+#18 108.9 .../node_modules/@nestjs/core postinstall:                            Thanks for installing nest 
+#18 108.9 .../node_modules/@nestjs/core postinstall:                  Please consider donating to our open collective
+#18 108.9 .../node_modules/@nestjs/core postinstall:                         to help us maintain this package.
+#18 108.9 .../node_modules/@nestjs/core postinstall:                                          
+#18 108.9 .../node_modules/@nestjs/core postinstall:                             Number of contributors: 0
+#18 108.9 .../node_modules/@nestjs/core postinstall:                              Number of backers: 1157
+#18 109.3 .../node_modules/@nestjs/core postinstall:                              Annual budget: $129,083
+#18 109.3 .../node_modules/@nestjs/core postinstall:                              Current balance: $6,068
+#18 109.3 .../node_modules/@nestjs/core postinstall:                                          
+#18 109.3 .../node_modules/@nestjs/core postinstall:              Become a partner: https://opencollective.com/nest/donate
+#18 109.3 .../node_modules/@nestjs/core postinstall:                                          
+#18 110.4 .../node_modules/@nestjs/core postinstall: Done
+#18 115.0 .../node_modules/@prisma/engines postinstall: Done
+#18 116.0 .../prisma@5.22.0/node_modules/prisma preinstall$ node scripts/preinstall-entry.js
+#18 116.2 .../prisma@5.22.0/node_modules/prisma preinstall: Done
+#18 116.6 .../node_modules/@prisma/client postinstall$ node scripts/postinstall.js
+#18 119.0 .../node_modules/@prisma/client postinstall: Prisma schema loaded from prisma/schema.prisma
+#18 129.4 .../node_modules/@prisma/client postinstall: info The postinstall script automatically ran `prisma generate`, which failed.
+#18 129.4 .../node_modules/@prisma/client postinstall: The postinstall script still succeeds but won't generate the Prisma Client.
+#18 129.4 .../node_modules/@prisma/client postinstall: Please run `prisma generate` to see the errors.
+#18 129.6 .../node_modules/@prisma/client postinstall: Done
+#18 131.0 . preinstall$ node -e "const ua=process.env.npm_config_user_agent||''; if(!ua.includes('pnpm')) console.warn('[warn] Please use pnpm. Detected UA:', ua);"
+#18 131.1 . preinstall: Done
+#18 131.2 apps/api postinstall$ pnpm run prisma:generate
+#18 133.4 apps/api postinstall: > @propad/api@0.1.0 prisma:generate /app/apps/api
+#18 133.4 apps/api postinstall: > prisma generate
+#18 135.1 apps/api postinstall: Environment variables loaded from .env
+#18 135.1 apps/api postinstall: Prisma schema loaded from prisma/schema.prisma
+#18 146.8 apps/api postinstall: Ô£ö Generated Prisma Client (v5.22.0) to ./node_modules/.prisma/client in 8.72s
+#18 146.8 apps/api postinstall: Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#18 146.8 apps/api postinstall: Tip: Easily identify and fix slow SQL queries in your app. Optimize helps you enhance your visibility: https://pris.ly/--optimize
+#18 147.4 apps/api postinstall: Done
+#18 147.9 Done in 2m 25.9s using pnpm v10.19.0
+#18 DONE 149.7s
+
+#19 [builder 13/15] RUN pnpm --filter @propad/sdk run build
+#19 11.97 
+#19 11.97 > @propad/sdk@0.1.0 build /app/packages/sdk
+#19 11.97 > tsc -p tsconfig.json
+#19 11.97 
+#19 DONE 30.7s
+
+#20 [builder 14/15] RUN pnpm --filter @propad/api... run prisma:generate
+#20 7.125 Scope: 3 of 7 workspace projects
+#20 7.140 apps/api prisma:generate$ prisma generate
+#20 8.774 apps/api prisma:generate: Environment variables loaded from .env
+#20 8.785 apps/api prisma:generate: Prisma schema loaded from prisma/schema.prisma
+#20 24.59 apps/api prisma:generate: Ô£ö Generated Prisma Client (v5.22.0) to ./node_modules/.prisma/client in 11.65s
+#20 24.59 apps/api prisma:generate: Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#20 24.59 apps/api prisma:generate: Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+#20 27.68 apps/api prisma:generate: Done
+#20 DONE 43.9s
+
+#21 [builder 15/15] RUN pnpm --filter @propad/api... run build
+#21 6.925 Scope: 3 of 7 workspace projects
+#21 6.935 packages/config build$ tsc -p tsconfig.json
+#21 6.937 packages/sdk build$ tsc -p tsconfig.json
+#21 19.74 packages/config build: Done
+#21 31.75 packages/sdk build: Done
+#21 31.76 apps/api build$ nest build
+#21 65.50 apps/api build: [96msrc/payments/payments.service.ts[0m:[93m180[0m:[93m11[0m - [91merror[0m[90m TS2739: [0mType '{ PROPERTY_VERIFICATION: string; AGENT_ASSIGNMENT: string; FEATURED_LISTING: string; TRUST_BOOST: string; IN_HOUSE_ADVERT_BUYING: string; IN_HOUSE_ADVERT_SELLING: string; PREMIUM_VERIFICATION: string; OTHER: string; }' is missing the following properties from type 'Record<ChargeableItemType, string>': PROPERTY_LISTING, PROMO_BOOST, ADVERTISEMENT
+#21 65.51 apps/api build: [7m180[0m     const names: Record<ChargeableItemType, string> = {
+#21 65.51 apps/api build: [7m   [0m [91m          ~~~~~[0m
+#21 65.51 apps/api build: [96msrc/payments/payouts.service.ts[0m:[93m267[0m:[93m9[0m - [91merror[0m[90m TS2345: [0mArgument of type '"PAYOUT"' is not assignable to parameter of type 'WalletLedgerSourceType'.
+#21 65.52 apps/api build: [7m267[0m         WalletLedgerSourceType.PAYOUT,
+#21 65.52 apps/api build: [7m   [0m [91m        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 65.53 apps/api build: [96msrc/payments/payouts.service.ts[0m:[93m520[0m:[93m11[0m - [91merror[0m[90m TS2345: [0mArgument of type '"ADJUSTMENT"' is not assignable to parameter of type 'WalletLedgerSourceType'.
+#21 65.53 apps/api build: [7m520[0m           WalletLedgerSourceType.ADJUSTMENT,
+#21 65.53 apps/api build: [7m   [0m [91m          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 65.54 apps/api build: [96msrc/payments/referrals.service.ts[0m:[93m75[0m:[93m7[0m - [91merror[0m[90m TS2345: [0mArgument of type '"REFERRAL"' is not assignable to parameter of type 'WalletLedgerSourceType'.
+#21 65.54 apps/api build: [7m75[0m       WalletLedgerSourceType.REFERRAL,
+#21 65.55 apps/api build: [7m  [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+#21 65.55 apps/api build: Found 4 error(s).
+#21 65.66 apps/api build: Failed
+#21 66.00 /app/apps/api:
+#21 66.00 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/api@0.1.0 build: `nest build`
+#21 66.00 Exit status 1
+#21 ERROR: process "/bin/sh -c pnpm --filter @propad/api... run build" did not complete successfully: exit code: 1
+------
+ > [builder 15/15] RUN pnpm --filter @propad/api... run build:
+65.53 apps/api build: [7m520[0m           WalletLedgerSourceType.ADJUSTMENT,
+65.53 apps/api build: [7m   [0m [91m          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+65.54 apps/api build: [96msrc/payments/referrals.service.ts[0m:[93m75[0m:[93m7[0m - [91merror[0m[90m TS2345: [0mArgument of type '"REFERRAL"' is not assignable to parameter of type 'WalletLedgerSourceType'.
+65.54 apps/api build: [7m75[0m       WalletLedgerSourceType.REFERRAL,
+65.55 apps/api build: [7m  [0m [91m      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+65.55 apps/api build: Found 4 error(s).
+65.66 apps/api build: Failed
+66.00 /app/apps/api:
+66.00 ÔÇëERR_PNPM_RECURSIVE_RUN_FIRST_FAILÔÇë @propad/api@0.1.0 build: `nest build`
+66.00 Exit status 1
+------
+docker : 
+api.Dockerfile:33
+At line:1 char:1
++ docker compose 
+build api 2>&1 | 
+Out-File -FilePath 
+"c:\projects\propa 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (api.Doc   
+ kerfile:33:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+
+--------------------
+
+  31 |     RUN pnpm 
+--filter @propad/sdk 
+run build
+
+  32 |     RUN pnpm 
+--filter 
+@propad/api... run 
+prisma:generate
+
+  33 | >>> RUN pnpm 
+--filter 
+@propad/api... run 
+build
+
+  34 |     
+
+  35 |     
+
+--------------------
+
+failed to solve: 
+process "/bin/sh -c 
+pnpm --filter 
+@propad/api... run 
+build" did not 
+complete 
+successfully: exit 
+code: 1
+

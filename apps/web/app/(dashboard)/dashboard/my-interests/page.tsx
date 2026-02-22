@@ -1,10 +1,11 @@
 import { Metadata } from 'next';
 import { auth } from '@/auth';
-import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/formatters';
 import { PropertyImage } from '@/components/property-image';
+import { serverApiRequest } from '@/lib/server-api';
+import { getImageUrl } from '@/lib/image-url';
 
 export const metadata: Metadata = {
   title: 'My Interests | PropAd'
@@ -12,28 +13,35 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-async function getUserInterests(userId: string) {
-  const interests = await prisma.interest.findMany({
-    where: { userId },
-    include: {
-      property: {
-        select: {
-          id: true,
-          title: true,
-          price: true,
-          currency: true,
-          type: true,
-          listingIntent: true,
-          city: { select: { name: true } },
-          suburb: { select: { name: true } },
-          media: { take: 1, select: { url: true } }
-        }
-      }
-    },
-    orderBy: { createdAt: 'desc' }
-  });
+interface Interest {
+  id: string;
+  message: string | null;
+  offerAmount: number | null;
+  status: string;
+  createdAt: string;
+  property: {
+    id: string;
+    title: string;
+    price: number;
+    currency: string;
+    type: string;
+    listingIntent: string;
+    city?: { name: string };
+    suburb?: { name: string };
+    media?: { url: string }[];
+  };
+}
 
-  return interests;
+async function getUserInterests(userId: string): Promise<Interest[]> {
+  try {
+    // TODO: Implement API endpoint
+    // return await serverApiRequest<Interest[]>('/interests/my');
+    console.warn('[my-interests/page.tsx] getUserInterests - API endpoint not yet implemented');
+    return [];
+  } catch (error) {
+    console.error('Failed to fetch user interests:', error);
+    return [];
+  }
 }
 
 export default async function MyInterestsPage() {
@@ -65,12 +73,9 @@ export default async function MyInterestsPage() {
         ) : (
           <ul role="list" className="divide-y divide-slate-200">
             {interests.map((interest) => {
-              const property = interest.property as any;
+              const property = interest.property;
               const location = [property.suburb?.name, property.city?.name].filter(Boolean).join(', ') || 'Location not specified';
-              // Convert Decimal to number if needed (Prisma Decimal has toNumber() method)
-              const priceValue = property.price && typeof property.price === 'object' && 'toNumber' in property.price
-                ? property.price.toNumber()
-                : Number(property.price);
+              const priceValue = typeof property.price === 'number' ? property.price : Number(property.price);
               const price = formatCurrency(priceValue, property.currency);
               const listingIntent = property.listingIntent === 'TO_RENT' ? 'For Rent' : 'For Sale';
 
@@ -82,9 +87,7 @@ export default async function MyInterestsPage() {
                         {property.media?.[0]?.url && (
                           <Link href={`/properties/${property.id}`} className="flex-shrink-0">
                             <PropertyImage
-                              src={property.media[0].url.startsWith('http') 
-                                ? property.media[0].url 
-                                : `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'}${property.media[0].url}`}
+                              src={getImageUrl(property.media[0].url)}
                               alt={property.title}
                               className="h-24 w-32 rounded-lg object-cover"
                             />
@@ -109,12 +112,7 @@ export default async function MyInterestsPage() {
                           )}
                           {interest.offerAmount !== null && interest.offerAmount !== undefined && (
                             <p className="mt-1 text-sm font-medium text-slate-700">
-                              Your offer: {formatCurrency(
-                                interest.offerAmount && typeof interest.offerAmount === 'object' && 'toNumber' in interest.offerAmount
-                                  ? interest.offerAmount.toNumber()
-                                  : Number(interest.offerAmount),
-                                property.currency
-                              )}
+                              Your offer: {formatCurrency(Number(interest.offerAmount), property.currency)}
                             </p>
                           )}
                           <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
@@ -143,4 +141,3 @@ export default async function MyInterestsPage() {
     </div>
   );
 }
-

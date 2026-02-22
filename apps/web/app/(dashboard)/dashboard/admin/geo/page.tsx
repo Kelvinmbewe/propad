@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
 import { notify } from '@propad/ui';
 import type { GeoSearchResult, PendingGeo } from '@propad/sdk';
-import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
+import { useSdkClient } from '@/hooks/use-sdk-client';
+import { ClientState } from '@/components/client-state';
 
 const LEVEL_OPTIONS = [
   { label: 'All levels', value: '' },
@@ -35,7 +37,7 @@ export default function GeoAdminPage() {
 }
 
 function GeoAdminPanel() {
-  const sdk = useAuthenticatedSDK();
+  const { sdk, status: clientStatus, message } = useSdkClient();
   const queryClient = useQueryClient();
   const [level, setLevel] = useState<string>('');
   const [status, setStatus] = useState<string>('PENDING');
@@ -44,13 +46,17 @@ function GeoAdminPanel() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['geo:pending', level, status, search],
-    enabled: Boolean(sdk),
-    queryFn: () =>
-      sdk!.geo.listPending({
+    enabled: clientStatus === 'ready',
+    queryFn: () => {
+      if (!sdk) {
+        return [];
+      }
+      return sdk.geo.listPending({
         level: level || undefined,
         status: status || undefined,
         search: search.trim() || undefined
-      })
+      });
+    }
   });
 
   const selected = useMemo<PendingGeo | null>(() => {
@@ -75,12 +81,22 @@ function GeoAdminPanel() {
 
   const duplicatesQuery = useQuery({
     queryKey: ['geo:duplicates', selected?.id, selected?.proposedName],
-    enabled: Boolean(sdk && selected?.proposedName),
-    queryFn: () => sdk!.geo.search(selected?.proposedName ?? '')
+    enabled: clientStatus === 'ready' && Boolean(selected?.proposedName),
+    queryFn: () => {
+      if (!sdk) {
+        return [];
+      }
+      return sdk.geo.search(selected?.proposedName ?? '');
+    }
   });
 
   const approveMutation = useMutation({
-    mutationFn: (id: string) => sdk!.geo.approvePending(id),
+    mutationFn: (id: string) => {
+      if (!sdk) {
+        throw new Error('Geo client not ready');
+      }
+      return sdk.geo.approvePending(id);
+    },
     onSuccess: () => {
       notify.success('Pending geo approved');
       queryClient.invalidateQueries({ queryKey: ['geo:pending'] });
@@ -91,7 +107,12 @@ function GeoAdminPanel() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: (id: string) => sdk!.geo.rejectPending(id),
+    mutationFn: (id: string) => {
+      if (!sdk) {
+        throw new Error('Geo client not ready');
+      }
+      return sdk.geo.rejectPending(id);
+    },
     onSuccess: () => {
       notify.success('Pending geo rejected');
       queryClient.invalidateQueries({ queryKey: ['geo:pending'] });
@@ -103,7 +124,7 @@ function GeoAdminPanel() {
 
   const mergeMutation = useMutation({
     mutationFn: ({ id, targetId }: { id: string; targetId: string }) =>
-      sdk!.geo.mergePending(id, targetId),
+      sdk ? sdk.geo.mergePending(id, targetId) : Promise.reject(new Error('Geo client not ready')),
     onSuccess: () => {
       notify.success('Pending geo merged');
       queryClient.invalidateQueries({ queryKey: ['geo:pending'] });
@@ -113,8 +134,8 @@ function GeoAdminPanel() {
     }
   });
 
-  if (!sdk) {
-    return <p className="text-sm text-neutral-500">Preparing admin client…</p>;
+  if (clientStatus !== 'ready') {
+    return <ClientState status={clientStatus} message={message} title="Geo moderation" />;
   }
 
   return (

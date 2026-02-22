@@ -14,8 +14,18 @@ fi
 
 echo "Running database migrations..."
 cd /app/apps/api
-npx prisma migrate deploy
+
+if [ "$SKIP_MIGRATIONS" = "true" ]; then
+  echo "Skipping migrations (SKIP_MIGRATIONS=true)."
+else
+  MIGRATIONS_TABLE=$(psql "$DATABASE_URL" -Atc "select to_regclass('public._prisma_migrations');" || echo "")
+  if [ -z "$MIGRATIONS_TABLE" ] || [ "$MIGRATIONS_TABLE" = "null" ]; then
+    echo "Skipping migrations (no _prisma_migrations table found)."
+  else
+    npx prisma migrate deploy
+  fi
+fi
 
 echo "Starting application..."
-cd /app
-node apps/api/dist/src/main.js
+cd /app/apps/api
+node dist/src/main.js

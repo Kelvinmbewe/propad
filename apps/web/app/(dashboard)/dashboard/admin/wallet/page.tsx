@@ -51,8 +51,8 @@ function KycQueueSection() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, nextStatus }: { id: string; nextStatus: string }) =>
-      sdk!.wallets.kyc.updateStatus(id, { status: nextStatus }),
+    mutationFn: ({ id, nextStatus, notes }: { id: string; nextStatus: string; notes?: string }) =>
+      sdk!.wallets.kyc.updateStatus(id, { status: nextStatus, notes }),
     onSuccess: () => {
       notify.success('KYC status updated');
       queryClient.invalidateQueries({ queryKey: ['wallet:kyc'] });
@@ -95,7 +95,8 @@ function KycQueueSection() {
               <thead className="bg-neutral-50 text-left text-xs font-medium uppercase tracking-wide text-neutral-500">
                 <tr>
                   <th className="px-3 py-2">Owner</th>
-                  <th className="px-3 py-2">ID type</th>
+                  <th className="px-3 py-2">Identity</th>
+                  <th className="px-3 py-2">Documents</th>
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Updated</th>
                   <th className="px-3 py-2 text-right">Actions</th>
@@ -103,12 +104,12 @@ function KycQueueSection() {
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {data.map((record) => (
-                  <KycRow
-                    key={record.id}
-                    record={record}
-                    onUpdate={(nextStatus) => updateMutation.mutate({ id: record.id, nextStatus })}
-                    disabled={updateMutation.isPending}
-                  />
+                    <KycRow
+                      key={record.id}
+                      record={record}
+                      onUpdate={(nextStatus, notes) => updateMutation.mutate({ id: record.id, nextStatus, notes })}
+                      disabled={updateMutation.isPending}
+                    />
                 ))}
               </tbody>
             </table>
@@ -125,36 +126,126 @@ function KycRow({
   disabled
 }: {
   record: KycRecord;
-  onUpdate: (status: string) => void;
+  onUpdate: (status: string, notes?: string) => void;
   disabled: boolean;
 }) {
+  const [notes, setNotes] = useState('');
+  const [overrideClicks, setOverrideClicks] = useState(0);
+  const isFinal = record.status === 'VERIFIED' || record.status === 'REJECTED';
+  const overrideEnabled = overrideClicks >= 5;
+  const actionLocked = isFinal && !overrideEnabled;
+  const profileLink =
+    record.ownerType === 'USER'
+      ? `/profiles/users/${record.ownerId}`
+      : `/profiles/companies/${record.ownerId}`;
+  const handleLockedClick = () => {
+    if (!actionLocked) return;
+    setOverrideClicks((current) => Math.min(current + 1, 5));
+  };
   return (
     <tr className="bg-white">
       <td className="px-3 py-2 font-medium text-neutral-900">
-        {record.ownerType} • {record.ownerId}
+        <div>
+          {record.ownerType} • {record.ownerId}
+        </div>
+        <div className="text-xs text-neutral-500">
+          {(record as any).ownerDetails?.name || (record as any).ownerDetails?.email || '—'}
+        </div>
+        <div className="text-xs">
+          <a
+            href={profileLink}
+            target="_blank"
+            rel="noreferrer"
+            className="text-emerald-600 hover:underline"
+          >
+            View profile
+          </a>
+        </div>
       </td>
-      <td className="px-3 py-2 text-neutral-500">{record.idType}</td>
+      <td className="px-3 py-2 text-neutral-500">
+        <div>{record.idType}</div>
+        <div className="text-xs">
+          {(record as any).ownerDetails?.idNumber || (record as any).ownerDetails?.registrationNumber || '—'}
+        </div>
+        <div className="text-xs text-neutral-400">
+          {(record as any).ownerDetails?.dateOfBirth ? new Date((record as any).ownerDetails?.dateOfBirth).toLocaleDateString() : ''}
+        </div>
+        {record.idExpiryDate && (
+          <div className="text-xs text-amber-600">
+            Expires {new Date(record.idExpiryDate).toLocaleDateString()}
+          </div>
+        )}
+        <div className="text-xs text-neutral-400">
+          {(record as any).ownerDetails?.addressLine1 || (record as any).ownerDetails?.address || '—'}
+        </div>
+      </td>
+      <td className="px-3 py-2 text-neutral-500">
+        <div className="space-y-1">
+          {record.docUrls.map((url, index) => (
+            <a
+              key={url}
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="block text-xs text-emerald-600 hover:underline"
+            >
+              {record.docTypes?.[index] || 'Document'}
+            </a>
+          ))}
+        </div>
+      </td>
       <td className="px-3 py-2 text-neutral-500">{record.status}</td>
       <td className="px-3 py-2 text-neutral-500">{formatDate(record.updatedAt)}</td>
       <td className="px-3 py-2 text-right">
         <div className="flex justify-end gap-2">
           <button
             type="button"
-            disabled={disabled}
-            onClick={() => onUpdate('VERIFIED')}
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+            aria-disabled={disabled || actionLocked}
+            onClick={() => {
+              if (actionLocked || disabled) {
+                handleLockedClick();
+                return;
+              }
+              onUpdate('VERIFIED', notes);
+            }}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium text-white transition ${
+              disabled || actionLocked
+                ? 'cursor-not-allowed bg-emerald-300'
+                : 'bg-emerald-600 hover:bg-emerald-700'
+            }`}
           >
             Approve
           </button>
           <button
             type="button"
-            disabled={disabled}
-            onClick={() => onUpdate('REJECTED')}
-            className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+            aria-disabled={disabled || actionLocked}
+            onClick={() => {
+              if (actionLocked || disabled) {
+                handleLockedClick();
+                return;
+              }
+              onUpdate('REJECTED', notes);
+            }}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium text-white transition ${
+              disabled || actionLocked
+                ? 'cursor-not-allowed bg-red-300'
+                : 'bg-red-600 hover:bg-red-700'
+            }`}
           >
             Reject
           </button>
         </div>
+        {isFinal && (
+          <p className="mt-1 text-[10px] text-neutral-400">
+            Click 5x to re-enable ({overrideClicks}/5)
+          </p>
+        )}
+        <input
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Review notes"
+          className="mt-2 w-full rounded-md border border-neutral-200 px-2 py-1 text-xs"
+        />
       </td>
     </tr>
   );

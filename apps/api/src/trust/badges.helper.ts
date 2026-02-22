@@ -1,6 +1,5 @@
-
 import { Injectable } from '@nestjs/common';
-import { User, Property, Agency, TrustTier, SiteVisitStatus, VerificationStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 export interface TrustBadge {
     id: string;
@@ -12,7 +11,7 @@ export interface TrustBadge {
 @Injectable()
 export class BadgesHelper {
 
-    getUserBadges(user: User & { siteVisitsAssigned?: any[] }): TrustBadge[] {
+    getUserBadges(user: any): TrustBadge[] {
         const badges: TrustBadge[] = [];
 
         // Identity
@@ -36,7 +35,7 @@ export class BadgesHelper {
         }
 
         // Site Visits
-        const completedVisits = user.siteVisitsAssigned?.filter(v => v.status === 'COMPLETED').length || 0;
+        const completedVisits = user.siteVisitsAssigned?.filter((v: any) => v.status === 'COMPLETED').length || 0;
         if (completedVisits > 0) {
             badges.push({
                 id: 'SITE_VISIT_CONTRIBUTOR',
@@ -49,7 +48,7 @@ export class BadgesHelper {
         return badges;
     }
 
-    getPropertyBadges(property: Property & { siteVisits?: any[] }): TrustBadge[] {
+    getPropertyBadges(property: any): TrustBadge[] {
         const badges: TrustBadge[] = [];
 
         if (property.status === 'VERIFIED') { // Assuming PropertyStatus.VERIFIED exists now
@@ -62,7 +61,7 @@ export class BadgesHelper {
         }
 
         // Site Visit Verified
-        const siteVisit = property.siteVisits?.find(v => v.status === 'COMPLETED');
+        const siteVisit = property.siteVisits?.find((v: any) => v.status === 'COMPLETED');
         if (siteVisit) {
             badges.push({
                 id: 'SITE_VISITED',
@@ -84,7 +83,7 @@ export class BadgesHelper {
         return badges;
     }
 
-    getAgencyBadges(agency: Agency): TrustBadge[] {
+    getAgencyBadges(agency: any): TrustBadge[] {
         const badges: TrustBadge[] = [];
 
         if (agency.verificationScore >= 40) { // Arbitrary threshold for verified agency

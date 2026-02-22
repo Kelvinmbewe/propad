@@ -3,20 +3,18 @@
 import { useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { createSDK } from '@propad/sdk/browser';
-
-// Access NEXT_PUBLIC_* directly so it's inlined at build time
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+import { getPublicApiBaseUrl } from '@/lib/api-base-url';
 
 export function useAuthenticatedSDK() {
   const { data } = useSession();
   const token = data?.accessToken;
+  const apiBaseUrl = getPublicApiBaseUrl();
 
   return useMemo(() => {
-    if (!token || !API_BASE_URL) {
+    if (!token || !apiBaseUrl) {
       return null;
     }
 
-    return createSDK({ baseUrl: API_BASE_URL, token });
-  }, [token]);
+    return createSDK({ baseUrl: apiBaseUrl, token });
+  }, [apiBaseUrl, token]);
 }
-

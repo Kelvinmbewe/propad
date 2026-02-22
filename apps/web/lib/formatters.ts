@@ -1,4 +1,4 @@
-export function formatCurrency(value: number | null | undefined, currency: string) {
+export function formatCurrency(value: number | null | undefined, currency: string = 'USD') {
   if (value === undefined || value === null || Number.isNaN(value)) {
     return '—';
   }

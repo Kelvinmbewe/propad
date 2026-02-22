@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ChargeableItemType, Currency, Prisma } from '@prisma/client';
+import { ChargeableItemType } from '@propad/config';
+import { Currency, Prisma } from '@prisma/client';
+// import { ChargeableItemType, Currency, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 
@@ -126,7 +128,7 @@ export class PricingService {
       }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: 'pricingRule.updated',
       actorId,
       targetType: 'pricingRule',
@@ -144,7 +146,7 @@ export class PricingService {
       data: { isActive }
     });
 
-    await this.audit.log({
+    await this.audit.logAction({
       action: isActive ? 'pricingRule.activated' : 'pricingRule.deactivated',
       actorId,
       targetType: 'pricingRule',

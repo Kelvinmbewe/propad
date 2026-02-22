@@ -6,32 +6,32 @@ import { ShortLinksService } from '../shortlinks/shortlinks.service';
 import { InboundMessageDto } from './dto/inbound-message.dto';
 
 const TYPE_KEYWORDS: Record<string, PropertyType> = {
-  room: PropertyType.ROOM,
-  rooms: PropertyType.ROOM,
-  cottage: PropertyType.COTTAGE,
-  cottages: PropertyType.COTTAGE,
-  house: PropertyType.HOUSE,
-  houses: PropertyType.HOUSE,
-  apartment: PropertyType.APARTMENT,
-  apartments: PropertyType.APARTMENT,
-  flat: PropertyType.APARTMENT,
-  flats: PropertyType.APARTMENT,
-  townhouse: PropertyType.TOWNHOUSE,
-  townhouses: PropertyType.TOWNHOUSE,
-  plot: PropertyType.PLOT,
-  plots: PropertyType.PLOT,
-  land: PropertyType.LAND,
-  office: PropertyType.COMMERCIAL_OFFICE,
-  offices: PropertyType.COMMERCIAL_OFFICE,
-  retail: PropertyType.COMMERCIAL_RETAIL,
-  shop: PropertyType.COMMERCIAL_RETAIL,
-  industrial: PropertyType.COMMERCIAL_INDUSTRIAL,
-  warehouse: PropertyType.WAREHOUSE,
-  warehouses: PropertyType.WAREHOUSE,
-  farm: PropertyType.FARM,
-  farms: PropertyType.FARM,
-  mixed: PropertyType.MIXED_USE,
-  other: PropertyType.OTHER
+  room: 'ROOM' as PropertyType,
+  rooms: 'ROOM' as PropertyType,
+  cottage: 'COTTAGE' as PropertyType,
+  cottages: 'COTTAGE' as PropertyType,
+  house: 'HOUSE' as PropertyType,
+  houses: 'HOUSE' as PropertyType,
+  apartment: 'APARTMENT' as PropertyType,
+  apartments: 'APARTMENT' as PropertyType,
+  flat: 'APARTMENT' as PropertyType,
+  flats: 'APARTMENT' as PropertyType,
+  townhouse: 'TOWNHOUSE' as PropertyType,
+  townhouses: 'TOWNHOUSE' as PropertyType,
+  plot: 'PLOT' as PropertyType,
+  plots: 'PLOT' as PropertyType,
+  land: 'LAND' as PropertyType,
+  office: 'COMMERCIAL_OFFICE' as PropertyType,
+  offices: 'COMMERCIAL_OFFICE' as PropertyType,
+  retail: 'COMMERCIAL_RETAIL' as PropertyType,
+  shop: 'COMMERCIAL_RETAIL' as PropertyType,
+  industrial: 'COMMERCIAL_INDUSTRIAL' as PropertyType,
+  warehouse: 'WAREHOUSE' as PropertyType,
+  warehouses: 'WAREHOUSE' as PropertyType,
+  farm: 'FARM' as PropertyType,
+  farms: 'FARM' as PropertyType,
+  mixed: 'MIXED_USE' as PropertyType,
+  other: 'OTHER' as PropertyType
 };
 
 interface ParsedQuery {
@@ -165,33 +165,33 @@ export class WhatsAppService {
 
   private formatType(type: PropertyType) {
     switch (type) {
-      case PropertyType.ROOM:
+      case 'ROOM':
         return 'Room';
-      case PropertyType.COTTAGE:
+      case 'COTTAGE':
         return 'Cottage';
-      case PropertyType.HOUSE:
+      case 'HOUSE':
         return 'House';
-      case PropertyType.APARTMENT:
+      case 'APARTMENT':
         return 'Apartment';
-      case PropertyType.TOWNHOUSE:
+      case 'TOWNHOUSE':
         return 'Townhouse';
-      case PropertyType.PLOT:
+      case 'PLOT':
         return 'Plot';
-      case PropertyType.LAND:
+      case 'LAND':
         return 'Land';
-      case PropertyType.COMMERCIAL_OFFICE:
+      case 'COMMERCIAL_OFFICE':
         return 'Office space';
-      case PropertyType.COMMERCIAL_RETAIL:
+      case 'COMMERCIAL_RETAIL':
         return 'Retail space';
-      case PropertyType.COMMERCIAL_INDUSTRIAL:
+      case 'COMMERCIAL_INDUSTRIAL':
         return 'Industrial space';
-      case PropertyType.WAREHOUSE:
+      case 'WAREHOUSE':
         return 'Warehouse';
-      case PropertyType.FARM:
+      case 'FARM':
         return 'Farm property';
-      case PropertyType.MIXED_USE:
+      case 'MIXED_USE':
         return 'Mixed-use property';
-      case PropertyType.OTHER:
+      case 'OTHER':
         return 'Property';
       default:
         return type;

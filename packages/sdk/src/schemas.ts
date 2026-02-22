@@ -1,17 +1,22 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 const decimalToNumber = z.preprocess((value) => {
   if (value === null || value === undefined) {
     return undefined;
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const parsed = Number(value);
     return Number.isNaN(parsed) ? undefined : parsed;
   }
-  if (typeof value === 'number') {
+  if (typeof value === "number") {
     return value;
   }
-  if (typeof value === 'object' && value !== null && 'toNumber' in value && typeof value.toNumber === 'function') {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toNumber" in value &&
+    typeof value.toNumber === "function"
+  ) {
     try {
       return value.toNumber();
     } catch (error) {
@@ -24,7 +29,7 @@ const decimalToNumber = z.preprocess((value) => {
 export const DashboardMetricsSchema = z.object({
   activeListings: z.number(),
   pendingVerifications: z.number(),
-  rewardPoolUsd: z.number()
+  rewardPoolUsd: z.number(),
 });
 
 export const AdminOverviewMetricsSchema = z.object({
@@ -33,36 +38,36 @@ export const AdminOverviewMetricsSchema = z.object({
     verified: z.number(),
     pendingVerification: z.number(),
     new7d: z.number(),
-    growth7dPct: z.number()
+    growth7dPct: z.number(),
   }),
   leads: z.object({
     total30d: z.number(),
     qualified30d: z.number(),
-    conversionRate30d: z.number()
+    conversionRate30d: z.number(),
   }),
   agents: z.object({
     total: z.number(),
     active30d: z.number(),
-    new7d: z.number()
+    new7d: z.number(),
   }),
   revenue: z.object({
     total30dUsd: z.number(),
     averageDailyUsd: z.number(),
     previous30dUsd: z.number(),
-    deltaPct: z.number()
+    deltaPct: z.number(),
   }),
   payouts: z.object({
     pendingCount: z.number(),
     pendingUsd: z.number(),
-    settled30dUsd: z.number()
+    settled30dUsd: z.number(),
   }),
   traffic: z.object({
     visits30d: z.number(),
     uniqueSessions30d: z.number(),
     impressions30d: z.number(),
     clicks30d: z.number(),
-    ctr30d: z.number()
-  })
+    ctr30d: z.number(),
+  }),
 });
 
 export const PropertyMediaSchema = z
@@ -70,7 +75,7 @@ export const PropertyMediaSchema = z
     id: z.string(),
     url: z.string(),
     kind: z.string(),
-    hasGps: z.boolean().optional().nullable()
+    hasGps: z.boolean().optional().nullable(),
   })
   .passthrough();
 
@@ -82,7 +87,7 @@ const PropertyCommercialFieldsSchema = z
     powerPhase: z.string().optional(),
     loadingBay: z.boolean().optional(),
     zoning: z.string().optional(),
-    complianceDocsUrl: z.string().optional()
+    complianceDocsUrl: z.string().optional(),
   })
   .strict()
   .partial();
@@ -90,7 +95,7 @@ const PropertyCommercialFieldsSchema = z
 const LocationEntitySchema = z
   .object({
     id: z.string(),
-    name: z.string()
+    name: z.string(),
   })
   .passthrough();
 
@@ -99,7 +104,7 @@ const CountrySummarySchema = z
     id: z.string(),
     name: z.string(),
     iso2: z.string(),
-    phoneCode: z.string()
+    phoneCode: z.string(),
   })
   .passthrough();
 
@@ -113,14 +118,16 @@ const PropertyLocationSchema = z.object({
   suburbId: z.string().nullish(),
   suburb: LocationEntitySchema.nullish(),
   pendingGeoId: z.string().nullish(),
-  pendingGeo: z.object({
-    id: z.string(),
-    proposedName: z.string(),
-    level: z.string(),
-    status: z.string()
-  }).nullish(),
+  pendingGeo: z
+    .object({
+      id: z.string(),
+      proposedName: z.string(),
+      level: z.string(),
+      status: z.string(),
+    })
+    .nullish(),
   lat: z.number().nullish(),
-  lng: z.number().nullish()
+  lng: z.number().nullish(),
 });
 
 export const PropertySchema = z
@@ -131,6 +138,10 @@ export const PropertySchema = z
     listingIntent: z.string().nullish(),
     currency: z.string(),
     price: decimalToNumber,
+    ownerId: z.string().nullish(),
+    managedByType: z.string().nullish(),
+    managedById: z.string().nullish(),
+    assignedAgentId: z.string().nullish(),
     areaSqm: z.number().nullish(),
     status: z.string().optional(),
     countryId: z.string().nullish(),
@@ -157,21 +168,27 @@ export const PropertySchema = z
     isManaged: z.boolean().default(false),
     commercialFields: PropertyCommercialFieldsSchema.nullish(),
     verificationScore: z.number().default(0),
-    verificationLevel: z.enum(['NONE', 'BASIC', 'TRUSTED', 'VERIFIED']).default('NONE'),
+    verificationLevel: z
+      .enum(["NONE", "BASIC", "TRUSTED", "VERIFIED"])
+      .default("NONE"),
     createdAt: z.string().optional(),
-    updatedAt: z.string().optional()
+    updatedAt: z.string().optional(),
   })
   .passthrough();
 
 const PropertySearchFacetsSchema = z.object({
   price: z.object({
     min: z.number(),
-    max: z.number()
+    max: z.number(),
   }),
   types: z.array(z.object({ type: z.string(), count: z.number() })),
   suburbs: z.array(
-    z.object({ suburbId: z.string(), suburbName: z.string().nullish(), count: z.number() })
-  )
+    z.object({
+      suburbId: z.string(),
+      suburbName: z.string().nullish(),
+      count: z.number(),
+    }),
+  ),
 });
 
 export const PropertySearchResultSchema = z.object({
@@ -181,7 +198,7 @@ export const PropertySearchResultSchema = z.object({
   total: z.number(),
   totalPages: z.number(),
   hasNextPage: z.boolean(),
-  facets: PropertySearchFacetsSchema
+  facets: PropertySearchFacetsSchema,
 });
 
 export const GeoSuburbSchema = z.object({
@@ -190,15 +207,15 @@ export const GeoSuburbSchema = z.object({
   polygon: z.array(z.tuple([z.number(), z.number()])),
   bbox: z.object({
     northEast: z.object({ lat: z.number(), lng: z.number() }),
-    southWest: z.object({ lat: z.number(), lng: z.number() })
-  })
+    southWest: z.object({ lat: z.number(), lng: z.number() }),
+  }),
 });
 
 export const UserSummarySchema = z
   .object({
     id: z.string(),
     name: z.string().nullish(),
-    role: z.string()
+    role: z.string(),
   })
   .passthrough();
 
@@ -208,7 +225,7 @@ export const AgencySummarySchema = z
     name: z.string(),
     logoUrl: z.string().nullish(),
     status: z.string(),
-    kycStatus: z.string().nullish()
+    kycStatus: z.string().nullish(),
   })
   .passthrough();
 
@@ -220,7 +237,7 @@ export const AgencyMemberSchema = z
     role: z.string(),
     joinedAt: z.string(),
     isActive: z.boolean(),
-    user: UserSummarySchema.nullish()
+    user: UserSummarySchema.nullish(),
   })
   .passthrough();
 
@@ -237,7 +254,7 @@ export const ManagementContractSchema = z
     notes: z.string().nullish(),
     status: z.string(),
     createdAt: z.string(),
-    updatedAt: z.string()
+    updatedAt: z.string(),
   })
   .passthrough();
 
@@ -249,26 +266,27 @@ export const AgencySchema = AgencySummarySchema.extend({
   createdAt: z.string(),
   updatedAt: z.string(),
   members: z.array(AgencyMemberSchema).optional(),
-  contracts: z.array(ManagementContractSchema).optional()
+  contracts: z.array(ManagementContractSchema).optional(),
 });
 
 export const AgentProfileSummarySchema = z.object({
   verifiedListingsCount: z.number(),
-  leadsCount: z.number()
+  leadsCount: z.number(),
 });
 
 export const AgentSummarySchema = z.object({
   id: z.string(),
   name: z.string().nullish(),
   phone: z.string().nullish(),
-  agentProfile: AgentProfileSummarySchema.nullish()
+  trustScore: z.number().optional(),
+  agentProfile: AgentProfileSummarySchema.nullish(),
 });
 
 export const DailyAdsPointSchema = z.object({
   date: z.string(),
   impressions: z.number(),
   clicks: z.number(),
-  revenueUSD: z.number()
+  revenueUSD: z.number(),
 });
 
 export const TopAgentPerformanceSchema = z.object({
@@ -277,14 +295,14 @@ export const TopAgentPerformanceSchema = z.object({
   verifiedListings: z.number(),
   validLeads: z.number(),
   monthPoints: z.number(),
-  estPayoutUSD: z.number()
+  estPayoutUSD: z.number(),
 });
 
 export const TopAgentsResponseSchema = z.object({
   generatedAt: z.string(),
   items: TopAgentPerformanceSchema.array(),
   limit: z.number(),
-  totalAgents: z.number()
+  totalAgents: z.number(),
 });
 
 export const GeoListingsResponseSchema = z.object({
@@ -297,9 +315,9 @@ export const GeoListingsResponseSchema = z.object({
       verifiedListings: z.number(),
       pendingListings: z.number(),
       averagePriceUsd: z.number().nullable(),
-      marketSharePct: z.number()
-    })
-  )
+      marketSharePct: z.number(),
+    }),
+  ),
 });
 
 export const RewardsEstimateSchema = z.object({
@@ -313,7 +331,7 @@ export const RewardsEstimateSchema = z.object({
   pendingWalletUsd: z.number(),
   poolUsd: z.number(),
   estimatedShareUsd: z.number(),
-  nextPayoutEta: z.string()
+  nextPayoutEta: z.string(),
 });
 
 export const AgentAssignmentSchema = z
@@ -326,7 +344,32 @@ export const AgentAssignmentSchema = z
     landlordPaysFee: z.boolean(),
     createdAt: z.string(),
     agent: UserSummarySchema.nullish(),
-    landlord: UserSummarySchema.nullish()
+    landlord: UserSummarySchema.nullish(),
+  })
+  .passthrough();
+
+export const ListingManagementAssignmentSchema = z
+  .object({
+    id: z.string(),
+    propertyId: z.string(),
+    ownerId: z.string(),
+    managedByType: z.string(),
+    managedById: z.string().nullish(),
+    assignedAgentId: z.string().nullish(),
+    serviceFeeUsdCents: z.number().nullish(),
+    landlordPaysFee: z.boolean(),
+    status: z.string(),
+    createdById: z.string().nullish(),
+    acceptedById: z.string().nullish(),
+    acceptedAt: z.string().nullish(),
+    declinedAt: z.string().nullish(),
+    endedAt: z.string().nullish(),
+    notes: z.string().nullish(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    assignedAgent: UserSummarySchema.nullish(),
+    createdBy: UserSummarySchema.nullish(),
+    acceptedBy: UserSummarySchema.nullish(),
   })
   .passthrough();
 
@@ -337,22 +380,34 @@ export const PropertyMessageSchema = z
     senderId: z.string(),
     recipientId: z.string(),
     body: z.string(),
+    moderationStatus: z.string().nullish(),
+    containsContactInfo: z.boolean().nullish(),
+    moderatedAt: z.string().nullish(),
+    moderatedById: z.string().nullish(),
+    moderationNotes: z.string().nullish(),
     createdAt: z.string(),
     readAt: z.string().nullish(),
     sender: UserSummarySchema.nullish(),
-    recipient: UserSummarySchema.nullish()
+    recipient: UserSummarySchema.nullish(),
   })
   .passthrough();
 
 export const PropertyManagementSchema = PropertySchema.extend({
   landlordId: z.string().nullish(),
   agentOwnerId: z.string().nullish(),
+  ownerId: z.string().nullish(),
+  managedByType: z.string().nullish(),
+  managedById: z.string().nullish(),
+  assignedAgentId: z.string().nullish(),
   dealConfirmedAt: z.string().nullish(),
   assignments: AgentAssignmentSchema.array().optional(),
+  managementAssignments: ListingManagementAssignmentSchema.array().optional(),
   landlord: UserSummarySchema.nullish(),
   agentOwner: UserSummarySchema.nullish(),
+  owner: UserSummarySchema.nullish(),
+  assignedAgent: UserSummarySchema.nullish(),
   agency: AgencySummarySchema.nullish(),
-  managementContracts: ManagementContractSchema.array().optional()
+  managementContracts: ManagementContractSchema.array().optional(),
 });
 
 export const AdImpressionSchema = z.object({
@@ -363,7 +418,7 @@ export const AdImpressionSchema = z.object({
   source: z.string().nullish(),
   sessionId: z.string(),
   revenueMicros: z.number(),
-  createdAt: z.string()
+  createdAt: z.string(),
 });
 
 export const ShortLinkSchema = z.object({
@@ -377,7 +432,7 @@ export const ShortLinkSchema = z.object({
   utmTerm: z.string().nullish(),
   utmContent: z.string().nullish(),
   clicks: z.number(),
-  createdAt: z.string()
+  createdAt: z.string(),
 });
 
 export const WhatsAppItemSchema = z.object({
@@ -387,25 +442,25 @@ export const WhatsAppItemSchema = z.object({
   bedrooms: z.number().nullish(),
   bathrooms: z.number().nullish(),
   shortLink: z.string(),
-  previewImage: z.string().nullish()
+  previewImage: z.string().nullish(),
 });
 
 export const WhatsAppResponseSchema = z.object({
   reply: z.string(),
-  items: z.array(WhatsAppItemSchema)
+  items: z.array(WhatsAppItemSchema),
 });
 
 export const FacebookDestinationSchema = z.object({
   endpoint: z.string(),
   status: z.string(),
-  id: z.string().optional()
+  id: z.string().optional(),
 });
 
 export const FacebookPublishResponseSchema = z.object({
   posted: z.boolean(),
   message: z.string(),
   shortLink: z.string(),
-  destinations: z.array(FacebookDestinationSchema)
+  destinations: z.array(FacebookDestinationSchema),
 });
 
 export const PendingGeoSchema = z.object({
@@ -417,9 +472,13 @@ export const PendingGeoSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   proposedBy: z
-    .object({ id: z.string(), name: z.string().nullish(), email: z.string().nullish() })
+    .object({
+      id: z.string(),
+      name: z.string().nullish(),
+      email: z.string().nullish(),
+    })
     .nullish(),
-  properties: z.array(z.object({ id: z.string() }))
+  properties: z.array(z.object({ id: z.string() })),
 });
 
 export const InvoiceLineSchema = z
@@ -430,7 +489,7 @@ export const InvoiceLineSchema = z
     qty: z.number(),
     unitPriceCents: z.number(),
     totalCents: z.number(),
-    metaJson: z.unknown().nullable()
+    metaJson: z.unknown().nullable(),
   })
   .passthrough();
 
@@ -442,7 +501,7 @@ export const FxRateSchema = z
     rateMicros: z.number(),
     date: z.string(),
     createdAt: z.string(),
-    updatedAt: z.string()
+    updatedAt: z.string(),
   })
   .passthrough();
 
@@ -462,7 +521,7 @@ export const InvoiceSchema = z
     lines: z.array(InvoiceLineSchema).default([]),
     promoBoost: z.object({ id: z.string() }).nullish(),
     campaign: z.object({ id: z.string() }).nullish(),
-    fxRate: FxRateSchema.nullish()
+    fxRate: FxRateSchema.nullish(),
   })
   .passthrough();
 
@@ -478,7 +537,12 @@ export const PaymentIntentSchema = z
     redirectUrl: z.string().nullish(),
     gatewayRef: z.string().nullish(),
     createdAt: z.string(),
-    invoice: InvoiceSchema.pick({ id: true, invoiceNo: true, status: true, currency: true }).nullish()
+    invoice: InvoiceSchema.pick({
+      id: true,
+      invoiceNo: true,
+      status: true,
+      currency: true,
+    }).nullish(),
   })
   .passthrough();
 
@@ -495,7 +559,12 @@ export const TransactionSchema = z
     result: z.string(),
     createdAt: z.string(),
     receiptPdfUrl: z.string().nullish(),
-    invoice: InvoiceSchema.pick({ id: true, invoiceNo: true, status: true, currency: true }).nullish()
+    invoice: InvoiceSchema.pick({
+      id: true,
+      invoiceNo: true,
+      status: true,
+      currency: true,
+    }).nullish(),
   })
   .passthrough();
 
@@ -507,10 +576,13 @@ export const KycRecordSchema = z
     idType: z.string(),
     idNumber: z.string(),
     docUrls: z.array(z.string()),
+    docTypes: z.array(z.string()).nullish(),
+    idExpiryDate: z.string().nullish(),
     status: z.string(),
     notes: z.string().nullish(),
+    ownerDetails: z.unknown().optional(),
     createdAt: z.string(),
-    updatedAt: z.string()
+    updatedAt: z.string(),
   })
   .passthrough();
 
@@ -524,7 +596,7 @@ export const PayoutAccountSchema = z
     detailsJson: z.unknown(),
     verifiedAt: z.string().nullish(),
     createdAt: z.string(),
-    updatedAt: z.string()
+    updatedAt: z.string(),
   })
   .passthrough();
 
@@ -541,10 +613,15 @@ export const PayoutRequestSchema = z
     createdAt: z.string(),
     updatedAt: z.string(),
     wallet: z
-      .object({ id: z.string(), ownerType: z.string(), ownerId: z.string(), balanceCents: z.number() })
+      .object({
+        id: z.string(),
+        ownerType: z.string(),
+        ownerId: z.string(),
+        balanceCents: z.number(),
+      })
       .passthrough()
       .nullish(),
-    payoutAccount: PayoutAccountSchema.nullish()
+    payoutAccount: PayoutAccountSchema.nullish(),
   })
   .passthrough();
 
@@ -556,7 +633,7 @@ export const AmlBlocklistEntrySchema = z.object({
   addedBy: z.string().nullish(),
   createdAt: z.string().nullish(),
   updatedAt: z.string().nullish(),
-  enabled: z.boolean()
+  enabled: z.boolean(),
 });
 
 export const WalletThresholdSchema = z.object({
@@ -565,9 +642,9 @@ export const WalletThresholdSchema = z.object({
   currency: z.string(),
   amountCents: z.number(),
   note: z.string().nullish(),
-  source: z.enum(['custom', 'env']),
+  source: z.enum(["custom", "env"]),
   createdAt: z.string().nullish(),
-  updatedAt: z.string().nullish()
+  updatedAt: z.string().nullish(),
 });
 
 export const GeoSearchResultSchema = z.object({
@@ -578,7 +655,7 @@ export const GeoSearchResultSchema = z.object({
   provinceId: z.string().nullish(),
   countryId: z.string().nullish(),
   cityName: z.string().nullish(),
-  provinceName: z.string().nullish()
+  provinceName: z.string().nullish(),
 });
 
 export type DashboardMetrics = z.infer<typeof DashboardMetricsSchema>;
@@ -588,9 +665,14 @@ export type AdImpression = z.infer<typeof AdImpressionSchema>;
 export type ShortLink = z.infer<typeof ShortLinkSchema>;
 export type WhatsAppItem = z.infer<typeof WhatsAppItemSchema>;
 export type WhatsAppResponse = z.infer<typeof WhatsAppResponseSchema>;
-export type FacebookPublishResponse = z.infer<typeof FacebookPublishResponseSchema>;
+export type FacebookPublishResponse = z.infer<
+  typeof FacebookPublishResponseSchema
+>;
 export type AgentSummary = z.infer<typeof AgentSummarySchema>;
 export type AgentAssignment = z.infer<typeof AgentAssignmentSchema>;
+export type ListingManagementAssignment = z.infer<
+  typeof ListingManagementAssignmentSchema
+>;
 export type PropertyMessage = z.infer<typeof PropertyMessageSchema>;
 export type PropertyManagement = z.infer<typeof PropertyManagementSchema>;
 export type UserSummary = z.infer<typeof UserSummarySchema>;
@@ -631,7 +713,8 @@ export const SiteVisitSchema = z
     createdAt: z.string(),
     updatedAt: z.string(),
     property: PropertySchema.nullish(),
-    requestedBy: UserSummarySchema.nullish()
+    requestedBy: UserSummarySchema.nullish(),
+    assignedModerator: UserSummarySchema.nullish(),
   })
   .passthrough();
 
@@ -644,14 +727,14 @@ export const RiskEventSchema = z
     scoreDelta: z.number(),
     notes: z.string().nullish(),
     resolvedBy: z.string().nullish(),
-    timestamp: z.string()
+    timestamp: z.string(),
   })
   .passthrough();
 
 export const RiskEntitySummarySchema = z.object({
   riskScore: z.number(),
   penaltyMultiplier: z.number(),
-  events: z.array(RiskEventSchema)
+  events: z.array(RiskEventSchema),
 });
 
 export type SiteVisit = z.infer<typeof SiteVisitSchema>;
@@ -662,11 +745,12 @@ export const AdminUserSchema = z.object({
   name: z.string().nullable(),
   email: z.string().nullable(),
   role: z.string(), // Keeping as string to avoid zod enum issues, frontend can cast if needed
+  status: z.string().nullable(),
   isVerified: z.boolean(),
   verificationScore: z.number(),
   trustScore: z.number(),
   kycStatus: z.string().nullable(),
-  createdAt: z.string()
+  createdAt: z.string(),
 });
 
 export const AdminAgencySchema = z.object({
@@ -677,9 +761,126 @@ export const AdminAgencySchema = z.object({
   verificationScore: z.number(),
   createdAt: z.string(),
   _count: z.object({
-    members: z.number()
-  })
+    members: z.number(),
+  }),
+});
+
+export const AuditLogSchema = z.object({
+  id: z.string(),
+  action: z.string(),
+  actorId: z.string().nullable(),
+  targetType: z.string(),
+  targetId: z.string().nullable(),
+  metadata: z.unknown().nullable(),
+  createdAt: z.string(),
+  actor: z
+    .object({
+      id: z.string(),
+      name: z.string().nullable(),
+      email: z.string().nullable(),
+    })
+    .nullable(),
 });
 
 export type AdminUser = z.infer<typeof AdminUserSchema>;
 export type AdminAgency = z.infer<typeof AdminAgencySchema>;
+export type AuditLog = z.infer<typeof AuditLogSchema>;
+
+export const ApplicationStatusSchema = z.enum([
+  "SUBMITTED",
+  "REVIEWING",
+  "SHORTLISTED",
+  "APPROVED",
+  "REJECTED",
+  "CANCELLED",
+]);
+
+export const ApplicationSchema = z.object({
+  id: z.string(),
+  propertyId: z.string(),
+  userId: z.string(),
+  status: ApplicationStatusSchema,
+  notes: z.string().optional().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  property: PropertySchema.optional(),
+  user: z
+    .object({
+      id: z.string(),
+      name: z.string().nullable(),
+      email: z.string().nullable(),
+      phone: z.string().nullable(),
+      profilePhoto: z.string().nullable(),
+    })
+    .optional(),
+});
+
+export type ApplicationStatus = z.infer<typeof ApplicationStatusSchema>;
+export type Application = z.infer<typeof ApplicationSchema>;
+export const DealSchema = z
+  .object({
+    id: z.string(),
+    propertyId: z.string(),
+    tenantId: z.string(),
+    landlordId: z.string(),
+    agentId: z.string().nullish(),
+    applicationId: z.string(),
+    status: z.string(),
+    startDate: z.string(),
+    endDate: z.string().nullish(),
+    rentAmount: z.number(),
+    depositAmount: z.number().nullish(),
+    currency: z.string(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    property: PropertySchema.nullish(),
+    tenant: UserSummarySchema.nullish(),
+    landlord: UserSummarySchema.nullish(),
+    agent: UserSummarySchema.nullish(),
+    application: ApplicationSchema.nullish(),
+  })
+  .passthrough();
+
+export type Deal = z.infer<typeof DealSchema>;
+
+export const MessageSchema = z.object({
+  id: z.string(),
+  conversationId: z.string(),
+  senderId: z.string(),
+  body: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  sender: UserSummarySchema.optional(),
+});
+
+export const ConversationParticipantSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  conversationId: z.string(),
+  lastReadAt: z.string().nullable(),
+  joinedAt: z.string(),
+  user: UserSummarySchema.optional(),
+});
+
+export const ConversationSchema = z
+  .object({
+    id: z.string(),
+    propertyId: z.string().nullish(),
+    dealId: z.string().nullable(),
+    applicationId: z.string().nullable(),
+    type: z.enum(["LISTING_CHAT", "GENERAL_CHAT"]).optional(),
+    status: z.enum(["ACTIVE", "ARCHIVED"]).optional(),
+    lastMessageAt: z.string().nullish(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    property: PropertySchema.optional(),
+    participants: z.array(ConversationParticipantSchema).optional(),
+    messages: z.array(MessageSchema).optional(),
+  })
+  .passthrough();
+
+export type Message = z.infer<typeof MessageSchema>;
+export type ConversationParticipant = z.infer<
+  typeof ConversationParticipantSchema
+>;
+export type Conversation = z.infer<typeof ConversationSchema>;

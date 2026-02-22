@@ -4,7 +4,14 @@ import {
   PropertyFurnishing,
   PropertyType
 } from '@prisma/client';
-import { PowerPhase } from '../../common/enums';
+import {
+  PropertyTypeEnum,
+  PropertyFurnishingEnum,
+  PropertyAvailabilityEnum,
+  CurrencyEnum,
+  PowerPhaseEnum,
+  PowerPhase
+} from '@propad/config';
 import { z } from 'zod';
 
 const commercialFieldsSchema = z
@@ -12,7 +19,7 @@ const commercialFieldsSchema = z
     floorAreaSqm: z.number().positive().max(1_000_000).optional(),
     lotSizeSqm: z.number().positive().max(10_000_000).optional(),
     parkingBays: z.number().int().min(0).max(5_000).optional(),
-    powerPhase: z.nativeEnum(PowerPhase).optional(),
+    powerPhase: z.enum([PowerPhaseEnum.SINGLE, PowerPhaseEnum.THREE] as [string, ...string[]]).optional(),
     loadingBay: z.boolean().optional(),
     zoning: z.string().min(1).max(100).optional(),
     complianceDocsUrl: z.string().url().optional()
@@ -48,12 +55,33 @@ const basePropertySchema = z.object({
   title: z.string().min(1).max(200),
   landlordId: optionalCuid,
   agentOwnerId: optionalCuid,
-  type: z.preprocess(preprocessEnumValue(PropertyType), z.nativeEnum(PropertyType)),
+  type: z.preprocess(
+    preprocessEnumValue(PropertyTypeEnum),
+    z.enum([
+      PropertyTypeEnum.ROOM,
+      PropertyTypeEnum.COTTAGE,
+      PropertyTypeEnum.HOUSE,
+      PropertyTypeEnum.APARTMENT,
+      PropertyTypeEnum.TOWNHOUSE,
+      PropertyTypeEnum.PLOT,
+      PropertyTypeEnum.LAND,
+      PropertyTypeEnum.COMMERCIAL_OFFICE,
+      PropertyTypeEnum.COMMERCIAL_RETAIL,
+      PropertyTypeEnum.COMMERCIAL_INDUSTRIAL,
+      PropertyTypeEnum.WAREHOUSE,
+      PropertyTypeEnum.FARM,
+      PropertyTypeEnum.MIXED_USE,
+      PropertyTypeEnum.OTHER
+    ] as [string, ...string[]])
+  ),
   listingIntent: z.preprocess(
     preprocessEnumValue({ FOR_SALE: 'FOR_SALE', TO_RENT: 'TO_RENT' }),
     z.enum(['FOR_SALE', 'TO_RENT'])
   ).optional(),
-  currency: z.preprocess(preprocessEnumValue(Currency), z.nativeEnum(Currency)),
+  currency: z.preprocess(
+    preprocessEnumValue(CurrencyEnum),
+    z.enum([CurrencyEnum.USD, CurrencyEnum.ZWG] as [string, ...string[]])
+  ),
   price: z.number().positive(),
   countryId: optionalCuid,
   provinceId: optionalCuid,
@@ -68,12 +96,19 @@ const basePropertySchema = z.object({
   amenities: z.array(z.string().min(1)).max(50).optional(),
   description: z.string().max(5000).optional(),
   furnishing: z.preprocess(
-    preprocessEnumValue(PropertyFurnishing),
-    z.nativeEnum(PropertyFurnishing).default(PropertyFurnishing.NONE)
+    preprocessEnumValue(PropertyFurnishingEnum),
+    z.enum([
+      PropertyFurnishingEnum.NONE,
+      PropertyFurnishingEnum.PARTLY,
+      PropertyFurnishingEnum.FULLY
+    ] as [string, ...string[]]).default(PropertyFurnishingEnum.NONE)
   ),
   availability: z.preprocess(
-    preprocessEnumValue(PropertyAvailability),
-    z.nativeEnum(PropertyAvailability).default(PropertyAvailability.IMMEDIATE)
+    preprocessEnumValue(PropertyAvailabilityEnum),
+    z.enum([
+      PropertyAvailabilityEnum.IMMEDIATE,
+      PropertyAvailabilityEnum.DATE
+    ] as [string, ...string[]]).default(PropertyAvailabilityEnum.IMMEDIATE)
   ),
   availableFrom: z.string().datetime().optional(),
   commercialFields: commercialFieldsSchema.optional()
@@ -115,7 +150,7 @@ const withCreateRefinements = <T extends z.ZodTypeAny>(schema: T) =>
       });
     }
 
-    if (data.availability === PropertyAvailability.DATE && !data.availableFrom) {
+    if (data.availability === PropertyAvailabilityEnum.DATE && !data.availableFrom) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'availableFrom is required when availability is DATE',
@@ -127,11 +162,11 @@ const withCreateRefinements = <T extends z.ZodTypeAny>(schema: T) =>
 const withUpdateRefinements = <T extends z.ZodTypeAny>(schema: T) =>
   schema.superRefine((data, ctx) => {
     // For update: only validate location hierarchy if location fields are being updated
-    const hasLocationUpdate = data.countryId !== undefined || 
-                               data.provinceId !== undefined || 
-                               data.cityId !== undefined || 
-                               data.suburbId !== undefined ||
-                               data.pendingGeoId !== undefined;
+    const hasLocationUpdate = data.countryId !== undefined ||
+      data.provinceId !== undefined ||
+      data.cityId !== undefined ||
+      data.suburbId !== undefined ||
+      data.pendingGeoId !== undefined;
 
     if (hasLocationUpdate) {
       // If updating location, validate hierarchy only for provided fields
@@ -160,7 +195,7 @@ const withUpdateRefinements = <T extends z.ZodTypeAny>(schema: T) =>
       }
     }
 
-    if (data.availability === PropertyAvailability.DATE && !data.availableFrom) {
+    if (data.availability === PropertyAvailabilityEnum.DATE && !data.availableFrom) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'availableFrom is required when availability is DATE',

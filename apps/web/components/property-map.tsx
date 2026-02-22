@@ -1,16 +1,22 @@
-'use client';
+"use client";
 
-import { createElement, useEffect, useMemo, useRef, useState } from 'react';
-import type { GeoSuburb, Property } from '@propad/sdk';
-import { Button } from '@propad/ui';
-import clsx from 'clsx';
+import { createElement, useEffect, useMemo, useRef, useState } from "react";
+import type { GeoSuburb, Property } from "@propad/sdk";
+import { Button } from "@propad/ui";
+import clsx from "clsx";
 import L, {
   type LatLng as LeafletLatLng,
   type Map as LeafletMap,
-  type Rectangle as LeafletRectangle
-} from 'leaflet';
-import { MapContainer, Marker, Polygon, TileLayer, useMapEvents } from 'react-leaflet';
-import MarkerClusterGroup from 'react-leaflet-cluster';
+  type Rectangle as LeafletRectangle,
+} from "leaflet";
+import {
+  MapContainer,
+  Marker,
+  Polygon,
+  TileLayer,
+  useMapEvents,
+} from "react-leaflet";
+import MarkerClusterGroup from "react-leaflet-cluster";
 
 interface MapCoordinate {
   lat: number;
@@ -29,6 +35,7 @@ interface PropertyMapProps {
   activeSuburb?: string | null;
   activeBounds?: MapBounds;
   onHoverMarker?: (propertyId: string | null) => void;
+  onSelectMarker?: (propertyId: string) => void;
   onBoundsSearch?: (bounds: MapBounds) => void;
   onSuburbSelect?: (suburb: GeoSuburb) => void;
 }
@@ -41,15 +48,15 @@ function formatBounds(bounds: MapBounds) {
     bounds.southWest.lat.toFixed(FORMAT_PRECISION),
     bounds.southWest.lng.toFixed(FORMAT_PRECISION),
     bounds.northEast.lat.toFixed(FORMAT_PRECISION),
-    bounds.northEast.lng.toFixed(FORMAT_PRECISION)
-  ].join(',');
+    bounds.northEast.lng.toFixed(FORMAT_PRECISION),
+  ].join(",");
 }
 
 function MapInteractions({
   isDrawing,
   onBoundsDrawn,
   onMoveEnd,
-  stopDrawing
+  stopDrawing,
 }: {
   isDrawing: boolean;
   onBoundsDrawn: (bounds: MapBounds) => void;
@@ -62,8 +69,14 @@ function MapInteractions({
     moveend() {
       const bounds = map.getBounds();
       onMoveEnd({
-        southWest: { lat: bounds.getSouthWest().lat, lng: bounds.getSouthWest().lng },
-        northEast: { lat: bounds.getNorthEast().lat, lng: bounds.getNorthEast().lng }
+        southWest: {
+          lat: bounds.getSouthWest().lat,
+          lng: bounds.getSouthWest().lng,
+        },
+        northEast: {
+          lat: bounds.getNorthEast().lat,
+          lng: bounds.getNorthEast().lng,
+        },
       });
     },
     mousedown(event) {
@@ -73,10 +86,10 @@ function MapInteractions({
       startPointRef.current = event.latlng;
       const initialBounds = L.latLngBounds(event.latlng, event.latlng);
       rectangleRef.current = L.rectangle(initialBounds, {
-        color: '#2563eb',
+        color: "#2563eb",
         weight: 2,
-        dashArray: '6 4',
-        fillOpacity: 0.1
+        dashArray: "6 4",
+        fillOpacity: 0.1,
       }).addTo(map);
       map.dragging.disable();
       map.doubleClickZoom.disable();
@@ -85,7 +98,9 @@ function MapInteractions({
       if (!isDrawing || !rectangleRef.current || !startPointRef.current) {
         return;
       }
-      rectangleRef.current.setBounds(L.latLngBounds(startPointRef.current, event.latlng));
+      rectangleRef.current.setBounds(
+        L.latLngBounds(startPointRef.current, event.latlng),
+      );
     },
     mouseup() {
       if (!isDrawing) {
@@ -98,8 +113,14 @@ function MapInteractions({
       if (rectangleRef.current) {
         const bounds = rectangleRef.current.getBounds();
         onBoundsDrawn({
-          southWest: { lat: bounds.getSouthWest().lat, lng: bounds.getSouthWest().lng },
-          northEast: { lat: bounds.getNorthEast().lat, lng: bounds.getNorthEast().lng }
+          southWest: {
+            lat: bounds.getSouthWest().lat,
+            lng: bounds.getSouthWest().lng,
+          },
+          northEast: {
+            lat: bounds.getNorthEast().lat,
+            lng: bounds.getNorthEast().lng,
+          },
         });
         map.removeLayer(rectangleRef.current);
         rectangleRef.current = null;
@@ -107,7 +128,7 @@ function MapInteractions({
 
       startPointRef.current = null;
       stopDrawing();
-    }
+    },
   });
 
   useEffect(() => {
@@ -119,7 +140,7 @@ function MapInteractions({
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isDrawing) {
+      if (event.key === "Escape" && isDrawing) {
         if (rectangleRef.current) {
           map.removeLayer(rectangleRef.current);
           rectangleRef.current = null;
@@ -129,8 +150,8 @@ function MapInteractions({
       }
     };
 
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
   }, [isDrawing, stopDrawing, map]);
 
   return null;
@@ -143,37 +164,41 @@ export function PropertyMap({
   activeSuburb,
   activeBounds,
   onHoverMarker,
+  onSelectMarker,
   onBoundsSearch,
-  onSuburbSelect
+  onSuburbSelect,
 }: PropertyMapProps) {
   const mapRef = useRef<LeafletMap | null>(null);
   const [pendingBounds, setPendingBounds] = useState<MapBounds | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const appliedBoundsRef = useRef<string | null>(activeBounds ? formatBounds(activeBounds) : null);
+  const appliedBoundsRef = useRef<string | null>(
+    activeBounds ? formatBounds(activeBounds) : null,
+  );
 
   const propertiesWithLocation = useMemo(
     () =>
       properties.filter(
         (property) =>
-          typeof property.location.lat === 'number' && typeof property.location.lng === 'number'
+          typeof property.location.lat === "number" &&
+          typeof property.location.lng === "number",
       ),
-    [properties]
+    [properties],
   );
 
   const markerPositions = useMemo(
     () =>
-      propertiesWithLocation.map((property) => [property.location.lat!, property.location.lng!] as [
-        number,
-        number
-      ]),
-    [propertiesWithLocation]
+      propertiesWithLocation.map(
+        (property) =>
+          [property.location.lat!, property.location.lng!] as [number, number],
+      ),
+    [propertiesWithLocation],
   );
 
   const defaultCenter = useMemo(() => {
     if (activeBounds) {
       return [
         (activeBounds.southWest.lat + activeBounds.northEast.lat) / 2,
-        (activeBounds.southWest.lng + activeBounds.northEast.lng) / 2
+        (activeBounds.southWest.lng + activeBounds.northEast.lng) / 2,
       ] as [number, number];
     }
 
@@ -194,30 +219,29 @@ export function PropertyMap({
   const defaultIcon = useMemo(
     () =>
       L.divIcon({
-        className: 'property-marker-icon',
-        html: '<span class="property-marker-icon__dot">✓</span>'
+        className: "property-marker-icon",
+        html: '<span class="property-marker-icon__dot">✓</span>',
       }),
-    []
+    [],
   );
 
   const activeIcon = useMemo(
     () =>
       L.divIcon({
-        className: 'property-marker-icon property-marker-icon--active',
-        html: '<span class="property-marker-icon__dot">✓</span>'
+        className: "property-marker-icon property-marker-icon--active",
+        html: '<span class="property-marker-icon__dot">✓</span>',
       }),
-    []
+    [],
   );
 
   const clusterIconFactory = useMemo(
-    () =>
-      (cluster: any) =>
-        L.divIcon({
-          html: `<div class="property-cluster"><span>${cluster.getChildCount()}</span></div>`,
-          className: 'property-cluster-wrapper',
-          iconSize: [44, 44]
-        }),
-    []
+    () => (cluster: any) =>
+      L.divIcon({
+        html: `<div class="property-cluster"><span>${cluster.getChildCount()}</span></div>`,
+        className: "property-cluster-wrapper",
+        iconSize: [44, 44],
+      }),
+    [],
   );
 
   useEffect(() => {
@@ -234,7 +258,7 @@ export function PropertyMap({
     if (activeBounds) {
       const bounds = L.latLngBounds(
         [activeBounds.southWest.lat, activeBounds.southWest.lng],
-        [activeBounds.northEast.lat, activeBounds.northEast.lng]
+        [activeBounds.northEast.lat, activeBounds.northEast.lng],
       );
       map.fitBounds(bounds, { padding: [32, 32] });
       return;
@@ -285,8 +309,9 @@ export function PropertyMap({
         }}
       >
         {createElement(TileLayer, {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-          url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
         })}
         <MapInteractions
           isDrawing={isDrawing}
@@ -295,24 +320,29 @@ export function PropertyMap({
           stopDrawing={() => setIsDrawing(false)}
         />
         {suburbs.map((suburb) => {
-          const isActive = activeSuburb?.toLowerCase() === suburb.name.toLowerCase();
+          const isActive =
+            activeSuburb?.toLowerCase() === suburb.name.toLowerCase();
           return (
             <Polygon
               key={suburb.name}
               positions={suburb.polygon}
               pathOptions={{
-                color: isActive ? '#2563eb' : '#9ca3af',
+                color: isActive ? "#2563eb" : "#9ca3af",
                 weight: isActive ? 2 : 1,
                 fillOpacity: isActive ? 0.15 : 0.08,
-                fillColor: isActive ? '#2563eb' : '#9ca3af'
+                fillColor: isActive ? "#2563eb" : "#9ca3af",
               }}
               eventHandlers={{
-                click: () => onSuburbSelect?.(suburb)
+                click: () => onSuburbSelect?.(suburb),
               }}
             />
           );
         })}
-        <MarkerClusterGroup chunkedLoading iconCreateFunction={clusterIconFactory} showCoverageOnHover={false}>
+        <MarkerClusterGroup
+          chunkedLoading
+          iconCreateFunction={clusterIconFactory}
+          showCoverageOnHover={false}
+        >
           {propertiesWithLocation.map((property) => {
             const isActive = hoveredPropertyId === property.id;
             const icon = isActive ? activeIcon : defaultIcon;
@@ -325,7 +355,8 @@ export function PropertyMap({
                 riseOnHover
                 eventHandlers={{
                   mouseover: () => onHoverMarker?.(property.id),
-                  mouseout: () => onHoverMarker?.(null)
+                  mouseout: () => onHoverMarker?.(null),
+                  click: () => onSelectMarker?.(property.id),
                 }}
               />
             );
@@ -345,18 +376,18 @@ export function PropertyMap({
         <Button
           size="sm"
           className={clsx(
-            'pointer-events-auto bg-white/90 text-neutral-800 shadow transition',
-            isDrawing ? 'ring-2 ring-blue-500' : 'hover:bg-white'
+            "pointer-events-auto bg-white/90 text-neutral-800 shadow transition",
+            isDrawing ? "ring-2 ring-blue-500" : "hover:bg-white",
           )}
           onClick={() => setIsDrawing((state) => !state)}
         >
-          {isDrawing ? 'Cancel drawing' : 'Draw area'}
+          {isDrawing ? "Cancel drawing" : "Draw area"}
         </Button>
       </div>
       <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] flex max-w-xs rounded-lg bg-white/90 p-3 text-xs text-neutral-700 shadow">
         <p>
-          Shift the map or draw a rectangle to filter listings. Click a suburb polygon to focus that
-          area.
+          Shift the map or draw a rectangle to filter listings. Click a suburb
+          polygon to focus that area.
         </p>
       </div>
       {propertiesWithLocation.length === 0 ? (

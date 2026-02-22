@@ -1,66 +1,20 @@
-import {
-  Body,
-  Controller,
-  ForbiddenException,
-  Get,
-  Param,
-  Post,
-  Query,
-  Req,
-  UseGuards
-} from '@nestjs/common';
-import { Role } from '@prisma/client';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-import { ZodValidationPipe } from '../common/zod-validation.pipe';
+import { Controller, Get, UseGuards, Request } from '@nestjs/common';
 import { RewardsService } from './rewards.service';
-import { CreateRewardEventDto, createRewardEventSchema } from './dto/create-reward-event.dto';
-
-interface AuthenticatedRequest {
-  user: {
-    userId: string;
-    role: Role;
-  };
-}
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 @Controller('rewards')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.AGENT, Role.ADMIN)
 export class RewardsController {
-  constructor(private readonly rewardsService: RewardsService) {}
+  constructor(private readonly rewardsService: RewardsService) { }
 
-  @Roles(Role.ADMIN)
-  @Post('events')
-  createEvent(@Body(new ZodValidationPipe(createRewardEventSchema)) dto: CreateRewardEventDto) {
-    return this.rewardsService.create(dto);
+  @Get('my')
+  async getMyRewards(@Request() req: any) {
+    return this.rewardsService.getUserRewards(req.user.id);
   }
 
-  @Get('events')
-  listEvents(@Req() req: AuthenticatedRequest, @Query('agentId') agentId?: string) {
-    if (req.user.role === Role.AGENT && agentId && agentId !== req.user.userId) {
-      throw new ForbiddenException('Cannot view other agents');
-    }
-    return this.rewardsService.list(agentId ?? (req.user.role === Role.AGENT ? req.user.userId : undefined));
-  }
-
-  @Roles(Role.ADMIN)
-  @Get('pool/summary')
-  poolSummary() {
-    return this.rewardsService.poolSummary();
-  }
-
-  @Roles(Role.AGENT)
-  @Get('estimate/me')
-  myEstimate(@Req() req: AuthenticatedRequest) {
-    return this.rewardsService.agentMonthlyEstimate(req.user.userId);
-  }
-
-  @Get('agents/:agentId/monthly-estimate')
-  agentEstimate(@Param('agentId') agentId: string, @Req() req: AuthenticatedRequest) {
-    if (req.user.role === Role.AGENT && req.user.userId !== agentId) {
-      throw new ForbiddenException('Cannot view other agents');
-    }
-    return this.rewardsService.agentMonthlyEstimate(agentId);
+  @Get('pools')
+  async getPools() {
+    return this.rewardsService.getRewardPools();
   }
 }

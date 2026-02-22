@@ -1,7 +1,7 @@
-@import 'leaflet/dist/leaflet.css';
-@import 'leaflet-draw/dist/leaflet.draw.css';
-@import 'leaflet.markercluster/dist/MarkerCluster.css';
-@import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+@import "leaflet/dist/leaflet.css";
+@import "leaflet-draw/dist/leaflet.draw.css";
+@import "leaflet.markercluster/dist/MarkerCluster.css";
+@import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 
 @tailwind base;
 @tailwind components;
@@ -17,6 +17,24 @@
 
 @layer base {
   :root {
+    --background: 220 33% 98%;
+    --foreground: 215 25% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 18%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 18%;
+    --muted: 210 24% 94%;
+    --muted-foreground: 215 14% 40%;
+    --accent: 171 100% 30%;
+    --accent-foreground: 0 0% 100%;
+    --primary: 171 100% 30%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 208 61% 43%;
+    --secondary-foreground: 0 0% 100%;
+    --border: 215 20% 86%;
+    --input: 215 20% 86%;
+    --ring: 171 100% 30%;
+
     --aurora-color-background: #fafafa;
     --aurora-color-elevated: #ffffff;
     --aurora-color-highest: #f5f7fa;
@@ -32,7 +50,12 @@
     --aurora-color-secondary-on: #ffffff;
     --aurora-color-accent: #ff6f61;
     --aurora-color-accent-strong: #e66259;
-    --aurora-gradient-accent: linear-gradient(135deg, #009688 0%, #2b6cb0 50%, #ff6f61 100%);
+    --aurora-gradient-accent: linear-gradient(
+      135deg,
+      #009688 0%,
+      #2b6cb0 50%,
+      #ff6f61 100%
+    );
     --aurora-color-accent-on: #ffffff;
     --aurora-color-critical: #f56565;
     --aurora-color-danger: #f56565;
@@ -44,8 +67,8 @@
     --aurora-chart-secondary: #2b6cb0;
     --aurora-chart-tertiary: #ff6f61;
     --aurora-chart-quaternary: #9f7aea;
-    --aurora-font-sans: 'Inter', 'Poppins', 'system-ui', sans-serif;
-    --aurora-font-display: 'Inter', 'Poppins', 'system-ui', sans-serif;
+    --aurora-font-sans: "Inter", "Poppins", "system-ui", sans-serif;
+    --aurora-font-display: "Inter", "Poppins", "system-ui", sans-serif;
     --aurora-font-numeric: tabular-nums;
     --aurora-radius-lg: 0.875rem;
     --aurora-radius-2xl: 1rem;
@@ -57,9 +80,28 @@
     color: var(--aurora-color-text);
   }
 
-  [data-aurora-mode='dark'],
+  [data-aurora-mode="dark"],
+  .dark,
   .aurora-dark {
     color-scheme: dark;
+    --background: 211 65% 15%;
+    --foreground: 210 40% 96%;
+    --card: 211 52% 20%;
+    --card-foreground: 210 40% 96%;
+    --popover: 211 52% 20%;
+    --popover-foreground: 210 40% 96%;
+    --muted: 212 40% 25%;
+    --muted-foreground: 212 28% 78%;
+    --accent: 175 58% 56%;
+    --accent-foreground: 211 65% 15%;
+    --primary: 175 58% 56%;
+    --primary-foreground: 211 65% 15%;
+    --secondary: 204 79% 75%;
+    --secondary-foreground: 211 65% 15%;
+    --border: 210 33% 35%;
+    --input: 210 33% 35%;
+    --ring: 175 58% 56%;
+
     --aurora-color-background: #0d253f;
     --aurora-color-elevated: #132f54;
     --aurora-color-highest: #1a3f6f;
@@ -75,7 +117,12 @@
     --aurora-color-secondary-on: #0d253f;
     --aurora-color-accent: #fc8181;
     --aurora-color-accent-strong: #f9736a;
-    --aurora-gradient-accent: linear-gradient(135deg, #4fd1c5 0%, #90cdf4 50%, #fc8181 100%);
+    --aurora-gradient-accent: linear-gradient(
+      135deg,
+      #4fd1c5 0%,
+      #90cdf4 50%,
+      #fc8181 100%
+    );
     --aurora-color-accent-on: #0d253f;
     --aurora-color-critical: #fc8181;
     --aurora-color-danger: #fc8181;
@@ -95,9 +142,7 @@
 
   body {
     font-family: var(--aurora-font-sans);
-    background: var(--aurora-color-background);
-    color: var(--aurora-color-text);
-    @apply antialiased;
+    @apply bg-background text-foreground antialiased;
   }
 
   a {
@@ -116,12 +161,18 @@
 }
 
 .skeleton-shimmer::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 10%, rgba(255, 255, 255, 0.65) 45%, rgba(255, 255, 255, 0) 90%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 10%,
+    rgba(255, 255, 255, 0.65) 45%,
+    rgba(255, 255, 255, 0) 90%
+  );
   transform: translateX(-100%);
-  animation: skeleton-shimmer-motion calc(var(--motion-duration) * 6) var(--motion-ease) infinite;
+  animation: skeleton-shimmer-motion calc(var(--motion-duration) * 6)
+    var(--motion-ease) infinite;
 }
 
 @keyframes button-ripple-motion {
@@ -143,7 +194,8 @@
   opacity: 0;
   transform: scale(0);
   mix-blend-mode: screen;
-  animation: button-ripple-motion calc(var(--motion-duration) * 3) var(--motion-ease);
+  animation: button-ripple-motion calc(var(--motion-duration) * 3)
+    var(--motion-ease);
 }
 
 .property-marker-icon {
@@ -153,7 +205,7 @@
 }
 
 .property-marker-icon::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: -8px;
   left: 50%;
@@ -221,10 +273,37 @@
   width: 32px;
   height: 32px;
   border-radius: 9999px;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.92), rgba(45, 212, 191, 0.92));
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.92),
+    rgba(45, 212, 191, 0.92)
+  );
   color: #fff;
   font-size: 16px;
   font-weight: 700;
   border: 2px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 12px 24px -10px rgba(20, 184, 166, 0.55);
+}
+
+/* Keep required map attribution visible and fully opaque */
+.leaflet-control-attribution {
+  font-size: 9px !important;
+  line-height: 1.1 !important;
+  padding: 1px 4px !important;
+  border-radius: 6px 0 0 0;
+  background: #ffffff !important;
+  color: #334155 !important;
+  opacity: 1;
+}
+
+.dark .leaflet-control-attribution,
+[data-aurora-mode="dark"] .leaflet-control-attribution,
+.aurora-dark .leaflet-control-attribution {
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+.leaflet-control-attribution a {
+  color: inherit !important;
+  text-decoration: none;
 }

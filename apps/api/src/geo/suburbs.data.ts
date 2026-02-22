@@ -276,6 +276,39 @@ export const ZIMBABWE_SEED: CountrySeed = {
           suburbs: [
             { name: 'Chimanimani Village', lat: -19.8, lng: 32.8667 }
           ]
+        },
+        {
+          name: 'Birchenough Bridge',
+          lat: -19.9631,
+          lng: 32.3386,
+          suburbs: [
+            { name: 'Birchenough Bridge', lat: -19.9631, lng: 32.3386 }
+          ]
+        },
+        {
+          name: 'Nyazura',
+          lat: -18.7167,
+          lng: 32.1667,
+          suburbs: [
+            { name: 'Nyazura Town', lat: -18.7167, lng: 32.1667 }
+          ]
+        },
+        {
+          name: 'Headlands',
+          lat: -18.2833,
+          lng: 32.0500,
+          suburbs: [
+            { name: 'Headlands Town', lat: -18.2833, lng: 32.0500 }
+          ]
+        },
+        {
+          name: 'Buhera',
+          lat: -19.3167,
+          lng: 31.4333,
+          suburbs: [
+            { name: 'Buhera Office', lat: -19.3167, lng: 31.4333 },
+            { name: 'Murambinda', lat: -19.2667, lng: 31.6500 }
+          ]
         }
       ]
     },
@@ -296,6 +329,14 @@ export const ZIMBABWE_SEED: CountrySeed = {
             { name: 'Senga', lat: -19.4800, lng: 29.8200 },
             { name: 'Southdowns', lat: -19.4650, lng: 29.7900 },
             { name: 'Woodville', lat: -19.4350, lng: 29.8050 }
+          ]
+        },
+        {
+          name: 'Mvuma',
+          lat: -19.2833,
+          lng: 30.5333,
+          suburbs: [
+            { name: 'Mvuma Town', lat: -19.2833, lng: 30.5333 }
           ]
         },
         {
@@ -338,11 +379,61 @@ export const ZIMBABWE_SEED: CountrySeed = {
           ]
         },
         {
+          name: 'Zhombe',
+          lat: -18.6667,
+          lng: 29.35,
+          suburbs: [
+            { name: 'Zhombe Centre', lat: -18.6667, lng: 29.35 },
+            { name: 'Zhombe East', lat: -18.65, lng: 29.4 },
+            { name: 'Zhombe Joel', lat: -18.7, lng: 29.3 }
+          ]
+        },
+        {
+          name: 'Silobela',
+          lat: -19.2167,
+          lng: 29.2167,
+          suburbs: [
+            { name: 'Silobela', lat: -19.2167, lng: 29.2167 }
+          ]
+        },
+        {
+          name: 'Empress Mine',
+          lat: -18.4667,
+          lng: 29.2500,
+          suburbs: [
+            { name: 'Empress Mine', lat: -18.4667, lng: 29.2500 }
+          ]
+        },
+        {
           name: 'Gokwe',
           lat: -18.2167,
           lng: 28.9333,
           suburbs: [
             { name: 'Gokwe Town', lat: -18.2167, lng: 28.9333 }
+          ]
+        },
+        {
+          name: 'Lalapanzi',
+          lat: -19.3333,
+          lng: 30.2,
+          suburbs: [
+            { name: 'Lalapanzi', lat: -19.3333, lng: 30.2 }
+          ]
+        },
+        {
+          name: 'Chirumhanzu',
+          lat: -19.35,
+          lng: 30.6,
+          suburbs: [
+            { name: 'Chirumhanzu Centre', lat: -19.35, lng: 30.6 }
+          ]
+        },
+        {
+          name: 'Mberengwa',
+          lat: -20.4833,
+          lng: 29.9167,
+          suburbs: [
+            { name: 'Mberengwa Growth Point', lat: -20.4833, lng: 29.9167 }
           ]
         },
         {
@@ -400,6 +491,32 @@ export const ZIMBABWE_SEED: CountrySeed = {
           suburbs: [
             { name: 'Gutu Town', lat: -19.9167, lng: 31.0 }
           ]
+        },
+        {
+          name: 'Mashava',
+          lat: -20.0333,
+          lng: 30.4667,
+          suburbs: [
+            { name: 'Mashava Town', lat: -20.0333, lng: 30.4667 },
+            { name: 'Gaths Mine', lat: -20.0300, lng: 30.4800 },
+            { name: 'King Mine', lat: -20.0400, lng: 30.4500 }
+          ]
+        },
+        {
+          name: 'Zaka',
+          lat: -20.3458,
+          lng: 31.4456,
+          suburbs: [
+            { name: 'Jerera', lat: -20.3458, lng: 31.4456 }
+          ]
+        },
+        {
+          name: 'Bikita',
+          lat: -20.0833,
+          lng: 31.6167,
+          suburbs: [
+            { name: 'Nyika', lat: -20.0833, lng: 31.6167 }
+          ]
         }
       ]
     },
@@ -441,6 +558,55 @@ export const ZIMBABWE_SEED: CountrySeed = {
           lng: 27.3333,
           suburbs: [
             { name: 'Binga Town', lat: -17.6167, lng: 27.3333 }
+          ]
+        },
+        {
+          name: 'Ntabazinduna',
+          lat: -20.05,
+          lng: 28.85,
+          suburbs: [
+            { name: 'Ntabazinduna', lat: -20.05, lng: 28.85 }
+          ]
+        },
+        {
+          name: 'Inyathi',
+          lat: -19.6667,
+          lng: 28.9167,
+          suburbs: [
+            { name: 'Inyathi Centre', lat: -19.6667, lng: 28.9167 },
+            { name: 'Turk Mine', lat: -19.7167, lng: 28.8000 }
+          ]
+        },
+        {
+          name: 'Dete',
+          lat: -18.6167,
+          lng: 26.85,
+          suburbs: [
+            { name: 'Dete Centre', lat: -18.6167, lng: 26.85 }
+          ]
+        },
+        {
+          name: 'Kamativi',
+          lat: -18.3167,
+          lng: 27.0667,
+          suburbs: [
+            { name: 'Kamativi', lat: -18.3167, lng: 27.0667 }
+          ]
+        },
+        {
+          name: 'Nkayi',
+          lat: -19.0,
+          lng: 28.9,
+          suburbs: [
+            { name: 'Nkayi Centre', lat: -19.0, lng: 28.9 }
+          ]
+        },
+        {
+          name: 'Tsholotsho',
+          lat: -19.7667,
+          lng: 27.7500,
+          suburbs: [
+            { name: 'Tsholotsho Centre', lat: -19.7667, lng: 27.7500 }
           ]
         }
       ]
@@ -484,6 +650,55 @@ export const ZIMBABWE_SEED: CountrySeed = {
           suburbs: [
             { name: 'Filabusi Town', lat: -20.5333, lng: 29.2833 }
           ]
+        },
+        {
+          name: 'Insiza',
+          lat: -19.98,
+          lng: 29.2,
+          suburbs: [
+            { name: 'Insiza Siding', lat: -19.98, lng: 29.20 }
+          ]
+        },
+        {
+          name: 'Shangani',
+          lat: -19.7833,
+          lng: 29.3667,
+          suburbs: [
+            { name: 'Shangani Centre', lat: -19.7833, lng: 29.3667 }
+          ]
+        },
+        {
+          name: 'Maphisa',
+          lat: -21.05,
+          lng: 28.4,
+          suburbs: [
+            { name: 'Maphisa Growth Point', lat: -21.05, lng: 28.4 }
+          ]
+        },
+        {
+          name: 'Kezi',
+          lat: -20.9333,
+          lng: 28.45,
+          suburbs: [
+            { name: 'Kezi Centre', lat: -20.9333, lng: 28.45 }
+          ]
+        },
+        {
+          name: 'Mbalabala',
+          lat: -20.4167,
+          lng: 29.0333,
+          suburbs: [
+            { name: 'Mbalabala', lat: -20.4167, lng: 29.0333 }
+          ]
+        },
+        {
+          name: 'Esigodini',
+          lat: -20.2936,
+          lng: 28.9056,
+          suburbs: [
+            { name: 'Esigodini Town', lat: -20.2936, lng: 28.9056 },
+            { name: 'Habane', lat: -20.2800, lng: 28.9100 }
+          ]
         }
       ]
     },
@@ -500,6 +715,14 @@ export const ZIMBABWE_SEED: CountrySeed = {
             { name: 'Chipadze', lat: -17.2975, lng: 31.3244 },
             { name: 'Chiwaridzo', lat: -17.3078, lng: 31.3299 },
             { name: 'Hospital', lat: -17.3050, lng: 31.3350 }
+          ]
+        },
+        {
+          name: 'Glendale',
+          lat: -17.35,
+          lng: 31.0667,
+          suburbs: [
+            { name: 'Glendale Town', lat: -17.35, lng: 31.0667 }
           ]
         },
         {
@@ -628,6 +851,31 @@ export const ZIMBABWE_SEED: CountrySeed = {
           suburbs: [
             { name: 'Wedza Town', lat: -18.6, lng: 31.5833 }
           ]
+        },
+        {
+          name: 'Chivhu',
+          lat: -19.0333,
+          lng: 30.8833,
+          suburbs: [
+            { name: 'Chivhu Town', lat: -19.0333, lng: 30.8833 },
+            { name: 'Northwood', lat: -19.0200, lng: 30.8800 }
+          ]
+        },
+        {
+          name: 'Hwedza',
+          lat: -18.6167,
+          lng: 31.5667,
+          suburbs: [
+            { name: 'Hwedza Centre', lat: -18.6167, lng: 31.5667 }
+          ]
+        },
+        {
+          name: 'Kotwa',
+          lat: -17.1667,
+          lng: 32.6667,
+          suburbs: [
+            { name: 'Kotwa', lat: -17.1667, lng: 32.6667 }
+          ]
         }
       ]
     },
@@ -707,6 +955,31 @@ export const ZIMBABWE_SEED: CountrySeed = {
           lng: 30.1167,
           suburbs: [
             { name: 'Makonde Town', lat: -17.35, lng: 30.1167 }
+          ]
+        },
+        {
+          name: 'Mhondoro',
+          lat: -18.4,
+          lng: 30.6333,
+          suburbs: [
+            { name: 'Mhondoro Growth Point', lat: -18.4, lng: 30.6333 },
+            { name: 'Mubaira', lat: -18.4167, lng: 30.6500 }
+          ]
+        },
+        {
+          name: 'Zvimba',
+          lat: -17.65,
+          lng: 30.2333,
+          suburbs: [
+            { name: 'Murombedzi', lat: -17.6833, lng: 30.2000 }
+          ]
+        },
+        {
+          name: 'Selous',
+          lat: -18.0167,
+          lng: 30.3667,
+          suburbs: [
+            { name: 'Selous', lat: -18.0167, lng: 30.3667 }
           ]
         }
       ]

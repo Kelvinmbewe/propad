@@ -1,135 +1,297 @@
-import { Injectable } from '@nestjs/common';
-import { addDays, startOfMonth } from 'date-fns';
-import { Currency, OwnerType, WalletTransactionSource, WalletLedgerSourceType } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { AuditService } from '../audit/audit.service';
-import { CreateRewardEventDto } from './dto/create-reward-event.dto';
-import { WalletsService } from '../wallets/wallets.service';
-import { WalletLedgerService } from '../wallets/wallet-ledger.service';
-import { env } from '@propad/config';
+import { Injectable, Logger, BadRequestException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { PricingService } from "../pricing/pricing.service";
+import { WalletLedgerService } from "../wallets/wallet-ledger.service";
+import {
+  RewardEventType,
+  Currency,
+  WalletLedgerSourceType,
+  Prisma,
+  RewardDistribution,
+} from "@prisma/client";
 
 @Injectable()
 export class RewardsService {
+  private readonly logger = new Logger(RewardsService.name);
+
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly audit: AuditService,
-    private readonly wallets: WalletsService,
-    private readonly ledger: WalletLedgerService
-  ) { }
+    private prisma: PrismaService,
+    private pricingService: PricingService,
+    private ledger: WalletLedgerService,
+  ) {}
 
-  async create(dto: CreateRewardEventDto) {
-    const reward = await this.prisma.rewardEvent.create({
-      data: {
-        agentId: dto.agentId,
-        type: dto.type,
-        points: dto.points,
-        usdCents: dto.usdCents,
-        refId: dto.refId
-      }
-    });
-
-    if (dto.usdCents > 0) {
-      // Credit via ledger for USER wallets
-      await this.ledger.credit(
-        dto.agentId,
-        dto.usdCents,
-        Currency.USD,
-        WalletLedgerSourceType.REWARD,
-        reward.id
-      );
-    }
-
-    await this.audit.log({
-      action: 'reward.create',
-      actorId: dto.agentId,
-      targetType: 'rewardEvent',
-      targetId: reward.id,
-      metadata: { type: dto.type, usdCents: dto.usdCents }
-    });
-
-    return reward;
-  }
-
-  list(agentId?: string) {
-    return this.prisma.rewardEvent.findMany({
-      where: agentId ? { agentId } : undefined,
-      orderBy: { createdAt: 'desc' },
-      take: 200
+  /**
+   * Get rewards for a specific user
+   */
+  async getUserRewards(userId: string) {
+    return this.prisma.rewardDistribution.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        pool: {
+          select: { name: true, currency: true },
+        },
+      },
     });
   }
 
-  async poolSummary() {
-    const [totals, agents] = await Promise.all([
-      this.prisma.rewardEvent.aggregate({
-        _sum: { points: true, usdCents: true },
-        _count: { _all: true }
-      }),
-      this.prisma.rewardEvent.groupBy({
-        by: ['agentId'],
-        _sum: { usdCents: true, points: true },
-        orderBy: { _sum: { usdCents: 'desc' } },
-        take: 5
-      })
-    ]);
-
-    return {
-      totals,
-      topAgents: agents
-    };
+  /**
+   * Get all active reward pools
+   */
+  async getRewardPools() {
+    return this.prisma.rewardPool.findMany({
+      where: { isActive: true },
+      include: {
+        _count: {
+          select: { distributions: true },
+        },
+      },
+    });
   }
 
-  async agentMonthlyEstimate(agentId: string) {
-    const now = new Date();
-    const start = startOfMonth(now);
+  /**
+   * Trigger: Verification Approved
+   * Award points/cash to the verifier
+   */
+  async triggerVerificationReward(verificationId: string, verifierId: string) {
+    // 1. Get Config
+    const rewardAmount = await this.pricingService.getConfig<number>(
+      "REWARD_VERIFICATION_CENTS",
+      500, // $5.00 default
+    );
 
-    const [events, wallet, revenueAggregate] = await Promise.all([
-      this.prisma.rewardEvent.aggregate({
-        where: { agentId, createdAt: { gte: start } },
-        _sum: { usdCents: true, points: true },
-        _count: { _all: true }
-      }),
-      this.prisma.wallet.findUnique({
+    if (rewardAmount <= 0) return;
+
+    // 2. Distribute
+    return this.distributeReward({
+      userId: verifierId,
+      amountCents: rewardAmount,
+      currency: Currency.USD,
+      sourceId: verificationId,
+      detail: "Verification approved successfully",
+      poolName: "Verification Rewards",
+    });
+  }
+
+  /**
+   * Trigger: Deal Completed
+   * Award commission/bonus to agent
+   */
+  async triggerDealReward(
+    dealId: string,
+    agentId: string,
+    dealValueCents: number,
+  ) {
+    // 1. Get Config (e.g. 1% of deal value as bonus from platform? Or specific fixed bonus?)
+    // This is separate from the standard commission invoice. This is a "Reward".
+    const bonusBps = await this.pricingService.getConfig<number>(
+      "REWARD_DEAL_BONUS_BPS",
+      0, // Default 0, maybe disabled
+    );
+
+    if (bonusBps <= 0) return;
+
+    const amount = Math.floor(dealValueCents * (bonusBps / 10000));
+    if (amount <= 0) return;
+
+    return this.distributeReward({
+      userId: agentId,
+      amountCents: amount,
+      currency: Currency.USD,
+      sourceId: dealId,
+      detail: "Deal completion bonus",
+      poolName: "Agent Incentives",
+    });
+  }
+
+  /**
+   * Trigger: Successful Referral
+   */
+  async triggerReferralReward(referralId: string, referrerId: string) {
+    const rewardAmount = await this.pricingService.getConfig<number>(
+      "REWARD_REFERRAL_CENTS",
+      1000, // $10.00 default
+    );
+
+    if (rewardAmount <= 0) return;
+
+    return this.distributeReward({
+      userId: referrerId,
+      amountCents: rewardAmount,
+      currency: Currency.USD,
+      sourceId: referralId,
+      detail: "Referral signup reward",
+      poolName: "Growth Rewards",
+    });
+  }
+
+  /**
+   * Core Private Distribution Method
+   * Atomic Transaction: Pool Deduct + Distribution Record + Ledger Credit
+   */
+  private async distributeReward(params: {
+    userId: string;
+    amountCents: number;
+    currency: Currency;
+    sourceId: string;
+    detail: string;
+    poolName: string; // fallback if pool not found by precise ID, look up by name
+    poolId?: string;
+  }): Promise<RewardDistribution> {
+    const { userId, amountCents, currency, sourceId, detail, poolName } =
+      params;
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Check Idempotency - use reason and userId instead of sourceType
+      const existing = await tx.rewardDistribution.findFirst({
         where: {
-          ownerType_ownerId_currency: {
-            ownerType: OwnerType.USER,
-            ownerId: agentId,
-            currency: Currency.USD
-          }
+          userId,
+          reason: detail,
+        },
+      });
+
+      if (existing) {
+        this.logger.warn(`Duplicate reward attempt: ${detail} for ${sourceId}`);
+        return existing;
+      }
+
+      // 2. Find and Lock Pool
+      // We look for a pool by name if ID not provided.
+      // We might want to lock specific rows using raw query or just rely on atomic update with where clause.
+      let pool = params.poolId
+        ? await tx.rewardPool.findUnique({ where: { id: params.poolId } })
+        : await tx.rewardPool.findFirst({
+            where: { name: poolName, currency },
+          });
+
+      if (!pool) {
+        // Auto-create pool if missing? Or fail?
+        // For robustness, let's create if missing, but typically pools should be pre-seeded.
+        // Failing is safer to force Admin config.
+        throw new BadRequestException(`Reward pool '${poolName}' not found`);
+      }
+
+      if (!pool.isActive) {
+        throw new BadRequestException(`Reward pool '${pool.name}' is inactive`);
+      }
+
+      // 3. Check Balance
+      const remaining = pool.totalUsdCents - pool.spentUsdCents;
+      if (remaining < amountCents) {
+        // Auto-close logic?
+        if (remaining <= 0) {
+          await tx.rewardPool.update({
+            where: { id: pool.id },
+            data: { isActive: false },
+          });
         }
-      }),
-      this.prisma.metricDailyRevenue.aggregate({
-        where: { date: { gte: start } },
-        _sum: { grossUsdCents: true }
-      })
-    ]);
+        throw new BadRequestException(
+          `Insufficient funds in pool '${pool.name}'`,
+        );
+      }
 
-    const usdCents = events._sum.usdCents ?? 0;
-    const points = events._sum.points ?? 0;
-    const walletBalance = wallet?.balanceCents ?? 0;
-    const walletPending = wallet?.pendingCents ?? 0;
-    const grossUsdCents = this.toNumber(revenueAggregate._sum.grossUsdCents);
-    const poolUsdCents = Math.round(grossUsdCents * env.ADSERVER_REWARD_SHARE);
-    const projectedUsd = usdCents / 100;
+      // 4. Update Pool
+      await tx.rewardPool.update({
+        where: { id: pool.id },
+        data: {
+          spentUsdCents: { increment: amountCents },
+        },
+      });
 
-    return {
-      agentId,
-      generatedAt: now.toISOString(),
-      monthStart: start.toISOString(),
-      projectedUsd,
-      projectedPoints: points,
-      events: events._count._all,
-      walletBalanceUsd: walletBalance / 100,
-      pendingWalletUsd: walletPending / 100,
-      poolUsd: poolUsdCents / 100,
-      estimatedShareUsd: Math.min(projectedUsd, poolUsdCents / 100),
-      nextPayoutEta: addDays(start, env.WALLET_EARNINGS_COOL_OFF_DAYS).toISOString()
-    };
+      // 5. Create Distribution Record
+      const dist = await tx.rewardDistribution.create({
+        data: {
+          poolId: pool.id,
+          userId,
+          amountCents,
+          currency,
+          reason: detail,
+          status: "PROCESSED",
+          processedAt: new Date(),
+        },
+      });
+
+      // 6. Ledger Update
+      await this.ledger.credit(
+        userId,
+        amountCents,
+        currency,
+        WalletLedgerSourceType.REWARD,
+        dist.id,
+        detail,
+        tx,
+      );
+
+      return dist;
+    });
   }
 
-  private toNumber(value: bigint | number | null | undefined) {
-    if (value === null || value === undefined) {
-      return 0;
+  /**
+   * Bulk Distribution for Revenue Share (Scheduled Task)
+   * This replaces the old 'distributeRewards' method
+   */
+  async triggerRevenueShareDistribution() {
+    // 1. Calculate unspent revenue
+    const metrics = await this.prisma.metricDailyRevenue.aggregate({
+      _sum: { grossUsdCents: true },
+    });
+
+    // This logic needs to be robust: we need to track "last distribution point" or "unallocated revenue".
+    // For MVP, we'll assume we distribute based on what's available in a "Revenue Share Pool"
+    // that is funded by a separate process (e.g. at month end, Finance moves $$ to Pool).
+
+    // ALTERNATIVE: Calculate dynamically from platform profit.
+    // For safety, let's look for a specialized pool "Ad Revenue Share" and distribute its contents.
+
+    const pool = await this.prisma.rewardPool.findFirst({
+      where: { name: "Ad Revenue Share", isActive: true },
+    });
+
+    if (!pool) return { message: "No active Ad Revenue Share pool found" };
+
+    const distributable = pool.totalUsdCents - pool.spentUsdCents;
+    if (distributable <= 0)
+      return { message: "No funds in Ad Revenue Share pool" };
+
+    // 2. Fetch Splits
+    const splitConfig = await this.pricingService.getConfig("REWARD_SPLIT", {
+      agentPct: 10,
+      verifierPct: 5,
+    });
+
+    // We only distribute what is allocated to this pool.
+    // Assuming the Pool IS the allocation.
+
+    // 3. Find Eligible Users (Active Agents)
+    const activeAgents = await this.prisma.user.findMany({
+      where: { role: "AGENT", status: "ACTIVE" },
+      take: 500,
+    });
+
+    if (activeAgents.length === 0) return { message: "No agents found" };
+
+    const amountPerAgent = Math.floor(distributable / activeAgents.length);
+    if (amountPerAgent < 10)
+      return { message: "Amount too small to distribute" }; // < 10 cents
+
+    let count = 0;
+    for (const agent of activeAgents) {
+      try {
+        await this.distributeReward({
+          userId: agent.id,
+          amountCents: amountPerAgent,
+          currency: Currency.USD,
+          sourceId: `REVSHARE-${new Date().toISOString().slice(0, 10)}`, // Daily/Weekly ID
+          detail: "Periodic Revenue Share",
+          poolName: "Ad Revenue Share",
+          poolId: pool.id,
+        });
+        count++;
+      } catch (e) {
+        this.logger.error(`Failed to distribute revshare to ${agent.id}`, e);
+      }
     }
-    return typeof value === 'bigint' ? Number(value) : value;
+
+    return { distributed: count, amountPerAgent };
   }
 }

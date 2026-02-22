@@ -1,282 +1,51 @@
-import { randomUUID } from 'node:crypto';
-import type { AgentSummary, Property, ShortLink } from '@propad/sdk';
+import { randomUUID } from 'crypto';
+import type { ShortLink } from '@propad/sdk';
 
-const COUNTRY_ZW = {
-  id: 'country-zw',
-  name: 'Zimbabwe',
-  iso2: 'ZW',
-  phoneCode: '+263'
-};
+const shortLinksByCode = new Map<string, ShortLink>();
 
-const PROVINCE_HARARE = {
-  id: 'province-harare',
-  name: 'Harare Metropolitan'
-};
+const CODE_LENGTH = 8;
 
-const CITY_HARARE = {
-  id: 'city-harare',
-  name: 'Harare'
-};
-
-const SUBURBS = {
-  BORROWDALE: { id: 'suburb-borrowdale', name: 'Borrowdale' },
-  HELENSVALE: { id: 'suburb-helensvale', name: 'Helensvale' },
-  MT_PLEASANT: { id: 'suburb-mt-pleasant', name: 'Mt Pleasant' },
-  AVONDALE: { id: 'suburb-avondale', name: 'Avondale' }
-} as const;
-
-type SuburbEntry = (typeof SUBURBS)[keyof typeof SUBURBS];
-
-function buildLocation(suburb: SuburbEntry, lat: number, lng: number) {
-  return {
-    countryId: COUNTRY_ZW.id,
-    country: COUNTRY_ZW,
-    provinceId: PROVINCE_HARARE.id,
-    province: PROVINCE_HARARE,
-    cityId: CITY_HARARE.id,
-    city: CITY_HARARE,
-    suburbId: suburb.id,
-    suburb,
-    pendingGeoId: null,
-    lat,
-    lng
-  };
-}
-
-export const mockProperties: Property[] = [
-  {
-    id: 'prop-harare-001',
-    verificationScore: 85,
-    verificationLevel: 'TRUSTED',
-    title: '3-Bedroom Apartment in Borrowdale',
-    type: 'APARTMENT',
-    currency: 'USD',
-    price: 480,
-    countryId: COUNTRY_ZW.id,
-    provinceId: PROVINCE_HARARE.id,
-    cityId: CITY_HARARE.id,
-    suburbId: SUBURBS.BORROWDALE.id,
-    pendingGeoId: null,
-    lat: -17.764,
-    lng: 31.076,
-    location: buildLocation(SUBURBS.BORROWDALE, -17.764, 31.076),
-    countryName: COUNTRY_ZW.name,
-    provinceName: PROVINCE_HARARE.name,
-    cityName: CITY_HARARE.name,
-    suburbName: SUBURBS.BORROWDALE.name,
-    bedrooms: 3,
-    bathrooms: 2,
-    furnishing: 'PARTLY',
-    availability: 'DATE',
-    availableFrom: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    amenities: ['Solar backup', 'Borehole', 'Parking'],
-    description:
-      "North-facing garden flat with solar backup, borehole, and secure parking. 2 minutes from Sam Levy's Village.",
-    media: [
-      {
-        id: 'media-001',
-        url: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=800&q=80',
-        kind: 'IMAGE',
-        hasGps: true
-      }
-    ],
-    isManaged: false,
-    commercialFields: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'prop-harare-002',
-    verificationScore: 110,
-    verificationLevel: 'VERIFIED',
-    title: '4-Bedroom Townhouse in Helensvale',
-    type: 'TOWNHOUSE',
-    currency: 'USD',
-    price: 520,
-    countryId: COUNTRY_ZW.id,
-    provinceId: PROVINCE_HARARE.id,
-    cityId: CITY_HARARE.id,
-    suburbId: SUBURBS.HELENSVALE.id,
-    pendingGeoId: null,
-    lat: -17.741,
-    lng: 31.099,
-    location: buildLocation(SUBURBS.HELENSVALE, -17.741, 31.099),
-    countryName: COUNTRY_ZW.name,
-    provinceName: PROVINCE_HARARE.name,
-    cityName: CITY_HARARE.name,
-    suburbName: SUBURBS.HELENSVALE.name,
-    bedrooms: 4,
-    bathrooms: 3,
-    furnishing: 'FULLY',
-    availability: 'IMMEDIATE',
-    availableFrom: null,
-    amenities: ['Pool', 'Fibre internet', '24/7 security'],
-    description:
-      'Modern townhouse with open-plan kitchen, fibre internet, and a communal pool. Promo boost active for the next 5 days.',
-    media: [
-      {
-        id: 'media-002',
-        url: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=800&q=80',
-        kind: 'IMAGE',
-        hasGps: true
-      }
-    ],
-    isManaged: false,
-    commercialFields: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'prop-harare-003',
-    verificationScore: 20,
-    verificationLevel: 'NONE',
-    title: '2-Bedroom Cottage in Mt Pleasant',
-    type: 'COTTAGE',
-    currency: 'USD',
-    price: 380,
-    countryId: COUNTRY_ZW.id,
-    provinceId: PROVINCE_HARARE.id,
-    cityId: CITY_HARARE.id,
-    suburbId: SUBURBS.MT_PLEASANT.id,
-    pendingGeoId: null,
-    lat: -17.779,
-    lng: 31.042,
-    location: buildLocation(SUBURBS.MT_PLEASANT, -17.779, 31.042),
-    countryName: COUNTRY_ZW.name,
-    provinceName: PROVINCE_HARARE.name,
-    cityName: CITY_HARARE.name,
-    suburbName: SUBURBS.MT_PLEASANT.name,
-    bedrooms: 2,
-    bathrooms: 1,
-    furnishing: 'NONE',
-    availability: 'IMMEDIATE',
-    availableFrom: null,
-    amenities: ['Water storage', 'Prepaid ZESA', 'Security'],
-    description:
-      'Standalone cottage ideal for professionals. Secure estate with 24/7 guard, prepaid ZESA, and water storage.',
-    media: [
-      {
-        id: 'media-003',
-        url: 'https://images.unsplash.com/photo-1484154218962-aee711a0343c?auto=format&fit=crop&w=800&q=80',
-        kind: 'IMAGE',
-        hasGps: false
-      }
-    ],
-    isManaged: false,
-    commercialFields: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'prop-harare-004',
-    title: 'Commercial Office in Avondale',
-    type: 'COMMERCIAL_OFFICE',
-    currency: 'USD',
-    price: 1850,
-    countryId: COUNTRY_ZW.id,
-    provinceId: PROVINCE_HARARE.id,
-    cityId: CITY_HARARE.id,
-    suburbId: SUBURBS.AVONDALE.id,
-    pendingGeoId: null,
-    lat: -17.789,
-    lng: 31.04,
-    location: buildLocation(SUBURBS.AVONDALE, -17.789, 31.04),
-    countryName: COUNTRY_ZW.name,
-    provinceName: PROVINCE_HARARE.name,
-    cityName: CITY_HARARE.name,
-    suburbName: SUBURBS.AVONDALE.name,
-    bedrooms: null,
-    bathrooms: 4,
-    furnishing: 'NONE',
-    availability: 'DATE',
-    availableFrom: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    amenities: ['Generator', 'Reception', 'Boardroom'],
-    description:
-      'Recently refurbished office park with back-up power, fibre internet trunking, and secure access control.',
-    media: [
-      {
-        id: 'media-004',
-        url: 'https://images.unsplash.com/photo-1529429617124-aee711a0343c?auto=format&fit=crop&w=800&q=80',
-        kind: 'IMAGE',
-        hasGps: true
-      }
-    ],
-    isManaged: true,
-    commercialFields: {
-      floorAreaSqm: 280,
-      lotSizeSqm: 1200,
-      parkingBays: 8,
-      powerPhase: 'THREE',
-      loadingBay: false,
-      zoning: 'Commercial core',
-      complianceDocsUrl: 'https://cdn.propad.co.zw/mock/compliance-office.pdf'
-    },
-    verificationScore: 45,
-    verificationLevel: 'BASIC',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+const generateCode = () => {
+  let code = '';
+  while (code.length < CODE_LENGTH) {
+    code += Math.random().toString(36).slice(2);
   }
-];
+  return code.slice(0, CODE_LENGTH);
+};
 
-export const mockAgents: AgentSummary[] = [
-  {
-    id: 'agent-001',
-    name: 'Tsitsi Moyo',
-    phone: '+263771001001',
-    agentProfile: {
-      verifiedListingsCount: 18,
-      leadsCount: 124
-    }
-  },
-  {
-    id: 'agent-002',
-    name: 'Kudzai Sibanda',
-    phone: '+263771001045',
-    agentProfile: {
-      verifiedListingsCount: 11,
-      leadsCount: 96
-    }
-  },
-  {
-    id: 'agent-003',
-    name: 'Lindiwe Chari',
-    phone: '+263772330221',
-    agentProfile: {
-      verifiedListingsCount: 9,
-      leadsCount: 74
-    }
+export const createShortLink = (targetUrl: string, propertyId: string | null) => {
+  let code = generateCode();
+  while (shortLinksByCode.has(code)) {
+    code = generateCode();
   }
-];
 
-const shortLinkStore = new Map<string, ShortLink>();
-
-export function createShortLink(targetUrl: string, propertyId?: string | null): ShortLink {
-  const code = Math.random().toString(36).slice(2, 8).toUpperCase();
   const shortLink: ShortLink = {
     id: randomUUID(),
     code,
     targetUrl,
-    propertyId: propertyId ?? null,
-    utmSource: 'web',
-    utmMedium: 'mock',
-    utmCampaign: 'demo',
+    propertyId,
+    utmSource: null,
+    utmMedium: null,
+    utmCampaign: null,
     utmTerm: null,
     utmContent: null,
     clicks: 0,
     createdAt: new Date().toISOString()
   };
 
-  shortLinkStore.set(code, shortLink);
+  shortLinksByCode.set(code, shortLink);
   return shortLink;
-}
+};
 
-export function getShortLink(code: string): ShortLink | undefined {
-  return shortLinkStore.get(code);
-}
+export const getShortLink = (code: string) => shortLinksByCode.get(code) ?? null;
 
-export function recordShortLinkClick(code: string) {
-  const entry = shortLinkStore.get(code);
-  if (entry) {
-    entry.clicks += 1;
+export const recordShortLinkClick = (code: string) => {
+  const shortLink = shortLinksByCode.get(code);
+  if (!shortLink) {
+    return null;
   }
-}
+
+  const updated: ShortLink = { ...shortLink, clicks: shortLink.clicks + 1 };
+  shortLinksByCode.set(code, updated);
+  return updated;
+};

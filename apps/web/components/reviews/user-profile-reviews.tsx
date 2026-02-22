@@ -1,19 +1,28 @@
-import { prisma } from '@/lib/prisma';
 import { Star } from 'lucide-react';
 import { ReviewForm } from '@/components/reviews/review-form';
+import { serverPublicApiRequest } from '@/lib/server-api';
 
-async function getUserReviews(userId: string) {
-  const reviews = await prisma.userReview.findMany({
-    where: { revieweeId: userId },
-    include: { reviewer: { select: { name: true } } },
-    orderBy: { createdAt: 'desc' }
-  });
+interface ReviewWithReviewer {
+  id: string;
+  rating: number;
+  weight: number;
+  type: string;
+  comment: string | null;
+  createdAt: string;
+  reviewer: { name: string | null };
+}
 
-  const totalWeight = reviews.reduce((sum, r) => sum + r.weight, 0);
-  const weightedSum = reviews.reduce((sum, r) => sum + (r.rating * r.weight), 0);
-  const averageRating = totalWeight > 0 ? weightedSum / totalWeight : 0;
-
-  return { reviews, averageRating, count: reviews.length };
+async function getUserReviews(userId: string): Promise<{ reviews: ReviewWithReviewer[]; averageRating: number; count: number }> {
+  try {
+    // TODO: Implement API endpoint
+    // const data = await serverPublicApiRequest<any>(`/users/${userId}/reviews`);
+    // return { reviews: data.reviews, averageRating: data.averageRating, count: data.count };
+    console.warn('[user-profile-reviews.tsx] getUserReviews - API endpoint not yet implemented');
+    return { reviews: [], averageRating: 0, count: 0 };
+  } catch (error) {
+    console.error('Failed to fetch user reviews:', error);
+    return { reviews: [], averageRating: 0, count: 0 };
+  }
 }
 
 export async function UserProfileReviews({ userId }: { userId: string }) {

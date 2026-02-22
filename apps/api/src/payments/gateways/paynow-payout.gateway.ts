@@ -2,7 +2,9 @@ import { HttpService } from '@nestjs/axios';
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 import { createHash } from 'crypto';
-import { Currency, PayoutMethod, PaymentProvider } from '@prisma/client';
+import { Currency } from '@prisma/client';
+import { PayoutMethod, PaymentProvider } from '@propad/config';
+// import { Currency, PayoutMethod, PaymentProvider } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   PayoutGatewayHandler,
@@ -26,7 +28,7 @@ export class PaynowPayoutGateway implements PayoutGatewayHandler {
   constructor(
     private readonly http: HttpService,
     private readonly prisma: PrismaService
-  ) {}
+  ) { }
 
   async executePayout(input: {
     payoutTransactionId: string;
@@ -210,7 +212,7 @@ export class PaynowPayoutGateway implements PayoutGatewayHandler {
 
   private computeHash(params: URLSearchParams | Record<string, string>, key: string): string {
     let canonical: string;
-    
+
     if (params instanceof URLSearchParams) {
       const entries = Array.from(params.entries())
         .filter(([k]) => k.toLowerCase() !== 'hash')

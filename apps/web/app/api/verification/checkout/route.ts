@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
-import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
+import { serverApiRequest } from '@/lib/server-api';
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -11,43 +11,18 @@ export async function POST(req: Request) {
   const formData = await req.formData();
   const gateway = formData.get('gateway') as string;
 
-  // 1. Create Invoice
-  const invoice = await prisma.invoice.create({
-    data: {
-      buyerUserId: session.user.id,
-      purpose: 'VERIFICATION',
-      currency: 'USD',
-      amountCents: 2000, // $20.00
-      taxCents: 0,
-      amountUsdCents: 2000,
-      taxUsdCents: 0,
-      status: 'OPEN'
-    }
-  });
+  try {
+    // TODO: Implement API endpoint for verification checkout
+    // await serverApiRequest('/verification/checkout', {
+    //     method: 'POST',
+    //     body: { gateway }
+    // });
+    console.warn('[verification/checkout/route.ts] - API endpoint not yet implemented');
 
-  // 2. Create Payment Intent (mock)
-  await prisma.paymentIntent.create({
-    data: {
-      invoiceId: invoice.id,
-      gateway: gateway as any,
-      reference: `REF-${Date.now()}`,
-      amountCents: 2000,
-      currency: 'USD',
-      status: 'PROCESSING'
-    }
-  });
-
-  // 3. Mock Success - In real world, redirect to gateway URL
-  // Here we immediately verify the user for demo purposes
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: { isVerified: true }
-  });
-
-  await prisma.invoice.update({
-    where: { id: invoice.id },
-    data: { status: 'PAID' }
-  });
-
-  return redirect('/dashboard/verification');
+    // Mock success for now
+    return redirect('/dashboard/verification');
+  } catch (error) {
+    console.error('Verification checkout error:', error);
+    return new Response('Failed to process checkout', { status: 500 });
+  }
 }

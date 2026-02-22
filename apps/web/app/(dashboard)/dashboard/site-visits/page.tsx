@@ -1,37 +1,102 @@
 'use client';
+"use client";
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
-import { Loader2, MapPin, CheckCircle, Clock, User, UserCheck, ShieldAlert } from 'lucide-react';
+
+import { Loader2, MapPin, Clock, User, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
-import { useAuthenticatedSDK } from '@/hooks/use-authenticated-sdk';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Badge } from '@propad/ui';
 import type { SiteVisit } from '@propad/sdk';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
+import { useSdkClient } from '@/hooks/use-sdk-client';
+import { ClientState } from '@/components/client-state';
 
 export default function SiteVisitsPage() {
+    const { sdk, status, message, accessToken, apiBaseUrl } = useSdkClient();
     const { data: session } = useSession();
-    const sdk = useAuthenticatedSDK();
     const queryClient = useQueryClient();
+    const searchParams = useSearchParams();
+    const focusedVisitId = searchParams.get('visitId');
     const role = session?.user?.role;
     const isAdmin = role === 'ADMIN';
 
     // Toggle between "All Pending" (Admin) and "My Assignments"
     const [viewMode, setViewMode] = useState<'PENDING' | 'MINE'>(isAdmin ? 'PENDING' : 'MINE');
 
-    const { data: visits, isLoading } = useQuery({
+    const { data: visits, isLoading, isError } = useQuery({
         queryKey: ['site-visits', viewMode],
-        enabled: !!sdk,
+        enabled: status === 'ready',
         queryFn: async () => {
-            if (viewMode === 'PENDING') return sdk!.siteVisits.listPending();
-            return sdk!.siteVisits.listMyAssignments();
+            if (!apiBaseUrl || !accessToken) {
+                return [];
+            }
+
+            const endpoint = viewMode === 'PENDING'
+                ? `${apiBaseUrl}/site-visits/pending`
+                : `${apiBaseUrl}/site-visits/my-assignments`;
+            const res = await fetch(endpoint, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`
+                }
+            });
+
+            if (!res.ok) {
+                throw new Error('Failed to load site visits');
+            }
+
+            const text = await res.text();
+            if (!text) {
+                return [];
+            }
+
+            return JSON.parse(text);
+        }
+    });
+"use client";
+
+    const { data: focusedVisit, isLoading: loadingFocused } = useQuery({
+        queryKey: ['site-visits', 'focus', focusedVisitId],
+        enabled: status === 'ready' && !!focusedVisitId,
+        queryFn: async () => {
+            if (!focusedVisitId) {
+                return null;
+            }
+            if (!apiBaseUrl || !accessToken) {
+                return null;
+            }
+            const res = await fetch(`${apiBaseUrl}/site-visits/${focusedVisitId}`, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`
+                }
+            });
+            if (!res.ok) {
+                throw new Error('Failed to load site visit');
+            }
+            const text = await res.text();
+            if (!text) {
+                return null;
+            }
+            return JSON.parse(text);
         }
     });
 
+    const combinedVisits = useMemo(() => {
+        const list = Array.isArray(visits) ? visits : [];
+        if (focusedVisit && !list.some((visit) => visit.id === focusedVisit.id)) {
+            return [focusedVisit, ...list];
+        }
+        return list;
+    }, [visits, focusedVisit]);
+
     const assignMutation = useMutation({
         mutationFn: async ({ visitId, moderatorId }: { visitId: string; moderatorId: string }) => {
-            return sdk!.siteVisits.assign(visitId, moderatorId);
+            if (!sdk) {
+                throw new Error('Site visit client not ready');
+            }
+            return sdk.siteVisits.assign(visitId, moderatorId);
         },
         onSuccess: () => {
             toast.success('Moderator assigned');
@@ -42,11 +107,13 @@ export default function SiteVisitsPage() {
 
     const completeMutation = useMutation({
         mutationFn: async ({ visitId, lat, lng, notes }: { visitId: string; lat: number; lng: number; notes?: string }) => {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+            if (!apiBaseUrl || !accessToken) {
+                throw new Error('Missing API configuration');
+            }
             const res = await fetch(`${apiBaseUrl}/site-visits/${visitId}/complete`, {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${session?.accessToken}`,
+                    Authorization: `Bearer ${accessToken}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ gpsLat: lat, gpsLng: lng, notes })
@@ -61,12 +128,22 @@ export default function SiteVisitsPage() {
         onError: () => toast.error('Failed to complete visit')
     });
 
-    if (!sdk || isLoading) {
-        return (
-            <div className="flex h-96 items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
-            </div>
-        );
+    const declineMutation = useMutation({
+        mutationFn: async ({ visitId, reason }: { visitId: string; reason?: string }) => {
+            if (!sdk) {
+                throw new Error('Site visit client not ready');
+            }
+            return sdk.siteVisits.decline(visitId, { reason });
+        },
+        onSuccess: () => {
+            toast.success('Visit declined');
+            queryClient.invalidateQueries({ queryKey: ['site-visits'] });
+        },
+        onError: () => toast.error('Failed to decline visit')
+    });
+
+    if (status !== 'ready') {
+        return <ClientState status={status} message={message} title="Site visits" />;
     }
 
     return (
@@ -75,7 +152,9 @@ export default function SiteVisitsPage() {
                 <div>
                     <h1 className="text-2xl font-semibold text-neutral-900">Site Visits</h1>
                     <p className="text-sm text-neutral-600">
-                        {viewMode === 'PENDING' ? 'Pending verification requests awaiting assignment' : 'My assigned active visits'}
+                        {viewMode === 'PENDING'
+                            ? 'Pending and active visits awaiting completion'
+                            : 'My assigned active visits'}
                     </p>
                 </div>
 
@@ -97,17 +176,34 @@ export default function SiteVisitsPage() {
                 )}
             </header>
 
-            {!visits?.length ? (
+            {isLoading || loadingFocused ? (
+                <div className="flex h-64 items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
+                </div>
+            ) : isError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-600">
+                    Unable to load site visits right now. Please try again.
+                </div>
+            ) : focusedVisitId && !focusedVisit && !combinedVisits.length ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-sm text-amber-700">
+                    We could not load that site visit. Make sure you have access or refresh the page.
+                </div>
+            ) : !combinedVisits.length ? (
                 <EmptyState viewMode={viewMode} />
             ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {visits.map((visit) => (
+                    {combinedVisits.map((visit) => (
                         <VisitCard
                             key={visit.id}
                             visit={visit}
                             onAssign={(modId) => assignMutation.mutate({ visitId: visit.id, moderatorId: modId })}
                             onComplete={(lat, lng, notes) => completeMutation.mutate({ visitId: visit.id, lat, lng, notes })}
-                            isProcessing={assignMutation.isPending || completeMutation.isPending}
+                            onDecline={(reason) => declineMutation.mutate({ visitId: visit.id, reason })}
+                            isProcessing={
+                                assignMutation.isPending ||
+                                completeMutation.isPending ||
+                                declineMutation.isPending
+                            }
                         />
                     ))}
                 </div>
@@ -116,10 +212,11 @@ export default function SiteVisitsPage() {
     );
 }
 
-function VisitCard({ visit, onAssign, onComplete, isProcessing }: {
+function VisitCard({ visit, onAssign, onComplete, onDecline, isProcessing }: {
     visit: SiteVisit;
     onAssign: (id: string) => void;
     onComplete: (lat: number, lng: number, notes?: string) => void;
+    onDecline: (reason?: string) => void;
     isProcessing: boolean;
 }) {
     // For demo simplicity, assigning self if pending
@@ -128,6 +225,7 @@ function VisitCard({ visit, onAssign, onComplete, isProcessing }: {
         ASSIGNED: 'bg-blue-100 text-blue-700',
         IN_PROGRESS: 'bg-blue-100 text-blue-700',
         COMPLETED: 'bg-green-100 text-green-700',
+        FAILED: 'bg-red-100 text-red-700',
         CANCELLED: 'bg-red-100 text-red-700',
     }[visit.status] || 'bg-neutral-100 text-neutral-700';
 
@@ -198,47 +296,61 @@ function VisitCard({ visit, onAssign, onComplete, isProcessing }: {
                     )}
 
                     {visit.status === 'ASSIGNED' && visit.assignedModeratorId === currentUserId && (
-                        <Button
-                            size="sm"
-                            className="w-full bg-green-600 hover:bg-green-700"
-                            disabled={isProcessing}
-                            onClick={async () => {
-                                // "Start Visit" → upload GPS
-                                const getGPS = (): Promise<{ lat: number; lng: number }> => {
-                                    return new Promise((resolve) => {
-                                        if (navigator.geolocation) {
-                                            navigator.geolocation.getCurrentPosition(
-                                                (position) => {
-                                                    resolve({
-                                                        lat: position.coords.latitude,
-                                                        lng: position.coords.longitude
-                                                    });
-                                                },
-                                                () => {
-                                                    // Fallback if GPS fails
-                                                    resolve({
-                                                        lat: visit.property?.lat || -17.824858,
-                                                        lng: visit.property?.lng || 31.053028
-                                                    });
-                                                }
-                                            );
-                                        } else {
-                                            // Fallback if geolocation not available
-                                            resolve({
-                                                lat: visit.property?.lat || -17.824858,
-                                                lng: visit.property?.lng || 31.053028
-                                            });
-                                        }
-                                    });
-                                };
+                        <>
+                            <Button
+                                size="sm"
+                                className="w-full bg-green-600 hover:bg-green-700"
+                                disabled={isProcessing}
+                                onClick={async () => {
+                                    // "Start Visit" → upload GPS
+                                    const getGPS = (): Promise<{ lat: number; lng: number }> => {
+                                        return new Promise((resolve) => {
+                                            if (navigator.geolocation) {
+                                                navigator.geolocation.getCurrentPosition(
+                                                    (position) => {
+                                                        resolve({
+                                                            lat: position.coords.latitude,
+                                                            lng: position.coords.longitude
+                                                        });
+                                                    },
+                                                    () => {
+                                                        // Fallback if GPS fails
+                                                        resolve({
+                                                            lat: visit.property?.lat || -17.824858,
+                                                            lng: visit.property?.lng || 31.053028
+                                                        });
+                                                    }
+                                                );
+                                            } else {
+                                                // Fallback if geolocation not available
+                                                resolve({
+                                                    lat: visit.property?.lat || -17.824858,
+                                                    lng: visit.property?.lng || 31.053028
+                                                });
+                                            }
+                                        });
+                                    };
 
-                                const { lat, lng } = await getGPS();
-                                const notes = prompt('Visit Notes (optional):') || undefined;
-                                onComplete(lat, lng, notes);
-                            }}
-                        >
-                            Start Visit
-                        </Button>
+                                    const { lat, lng } = await getGPS();
+                                    const notes = prompt('Visit Notes (optional):') || undefined;
+                                    onComplete(lat, lng, notes);
+                                }}
+                            >
+                                Start Visit
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full text-red-600 border-red-200 hover:bg-red-50"
+                                disabled={isProcessing}
+                                onClick={() => {
+                                    const reason = prompt('Reason for decline (optional):') || undefined;
+                                    onDecline(reason);
+                                }}
+                            >
+                                Unable to Complete
+                            </Button>
+                        </>
                     )}
                 </div>
             </CardContent>

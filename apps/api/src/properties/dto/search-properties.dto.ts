@@ -1,11 +1,15 @@
-import { PropertyFurnishing, PropertyType } from '@prisma/client';
-import { PowerPhase } from '../../common/enums';
+import { PropertyFurnishing, PropertyType, ListingIntent } from '@prisma/client';
+import { PropertyFurnishingEnum, PropertyTypeEnum, PowerPhaseEnum, PowerPhase } from '@propad/config';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class SearchPropertiesDto {
   @IsOptional()
-  @IsEnum(PropertyType)
+  @IsEnum(ListingIntent)
+  listingIntent?: ListingIntent;
+
+  @IsOptional()
+  @IsEnum(PropertyTypeEnum)
   type?: PropertyType;
 
   @IsOptional()
@@ -73,7 +77,7 @@ export class SearchPropertiesDto {
   bathrooms?: number;
 
   @IsOptional()
-  @IsEnum(PropertyFurnishing)
+  @IsEnum(PropertyFurnishingEnum)
   furnished?: PropertyFurnishing;
 
   @IsOptional()
@@ -111,7 +115,7 @@ export class SearchPropertiesDto {
   parking?: boolean;
 
   @IsOptional()
-  @IsEnum(PowerPhase)
+  @IsEnum(PowerPhaseEnum)
   powerPhase?: PowerPhase;
 
   // --- Smart Ranking Fields ---

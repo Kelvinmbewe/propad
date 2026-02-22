@@ -1,50 +1,47 @@
-import { prisma } from '@/lib/prisma';
 import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { InterestActions } from '@/components/interest-actions';
 
+import { serverApiRequest } from '@/lib/server-api';
+
 export const dynamic = 'force-dynamic';
 
-async function getLandlordInterests(userId: string) {
-  // Find properties owned by the user (as landlord or agent)
-  // And get all interests for those properties
-  const interests = await prisma.interest.findMany({
-    where: {
-      property: {
-        OR: [
-          { landlordId: userId },
-          { agentOwnerId: userId }
-        ]
-      }
-    },
-    include: {
-      property: {
-        select: {
-          id: true,
-          title: true,
-          price: true,
-          currency: true,
-          landlordId: true,
-          agentOwnerId: true
-        }
-      },
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          isVerified: true
-        }
-      }
-    },
-    orderBy: {
-      createdAt: 'desc'
-    }
-  });
 
-  return interests;
+interface Interest {
+  id: string;
+  status: string;
+  createdAt: string;
+  message: string | null;
+  offerAmount: number | null;
+  property: {
+    id: string;
+    title: string;
+    price: number;
+    currency: string;
+    landlordId: string;
+    agentOwnerId: string | null;
+  };
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    isVerified: boolean;
+  };
 }
+
+async function getLandlordInterests(): Promise<Interest[]> {
+  try {
+    return await serverApiRequest<Interest[]>('/interests/landlord');
+  } catch (error) {
+    console.error('Failed to fetch landlord interests', {
+      error,
+      route: '/dashboard/interests'
+    });
+    return [];
+  }
+}
+
 
 export default async function InterestsPage() {
   const session = await auth();
@@ -52,7 +49,8 @@ export default async function InterestsPage() {
     redirect('/auth/signin');
   }
 
-  const interests = await getLandlordInterests(session.user.id);
+  const interests = await getLandlordInterests();
+
 
   return (
     <div className="space-y-6">
@@ -77,9 +75,9 @@ export default async function InterestsPage() {
                         {interest.user.name || 'Anonymous User'}
                       </Link>
                       {interest.user.isVerified && (
-                         <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
-                           Verified
-                         </span>
+                        <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                          Verified
+                        </span>
                       )}
                       <span className="text-sm text-slate-500">
                         on <Link href={`/properties/${interest.property.id}`} className="text-emerald-600 hover:underline">{interest.property.title}</Link>

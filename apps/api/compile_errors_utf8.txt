@@ -1,0 +1,40 @@
+﻿src/ads/ads-fraud.controller.ts(2,30): error TS2307: Cannot find module '../../auth/guards/jwt-auth.guard' or its corresponding type declarations.
+src/ads/ads-fraud.controller.ts(3,28): error TS2307: Cannot find module '../../auth/guards/roles.guard' or its corresponding type declarations.
+src/ads/ads-fraud.controller.ts(4,23): error TS2307: Cannot find module '../../auth/decorators/roles.decorator' or its corresponding type declarations.
+src/ads/ads-fraud.controller.ts(6,31): error TS2307: Cannot find module '../../prisma/prisma.service' or its corresponding type declarations.
+src/ads/advertiser-balance.service.ts(1,10): error TS2300: Duplicate identifier 'Injectable'.
+src/ads/advertiser-balance.service.ts(1,22): error TS2300: Duplicate identifier 'BadRequestException'.
+src/ads/advertiser-balance.service.ts(1,43): error TS2300: Duplicate identifier 'NotFoundException'.
+src/ads/advertiser-balance.service.ts(2,10): error TS2300: Duplicate identifier 'PrismaService'.
+src/ads/advertiser-balance.service.ts(3,10): error TS2300: Duplicate identifier 'AuditService'.
+src/ads/advertiser-balance.service.ts(4,10): error TS2300: Duplicate identifier 'Prisma'.
+src/ads/advertiser-balance.service.ts(4,18): error TS2300: Duplicate identifier 'PrismaClient'.
+src/ads/advertiser-balance.service.ts(4,32): error TS2300: Duplicate identifier 'WalletLedgerSourceType'.
+src/ads/advertiser-balance.service.ts(6,6): error TS2300: Duplicate identifier 'PrismaClientOrTx'.
+src/ads/advertiser-balance.service.ts(14,1): error TS1206: Decorators are not valid here.
+src/ads/advertiser-balance.service.ts(15,14): error TS2300: Duplicate identifier 'Injectable'.
+src/ads/advertiser-balance.service.ts(15,26): error TS2300: Duplicate identifier 'BadRequestException'.
+src/ads/advertiser-balance.service.ts(15,47): error TS2300: Duplicate identifier 'NotFoundException'.
+src/ads/advertiser-balance.service.ts(16,10): error TS2300: Duplicate identifier 'PrismaService'.
+src/ads/advertiser-balance.service.ts(17,10): error TS2300: Duplicate identifier 'AuditService'.
+src/ads/advertiser-balance.service.ts(18,10): error TS2300: Duplicate identifier 'Prisma'.
+src/ads/advertiser-balance.service.ts(18,18): error TS2300: Duplicate identifier 'PrismaClient'.
+src/ads/advertiser-balance.service.ts(18,32): error TS2300: Duplicate identifier 'WalletLedgerSourceType'.
+src/ads/advertiser-balance.service.ts(21,6): error TS2300: Duplicate identifier 'PrismaClientOrTx'.
+src/ads/advertiser-balance.service.ts(143,40): error TS2339: Property 'AD_SPEND' does not exist on type 'LiteralEnum<"VERIFICATION" | "AGENT_COMMISSION" | "REFERRAL" | "REWARD" | "PAYOUT" | "ADJUSTMENT">'.
+src/ads/advertiser-balance.service.ts(238,36): error TS2339: Property 'AD_REFUND' does not exist on type 'LiteralEnum<"VERIFICATION" | "AGENT_COMMISSION" | "REFERRAL" | "REWARD" | "PAYOUT" | "ADJUSTMENT">'.
+src/commissions/commissions.service.ts(53,48): error TS2339: Property 'COMMISSION_EARNED' does not exist on type 'LiteralEnum<"VERIFICATION" | "AGENT_COMMISSION" | "REFERRAL" | "REWARD" | "PAYOUT" | "ADJUSTMENT">'.
+src/growth/promos/promos.service.ts(3,31): error TS2307: Cannot find module '../../wallet/ledger.service' or its corresponding type declarations.
+src/payouts/payouts.service.ts(9,31): error TS2307: Cannot find module '../wallet/ledger.service' or its corresponding type declarations.
+src/rewards/engine/distribution.engine.ts(3,31): error TS2307: Cannot find module '../../wallet/ledger.service' or its corresponding type declarations.
+src/rewards/rewards.service.ts(102,34): error TS2339: Property 'REWARD_EARNED' does not exist on type 'LiteralEnum<"VERIFICATION" | "AGENT_COMMISSION" | "REFERRAL" | "REWARD" | "PAYOUT" | "ADJUSTMENT">'.
+src/wallet/wallet.module.ts(3,31): error TS2307: Cannot find module './ledger.service' or its corresponding type declarations.
+src/wallets/admin-ledger.controller.ts(27,28): error TS2339: Property 'search' does not exist on type 'WalletLedgerService'.
+src/wallets/admin-ledger.controller.ts(40,28): error TS2339: Property 'getEntry' does not exist on type 'WalletLedgerService'.
+src/wallets/wallet-ledger.service.ts(104,32): error TS2339: Property 'HOLD' does not exist on type 'LiteralEnum<"CREDIT" | "DEBIT">'.
+src/wallets/wallet-ledger.service.ts(136,32): error TS2339: Property 'RELEASE' does not exist on type 'LiteralEnum<"CREDIT" | "DEBIT">'.
+src/wallets/wallet-ledger.service.ts(165,32): error TS2339: Property 'REFUND' does not exist on type 'LiteralEnum<"CREDIT" | "DEBIT">'.
+src/wallets/wallet-ledger.service.ts(226,24): error TS7006: Parameter 'agg' implicitly has an 'any' type.
+src/wallets/wallet-ledger.service.ts(231,31): error TS2339: Property 'REFUND' does not exist on type 'LiteralEnum<"CREDIT" | "DEBIT">'.
+src/wallets/wallet-ledger.service.ts(232,31): error TS2339: Property 'HOLD' does not exist on type 'LiteralEnum<"CREDIT" | "DEBIT">'.
+src/wallets/wallet-ledger.service.ts(233,31): error TS2339: Property 'RELEASE' does not exist on type 'LiteralEnum<"CREDIT" | "DEBIT">'.

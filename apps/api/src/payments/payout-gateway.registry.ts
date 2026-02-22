@@ -1,5 +1,6 @@
 import { Inject, Injectable, BadRequestException } from '@nestjs/common';
-import { PaymentProvider } from '@prisma/client';
+import { PaymentProvider } from '@propad/config';
+// import { PaymentProvider } from '@prisma/client';
 import { PayoutGatewayHandler } from './interfaces/payout-gateway';
 import { PAYOUT_GATEWAYS } from './payments.constants';
 

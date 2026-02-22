@@ -20,6 +20,7 @@ scripts/      Seed and maintenance scripts
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js 20+
 - pnpm 10+ (install via Corepack with `corepack enable`)
 - Docker (for running the full stack)
@@ -34,25 +35,45 @@ pnpm install
 ### Running the stack locally
 
 1. Copy environment templates:
+
    ```bash
    cp apps/web/.env.example apps/web/.env.local
    cp apps/api/.env.example apps/api/.env
    cp infrastructure/.env.example infrastructure/.env
    ```
-   *Tip: Ensure your `.env` files contain the correct database credentials found in `infrastructure/docker-compose.yml`.*
 
-2. Start services with Docker Compose:
+   _Tip: Ensure your `.env` files contain the correct database credentials found in `infrastructure/docker-compose.yml`._
+
+2. (Fast local dev, no heavy rebuilds) run API + Web directly:
+
+   ```bash
+   pnpm prisma migrate deploy
+   pnpm --filter apps/api start:dev # API at http://localhost:3001/v1
+   pnpm --filter apps/web dev       # Web at http://localhost:3000
+   ```
+
+   Required env keys (set in `apps/api/.env` and `apps/web/.env.local`):
+
+   - `DATABASE_URL=postgres://...`
+   - `DEV_MODE=true`
+   - `JWT_SECRET=changeme` and `NEXTAUTH_SECRET=changeme`
+   - `NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/v1`
+   - `NEXT_PUBLIC_WS_ENABLED=false` (optional in dev)
+
+3. Start services with Docker Compose (if you prefer containers):
+
    ```bash
    cd infrastructure
    docker compose up --build
    ```
 
-3. Run the web app in development mode (optional, if not using Docker for web):
+4. Run the web app in development mode (optional, if not using Docker for web):
+
    ```bash
    pnpm --filter apps/web dev
    ```
 
-4. Run the API in watch mode (optional, if not using Docker for api):
+5. Run the API in watch mode (optional, if not using Docker for api):
    ```bash
    pnpm --filter apps/api start:dev
    ```
@@ -68,7 +89,7 @@ Follow this order to boot the full environment after cloning or unpacking the re
 5. Seed baseline data (generates dynamic demo data): `pnpm --filter @propad/scripts seed`.
 6. Access the web application at `http://localhost:3000`.
 
-**Important**: If you encounter login errors like "An error occurred", ensure your local database schema is synced and seeded.
+**Important**: Avoid dropping or resetting the database; all schema changes are additive. If you encounter login errors like "An error occurred", ensure your local database schema is synced and seeded.
 
 ### Database Management
 
@@ -78,18 +99,30 @@ Follow this order to boot the full environment after cloning or unpacking the re
 
 ### Seeding
 
-Populate the database with baseline roles and randomized demo data:
 ```bash
-pnpm --filter @propad/scripts seed
+docker compose exec api pnpm prisma db seed
 ```
 
 **Default Credentials:**
+
 - **Admin**: `admin@propad.local` / `Admin123!`
 - **Verifier**: `verifier@propad.local` / `Verifier123!`
 - **Agent**: `agent@propad.local` / `Agent123!`
 - **User**: `user@propad.local` / `User123!`
+- **Advertiser**: `advertiser@propad.local` / `Advertiser123!`
 
-*Note: The seed script generates fresh random data for names and property details each time, but maintains the email addresses listed above for login convenience.*
+**Login notes:**
+
+- If MFA is enabled for a user, sign in requires a 6-digit authenticator code or a recovery code.
+- To reset MFA on a locked account, clear `mfaEnabled`, `mfaSecret`, `mfaTempSecret`, and `mfaRecoveryCodes` in the `User` table.
+- Archived users (status `ARCHIVED` with `deletedAt`) cannot log in until an admin reactivates them.
+
+**Account type selection (sign-up):**
+
+- The sign-up form now lets users choose a role (Company, Agent, Landlord, Advertiser, etc.).
+- Company sign-ups auto-create an agency in `PENDING` status.
+
+_Note: The seed script generates fresh random data for names and property details each time, but maintains the email addresses listed above for login convenience._
 
 ### Create a zipped demo artifact
 
@@ -110,11 +143,14 @@ The archive is written to `dist/` and contains everything required to run the Do
 End-to-end Playwright tests are planned under `apps/web/tests/e2e`.
 
 ## Documentation
+
 Comprehensive documentation lives under `docs/`:
+
 - `SETUP.md` – Local environment setup details
 - `ARCHITECTURE.md` – System design and domain architecture
 - `API.md` – REST API contract
 - `SECURITY.md` – Security model, RBAC, and compliance notes
 
 ## Contributing
+
 Pull requests are welcome! Please ensure tests pass and follow the repository linting rules before submitting changes.

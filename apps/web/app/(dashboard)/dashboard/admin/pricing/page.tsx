@@ -1,137 +1,357 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getServerApiBaseUrl } from '@propad/config';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle, Button, Textarea } from '@propad/ui';
+import { Save } from 'lucide-react';
+import { useSdkClient } from '@/hooks/use-sdk-client';
+import { ClientState } from '@/components/client-state';
 
-interface PricingRule {
-  id: string;
-  itemType: string;
-  priceUsdCents: number;
-  currency: 'USD' | 'ZWG';
-  commissionPercent: number;
-  platformFeePercent: number;
-  agentSharePercent: number | null;
-  referralSharePercent: number | null;
-  rewardPoolSharePercent: number | null;
-  isActive: boolean;
+interface PricingConfig {
+  key: string;
+  value: unknown;
+  updatedAt: string;
 }
 
 export default function PricingPage() {
-  const [rules, setRules] = useState<PricingRule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const [editKey, setEditKey] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
+  const [draftKey, setDraftKey] = useState<string>('');
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const { status, message, apiBaseUrl, accessToken } = useSdkClient();
 
-  useEffect(() => {
-    loadRules();
-  }, []);
 
-  const loadRules = async () => {
-    try {
-      const response = await fetch(`${getServerApiBaseUrl()}/pricing`, {
+  const { data: configs, isLoading, isError } = useQuery<PricingConfig[]>({
+    queryKey: ['admin', 'pricing'],
+    enabled: status === 'ready',
+    queryFn: async () => {
+      if (!apiBaseUrl || !accessToken) {
+        return [];
+      }
+      const response = await fetch(`${apiBaseUrl}/admin/pricing`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('apiToken')}`
+          Authorization: `Bearer ${accessToken}`
         }
       });
-      if (response.ok) {
-        const data = await response.json();
-        setRules(data);
+      if (!response.ok) {
+        throw new Error('Failed to load pricing configurations');
       }
-    } catch (error) {
-      console.error('Failed to load pricing rules:', error);
-    } finally {
-      setLoading(false);
+      return response.json();
     }
-  };
+  });
 
-  const formatItemType = (type: string) => {
-    return type
-      .split('_')
-      .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
-      .join(' ');
-  };
+  const saveConfig = useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: string }) => {
+      if (!apiBaseUrl || !accessToken) {
+        throw new Error('Pricing client not ready');
+      }
 
-  if (loading) {
-    return <div>Loading pricing rules...</div>;
+      setJsonError(null);
+      let parsedValue: unknown;
+      try {
+        parsedValue = JSON.parse(value);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Invalid JSON payload';
+        setJsonError(message);
+        throw error;
+      }
+
+      const response = await fetch(`${apiBaseUrl}/admin/pricing`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ key, value: parsedValue })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update pricing configuration');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      setEditKey(null);
+      setEditValue('');
+      setDraftKey('');
+      setJsonError(null);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'pricing'] });
+    },
+    onError: (error) => {
+      if (error instanceof Error && !jsonError) {
+        setJsonError(error.message);
+      }
+    }
+  });
+
+  const knownConfigs = configs ?? [];
+  const showDraftCard =
+    !!editKey && (editKey === 'NEW' || !knownConfigs.some((cfg) => cfg.key === editKey));
+  const draftTitle = editKey === 'NEW' ? (draftKey || 'New config') : editKey;
+
+  if (status !== 'ready') {
+    return <ClientState status={status} message={message} title="Pricing admin" />;
   }
 
+
+
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-bold">Pricing & Fees</h1>
-        <p className="text-sm text-gray-600">Configure pricing rules for chargeable items</p>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Pricing & Rules</h1>
+          <p className="text-sm text-neutral-500">Configure business logic dynamically.</p>
+        </div>
+        <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-xs text-emerald-700">
+          Manage listing pricing inputs like agent fee tiers and featured listing plans here.
+          Keys in use: <span className="font-semibold">pricing.agentFees</span>,{' '}
+          <span className="font-semibold">pricing.featuredPlans</span>, and{' '}
+          <span className="font-semibold">pricing.verificationCosts</span>.
+        </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Item Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Price
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Commission
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Platform Fee
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Agent Share
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Referral Share
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Reward Pool
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
-            {rules.map((rule) => (
-              <tr key={rule.id}>
-                <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                  {formatItemType(rule.itemType)}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  ${(rule.priceUsdCents / 100).toFixed(2)}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {rule.commissionPercent}%
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {rule.platformFeePercent}%
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {rule.agentSharePercent ? `${rule.agentSharePercent}%` : '-'}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {rule.referralSharePercent ? `${rule.referralSharePercent}%` : '-'}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                  {rule.rewardPoolSharePercent ? `${rule.rewardPoolSharePercent}%` : '-'}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm">
-                  <span
-                    className={`rounded-full px-2 py-1 text-xs font-medium ${
-                      rule.isActive
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {rule.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-              </tr>
+
+      <div className="grid gap-4">
+        {isLoading ? (
+          <div className="rounded-lg border border-neutral-200 bg-white p-6 text-sm text-neutral-500">
+            Loading pricing configurations…
+          </div>
+        ) : isError ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-600">
+            Unable to load pricing configurations. Please try again.
+          </div>
+        ) : (
+          <>
+            {showDraftCard && (
+              <Card>
+                <CardHeader className="py-4">
+                  <CardTitle className="text-base font-mono flex items-center justify-between">
+                    {draftTitle}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {editKey === 'NEW' && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-neutral-600">Config key</label>
+                        <input
+                          value={draftKey}
+                          onChange={(e) => setDraftKey(e.target.value)}
+                          className="w-full rounded-md border border-neutral-200 px-3 py-2 text-xs font-mono"
+                          placeholder="pricing.newConfig"
+                        />
+                      </div>
+                    )}
+                    <Textarea
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="font-mono text-xs"
+                      rows={5}
+                    />
+                    {jsonError && <p className="text-xs text-red-600">{jsonError}</p>}
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setEditKey(null);
+                          setDraftKey('');
+                          setJsonError(null);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() =>
+                          saveConfig.mutate({
+                            key: editKey === 'NEW' ? draftKey.trim() : editKey,
+                            value: editValue
+                          })
+                        }
+                        disabled={
+                          saveConfig.isPending || (editKey === 'NEW' && draftKey.trim().length === 0)
+                        }
+                      >
+                        <Save className="mr-2 h-4 w-4" /> Save
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {configs?.map((cfg) => (
+              <Card key={cfg.key}>
+                <CardHeader className="py-4">
+                  <CardTitle className="text-base font-mono flex items-center justify-between">
+                    {cfg.key}
+                    {editKey !== cfg.key && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditKey(cfg.key);
+                          setDraftKey(cfg.key);
+                          setEditValue(JSON.stringify(cfg.value, null, 2));
+                          setJsonError(null);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+
+                <CardContent>
+                  {editKey === cfg.key ? (
+                    <div className="space-y-4">
+                      <Textarea
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="font-mono text-xs"
+                        rows={5}
+                      />
+
+                      {jsonError && <p className="text-xs text-red-600">{jsonError}</p>}
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setEditKey(null);
+                            setDraftKey('');
+                            setJsonError(null);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={() => saveConfig.mutate({ key: cfg.key, value: editValue })}
+                          disabled={saveConfig.isPending}
+                        >
+                          <Save className="mr-2 h-4 w-4" /> Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <pre className="text-xs bg-neutral-50 p-3 rounded overflow-auto">
+                      {JSON.stringify(cfg.value, null, 2)}
+                    </pre>
+                  )}
+                  <div className="mt-2 text-xs text-neutral-400">
+                    Updated: {new Date(cfg.updatedAt).toLocaleString()}
+                  </div>
+                </CardContent>
+              </Card>
             ))}
-          </tbody>
-        </table>
+          </>
+        )}
+
+
+        {configs?.length === 0 && !isLoading && !isError && (
+          <div className="text-center p-8 text-neutral-500 border rounded-lg border-dashed">
+            No configs found. Use the quick actions below to get started.
+          </div>
+        )}
+
+        <div className="mt-8 border-t pt-6">
+          <h3 className="text-sm font-medium text-neutral-900 mb-4">Quick Actions</h3>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditKey('pricing.agentFees');
+                setDraftKey('pricing.agentFees');
+                setEditValue(
+                  JSON.stringify(
+                    [
+                      { min: 0, max: 49, feeUsd: 25, label: 'Starter' },
+                      { min: 50, max: 79, feeUsd: 35, label: 'Trusted' },
+                      { min: 80, max: 100, feeUsd: 50, label: 'Elite' }
+                    ],
+                    null,
+                    2
+                  )
+                );
+                setJsonError(null);
+              }}
+            >
+              Add agent fee tiers
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditKey('pricing.featuredPlans');
+                setDraftKey('pricing.featuredPlans');
+                setEditValue(
+                  JSON.stringify(
+                    [
+                      {
+                        id: 'starter',
+                        label: 'Starter Boost',
+                        durationDays: 7,
+                        discountPercent: 0,
+                        description: '7 days featured placement'
+                      },
+                      {
+                        id: 'growth',
+                        label: 'Growth Boost',
+                        durationDays: 14,
+                        discountPercent: 10,
+                        description: '2 weeks featured placement'
+                      },
+                      {
+                        id: 'pro',
+                        label: 'Pro Boost',
+                        durationDays: 30,
+                        discountPercent: 20,
+                        description: 'Full month featured placement'
+                      }
+                    ],
+                    null,
+                    2
+                  )
+                );
+                setJsonError(null);
+              }}
+            >
+              Add featured plans
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditKey('pricing.verificationCosts');
+                setDraftKey('pricing.verificationCosts');
+                setEditValue(
+                  JSON.stringify(
+                    {
+                      PROOF_OF_OWNERSHIP: 5,
+                      LOCATION_CONFIRMATION: 5,
+                      PROPERTY_PHOTOS: 5,
+                      SITE_VISIT_UPGRADE: 15
+                    },
+                    null,
+                    2
+                  )
+                );
+                setJsonError(null);
+              }}
+            >
+              Add verification costs
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setEditKey('NEW');
+                setDraftKey('');
+                setEditValue('{}');
+                setJsonError(null);
+              }}
+            >
+              Create custom config
+            </Button>
+          </div>
+        </div>
+
       </div>
     </div>
   );
 }
-
