@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 function toUrl(pathname: string, params: URLSearchParams) {
@@ -11,7 +11,6 @@ function toUrl(pathname: string, params: URLSearchParams) {
 export function useAuthAction() {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { status } = useSession();
 
   const requireAuth = (payload: {
@@ -25,7 +24,9 @@ export function useAuthAction() {
       return;
     }
 
-    const next = new URLSearchParams(searchParams.toString());
+    const currentQuery =
+      typeof window !== "undefined" ? window.location.search : "";
+    const next = new URLSearchParams(currentQuery);
     next.set("authOpen", "1");
     next.set("returnTo", payload.returnTo);
     if (payload.upgradeToken) {

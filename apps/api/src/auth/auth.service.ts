@@ -203,7 +203,7 @@ export class AuthService {
     await this.prisma.roleUpgradeToken.create({
       data: {
         tokenHash,
-        targetRole,
+        targetRole: targetRole as any,
         expiresAt: new Date(Date.now() + ttlHours * 60 * 60 * 1000),
         issuedById: actorId,
         campaign: options?.campaign,

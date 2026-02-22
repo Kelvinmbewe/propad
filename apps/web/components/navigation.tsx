@@ -287,6 +287,23 @@ export function DashboardNav() {
     retry: 0,
   });
 
+  const upgradeLinks = [
+    { href: "/upgrade/agent", label: "Become an Agent", role: "AGENT" as Role },
+    {
+      href: "/upgrade/agency",
+      label: "Create an Agency",
+      role: "COMPANY_ADMIN" as Role,
+    },
+    {
+      href: "/upgrade/advertiser",
+      label: "Become an Advertiser",
+      role: "ADVERTISER" as Role,
+    },
+  ];
+  const canShowUpgradeBlock =
+    !!role && !["ADMIN", "VERIFIER", "MODERATOR"].includes(role);
+  const visibleUpgradeLinks = upgradeLinks.filter((link) => link.role !== role);
+
   return (
     <nav className="flex h-full flex-col gap-6">
       <div className="rounded-2xl border border-[color:var(--aurora-color-border)] bg-[color:var(--aurora-color-highest)] p-4 text-[color:var(--aurora-color-text)] shadow-aurora">
@@ -328,30 +345,21 @@ export function DashboardNav() {
             </Link>
           ))}
 
-        {role === "USER" ? (
+        {canShowUpgradeBlock && visibleUpgradeLinks.length > 0 ? (
           <div className="mt-3 rounded-xl border border-[color:var(--aurora-color-border)] bg-[color:var(--aurora-color-highest)] p-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--aurora-color-text-subtle)]">
               Upgrade account
             </p>
             <div className="mt-2 grid gap-1">
-              <Link
-                href="/upgrade/agent"
-                className="rounded-lg px-2 py-1.5 text-xs font-medium text-[color:var(--aurora-color-text-subtle)] transition hover:bg-[color:var(--aurora-color-input)] hover:text-[color:var(--aurora-color-text)]"
-              >
-                Become an Agent
-              </Link>
-              <Link
-                href="/upgrade/agency"
-                className="rounded-lg px-2 py-1.5 text-xs font-medium text-[color:var(--aurora-color-text-subtle)] transition hover:bg-[color:var(--aurora-color-input)] hover:text-[color:var(--aurora-color-text)]"
-              >
-                Create an Agency
-              </Link>
-              <Link
-                href="/upgrade/advertiser"
-                className="rounded-lg px-2 py-1.5 text-xs font-medium text-[color:var(--aurora-color-text-subtle)] transition hover:bg-[color:var(--aurora-color-input)] hover:text-[color:var(--aurora-color-text)]"
-              >
-                Become an Advertiser
-              </Link>
+              {visibleUpgradeLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="rounded-lg px-2 py-1.5 text-xs font-medium text-[color:var(--aurora-color-text-subtle)] transition hover:bg-[color:var(--aurora-color-input)] hover:text-[color:var(--aurora-color-text)]"
+                >
+                  {link.label}
+                </Link>
+              ))}
             </div>
           </div>
         ) : null}
