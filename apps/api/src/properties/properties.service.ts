@@ -1106,135 +1106,49 @@ export class PropertiesService {
         });
     }
 
-    if (actor.role === Role.LANDLORD) {
-      return this.prisma.property
-        .findMany({
-          where: { landlordId: actor.userId },
-          orderBy: { createdAt: "desc" },
-          include,
-        })
-        .then(async (properties: Array<Record<string, unknown>>) => {
-          // #region agent log
-          await this.logDebug(
-            "properties.service.ts:674",
-            "listOwned LANDLORD before attachLocationToMany",
-            { propertyCount: properties.length },
-            "C",
-          );
-          // #endregion
-          return this.attachLocationToMany(properties);
-        })
-        .then(async (result: Array<Record<string, unknown>>) => {
-          // Test JSON serialization
-          try {
-            JSON.stringify(result);
-            // #region agent log
-            await this.logDebug(
-              "properties.service.ts:681",
-              "listOwned LANDLORD JSON serialization success",
-              {},
-              "B",
-            );
-            // #endregion
-          } catch (serialError) {
-            // #region agent log
-            await this.logDebug(
-              "properties.service.ts:684",
-              "listOwned LANDLORD JSON serialization failed",
-              {
-                error:
-                  serialError instanceof Error
-                    ? serialError.message
-                    : String(serialError),
-              },
-              "B",
-            );
-            // #endregion
-            throw serialError;
-          }
-          return result;
-        })
-        .catch(async (error: unknown) => {
-          // #region agent log
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          await this.logDebug(
-            "properties.service.ts:691",
-            "listOwned LANDLORD error",
-            { errorMessage },
-            "C",
-          );
-          // #endregion
-          throw error;
-        });
-    }
-
-    if (actor.role === Role.AGENT) {
-      return this.prisma.property
-        .findMany({
-          where: { agentOwnerId: actor.userId },
-          orderBy: { createdAt: "desc" },
-          include,
-        })
-        .then(async (properties: Array<Record<string, unknown>>) => {
-          // #region agent log
-          await this.logDebug(
-            "properties.service.ts:705",
-            "listOwned AGENT before attachLocationToMany",
-            { propertyCount: properties.length },
-            "C",
-          );
-          // #endregion
-          return this.attachLocationToMany(properties);
-        })
-        .then(async (result: Array<Record<string, unknown>>) => {
-          // Test JSON serialization
-          try {
-            JSON.stringify(result);
-            // #region agent log
-            await this.logDebug(
-              "properties.service.ts:712",
-              "listOwned AGENT JSON serialization success",
-              {},
-              "B",
-            );
-            // #endregion
-          } catch (serialError) {
-            // #region agent log
-            await this.logDebug(
-              "properties.service.ts:715",
-              "listOwned AGENT JSON serialization failed",
-              {
-                error:
-                  serialError instanceof Error
-                    ? serialError.message
-                    : String(serialError),
-              },
-              "B",
-            );
-            // #endregion
-            throw serialError;
-          }
-          return result;
-        })
-        .catch(async (error: unknown) => {
-          // #region agent log
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          await this.logDebug(
-            "properties.service.ts:722",
-            "listOwned AGENT error",
-            { errorMessage },
-            "C",
-          );
-          // #endregion
-          throw error;
-        });
-    }
-
-    throw new ForbiddenException(
-      "Only landlords, agents, or admins can manage listings",
-    );
+    return this.prisma.property
+      .findMany({
+        where: {
+          OR: [
+            { landlordId: actor.userId },
+            { agentOwnerId: actor.userId },
+            { ownerId: actor.userId },
+            { assignedAgentId: actor.userId },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        include,
+      })
+      .then(async (properties: Array<Record<string, unknown>>) => {
+        await this.logDebug(
+          "properties.service.ts:listOwned:shared",
+          "listOwned actor before attachLocationToMany",
+          { propertyCount: properties.length },
+          "C",
+        );
+        return this.attachLocationToMany(properties);
+      })
+      .then(async (result: Array<Record<string, unknown>>) => {
+        JSON.stringify(result);
+        await this.logDebug(
+          "properties.service.ts:listOwned:shared",
+          "listOwned actor JSON serialization success",
+          {},
+          "B",
+        );
+        return result;
+      })
+      .catch(async (error: unknown) => {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        await this.logDebug(
+          "properties.service.ts:listOwned:shared",
+          "listOwned actor error",
+          { errorMessage },
+          "C",
+        );
+        throw error;
+      });
   }
 
   listVerifiedAgents() {
@@ -3157,10 +3071,28 @@ export class PropertiesService {
   }
 
   private ensureCanMutate(
-    property: { landlordId: string | null; agentOwnerId: string | null },
+    property: {
+      landlordId: string | null;
+      agentOwnerId: string | null;
+      ownerId?: string | null;
+      assignedAgentId?: string | null;
+      createdById?: string | null;
+    },
     actor: AuthContext,
   ) {
     if (actor.role === Role.ADMIN) {
+      return;
+    }
+
+    if (
+      [
+        property.landlordId,
+        property.agentOwnerId,
+        property.ownerId,
+        property.assignedAgentId,
+        property.createdById,
+      ].includes(actor.userId)
+    ) {
       return;
     }
 
@@ -5382,7 +5314,8 @@ export class PropertiesService {
   async scheduleViewing(
     propertyId: string,
     dto: {
-      scheduledAt: string;
+      scheduledAt?: string;
+      slotId?: string;
       notes?: string;
       locationLat?: number;
       locationLng?: number;
@@ -5391,40 +5324,107 @@ export class PropertiesService {
   ) {
     const property = await this.getPropertyOrThrow(propertyId);
 
-    // Verify user has an accepted or confirmed offer
-    const interest = await this.prisma.interest.findFirst({
-      where: {
-        propertyId,
-        userId: actor.userId,
-        status: { in: [InterestStatus.ACCEPTED, InterestStatus.CONFIRMED] },
-      },
-    });
-
-    if (!interest) {
+    if (
+      actor.userId === property.landlordId ||
+      actor.userId === property.agentOwnerId
+    ) {
       throw new ForbiddenException(
-        "You must have an accepted or confirmed offer to schedule a viewing",
+        "Managers cannot request viewings on their own listing",
       );
     }
 
-    const viewing = await this.prisma.viewing.create({
-      data: {
-        propertyId,
-        viewerId: actor.userId,
-        scheduledAt: new Date(dto.scheduledAt),
-        notes: dto.notes ?? null,
-        locationLat: dto.locationLat ?? null,
-        locationLng: dto.locationLng ?? null,
-        status: "PENDING",
-        statusV2: "REQUESTED",
-        requestedAt: new Date(),
-        landlordId: property.landlordId,
-        agentId: property.agentOwnerId,
-      },
-      include: {
-        viewer: { select: { id: true, name: true, phone: true } },
-        agent: { select: { id: true, name: true } },
-        landlord: { select: { id: true, name: true } },
-      },
+    const now = new Date();
+    const scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : null;
+
+    if (!dto.slotId && !scheduledAt) {
+      throw new BadRequestException("Either slotId or scheduledAt is required");
+    }
+    if (scheduledAt && Number.isNaN(scheduledAt.getTime())) {
+      throw new BadRequestException("Invalid scheduledAt value");
+    }
+    if (scheduledAt && scheduledAt <= now) {
+      throw new BadRequestException("Viewing time must be in the future");
+    }
+
+    const viewing = await this.prisma.$transaction(async (tx) => {
+      let finalScheduledAt = scheduledAt;
+      let bookedSlotId: string | null = null;
+
+      if (dto.slotId) {
+        const slot = await tx.viewingSlot.findFirst({
+          where: {
+            id: dto.slotId,
+            propertyId,
+            status: "OPEN",
+            startAt: { gt: now },
+          },
+          select: { id: true, startAt: true },
+        });
+
+        if (!slot) {
+          throw new BadRequestException("Selected slot is not available");
+        }
+
+        const lock = await tx.viewingSlot.updateMany({
+          where: {
+            id: slot.id,
+            propertyId,
+            status: "OPEN",
+          },
+          data: { status: "BOOKED" },
+        });
+
+        if (!lock.count) {
+          throw new BadRequestException("Selected slot was already booked");
+        }
+
+        finalScheduledAt = slot.startAt;
+        bookedSlotId = slot.id;
+      }
+
+      const duplicate = await tx.viewing.findFirst({
+        where: {
+          propertyId,
+          viewerId: actor.userId,
+          scheduledAt: finalScheduledAt ?? undefined,
+          status: { in: ["PENDING", "ACCEPTED"] },
+        },
+        select: { id: true },
+      });
+
+      if (duplicate) {
+        throw new ForbiddenException("You already requested this viewing slot");
+      }
+
+      const created = await tx.viewing.create({
+        data: {
+          propertyId,
+          viewerId: actor.userId,
+          scheduledAt: finalScheduledAt ?? now,
+          notes: dto.notes ?? null,
+          locationLat: dto.locationLat ?? null,
+          locationLng: dto.locationLng ?? null,
+          status: "PENDING",
+          statusV2: "REQUESTED",
+          requestedAt: now,
+          landlordId: property.landlordId,
+          agentId: property.agentOwnerId,
+        },
+        include: {
+          viewer: { select: { id: true, name: true, phone: true } },
+          agent: { select: { id: true, name: true } },
+          landlord: { select: { id: true, name: true } },
+        },
+      });
+
+      if (bookedSlotId) {
+        await tx.viewingSlot.update({
+          where: { id: bookedSlotId },
+          data: { viewingId: created.id },
+        });
+      }
+
+      return created;
     });
 
     // TODO: Trigger email notification
@@ -5435,7 +5435,11 @@ export class PropertiesService {
       actorId: actor.userId,
       targetType: "viewing",
       targetId: viewing.id,
-      metadata: { propertyId, scheduledAt: dto.scheduledAt },
+      metadata: {
+        propertyId,
+        scheduledAt: viewing.scheduledAt,
+        slotId: dto.slotId ?? null,
+      },
     });
 
     // Log activity
@@ -5445,11 +5449,171 @@ export class PropertiesService {
       actor.userId,
       {
         viewingId: viewing.id,
-        scheduledAt: dto.scheduledAt,
+        scheduledAt: viewing.scheduledAt,
+        slotId: dto.slotId ?? null,
       },
     );
 
     return viewing;
+  }
+
+  async listViewingSlots(propertyId: string, actor?: AuthContext) {
+    const property = await this.getPropertyOrThrow(propertyId);
+
+    const isManager =
+      Boolean(actor) &&
+      (actor!.role === Role.ADMIN ||
+        property.landlordId === actor!.userId ||
+        property.agentOwnerId === actor!.userId);
+
+    return this.prisma.viewingSlot.findMany({
+      where: {
+        propertyId,
+        startAt: { gt: new Date(Date.now() - 60 * 1000) },
+        status: isManager ? undefined : { in: ["OPEN", "BOOKED"] },
+      },
+      orderBy: { startAt: "asc" },
+      include: {
+        viewing: isManager
+          ? {
+              select: {
+                id: true,
+                status: true,
+                viewer: { select: { id: true, name: true, phone: true } },
+              },
+            }
+          : false,
+      },
+    });
+  }
+
+  async createViewingSlots(
+    propertyId: string,
+    dto: {
+      slots: Array<{ startAt: string; endAt?: string; notes?: string }>;
+      defaultDurationMinutes?: number;
+    },
+    actor: AuthContext,
+  ) {
+    const property = await this.getPropertyOrThrow(propertyId);
+    this.ensureCanMutate(property, actor);
+
+    const durationMinutes = dto.defaultDurationMinutes ?? 45;
+    const now = Date.now();
+    const payload = dto.slots.map((slot) => {
+      const startAt = new Date(slot.startAt);
+      const endAt = slot.endAt
+        ? new Date(slot.endAt)
+        : new Date(startAt.getTime() + durationMinutes * 60 * 1000);
+
+      if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
+        throw new BadRequestException("Invalid slot date format");
+      }
+      if (startAt.getTime() <= now) {
+        throw new BadRequestException("Slot time must be in the future");
+      }
+      if (endAt <= startAt) {
+        throw new BadRequestException("Slot end must be after slot start");
+      }
+
+      return {
+        propertyId,
+        hostId: actor.userId,
+        startAt,
+        endAt,
+        notes: slot.notes ?? null,
+      };
+    });
+
+    const created = await Promise.all(
+      payload.map((item) =>
+        this.prisma.viewingSlot.create({
+          data: item,
+        }),
+      ),
+    );
+
+    await this.audit.logAction({
+      action: "viewing.slots.create",
+      actorId: actor.userId,
+      targetType: "property",
+      targetId: propertyId,
+      metadata: { count: created.length },
+    });
+
+    return created;
+  }
+
+  async cancelViewingSlot(
+    propertyId: string,
+    slotId: string,
+    actor: AuthContext,
+  ) {
+    const property = await this.getPropertyOrThrow(propertyId);
+    this.ensureCanMutate(property, actor);
+
+    const slot = await this.prisma.viewingSlot.findUnique({
+      where: { id: slotId },
+      select: { id: true, propertyId: true, status: true },
+    });
+
+    if (!slot || slot.propertyId !== propertyId) {
+      throw new NotFoundException("Viewing slot not found");
+    }
+
+    if (slot.status === "BOOKED") {
+      throw new BadRequestException("Booked slots cannot be cancelled");
+    }
+
+    return this.prisma.viewingSlot.update({
+      where: { id: slotId },
+      data: { status: "CANCELLED" },
+    });
+  }
+
+  async updateViewingSlot(
+    propertyId: string,
+    slotId: string,
+    dto: { startAt: string; endAt: string },
+    actor: AuthContext,
+  ) {
+    const property = await this.getPropertyOrThrow(propertyId);
+    this.ensureCanMutate(property, actor);
+
+    const slot = await this.prisma.viewingSlot.findUnique({
+      where: { id: slotId },
+      select: {
+        id: true,
+        propertyId: true,
+        status: true,
+        viewingId: true,
+      },
+    });
+
+    if (!slot || slot.propertyId !== propertyId) {
+      throw new NotFoundException("Viewing slot not found");
+    }
+
+    if (slot.status !== "OPEN" || slot.viewingId) {
+      throw new BadRequestException("Only open, unbooked slots can be resized");
+    }
+
+    const startAt = new Date(dto.startAt);
+    const endAt = new Date(dto.endAt);
+    if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
+      throw new BadRequestException("Invalid slot datetime");
+    }
+    if (startAt <= new Date()) {
+      throw new BadRequestException("Slot must remain in the future");
+    }
+    if (endAt <= startAt) {
+      throw new BadRequestException("Slot end must be after start");
+    }
+
+    return this.prisma.viewingSlot.update({
+      where: { id: slotId },
+      data: { startAt, endAt },
+    });
   }
 
   async createRentPayment(
@@ -5510,7 +5674,7 @@ export class PropertiesService {
         status: dto.status as any,
         notes: dto.notes ?? viewing.notes,
         statusV2:
-          dto.status === "ACCEPTED"
+          dto.status === "ACCEPTED" || dto.status === "CONFIRMED"
             ? "ACCEPTED"
             : dto.status === "POSTPONED"
               ? "RESCHEDULED"
@@ -5519,7 +5683,10 @@ export class PropertiesService {
                 : dto.status === "COMPLETED"
                   ? "COMPLETED"
                   : undefined,
-        acceptedAt: dto.status === "ACCEPTED" ? new Date() : undefined,
+        acceptedAt:
+          dto.status === "ACCEPTED" || dto.status === "CONFIRMED"
+            ? new Date()
+            : undefined,
         rescheduledAt: dto.status === "POSTPONED" ? new Date() : undefined,
         cancelledAt: dto.status === "CANCELLED" ? new Date() : undefined,
         completedAt: dto.status === "COMPLETED" ? new Date() : undefined,
@@ -5544,7 +5711,7 @@ export class PropertiesService {
 
     // Log activity
     let activityType: ListingActivityType;
-    if (dto.status === "ACCEPTED") {
+    if (dto.status === "ACCEPTED" || dto.status === "CONFIRMED") {
       activityType = ListingActivityType.VIEWING_ACCEPTED;
     } else if (dto.status === "POSTPONED") {
       activityType = ListingActivityType.VIEWING_POSTPONED;
@@ -6251,6 +6418,7 @@ export class PropertiesService {
         viewer: { select: { id: true, name: true, phone: true } },
         agent: { select: { id: true, name: true } },
         landlord: { select: { id: true, name: true } },
+        slot: { select: { id: true } },
       },
       orderBy: { scheduledAt: "asc" },
     });

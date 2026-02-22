@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { serverApiRequest } from "@/lib/server-api";
-import { requireMessagingUser } from "../../_lib";
+import { requireMessagingUser, toMessagingApiErrorResponse } from "../../_lib";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,9 +20,6 @@ export async function GET(
     return NextResponse.json(conversation);
   } catch (error) {
     console.error("[messages/conversations/:id:get]", error);
-    return NextResponse.json(
-      { error: "Failed to load conversation" },
-      { status: 500 },
-    );
+    return toMessagingApiErrorResponse(error, "Failed to load conversation");
   }
 }

@@ -95,6 +95,14 @@ import {
   scheduleViewingSchema,
 } from "./dto/schedule-viewing.dto";
 import {
+  CreateViewingSlotsDto,
+  createViewingSlotsSchema,
+} from "./dto/create-viewing-slots.dto";
+import {
+  UpdateViewingSlotDto,
+  updateViewingSlotSchema,
+} from "./dto/update-viewing-slot.dto";
+import {
   RespondViewingDto,
   respondViewingSchema,
 } from "./dto/respond-viewing.dto";
@@ -129,8 +137,7 @@ export class PropertiesController {
   constructor(private readonly propertiesService: PropertiesService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   async listOwned(@Req() req: AuthenticatedRequest) {
     try {
       const result = await this.propertiesService.listOwned(req.user);
@@ -288,8 +295,7 @@ export class PropertiesController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   async create(
     @Req() req: AuthenticatedRequest,
     @Body(new ZodValidationPipe(createPropertySchema)) dto: CreatePropertyDto,
@@ -346,15 +352,13 @@ export class PropertiesController {
   }
 
   @Patch(":id/publish")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   publish(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.propertiesService.publish(id, req.user);
   }
 
   @Patch(":id/status")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   updateStatus(
     @Param("id") id: string,
     @Req() req: AuthenticatedRequest,
@@ -366,8 +370,7 @@ export class PropertiesController {
   }
 
   @Patch(":id")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   update(
     @Param("id") id: string,
     @Req() req: AuthenticatedRequest,
@@ -377,8 +380,7 @@ export class PropertiesController {
   }
 
   @Delete(":id")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   remove(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.propertiesService.remove(id, req.user);
   }
@@ -516,15 +518,13 @@ export class PropertiesController {
   }
 
   @Get(":id/interests")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   listInterests(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.propertiesService.listInterests(id, req.user);
   }
 
   @Post(":id/submit")
-  @UseGuards(JwtAuthGuard, RolesGuard, PaymentRequiredGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @UseGuards(JwtAuthGuard, PaymentRequiredGuard)
   @PaymentRequired("PROPERTY_VERIFICATION", "id")
   submitForVerification(
     @Param("id") id: string,
@@ -536,8 +536,7 @@ export class PropertiesController {
   }
 
   @Post("upload-url")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   createSignedUpload(
     @Req() req: AuthenticatedRequest,
     @Body(new ZodValidationPipe(createSignedUploadSchema))
@@ -552,8 +551,7 @@ export class PropertiesController {
   }
 
   @Delete(":id/media/:mediaId")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   deleteMedia(
     @Param("id") id: string,
     @Param("mediaId") mediaId: string,
@@ -563,8 +561,7 @@ export class PropertiesController {
   }
 
   @Post(":id/media/upload")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor("file", {
       limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
@@ -612,8 +609,7 @@ export class PropertiesController {
   }
 
   @Post(":id/media/link")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.AGENT, Role.LANDLORD, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   linkMedia(
     @Param("id") id: string,
     @Req() req: AuthenticatedRequest,
@@ -630,6 +626,49 @@ export class PropertiesController {
     @Body(new ZodValidationPipe(scheduleViewingSchema)) dto: ScheduleViewingDto,
   ) {
     return this.propertiesService.scheduleViewing(id, dto, req.user);
+  }
+
+  @Get(":id/viewing-slots")
+  @UseGuards(OptionalJwtAuthGuard)
+  listViewingSlots(
+    @Param("id") id: string,
+    @Req()
+    req: AuthenticatedRequest & { user?: { userId: string; role: Role } },
+  ) {
+    return this.propertiesService.listViewingSlots(id, req.user);
+  }
+
+  @Post(":id/viewing-slots")
+  @UseGuards(JwtAuthGuard)
+  createViewingSlots(
+    @Param("id") id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(createViewingSlotsSchema))
+    dto: CreateViewingSlotsDto,
+  ) {
+    return this.propertiesService.createViewingSlots(id, dto, req.user);
+  }
+
+  @Patch(":id/viewing-slots/:slotId/cancel")
+  @UseGuards(JwtAuthGuard)
+  cancelViewingSlot(
+    @Param("id") id: string,
+    @Param("slotId") slotId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.propertiesService.cancelViewingSlot(id, slotId, req.user);
+  }
+
+  @Patch(":id/viewing-slots/:slotId")
+  @UseGuards(JwtAuthGuard)
+  updateViewingSlot(
+    @Param("id") id: string,
+    @Param("slotId") slotId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(updateViewingSlotSchema))
+    dto: UpdateViewingSlotDto,
+  ) {
+    return this.propertiesService.updateViewingSlot(id, slotId, dto, req.user);
   }
 
   @Post(":id/rent-payments")
@@ -655,22 +694,19 @@ export class PropertiesController {
   }
 
   @Get(":id/viewings")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   listViewings(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.propertiesService.listViewings(id, req.user);
   }
 
   @Get(":id/payments")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   listPayments(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
     return this.propertiesService.listPayments(id, req.user);
   }
 
   @Post(":id/payments/offline")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   createOfflinePayment(
     @Param("id") id: string,
     @Req() req: AuthenticatedRequest,
@@ -700,8 +736,7 @@ export class PropertiesController {
   }
 
   @Post(":id/payments/invoices")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   createListingInvoice(
     @Param("id") id: string,
     @Req() req: AuthenticatedRequest,
@@ -716,8 +751,7 @@ export class PropertiesController {
   }
 
   @Post(":id/verification/refresh")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   refreshVerification(
     @Param("id") id: string,
     @Req() req: AuthenticatedRequest,
@@ -726,8 +760,7 @@ export class PropertiesController {
   }
 
   @Get(":id/verification-request")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   getVerificationRequest(
     @Param("id") id: string,
     @Req() req: AuthenticatedRequest,
@@ -736,8 +769,7 @@ export class PropertiesController {
   }
 
   @Patch(":propertyId/verification-items/:itemId")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.LANDLORD, Role.AGENT, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   updateVerificationItem(
     @Param("propertyId") propertyId: string,
     @Param("itemId") itemId: string,

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { AuroraThemeToggle, Button, cn } from "@propad/ui";
+import { useAuthAction } from "@/hooks/use-auth-action";
 
 const navLinks = [
   { href: "/listings?intent=FOR_SALE", label: "Buy" },
@@ -14,8 +16,10 @@ const navLinks = [
 ];
 
 export function LandingNav() {
+  const router = useRouter();
   const [isScrolled, setIsScrolled] = useState(false);
   const { data: session, status } = useSession();
+  const { requireAuth } = useAuthAction();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 24);
@@ -79,11 +83,18 @@ export function LandingNav() {
               </Button>
             </Link>
           )}
-          <Link href="/dashboard">
-            <Button className="rounded-full bg-emerald-500 px-6 text-white shadow-[0_15px_45px_-20px_rgba(16,185,129,0.85)] transition hover:bg-emerald-400 hover:shadow-[0_18px_48px_-18px_rgba(45,212,191,0.85)]">
-              {session ? "Dashboard" : "List a property"}
-            </Button>
-          </Link>
+          <Button
+            onClick={() => {
+              if (session?.user?.id) {
+                router.push("/dashboard/listings");
+                return;
+              }
+              requireAuth({ returnTo: "/dashboard/listings" });
+            }}
+            className="rounded-full bg-emerald-500 px-6 text-white shadow-[0_15px_45px_-20px_rgba(16,185,129,0.85)] transition hover:bg-emerald-400 hover:shadow-[0_18px_48px_-18px_rgba(45,212,191,0.85)]"
+          >
+            {session ? "Dashboard" : "List a property"}
+          </Button>
         </div>
       </nav>
     </header>

@@ -13,8 +13,27 @@ function shouldPoll() {
 async function getJson<T>(input: string, init?: RequestInit): Promise<T> {
   const response = await fetch(input, init);
   if (!response.ok) {
-    const payload = await response.text();
-    throw new Error(payload || `Request failed (${response.status})`);
+    const raw = await response.text();
+    let parsed: any = null;
+    try {
+      parsed = raw ? JSON.parse(raw) : null;
+    } catch {
+      parsed = null;
+    }
+
+    const message =
+      parsed?.error ||
+      parsed?.message ||
+      raw ||
+      `Request failed (${response.status})`;
+
+    const error = new Error(message) as Error & {
+      status?: number;
+      details?: unknown;
+    };
+    error.status = response.status;
+    error.details = parsed?.details;
+    throw error;
   }
   return response.json() as Promise<T>;
 }

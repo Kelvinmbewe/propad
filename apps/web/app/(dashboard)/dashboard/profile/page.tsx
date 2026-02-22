@@ -39,6 +39,7 @@ export default function ProfilePage() {
     // For now, access them safely.
     const trustScore = (user as any).trustScore ?? 0;
     const role = (user as any).role ?? 'USER';
+    const canShowUpgradeCtas = role === 'USER' || role === 'LANDLORD';
     const verificationScore = (user as any).verificationScore ?? 0;
     const isVerified = (user as any).isVerified ?? false;
     const kycStatus = (user as any).kycStatus || 'PENDING';
@@ -522,6 +523,28 @@ export default function ProfilePage() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    {canShowUpgradeCtas && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Upgrade your account</CardTitle>
+                                <CardDescription>
+                                    Unlock advanced tools for listings, agencies, and ads.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid gap-2 sm:grid-cols-3">
+                                <Button variant="outline" onClick={() => (window.location.href = '/upgrade/agent')}>
+                                    Become Agent
+                                </Button>
+                                <Button variant="outline" onClick={() => (window.location.href = '/upgrade/agency')}>
+                                    Create Agency
+                                </Button>
+                                <Button variant="outline" onClick={() => (window.location.href = '/upgrade/advertiser')}>
+                                    Become Advertiser
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <Card>
                         <CardHeader>

@@ -1,6 +1,5 @@
 "use client";
 "use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Input, Label } from "@propad/ui";
@@ -12,11 +11,7 @@ export default function SignUpPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [accountType, setAccountType] = useState("USER");
   const apiBaseUrl = getRequiredPublicApiBaseUrl();
-  const showCompanyFields = accountType === "COMPANY_ADMIN";
-  const showAgentFields =
-    accountType === "AGENT" || accountType === "INDEPENDENT_AGENT";
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,7 +24,6 @@ export default function SignUpPage() {
     const confirmPassword = formData.get("confirmPassword") as string;
     const name = formData.get("name") as string;
     const phone = formData.get("phone") as string;
-    const companyName = formData.get("companyName") as string;
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -48,8 +42,6 @@ export default function SignUpPage() {
           password,
           name,
           phone: phone || undefined,
-          role: accountType,
-          companyName: companyName || undefined,
         }),
       });
 
@@ -91,26 +83,6 @@ export default function SignUpPage() {
         <div className="mt-8 rounded-lg bg-white px-10 py-8 shadow-xl dark:bg-slate-800">
           <form className="space-y-6" onSubmit={onSubmit}>
             <div>
-              <Label htmlFor="accountType">Account type</Label>
-              <div className="mt-1">
-                <select
-                  id="accountType"
-                  name="accountType"
-                  value={accountType}
-                  onChange={(event) => setAccountType(event.target.value)}
-                  className="block w-full appearance-none rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500"
-                >
-                  <option value="USER">Normal User</option>
-                  <option value="AGENT">Agent</option>
-                  <option value="INDEPENDENT_AGENT">Independent Agent</option>
-                  <option value="LANDLORD">Landlord</option>
-                  <option value="COMPANY_ADMIN">Company (Agency)</option>
-                  <option value="ADVERTISER">Advertiser</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
               <Label htmlFor="phone">Phone (optional)</Label>
               <div className="mt-1">
                 <Input
@@ -123,27 +95,10 @@ export default function SignUpPage() {
               </div>
             </div>
 
-            {showCompanyFields && (
-              <div>
-                <Label htmlFor="companyName">Company name</Label>
-                <div className="mt-1">
-                  <Input
-                    id="companyName"
-                    name="companyName"
-                    type="text"
-                    autoComplete="organization"
-                    required
-                    className="block w-full appearance-none rounded-md border border-slate-300 px-3 py-2 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-            )}
-
-            {showAgentFields && (
-              <div className="rounded-md border border-emerald-100 bg-emerald-50/60 p-3 text-xs text-emerald-700">
-                Agents will be asked for license details during verification.
-              </div>
-            )}
+            <div className="rounded-md border border-emerald-100 bg-emerald-50/60 p-3 text-xs text-emerald-700">
+              You can upgrade your account to Agent or Agency later from
+              dashboard upgrade links.
+            </div>
             <div>
               <Label htmlFor="name">Full Name</Label>
               <div className="mt-1">

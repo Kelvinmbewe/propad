@@ -6,6 +6,7 @@ import { ReactQueryProvider } from "@/components/react-query-provider";
 import { AuroraThemeProvider, Toaster } from "@propad/ui";
 import { AuthProvider } from "@/components/auth-provider";
 import { MessagingOverlay } from "@/features/messaging/components/MessagingOverlay";
+import { AuthActionModal } from "@/components/auth/auth-action-modal";
 
 export const metadata: Metadata = {
   title: "PropAd Zimbabwe",
@@ -22,6 +23,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               {children}
               <Suspense fallback={null}>
                 <MessagingOverlay />
+              </Suspense>
+              <Suspense fallback={null}>
+                <AuthActionModal />
               </Suspense>
               <Toaster />
             </ReactQueryProvider>

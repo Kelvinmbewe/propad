@@ -18,6 +18,7 @@ export interface PropertyInterest {
   updatedAt: string;
   offerAmount: number | string | null;
   message: string | null;
+  source?: "INTEREST" | "APPLICATION";
   user: PropertyInterestUser;
 }
 
@@ -47,6 +48,9 @@ export interface PropertyViewing {
     id: string;
     name: string | null;
   } | null;
+  slot?: {
+    id: string;
+  } | null;
 }
 
 export async function getInterestsForProperty(propertyId: string) {
@@ -54,8 +58,51 @@ export async function getInterestsForProperty(propertyId: string) {
   if (!session?.user?.id) return [] as PropertyInterest[];
 
   try {
-    return await serverApiRequest<PropertyInterest[]>(
-      `/properties/${propertyId}/interests`,
+    const [interestsResult, applicationsResult] = await Promise.allSettled([
+      serverApiRequest<PropertyInterest[]>(
+        `/properties/${propertyId}/interests`,
+      ),
+      serverApiRequest<any[]>(`/applications/property/${propertyId}`),
+    ]);
+
+    const interests =
+      interestsResult.status === "fulfilled"
+        ? interestsResult.value.map((interest) => ({
+            ...interest,
+            source: "INTEREST" as const,
+          }))
+        : [];
+
+    const applications =
+      applicationsResult.status === "fulfilled"
+        ? applicationsResult.value.map((application) => ({
+            id: application.id,
+            status:
+              application.status === "SUBMITTED"
+                ? "PENDING"
+                : application.status === "APPROVED"
+                  ? "ACCEPTED"
+                  : application.status === "REJECTED"
+                    ? "REJECTED"
+                    : application.status,
+            createdAt: application.createdAt,
+            updatedAt: application.updatedAt ?? application.createdAt,
+            offerAmount: null,
+            message: application.notes ?? null,
+            source: "APPLICATION" as const,
+            user: {
+              id: application.user?.id,
+              name: application.user?.name ?? null,
+              email: application.user?.email ?? null,
+              isVerified: null,
+            },
+          }))
+        : [];
+
+    return [...interests, ...applications].sort(
+      (left, right) =>
+        new Date(right.createdAt).getTime() -
+        new Date(left.createdAt).getTime(),
     );
   } catch (error) {
     console.error("getInterestsForProperty error:", error);

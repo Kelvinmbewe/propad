@@ -11,7 +11,27 @@ export class MessagesService {
     private gateway: MessagingGateway,
   ) {}
 
+  private normalizeUserId(candidate: unknown): string | null {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+    if (!candidate || typeof candidate !== "object") {
+      return null;
+    }
+    const maybeUser = candidate as Record<string, unknown>;
+    const nestedId =
+      maybeUser.id ?? maybeUser.userId ?? maybeUser.profileId ?? maybeUser.sub;
+    return typeof nestedId === "string" && nestedId.trim()
+      ? nestedId.trim()
+      : null;
+  }
+
   async sendMessage(userId: string, dto: CreateMessageDto) {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      throw new ForbiddenException("Access denied");
+    }
+
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: dto.conversationId },
       include: {
@@ -25,7 +45,7 @@ export class MessagesService {
     }
 
     const isParticipant = conversation.participants.some(
-      (participant: any) => participant.userId === userId,
+      (participant: any) => participant.userId === normalizedUserId,
     );
 
     if (!isParticipant) {
@@ -47,7 +67,8 @@ export class MessagesService {
         const sentCount = await this.prisma.message.count({
           where: { conversationId: conversation.id },
         });
-        const canSendIntro = request.requesterId === userId && sentCount === 0;
+        const canSendIntro =
+          request.requesterId === normalizedUserId && sentCount === 0;
         if (!canSendIntro) {
           throw new ForbiddenException(
             "Chat request is still pending approval",
@@ -59,7 +80,7 @@ export class MessagesService {
     const message = await this.prisma.message.create({
       data: {
         conversationId: dto.conversationId,
-        senderId: userId,
+        senderId: normalizedUserId,
         body: dto.body,
         attachments: dto.attachments as Prisma.InputJsonValue | undefined,
         metadata: dto.metadata as Prisma.InputJsonValue | undefined,
@@ -80,7 +101,7 @@ export class MessagesService {
     await this.prisma.conversationParticipant.updateMany({
       where: {
         conversationId: dto.conversationId,
-        userId,
+        userId: normalizedUserId,
       },
       data: {
         lastReadAt: message.createdAt,
@@ -98,6 +119,11 @@ export class MessagesService {
     limit = 50,
     cursor?: string,
   ) {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      throw new ForbiddenException();
+    }
+
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
       include: { participants: true },
@@ -105,7 +131,7 @@ export class MessagesService {
 
     if (
       !conversation ||
-      !conversation.participants.some((p: any) => p.userId === userId)
+      !conversation.participants.some((p: any) => p.userId === normalizedUserId)
     ) {
       throw new ForbiddenException();
     }
@@ -121,19 +147,24 @@ export class MessagesService {
       },
     });
 
-    await this.markRead(conversationId, userId);
+    await this.markRead(conversationId, normalizedUserId);
 
     return messages.reverse();
   }
 
   async markRead(conversationId: string, userId: string) {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      throw new ForbiddenException();
+    }
+
     const readAt = new Date();
 
     await this.prisma.message.updateMany({
       where: {
         conversationId,
         readAt: null,
-        senderId: { not: userId },
+        senderId: { not: normalizedUserId },
       },
       data: { readAt },
     });
@@ -141,7 +172,7 @@ export class MessagesService {
     await this.prisma.conversationParticipant.updateMany({
       where: {
         conversationId,
-        userId,
+        userId: normalizedUserId,
       },
       data: { lastReadAt: readAt },
     });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { serverApiRequest } from "@/lib/server-api";
-import { requireMessagingUser } from "../_lib";
+import { requireMessagingUser, toMessagingApiErrorResponse } from "../_lib";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,9 +19,6 @@ export async function POST(request: Request) {
     return NextResponse.json(message);
   } catch (error) {
     console.error("[messages/messages:post]", error);
-    return NextResponse.json(
-      { error: "Failed to send message" },
-      { status: 500 },
-    );
+    return toMessagingApiErrorResponse(error, "Failed to send message");
   }
 }

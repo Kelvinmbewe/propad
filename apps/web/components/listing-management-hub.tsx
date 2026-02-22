@@ -32,6 +32,7 @@ import {
 } from "@/app/actions/listings";
 import { acceptInterest, rejectInterest } from "@/app/actions/landlord";
 import { PaymentGate } from "@/components/payment-gate";
+import { SlotCalendar } from "@/components/viewings/slot-calendar";
 import {
   ArrowLeft,
   Check,
@@ -151,6 +152,8 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
     refetchOnMount: "always",
   });
 
+  const managedPropertyId = property?.id ?? propertyId;
+
   const { data: myAgency } = useQuery({
     queryKey: ["agency", "my"],
     queryFn: async () => sdk!.agencies.getMy(),
@@ -178,9 +181,9 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
 
   // Fetch property payments for Featured Listing section
   const { data: propertyPayments } = useQuery({
-    queryKey: ["payments", propertyId],
-    queryFn: async () => sdk!.properties.getPayments(propertyId),
-    enabled: !!sdk && !!propertyId,
+    queryKey: ["payments", managedPropertyId],
+    queryFn: async () => sdk!.properties.getPayments(managedPropertyId),
+    enabled: !!sdk && !!managedPropertyId,
     initialData: [] as any[],
     staleTime: 10000,
   });
@@ -718,18 +721,26 @@ export function ListingManagementHub({ propertyId }: { propertyId: string }) {
             propertyPayments={propertyPayments}
           />
         )}
-        {activeTab === "interest" && <InterestTab propertyId={propertyId} />}
-        {activeTab === "chats" && <ChatsTab propertyId={propertyId} />}
-        {activeTab === "viewings" && <ViewingsTab propertyId={propertyId} />}
-        {activeTab === "payments" && <PaymentsTab propertyId={propertyId} />}
+        {activeTab === "interest" && (
+          <InterestTab propertyId={managedPropertyId} />
+        )}
+        {activeTab === "chats" && <ChatsTab propertyId={managedPropertyId} />}
+        {activeTab === "viewings" && (
+          <ViewingsTab propertyId={managedPropertyId} />
+        )}
+        {activeTab === "payments" && (
+          <PaymentsTab propertyId={managedPropertyId} />
+        )}
         {activeTab === "verification" && (
           <VerificationTab
-            propertyId={propertyId}
+            propertyId={managedPropertyId}
             verificationCosts={verificationCosts}
           />
         )}
-        {activeTab === "ratings" && <RatingsTab propertyId={propertyId} />}
-        {activeTab === "logs" && <LogsTab propertyId={propertyId} />}
+        {activeTab === "ratings" && (
+          <RatingsTab propertyId={managedPropertyId} />
+        )}
+        {activeTab === "logs" && <LogsTab propertyId={managedPropertyId} />}
       </div>
     </div>
   );
@@ -1589,7 +1600,8 @@ function InterestTab({ propertyId }: { propertyId: string }) {
   return (
     <div className="space-y-4">
       {interests.map((interest: PropertyInterest) => {
-        const isActionable = interest.status === "PENDING";
+        const isActionable =
+          interest.status === "PENDING" && interest.source !== "APPLICATION";
         const daysRemaining =
           interest.status === "ACCEPTED"
             ? getDaysUntilAutoConfirm(interest.updatedAt)
@@ -1610,6 +1622,11 @@ function InterestTab({ propertyId }: { propertyId: string }) {
                       </span>
                     )}
                     {getStatusBadge(interest.status)}
+                    {interest.source === "APPLICATION" ? (
+                      <span className="bg-violet-50 text-violet-700 text-xs px-2 py-0.5 rounded-full border border-violet-200">
+                        Application
+                      </span>
+                    ) : null}
                   </div>
                   <p className="text-sm text-neutral-500 mb-2">
                     Expressed on{" "}
@@ -1728,7 +1745,10 @@ function ChatsTab({ propertyId }: { propertyId: string }) {
     );
   }
 
-  if (!threads?.length)
+  const hasLegacyThreads = (threads?.length ?? 0) > 0;
+  const hasMessengerListingChats = (conversationChats?.items ?? []).length > 0;
+
+  if (!hasLegacyThreads && !hasMessengerListingChats)
     return (
       <div className="p-8 text-center text-neutral-500">No active chats.</div>
     );
@@ -1891,6 +1911,127 @@ function ChatThreadView({
 }
 
 function ViewingsTab({ propertyId }: { propertyId: string }) {
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
+  const accessToken = (session as { accessToken?: string } | null)?.accessToken;
+  const apiBaseUrl = getPublicApiBaseUrl();
+  const [slotStartAt, setSlotStartAt] = useState("");
+  const [slotEndAt, setSlotEndAt] = useState("");
+  const [templateStartDate, setTemplateStartDate] = useState("");
+  const [templateEndDate, setTemplateEndDate] = useState("");
+  const [templateStartTime, setTemplateStartTime] = useState("09:00");
+  const [templateEndTime, setTemplateEndTime] = useState("09:45");
+  const [templateDays, setTemplateDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [snapPresetMinutes, setSnapPresetMinutes] = useState<15 | 30 | 60>(30);
+
+  const {
+    data: slots,
+    isLoading: slotsLoading,
+    refetch: refetchSlots,
+  } = useQuery<any[]>({
+    queryKey: ["viewing-slots", propertyId],
+    queryFn: async () => {
+      const response = await fetch(
+        `${apiBaseUrl}/properties/${propertyId}/viewing-slots`,
+        {
+          headers: accessToken
+            ? {
+                Authorization: `Bearer ${accessToken}`,
+              }
+            : undefined,
+        },
+      );
+      if (!response.ok) return [];
+      const payload = await response.json();
+      return Array.isArray(payload) ? payload : [];
+    },
+    enabled: Boolean(apiBaseUrl),
+    initialData: [] as any[],
+    refetchInterval: 10000,
+  });
+
+  const createSlotMut = useMutation({
+    mutationFn: async (payload: {
+      slots: Array<{ startAt: string; endAt?: string }>;
+      defaultDurationMinutes?: number;
+    }) => {
+      if (!payload.slots.length) throw new Error("No slots to publish");
+      const response = await fetch(
+        `${apiBaseUrl}/properties/${propertyId}/viewing-slots`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      if (!response.ok) {
+        const raw = await response.text();
+        let parsed: any = null;
+        try {
+          parsed = raw ? JSON.parse(raw) : null;
+        } catch {
+          parsed = null;
+        }
+        throw new Error(
+          parsed?.message || parsed?.error || "Failed to create slot",
+        );
+      }
+    },
+    onSuccess: () => {
+      notify.success("Viewing slot published");
+      setSlotStartAt("");
+      setSlotEndAt("");
+      refetchSlots();
+      queryClient.invalidateQueries({
+        queryKey: ["viewing-slots", propertyId],
+      });
+    },
+    onError: (error: any) => {
+      notify.error(error?.message || "Failed to create slot");
+    },
+  });
+
+  const cancelSlotMut = useMutation({
+    mutationFn: async (slotId: string) => {
+      const response = await fetch(
+        `${apiBaseUrl}/properties/${propertyId}/viewing-slots/${slotId}/cancel`,
+        {
+          method: "PATCH",
+          headers: accessToken
+            ? {
+                Authorization: `Bearer ${accessToken}`,
+              }
+            : undefined,
+        },
+      );
+      if (!response.ok) {
+        const raw = await response.text();
+        let parsed: any = null;
+        try {
+          parsed = raw ? JSON.parse(raw) : null;
+        } catch {
+          parsed = null;
+        }
+        throw new Error(
+          parsed?.message || parsed?.error || "Failed to cancel slot",
+        );
+      }
+    },
+    onSuccess: () => {
+      notify.success("Slot cancelled");
+      refetchSlots();
+      queryClient.invalidateQueries({
+        queryKey: ["viewing-slots", propertyId],
+      });
+    },
+    onError: (error: any) =>
+      notify.error(error?.message || "Failed to cancel slot"),
+  });
+
   const { data: viewings, isLoading } = useQuery<PropertyViewing[]>({
     queryKey: ["viewings", propertyId],
     queryFn: async () => getViewings(propertyId),
@@ -1899,8 +2040,392 @@ function ViewingsTab({ propertyId }: { propertyId: string }) {
 
   if (isLoading) return <Skeleton className="h-64" />;
 
+  const respondViewingMut = useMutation({
+    mutationFn: async ({
+      viewingId,
+      status,
+    }: {
+      viewingId: string;
+      status: "CONFIRMED" | "CANCELLED";
+    }) => {
+      const response = await fetch(
+        `${apiBaseUrl}/properties/viewings/${viewingId}/respond`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify({ status }),
+        },
+      );
+      if (!response.ok) {
+        const raw = await response.text();
+        let parsed: any = null;
+        try {
+          parsed = raw ? JSON.parse(raw) : null;
+        } catch {
+          parsed = null;
+        }
+        throw new Error(
+          parsed?.message || parsed?.error || "Failed to update viewing",
+        );
+      }
+    },
+    onSuccess: () => {
+      notify.success("Viewing updated");
+      queryClient.invalidateQueries({ queryKey: ["viewings", propertyId] });
+      queryClient.invalidateQueries({
+        queryKey: ["viewing-slots", propertyId],
+      });
+    },
+    onError: (error: any) =>
+      notify.error(error?.message || "Failed to update viewing"),
+  });
+
+  const resizeSlotMut = useMutation({
+    mutationFn: async (payload: {
+      slotId: string;
+      startAt: string;
+      endAt: string;
+    }) => {
+      const response = await fetch(
+        `${apiBaseUrl}/properties/${propertyId}/viewing-slots/${payload.slotId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify({
+            startAt: payload.startAt,
+            endAt: payload.endAt,
+          }),
+        },
+      );
+      if (!response.ok) {
+        const raw = await response.text();
+        let parsed: any = null;
+        try {
+          parsed = raw ? JSON.parse(raw) : null;
+        } catch {
+          parsed = null;
+        }
+        throw new Error(
+          parsed?.message || parsed?.error || "Failed to resize slot",
+        );
+      }
+    },
+    onSuccess: () => {
+      notify.success("Slot resized");
+      queryClient.invalidateQueries({
+        queryKey: ["viewing-slots", propertyId],
+      });
+    },
+    onError: (error: any) =>
+      notify.error(error?.message || "Failed to resize slot"),
+  });
+
+  const toggleTemplateDay = (day: number) => {
+    setTemplateDays((current) =>
+      current.includes(day)
+        ? current.filter((value) => value !== day)
+        : [...current, day],
+    );
+  };
+
+  const publishSingleSlot = () => {
+    if (!slotStartAt) {
+      notify.error("Choose slot start time");
+      return;
+    }
+
+    createSlotMut.mutate({
+      slots: [
+        {
+          startAt: new Date(slotStartAt).toISOString(),
+          endAt: slotEndAt ? new Date(slotEndAt).toISOString() : undefined,
+        },
+      ],
+      defaultDurationMinutes: 45,
+    });
+  };
+
+  const publishRecurringTemplate = () => {
+    if (!templateStartDate || !templateEndDate || !templateDays.length) {
+      notify.error("Set template date range and weekdays");
+      return;
+    }
+
+    const start = new Date(`${templateStartDate}T00:00:00`);
+    const end = new Date(`${templateEndDate}T23:59:59`);
+    if (end < start) {
+      notify.error("Template end date must be after start date");
+      return;
+    }
+
+    const now = new Date();
+    const slots: Array<{ startAt: string; endAt?: string }> = [];
+    for (
+      let cursor = new Date(start);
+      cursor <= end && slots.length < 100;
+      cursor.setDate(cursor.getDate() + 1)
+    ) {
+      if (!templateDays.includes(cursor.getDay())) continue;
+      const year = cursor.getFullYear();
+      const month = String(cursor.getMonth() + 1).padStart(2, "0");
+      const day = String(cursor.getDate()).padStart(2, "0");
+      const datePart = `${year}-${month}-${day}`;
+      const startAt = new Date(`${datePart}T${templateStartTime}:00`);
+      const endAt = new Date(`${datePart}T${templateEndTime}:00`);
+      if (endAt <= startAt) continue;
+      if (startAt <= now) continue;
+      slots.push({
+        startAt: startAt.toISOString(),
+        endAt: endAt.toISOString(),
+      });
+    }
+
+    if (!slots.length) {
+      notify.error("No valid recurring slots generated");
+      return;
+    }
+
+    createSlotMut.mutate({
+      slots,
+      defaultDurationMinutes: 45,
+    });
+  };
+
+  const calendarSlots = (slots ?? []).map((slot: any) => ({
+    id: slot.id,
+    startAt: slot.startAt,
+    endAt: slot.endAt,
+    status: slot.status,
+    viewerName: slot.viewing?.viewer?.name ?? undefined,
+  }));
+
+  const customPendingRequests = (viewings ?? []).filter(
+    (viewing) => !viewing.slot?.id && viewing.status === "PENDING",
+  );
+
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Available calendar slots</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-2 md:grid-cols-3">
+            <Input
+              type="datetime-local"
+              value={slotStartAt}
+              onChange={(event) => setSlotStartAt(event.target.value)}
+            />
+            <Input
+              type="datetime-local"
+              value={slotEndAt}
+              onChange={(event) => setSlotEndAt(event.target.value)}
+            />
+            <Button
+              onClick={publishSingleSlot}
+              disabled={createSlotMut.isPending}
+            >
+              {createSlotMut.isPending ? "Publishing..." : "Publish slot"}
+            </Button>
+          </div>
+
+          <div className="rounded-lg border border-border p-3">
+            <p className="mb-2 text-sm font-medium text-foreground">
+              Recurring template
+            </p>
+            <div className="grid gap-2 md:grid-cols-2">
+              <Input
+                type="date"
+                value={templateStartDate}
+                onChange={(event) => setTemplateStartDate(event.target.value)}
+              />
+              <Input
+                type="date"
+                value={templateEndDate}
+                onChange={(event) => setTemplateEndDate(event.target.value)}
+              />
+              <Input
+                type="time"
+                value={templateStartTime}
+                onChange={(event) => setTemplateStartTime(event.target.value)}
+              />
+              <Input
+                type="time"
+                value={templateEndTime}
+                onChange={(event) => setTemplateEndTime(event.target.value)}
+              />
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                (label, index) => {
+                  const active = templateDays.includes(index);
+                  return (
+                    <Button
+                      key={label}
+                      type="button"
+                      size="sm"
+                      variant={active ? "default" : "secondary"}
+                      onClick={() => toggleTemplateDay(index)}
+                    >
+                      {label}
+                    </Button>
+                  );
+                },
+              )}
+              <Button
+                size="sm"
+                onClick={publishRecurringTemplate}
+                disabled={createSlotMut.isPending}
+              >
+                Publish recurring
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">Grid snap:</p>
+            {[15, 30, 60].map((minutes) => (
+              <Button
+                key={minutes}
+                size="sm"
+                variant={
+                  snapPresetMinutes === minutes ? "default" : "secondary"
+                }
+                onClick={() => setSnapPresetMinutes(minutes as 15 | 30 | 60)}
+              >
+                {minutes}m
+              </Button>
+            ))}
+          </div>
+
+          {slotsLoading ? (
+            <Skeleton className="h-20" />
+          ) : !(slots ?? []).length ? (
+            <p className="text-sm text-muted-foreground">
+              No slots published yet.
+            </p>
+          ) : (
+            <SlotCalendar
+              slots={calendarSlots}
+              snapMinutes={snapPresetMinutes}
+              onDragCreateDates={(dates) => {
+                const generatedSlots = dates.map((date) => {
+                  const startAt = new Date(`${date}T${templateStartTime}:00`);
+                  const endAt = new Date(`${date}T${templateEndTime}:00`);
+                  return {
+                    startAt: startAt.toISOString(),
+                    endAt: endAt.toISOString(),
+                  };
+                });
+                createSlotMut.mutate({
+                  slots: generatedSlots,
+                  defaultDurationMinutes: 45,
+                });
+              }}
+              onDragCreateTimeBlock={({ startAt, endAt }) => {
+                createSlotMut.mutate({
+                  slots: [{ startAt, endAt }],
+                  defaultDurationMinutes: 45,
+                });
+              }}
+              onDragCreateTimeBlocks={(ranges) => {
+                createSlotMut.mutate({
+                  slots: ranges,
+                  defaultDurationMinutes: 45,
+                });
+              }}
+              onResizeOpenSlot={(payload) => {
+                resizeSlotMut.mutate(payload);
+              }}
+            />
+          )}
+
+          <div className="space-y-2">
+            {(slots ?? []).slice(0, 8).map((slot: any) => {
+              const isBooked = slot.status === "BOOKED";
+              const isCancelled = slot.status === "CANCELLED";
+              return (
+                <div
+                  key={slot.id}
+                  className="flex items-center justify-between rounded-lg border border-border p-3"
+                >
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(slot.startAt).toLocaleString()} · {slot.status}
+                    {slot.viewing?.viewer?.name
+                      ? ` · ${slot.viewing.viewer.name}`
+                      : ""}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={
+                      isBooked || isCancelled || cancelSlotMut.isPending
+                    }
+                    onClick={() => cancelSlotMut.mutate(slot.id)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+
+          {customPendingRequests.length ? (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
+              <p className="mb-2 text-sm font-medium text-amber-900">
+                Custom slot requests awaiting approval
+              </p>
+              <div className="space-y-2">
+                {customPendingRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    className="flex items-center justify-between rounded border border-amber-200 bg-white p-2"
+                  >
+                    <p className="text-sm text-amber-900">
+                      {request.viewer.name || "Unknown user"} ·{" "}
+                      {new Date(request.scheduledAt).toLocaleString()}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          respondViewingMut.mutate({
+                            viewingId: request.id,
+                            status: "CONFIRMED",
+                          })
+                        }
+                        disabled={respondViewingMut.isPending}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          respondViewingMut.mutate({
+                            viewingId: request.id,
+                            status: "CANCELLED",
+                          })
+                        }
+                        disabled={respondViewingMut.isPending}
+                      >
+                        Decline
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
       <div className="flex flex-wrap justify-between items-center gap-3 bg-blue-50 p-4 rounded-lg">
         <div className="flex gap-2 items-center text-blue-800">
           <Calendar className="h-5 w-5" />

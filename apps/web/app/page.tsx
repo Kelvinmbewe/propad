@@ -70,7 +70,7 @@ export default async function HomePage() {
               title: "Verified listings move faster",
               body: "Upgrade verification to earn higher trust scores and more visibility.",
               ctaLabel: "Start verification",
-              href: "/dashboard/verification",
+              href: "/auth-required?returnTo=%2Fdashboard%2Fverifications",
               tone: "slate",
             },
           ]}

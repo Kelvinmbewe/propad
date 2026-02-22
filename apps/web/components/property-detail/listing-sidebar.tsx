@@ -18,6 +18,7 @@ import { AdSlot } from "@/components/ad-slot";
 import { getRequiredPublicApiBaseUrl } from "@/lib/api-base-url";
 import { useAuthenticatedSDK } from "@/hooks/use-authenticated-sdk";
 import { useMessagingEntry } from "@/features/messaging/use-messaging-entry";
+import { SlotCalendar } from "@/components/viewings/slot-calendar";
 
 interface SidebarEntity {
   name: string;
@@ -43,6 +44,16 @@ export function ListingSidebar({
   const sdk = useAuthenticatedSDK();
   const [viewingOpen, setViewingOpen] = useState(false);
   const [viewingDate, setViewingDate] = useState("");
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [availableSlots, setAvailableSlots] = useState<
+    Array<{
+      id: string;
+      startAt: string;
+      endAt: string;
+      status: "OPEN" | "BOOKED" | "CANCELLED";
+    }>
+  >([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
   const [viewingNotes, setViewingNotes] = useState("");
   const [viewingLoading, setViewingLoading] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -77,8 +88,8 @@ export function ListingSidebar({
       ensureSignIn();
       return;
     }
-    if (!viewingDate) {
-      notify.error("Choose a date and time first.");
+    if (!selectedSlotId && !viewingDate) {
+      notify.error("Choose an available slot or request a custom time.");
       return;
     }
     setViewingLoading(true);
@@ -92,19 +103,63 @@ export function ListingSidebar({
             Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
-            scheduledAt: new Date(viewingDate).toISOString(),
+            slotId: selectedSlotId || undefined,
+            scheduledAt: selectedSlotId
+              ? undefined
+              : new Date(viewingDate).toISOString(),
             notes: viewingNotes || undefined,
           }),
         },
       );
-      if (!response.ok) throw new Error("failed");
+      if (!response.ok) {
+        const raw = await response.text();
+        let parsed: any = null;
+        try {
+          parsed = raw ? JSON.parse(raw) : null;
+        } catch {
+          parsed = null;
+        }
+        throw new Error(
+          parsed?.message ||
+            parsed?.error ||
+            "Could not send viewing request now.",
+        );
+      }
       notify.success("Viewing request sent.");
       setViewingOpen(false);
       setViewingNotes("");
-    } catch {
-      notify.error("Could not send viewing request now.");
+      setSelectedSlotId(null);
+    } catch (error) {
+      notify.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Could not send viewing request now.",
+      );
     } finally {
       setViewingLoading(false);
+    }
+  };
+
+  const loadViewingSlots = async () => {
+    setLoadingSlots(true);
+    try {
+      const response = await fetch(
+        `${getRequiredPublicApiBaseUrl()}/properties/${propertyId}/viewing-slots`,
+        {
+          headers: accessToken
+            ? {
+                Authorization: `Bearer ${accessToken}`,
+              }
+            : undefined,
+        },
+      );
+      if (!response.ok) throw new Error("failed");
+      const payload = await response.json();
+      setAvailableSlots(Array.isArray(payload) ? payload : []);
+    } catch {
+      setAvailableSlots([]);
+    } finally {
+      setLoadingSlots(false);
     }
   };
 
@@ -221,11 +276,9 @@ export function ListingSidebar({
               variant="secondary"
               className="w-full"
               onClick={() => {
-                setViewingDate(
-                  new Date(Date.now() + 24 * 60 * 60 * 1000)
-                    .toISOString()
-                    .slice(0, 16),
-                );
+                setViewingDate("");
+                setSelectedSlotId(null);
+                void loadViewingSlots();
                 setViewingOpen(true);
               }}
             >
@@ -338,10 +391,39 @@ export function ListingSidebar({
             <DialogTitle>Request viewing</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">
+                Available slots
+              </p>
+              {loadingSlots ? (
+                <p className="text-sm text-muted-foreground">
+                  Loading slots...
+                </p>
+              ) : !availableSlots.length ? (
+                <p className="text-sm text-muted-foreground">
+                  No published slots yet. Request a custom time below.
+                </p>
+              ) : (
+                <SlotCalendar
+                  slots={availableSlots}
+                  selectedSlotId={selectedSlotId}
+                  onSelectSlot={(slotId) => {
+                    setSelectedSlotId(slotId);
+                    setViewingDate("");
+                  }}
+                />
+              )}
+            </div>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              Or request a custom slot
+            </p>
             <Input
               type="datetime-local"
               value={viewingDate}
-              onChange={(event) => setViewingDate(event.target.value)}
+              onChange={(event) => {
+                setViewingDate(event.target.value);
+                setSelectedSlotId(null);
+              }}
             />
             <Textarea
               rows={3}

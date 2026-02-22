@@ -489,6 +489,12 @@ enum ViewingRequestStatus {
   COMPLETED
 }
 
+enum ViewingSlotStatus {
+  OPEN
+  BOOKED
+  CANCELLED
+}
+
 enum MessageModerationStatus {
   OK
   FLAGGED
@@ -677,6 +683,7 @@ model User {
   viewingsAsViewer         Viewing[]            @relation("ViewingViewer")
   viewingsAsAgent          Viewing[]            @relation("ViewingAgent")
   viewingsAsLandlord       Viewing[]            @relation("ViewingLandlord")
+  hostedViewingSlots       ViewingSlot[]        @relation("ViewingSlotHost")
   savedSearches            SavedSearch[]
 
   // New Profile Fields
@@ -717,10 +724,30 @@ model User {
   moderatedMessages       Message[]                 @relation("MessageModerator")
   requestedChatRequests   ChatRequest[]             @relation("ChatRequestRequester")
   receivedChatRequests    ChatRequest[]             @relation("ChatRequestRecipient")
+  usedRoleUpgradeTokens   RoleUpgradeToken[]        @relation("RoleUpgradeUsedBy")
   managementAssignmentsCreated ListingManagementAssignment[] @relation("ListingManagementCreator")
   managementAssignmentsAccepted ListingManagementAssignment[] @relation("ListingManagementAccepter")
   managementAssignmentsOwned ListingManagementAssignment[] @relation("ListingManagementOwner")
   managementAssignmentsAssigned ListingManagementAssignment[] @relation("ListingManagementAssignedAgent")
+}
+
+model RoleUpgradeToken {
+  id           String   @id @default(cuid())
+  tokenHash    String   @unique
+  targetRole   Role
+  expiresAt    DateTime
+  usedAt       DateTime?
+  usedByUserId String?
+  issuedById   String?
+  note         String?
+  campaign     String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  usedBy User? @relation("RoleUpgradeUsedBy", fields: [usedByUserId], references: [id])
+
+  @@index([targetRole, expiresAt])
+  @@index([usedByUserId])
 }
 
 model SavedSearch {
@@ -1120,6 +1147,7 @@ model Property {
   interests            Interest[]
   rentPayments         RentPayment[]
   viewings             Viewing[]
+  viewingSlots         ViewingSlot[]
   featuredListing      FeaturedListing?
   listingPayments      ListingPayment[]
   verificationRequests VerificationRequest[]
@@ -1547,10 +1575,32 @@ model Viewing {
   viewer   User     @relation("ViewingViewer", fields: [viewerId], references: [id])
   agent    User?    @relation("ViewingAgent", fields: [agentId], references: [id])
   landlord User?    @relation("ViewingLandlord", fields: [landlordId], references: [id])
+  slot     ViewingSlot?
 
   @@index([propertyId, scheduledAt])
   @@index([viewerId])
   @@index([agentId])
+}
+
+model ViewingSlot {
+  id         String            @id @default(cuid())
+  propertyId String
+  hostId     String
+  startAt    DateTime
+  endAt      DateTime
+  status     ViewingSlotStatus @default(OPEN)
+  notes      String?
+  viewingId  String?           @unique
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  host     User     @relation("ViewingSlotHost", fields: [hostId], references: [id])
+  viewing  Viewing? @relation(fields: [viewingId], references: [id])
+
+  @@unique([propertyId, startAt])
+  @@index([propertyId, status, startAt])
+  @@index([hostId, startAt])
 }
 
 model FeaturedListing {

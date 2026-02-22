@@ -22,10 +22,13 @@ export async function GET(request: Request) {
 
   try {
     const conversations = await serverApiRequest<any[]>(
-      "/messaging/conversations",
+      "/messaging/conversations?type=listing",
     );
     const listingChats = (conversations ?? []).filter(
-      (conversation: any) => conversation?.propertyId === propertyId,
+      (conversation: any) =>
+        conversation?.propertyId === propertyId ||
+        conversation?.listingId === propertyId ||
+        conversation?.property?.id === propertyId,
     );
     return NextResponse.json({ items: listingChats });
   } catch (error) {

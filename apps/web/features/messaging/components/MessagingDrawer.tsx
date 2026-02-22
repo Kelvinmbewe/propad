@@ -9,6 +9,8 @@ import {
   Button,
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogTitle,
   Input,
   notify,
   ScrollArea,
@@ -51,6 +53,17 @@ export function MessagingDrawer({
 
   const { data: conversation } = useConversation(conversationId);
   const { data: messages } = useMessages(conversationId);
+  const pendingRequest = conversation?.chatRequest?.status === "PENDING";
+  const isRequester =
+    conversation?.chatRequest?.requesterId === session?.user?.id;
+  const isRecipient =
+    conversation?.chatRequest?.recipientId === session?.user?.id;
+  const requesterCanSendIntroOnly =
+    pendingRequest && isRequester && (messages?.length ?? 0) === 0;
+  const canSend =
+    !pendingRequest ||
+    requesterCanSendIntroOnly ||
+    (!isRequester && !isRecipient);
 
   const otherParticipant = useMemo(() => {
     const myId = session?.user?.id;
@@ -72,7 +85,7 @@ export function MessagingDrawer({
 
   const handleSend = async () => {
     const trimmed = body.trim();
-    if (!trimmed) return;
+    if (!trimmed || !canSend) return;
 
     try {
       const activeConversationId = await ensureConversation();
@@ -82,17 +95,24 @@ export function MessagingDrawer({
       });
       setBody("");
     } catch (error) {
-      notify.error(
-        error instanceof Error && error.message
-          ? error.message
-          : "Unable to send message right now",
-      );
+      const friendlyMessage =
+        error instanceof Error &&
+        error.message.includes("Chat request is still pending approval")
+          ? "Your intro has been sent. Wait for acceptance before sending another message."
+          : error instanceof Error && error.message
+            ? error.message
+            : "Unable to send message right now";
+      notify.error(friendlyMessage);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="right-0 left-auto top-0 h-screen max-w-2xl w-full translate-x-0 translate-y-0 rounded-none p-0 sm:max-w-xl">
+        <DialogTitle className="sr-only">Messaging drawer</DialogTitle>
+        <DialogDescription className="sr-only">
+          Start and continue conversations in the PropAd inbox.
+        </DialogDescription>
         <div className="flex h-full flex-col">
           <div className="border-b px-5 py-4">
             <div className="flex items-center gap-3">
@@ -174,6 +194,12 @@ export function MessagingDrawer({
           </ScrollArea>
 
           <div className="border-t p-4">
+            {pendingRequest && isRequester && (messages?.length ?? 0) > 0 ? (
+              <p className="mb-2 text-xs text-amber-700">
+                Request pending: wait for the recipient to accept before sending
+                more.
+              </p>
+            ) : null}
             <div className="flex items-end gap-2">
               <Input
                 value={body}
@@ -185,12 +211,17 @@ export function MessagingDrawer({
                   }
                 }}
                 placeholder="Type a message"
+                disabled={!canSend}
               />
               <Button
                 type="button"
                 size="icon"
                 onClick={() => void handleSend()}
-                disabled={sendMessage.isPending || createConversation.isPending}
+                disabled={
+                  sendMessage.isPending ||
+                  createConversation.isPending ||
+                  !canSend
+                }
                 aria-label="Send message"
               >
                 <Send className="h-4 w-4" />

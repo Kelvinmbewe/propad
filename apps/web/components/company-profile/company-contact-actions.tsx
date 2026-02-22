@@ -6,10 +6,12 @@ import { useMessagingEntry } from "@/features/messaging/use-messaging-entry";
 
 export function CompanyContactActions({
   companyId,
+  recipientId,
   phone,
   website,
 }: {
   companyId: string;
+  recipientId?: string;
   phone?: string | null;
   website?: string | null;
 }) {
@@ -21,7 +23,7 @@ export function CompanyContactActions({
     if (isStarting) return;
     setIsStarting(true);
     try {
-      openMessageDrawer({ companyId });
+      openMessageDrawer({ companyId, recipientId });
     } finally {
       setIsStarting(false);
     }

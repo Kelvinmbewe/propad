@@ -13,6 +13,8 @@ import { AuthService } from "./auth.service";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { JwtRefreshGuard } from "./jwt-refresh.guard";
 import { Role } from "@propad/config";
+import { Roles } from "./decorators/roles.decorator";
+import { RolesGuard } from "./guards/roles.guard";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 
 const baseSchema = z.object({
@@ -27,9 +29,27 @@ const loginSchema = baseSchema.extend({
 const registerSchema = baseSchema.extend({
   name: z.string().optional(),
   phone: z.string().optional(),
-  role: z.nativeEnum(Role).optional(),
-  companyName: z.string().optional(),
   referralCode: z.string().optional(),
+});
+
+const createUpgradeTokenSchema = z.object({
+  targetRole: z.nativeEnum(Role),
+  ttlHours: z
+    .number()
+    .int()
+    .min(1)
+    .max(24 * 30)
+    .optional(),
+  campaign: z.string().optional(),
+  note: z.string().optional(),
+});
+
+const redeemUpgradeTokenSchema = z.object({
+  token: z.string().min(20),
+});
+
+const selfServeUpgradeSchema = z.object({
+  targetRole: z.nativeEnum(Role),
 });
 
 const mfaSchema = z.object({
@@ -61,9 +81,6 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post("login")
   async login(@Body() body: LoginDto) {
-    // TEMP LOG: for debugging (remove later)
-    console.log("LOGIN ATTEMPT:", body.email);
-
     const result = loginSchema.safeParse(body);
     if (!result.success) {
       throw new BadRequestException(result.error.flatten().fieldErrors);
@@ -73,30 +90,6 @@ export class AuthController {
       result.data.password,
       result.data.otp,
     );
-  }
-
-  // TEMP ENDPOINT: for curl testing independent of NextAuth (remove later)
-  @Post("login-test")
-  async loginTest(@Body() body: LoginDto) {
-    console.log("LOGIN-TEST ATTEMPT (no guards):", body.email);
-
-    const result = loginSchema.safeParse(body);
-    if (!result.success) {
-      throw new BadRequestException(result.error.flatten().fieldErrors);
-    }
-
-    try {
-      const loginResult = await this.authService.login(
-        result.data.email,
-        result.data.password,
-        result.data.otp,
-      );
-      console.log("LOGIN-TEST SUCCESS:", result.data.email);
-      return loginResult;
-    } catch (error) {
-      console.log("LOGIN-TEST FAILED:", result.data.email, error);
-      throw error;
-    }
   }
 
   @Throttle({ default: { limit: 3, ttl: 60000 } })
@@ -115,11 +108,50 @@ export class AuthController {
       result.data.password,
       result.data.name,
       result.data.phone,
-      result.data.role,
-      result.data.companyName,
+      undefined,
+      undefined,
       result.data.referralCode,
       { ip },
     );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post("upgrade-tokens")
+  createUpgradeToken(
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(createUpgradeTokenSchema))
+    body: z.infer<typeof createUpgradeTokenSchema>,
+  ) {
+    return this.authService.createRoleUpgradeToken(
+      req.user.userId,
+      body.targetRole,
+      {
+        ttlHours: body.ttlHours,
+        campaign: body.campaign,
+        note: body.note,
+      },
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("upgrade/redeem")
+  redeemUpgradeToken(
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(redeemUpgradeTokenSchema))
+    body: z.infer<typeof redeemUpgradeTokenSchema>,
+  ) {
+    return this.authService.redeemRoleUpgradeToken(req.user.userId, body.token);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("upgrade/self-serve")
+  selfServeUpgrade(
+    @Req() req: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(selfServeUpgradeSchema))
+    body: z.infer<typeof selfServeUpgradeSchema>,
+  ) {
+    return this.authService.selfServeUpgrade(req.user.userId, body.targetRole);
   }
 
   @UseGuards(JwtAuthGuard)

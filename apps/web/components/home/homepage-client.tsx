@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { signIn, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import {
   HeroSearchCard,
   type HomeSearchState,
@@ -35,6 +35,7 @@ import { getImageUrl } from "@/lib/image-url";
 import { PROPERTY_PLACEHOLDER_IMAGE } from "@/lib/property-placeholder";
 import { trackLocationEvent } from "@/lib/home-events";
 import { ShieldCheck, UserCheck } from "lucide-react";
+import { useAuthAction } from "@/hooks/use-auth-action";
 
 const ExploreByAreaSection = dynamic(
   () =>
@@ -147,6 +148,7 @@ export function HomePageClient({
   initialCounts,
 }: HomePageClientProps) {
   const { data: session } = useSession();
+  const { requireAuth } = useAuthAction();
   const isAuthenticated = Boolean(session?.user?.id);
   const geo = useGeoPreference(DEFAULT_HOME_LOCATION);
   const [searchState, setSearchState] = useState<HomeSearchState>({
@@ -363,7 +365,12 @@ export function HomePageClient({
 
   const handleCreateAlert = () => {
     if (!isAuthenticated) {
-      signIn(undefined, { callbackUrl: window.location.href });
+      requireAuth({
+        returnTo:
+          typeof window !== "undefined"
+            ? `${window.location.pathname}${window.location.search}`
+            : "/",
+      });
       return;
     }
 
@@ -583,7 +590,7 @@ export function HomePageClient({
           </div>
         </div>
         <Link
-          href="/dashboard/verification"
+          href="/auth-required?returnTo=%2Fdashboard%2Fverifications"
           className="text-sm font-semibold text-emerald-600 hover:text-emerald-700"
         >
           Learn how verification works →

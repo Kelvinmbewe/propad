@@ -1,24 +1,28 @@
-import type { Role } from '@propad/sdk';
+import type { Role } from "@propad/sdk";
 
-const rolePriority: Record<Role, number> = {
-  ADMIN: 5,
-  FINANCE: 5,
-  VERIFIER: 4,
-  MODERATOR: 4,
-  COMPANY_ADMIN: 4,
-  AGENT: 3,
-  COMPANY_AGENT: 3,
-  INDEPENDENT_AGENT: 3,
-  LANDLORD: 2,
-  SELLER: 2,
-  ADVERTISER: 2,
-  USER: 1,
-  TENANT: 1,
-  BUYER: 1,
-};
+export const RBAC = {
+  USER: "USER",
+  LANDLORD: "LANDLORD",
+  AGENT: "AGENT",
+  AGENCY: "COMPANY_ADMIN",
+  ADVERTISER: "ADVERTISER",
+  ADMIN: "ADMIN",
+} as const;
 
-export function canAccess(required: Role[], actual?: Role | null) {
-  if (!actual) return false;
-  const priority = rolePriority[actual];
-  return required.some((role) => rolePriority[role] <= priority);
+export function hasRole(role: Role | undefined, allowed: Role[]) {
+  if (!role) return false;
+  return allowed.includes(role);
+}
+
+export function canCreateListing(role: Role | undefined) {
+  if (!role) return false;
+  return ["LANDLORD", "AGENT", "COMPANY_ADMIN", "ADMIN"].includes(role);
+}
+
+export function canAccessListingsDashboard(input: {
+  role?: Role;
+  ownedListingsCount?: number;
+}) {
+  if (canCreateListing(input.role)) return true;
+  return (input.ownedListingsCount ?? 0) > 0;
 }

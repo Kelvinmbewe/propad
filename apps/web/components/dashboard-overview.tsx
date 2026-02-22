@@ -582,6 +582,34 @@ export function DashboardOverview() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">My Activity</h1>
+        <Card>
+          <CardHeader>
+            <CardTitle>Upgrade your account</CardTitle>
+            <CardDescription>
+              Choose a path to unlock agent, agency, or advertiser workflows.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => router.push("/upgrade/agent")}
+            >
+              Become Agent
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/upgrade/agency")}
+            >
+              Create Agency
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/upgrade/advertiser")}
+            >
+              Become Advertiser
+            </Button>
+          </CardContent>
+        </Card>
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">

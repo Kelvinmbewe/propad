@@ -21,13 +21,15 @@ const API_URL =
 
 const TOKEN_REFRESH_BUFFER_MS = 60 * 1000;
 
-function decodeJwtPayload(token: string): { exp?: number } | null {
+function decodeJwtPayload(
+  token: string,
+): { exp?: number; role?: Role; sub?: string } | null {
   const [, payload] = token.split(".");
   if (!payload) return null;
   try {
     const padded = payload.replace(/-/g, "+").replace(/_/g, "/");
     const decoded = Buffer.from(padded, "base64").toString("utf-8");
-    return JSON.parse(decoded) as { exp?: number };
+    return JSON.parse(decoded) as { exp?: number; role?: Role; sub?: string };
   } catch {
     return null;
   }
@@ -85,21 +87,11 @@ const config: NextAuthConfig = {
               ? (credentials as any).otp
               : undefined;
 
-          // TEMP LOGS: for debugging (remove later)
-          console.log("===========================================");
-          console.log("NEXTAUTH CREDENTIALS:", {
-            email: email,
-            passwordLength: password ? password.length : 0,
-          });
-
           if (!email || !password) {
-            console.log("[Auth] Missing credentials");
             return null;
           }
 
           // Call the API for login - use hard fallback API_URL
-          console.log("[Auth] Calling API at:", `${API_URL}/auth/login`);
-
           const response = await fetch(`${API_URL}/auth/login`, {
             method: "POST",
             headers: {
@@ -112,11 +104,7 @@ const config: NextAuthConfig = {
             }),
           });
 
-          // TEMP LOGS: for debugging (remove later)
-          console.log("API LOGIN STATUS:", response.status);
           const responseText = await response.clone().text();
-          console.log("API LOGIN BODY:", responseText);
-          console.log("===========================================");
 
           if (!response.ok) {
             // FAIL LOUDLY IF API IS UNREACHABLE
@@ -140,10 +128,7 @@ const config: NextAuthConfig = {
           }
 
           const data = JSON.parse(responseText);
-          console.log("[Auth] API login success, user id:", data.user?.id);
-
           if (!data.user) {
-            console.log("[Auth] No user in API response");
             return null;
           }
 
@@ -185,8 +170,6 @@ const config: NextAuthConfig = {
     async jwt({ token, user }) {
       const mutableToken = token as Record<string, unknown>;
       try {
-        console.log("[Auth] JWT callback called, user:", user?.email);
-
         if (!mutableToken.userId && typeof mutableToken.sub === "string") {
           mutableToken.userId = mutableToken.sub;
         }
@@ -214,6 +197,13 @@ const config: NextAuthConfig = {
             if (payload?.exp) {
               mutableToken.apiAccessTokenExpires = payload.exp * 1000;
             }
+            if (payload?.role) {
+              mutableToken.role = payload.role;
+              mutableToken.userRole = payload.role;
+            }
+            if (payload?.sub && !mutableToken.userId) {
+              mutableToken.userId = payload.sub;
+            }
           }
           if (userData.refreshToken) {
             mutableToken.apiRefreshToken = userData.refreshToken;
@@ -234,6 +224,15 @@ const config: NextAuthConfig = {
           return mutableToken;
         }
 
+        const currentPayload = decodeJwtPayload(accessToken);
+        if (currentPayload?.role) {
+          mutableToken.role = currentPayload.role;
+          mutableToken.userRole = currentPayload.role;
+        }
+        if (currentPayload?.sub && !mutableToken.userId) {
+          mutableToken.userId = currentPayload.sub;
+        }
+
         const shouldRefresh =
           !expiresAt || Date.now() + TOKEN_REFRESH_BUFFER_MS >= expiresAt;
 
@@ -250,13 +249,19 @@ const config: NextAuthConfig = {
         return {
           ...mutableToken,
           role:
+            payload?.role ??
             (mutableToken.role as Role | undefined) ??
             (mutableToken.userRole as Role | undefined) ??
             "USER",
           userRole:
+            payload?.role ??
             (mutableToken.userRole as Role | undefined) ??
             (mutableToken.role as Role | undefined) ??
             "USER",
+          userId:
+            payload?.sub ??
+            (mutableToken.userId as string | undefined) ??
+            (mutableToken.sub as string | undefined),
           apiAccessToken: refreshed.accessToken,
           apiRefreshToken: refreshed.refreshToken ?? refreshToken,
           apiAccessTokenExpires: payload?.exp

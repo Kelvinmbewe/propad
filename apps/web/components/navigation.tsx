@@ -6,6 +6,7 @@ import { signOut, useSession } from "next-auth/react";
 import { cn } from "@propad/ui";
 import type { Role } from "@propad/sdk";
 import type { ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3,
   Activity,
@@ -263,6 +264,8 @@ const links = [
 import { NotificationsBell } from "./notifications-bell";
 import { useTrustScore } from "@/hooks/use-trust-score";
 import { Badge } from "@propad/ui";
+import { useSdkClient } from "@/hooks/use-sdk-client";
+import { canAccessListingsDashboard } from "@/lib/rbac";
 
 export function DashboardNav() {
   const pathname = usePathname();
@@ -270,6 +273,19 @@ export function DashboardNav() {
   const role = data?.user?.role;
   const isAuthenticated = status === "authenticated";
   const { data: trustData } = useTrustScore();
+  const { sdk, status: sdkStatus } = useSdkClient();
+
+  const { data: ownedListingsCount = 0 } = useQuery({
+    queryKey: ["nav", "owned-listings-count", data?.user?.id],
+    queryFn: async () => {
+      if (!sdk) return 0;
+      const owned = await sdk.properties.listOwned();
+      return owned.length;
+    },
+    enabled: sdkStatus === "ready",
+    staleTime: 60_000,
+    retry: 0,
+  });
 
   return (
     <nav className="flex h-full flex-col gap-6">
@@ -288,7 +304,13 @@ export function DashboardNav() {
 
       <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
         {links
-          .filter((link) => (role ? link.roles.includes(role) : false))
+          .filter((link) => {
+            if (!role) return false;
+            if (link.href === "/dashboard/listings") {
+              return canAccessListingsDashboard({ role, ownedListingsCount });
+            }
+            return link.roles.includes(role);
+          })
           .map((link) => (
             <Link
               key={link.href}
@@ -305,6 +327,34 @@ export function DashboardNav() {
               {link.label}
             </Link>
           ))}
+
+        {role === "USER" ? (
+          <div className="mt-3 rounded-xl border border-[color:var(--aurora-color-border)] bg-[color:var(--aurora-color-highest)] p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--aurora-color-text-subtle)]">
+              Upgrade account
+            </p>
+            <div className="mt-2 grid gap-1">
+              <Link
+                href="/upgrade/agent"
+                className="rounded-lg px-2 py-1.5 text-xs font-medium text-[color:var(--aurora-color-text-subtle)] transition hover:bg-[color:var(--aurora-color-input)] hover:text-[color:var(--aurora-color-text)]"
+              >
+                Become an Agent
+              </Link>
+              <Link
+                href="/upgrade/agency"
+                className="rounded-lg px-2 py-1.5 text-xs font-medium text-[color:var(--aurora-color-text-subtle)] transition hover:bg-[color:var(--aurora-color-input)] hover:text-[color:var(--aurora-color-text)]"
+              >
+                Create an Agency
+              </Link>
+              <Link
+                href="/upgrade/advertiser"
+                className="rounded-lg px-2 py-1.5 text-xs font-medium text-[color:var(--aurora-color-text-subtle)] transition hover:bg-[color:var(--aurora-color-input)] hover:text-[color:var(--aurora-color-text)]"
+              >
+                Become an Advertiser
+              </Link>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* User Profile Section */}

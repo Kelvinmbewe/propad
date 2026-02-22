@@ -35,6 +35,7 @@ import {
   listingVerificationBreakdown,
 } from "@/lib/listings";
 import { useMessagingEntry } from "@/features/messaging/use-messaging-entry";
+import { SlotCalendar } from "@/components/viewings/slot-calendar";
 
 export function ListingsCard({
   property,
@@ -53,6 +54,11 @@ export function ListingsCard({
   const { data: session } = useSession();
   const [viewingOpen, setViewingOpen] = useState(false);
   const [viewingDate, setViewingDate] = useState("");
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [availableSlots, setAvailableSlots] = useState<
+    Array<{ id: string; startAt: string; endAt: string; status: string }>
+  >([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [viewingNotes, setViewingNotes] = useState("");
   const [viewingLoading, setViewingLoading] = useState(false);
   const { openMessageDrawer } = useMessagingEntry();
@@ -108,14 +114,16 @@ export function ListingsCard({
       promptSignIn();
       return;
     }
-    if (!viewingDate) {
-      notify.error("Choose a preferred viewing date and time.");
+    if (!selectedSlotId && !viewingDate) {
+      notify.error("Choose a slot or request a custom time.");
       return;
     }
 
     setViewingLoading(true);
     try {
-      const scheduledAt = new Date(viewingDate).toISOString();
+      const scheduledAt = viewingDate
+        ? new Date(viewingDate).toISOString()
+        : undefined;
       const response = await fetch(
         `${getRequiredPublicApiBaseUrl()}/properties/${property.id}/viewings/schedule`,
         {
@@ -125,7 +133,8 @@ export function ListingsCard({
             Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
-            scheduledAt,
+            slotId: selectedSlotId || undefined,
+            scheduledAt: selectedSlotId ? undefined : scheduledAt,
             notes: viewingNotes || undefined,
             locationLat:
               typeof property.location.lat === "number"
@@ -140,16 +149,53 @@ export function ListingsCard({
       );
 
       if (!response.ok) {
-        throw new Error("Failed to request viewing");
+        const raw = await response.text();
+        let parsed: any = null;
+        try {
+          parsed = raw ? JSON.parse(raw) : null;
+        } catch {
+          parsed = null;
+        }
+        throw new Error(
+          parsed?.message || parsed?.error || "Failed to request viewing",
+        );
       }
 
       notify.success("Viewing request sent.");
       setViewingOpen(false);
       setViewingNotes("");
-    } catch {
-      notify.error("We could not request a viewing right now.");
+      setSelectedSlotId(null);
+    } catch (error) {
+      notify.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "We could not request a viewing right now.",
+      );
     } finally {
       setViewingLoading(false);
+    }
+  };
+
+  const loadViewingSlots = async () => {
+    setSlotsLoading(true);
+    try {
+      const response = await fetch(
+        `${getRequiredPublicApiBaseUrl()}/properties/${property.id}/viewing-slots`,
+        {
+          headers: accessToken
+            ? {
+                Authorization: `Bearer ${accessToken}`,
+              }
+            : undefined,
+        },
+      );
+      if (!response.ok) throw new Error("Failed to load slots");
+      const payload = await response.json();
+      setAvailableSlots(Array.isArray(payload) ? payload : []);
+    } catch {
+      setAvailableSlots([]);
+    } finally {
+      setSlotsLoading(false);
     }
   };
 
@@ -313,10 +359,9 @@ export function ListingsCard({
                 promptSignIn();
                 return;
               }
-              const defaultDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
-                .toISOString()
-                .slice(0, 16);
-              setViewingDate(defaultDate);
+              setViewingDate("");
+              setSelectedSlotId(null);
+              void loadViewingSlots();
               setViewingOpen(true);
             }}
           >
@@ -345,12 +390,36 @@ export function ListingsCard({
             <DialogTitle>Request viewing</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-800">
+                Available slots
+              </p>
+              {slotsLoading ? (
+                <p className="text-sm text-slate-500">Loading slots...</p>
+              ) : !availableSlots.length ? (
+                <p className="text-sm text-slate-500">
+                  No slots published yet. Use custom date/time below.
+                </p>
+              ) : (
+                <SlotCalendar
+                  slots={availableSlots}
+                  selectedSlotId={selectedSlotId}
+                  onSelectSlot={(slotId) => {
+                    setSelectedSlotId(slotId);
+                    setViewingDate("");
+                  }}
+                />
+              )}
+            </div>
             <label className="flex flex-col gap-1 text-sm text-slate-700">
-              Preferred date and time
+              Custom date and time (optional)
               <input
                 type="datetime-local"
                 value={viewingDate}
-                onChange={(event) => setViewingDate(event.target.value)}
+                onChange={(event) => {
+                  setViewingDate(event.target.value);
+                  setSelectedSlotId(null);
+                }}
                 className="h-10 rounded-lg border border-slate-200 px-3"
               />
             </label>

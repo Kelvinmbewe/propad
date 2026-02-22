@@ -83,7 +83,14 @@ export function MessagesInbox({
     selectedConversation?.chatRequest?.status === "PENDING";
   const isRecipient =
     selectedConversation?.chatRequest?.recipientId === session?.user?.id;
-  const canSend = !pendingRequest || (pendingRequest && !isRecipient);
+  const isRequester =
+    selectedConversation?.chatRequest?.requesterId === session?.user?.id;
+  const canRequesterSendIntroOnly =
+    pendingRequest && isRequester && messages.length === 0;
+  const canSend =
+    !pendingRequest ||
+    canRequesterSendIntroOnly ||
+    (!isRecipient && !isRequester);
 
   const onSelectConversation = (conversationId: string) => {
     setSelectedId(conversationId);
@@ -100,11 +107,14 @@ export function MessagesInbox({
       });
       setBody("");
     } catch (error) {
-      notify.error(
-        error instanceof Error && error.message
-          ? error.message
-          : "Unable to send message right now",
-      );
+      const friendlyMessage =
+        error instanceof Error &&
+        error.message.includes("Chat request is still pending approval")
+          ? "Your intro has been sent. Wait for acceptance before sending another message."
+          : error instanceof Error && error.message
+            ? error.message
+            : "Unable to send message right now";
+      notify.error(friendlyMessage);
     }
   };
 
@@ -391,6 +401,12 @@ export function MessagesInbox({
                 </ScrollArea>
 
                 <div className="border-t p-4">
+                  {pendingRequest && isRequester && messages.length > 0 ? (
+                    <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                      Your intro is sent. You can send more once this request is
+                      accepted.
+                    </div>
+                  ) : null}
                   {pendingRequest && isRecipient ? (
                     <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
                       <span>This general chat is pending your approval.</span>

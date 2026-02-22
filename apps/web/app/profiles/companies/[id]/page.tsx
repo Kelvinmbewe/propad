@@ -63,6 +63,7 @@ export default async function CompanyProfilePage({
       <main className="mx-auto max-w-7xl space-y-6 px-4 pb-12 pt-24 sm:px-6 lg:px-8">
         <CompanyHeroCard
           companyId={params.id}
+          recipientId={data.team[0]?.id}
           company={data.company}
           activeListingsCount={data.stats.activeListingsCount}
         />

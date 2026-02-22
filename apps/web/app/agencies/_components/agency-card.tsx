@@ -51,7 +51,10 @@ export function AgencyCard({
     if (startingChat) return;
     setStartingChat(true);
     try {
-      openMessageDrawer({ companyId: agency.id });
+      openMessageDrawer({
+        companyId: agency.id,
+        recipientId: agency.team.top[0]?.id,
+      });
     } finally {
       setStartingChat(false);
     }

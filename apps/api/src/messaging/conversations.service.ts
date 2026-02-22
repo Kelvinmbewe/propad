@@ -12,6 +12,21 @@ import { CreateConversationDto } from "./dto/create-conversation.dto";
 export class ConversationsService {
   constructor(private prisma: PrismaService) {}
 
+  private normalizeUserId(candidate: unknown): string | null {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+    if (!candidate || typeof candidate !== "object") {
+      return null;
+    }
+    const maybeUser = candidate as Record<string, unknown>;
+    const nestedId =
+      maybeUser.id ?? maybeUser.userId ?? maybeUser.profileId ?? maybeUser.sub;
+    return typeof nestedId === "string" && nestedId.trim()
+      ? nestedId.trim()
+      : null;
+  }
+
   private readonly conversationInclude = {
     property: {
       select: {
@@ -123,8 +138,14 @@ export class ConversationsService {
   }
 
   async create(userId: string, dto: CreateConversationDto) {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      throw new BadRequestException("Invalid user identity");
+    }
+
     const listingId = dto.listingId?.trim() ?? dto.propertyId?.trim() ?? null;
-    const recipientId = await this.resolveRecipient(userId, dto);
+    const rawRecipientId = await this.resolveRecipient(normalizedUserId, dto);
+    const recipientId = this.normalizeUserId(rawRecipientId);
 
     if (!listingId && !recipientId && dto.companyId?.trim()) {
       throw new BadRequestException("No available agency inbox recipient");
@@ -136,12 +157,20 @@ export class ConversationsService {
       );
     }
 
-    if (recipientId && recipientId === userId) {
+    if (recipientId && recipientId === normalizedUserId) {
       throw new BadRequestException("Cannot message yourself");
     }
 
+    const cleanedParticipantIds = (dto.participantIds ?? [])
+      .map((entry) => this.normalizeUserId(entry))
+      .filter((entry): entry is string => Boolean(entry));
+
     const participantIds = Array.from(
-      new Set([userId, ...(recipientId ? [recipientId] : [])]),
+      new Set([
+        normalizedUserId,
+        ...(recipientId ? [recipientId] : []),
+        ...cleanedParticipantIds,
+      ]),
     );
 
     const type = listingId
@@ -198,7 +227,7 @@ export class ConversationsService {
       await this.prisma.chatRequest.create({
         data: {
           conversationId: created.id,
-          requesterId: userId,
+          requesterId: normalizedUserId,
           recipientId,
           status: ChatRequestStatus.PENDING,
         },
@@ -210,16 +239,21 @@ export class ConversationsService {
       include: this.conversationInclude,
     });
 
-    return this.toConversationListItem(userId, reloaded);
+    return this.toConversationListItem(normalizedUserId, reloaded);
   }
 
   async findAll(
     userId: string,
     filters: { type?: string; status?: string; q?: string },
   ) {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      throw new BadRequestException("Invalid user identity");
+    }
+
     const where: Prisma.ConversationWhereInput = {
       participants: {
-        some: { userId },
+        some: { userId: normalizedUserId },
       },
     };
 
@@ -232,7 +266,7 @@ export class ConversationsService {
     if (filters.status === "requests") {
       where.chatRequest = {
         is: {
-          recipientId: userId,
+          recipientId: normalizedUserId,
           status: ChatRequestStatus.PENDING,
         },
       };
@@ -262,12 +296,17 @@ export class ConversationsService {
 
     return Promise.all(
       conversations.map((conversation) =>
-        this.toConversationListItem(userId, conversation),
+        this.toConversationListItem(normalizedUserId, conversation),
       ),
     );
   }
 
   async findOne(id: string, userId: string) {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      throw new BadRequestException("Invalid user identity");
+    }
+
     const conversation = await this.prisma.conversation.findUnique({
       where: { id },
       include: this.conversationInclude,
@@ -278,20 +317,25 @@ export class ConversationsService {
     }
 
     const isParticipant = conversation.participants.some(
-      (p: any) => p.userId === userId,
+      (p: any) => p.userId === normalizedUserId,
     );
     if (!isParticipant) {
       throw new NotFoundException("Conversation not found");
     }
 
-    return this.toConversationListItem(userId, conversation);
+    return this.toConversationListItem(normalizedUserId, conversation);
   }
 
   async markRead(id: string, userId: string) {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      throw new BadRequestException("Invalid user identity");
+    }
+
     const participant = await this.prisma.conversationParticipant.findFirst({
       where: {
         conversationId: id,
-        userId,
+        userId: normalizedUserId,
       },
       select: { id: true },
     });
@@ -309,11 +353,16 @@ export class ConversationsService {
   }
 
   async acceptRequest(requestId: string, userId: string) {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      throw new BadRequestException("Invalid user identity");
+    }
+
     const request = await this.prisma.chatRequest.findUnique({
       where: { id: requestId },
     });
 
-    if (!request || request.recipientId !== userId) {
+    if (!request || request.recipientId !== normalizedUserId) {
       throw new NotFoundException("Chat request not found");
     }
 
@@ -324,11 +373,16 @@ export class ConversationsService {
   }
 
   async declineRequest(requestId: string, userId: string) {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      throw new BadRequestException("Invalid user identity");
+    }
+
     const request = await this.prisma.chatRequest.findUnique({
       where: { id: requestId },
     });
 
-    if (!request || request.recipientId !== userId) {
+    if (!request || request.recipientId !== normalizedUserId) {
       throw new NotFoundException("Chat request not found");
     }
 

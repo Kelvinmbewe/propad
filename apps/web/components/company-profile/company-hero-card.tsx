@@ -4,10 +4,12 @@ import { CompanyContactActions } from "@/components/company-profile/company-cont
 
 export function CompanyHeroCard({
   companyId,
+  recipientId,
   company,
   activeListingsCount,
 }: {
   companyId: string;
+  recipientId?: string;
   company: any;
   activeListingsCount: number;
 }) {
@@ -71,6 +73,7 @@ export function CompanyHeroCard({
 
         <CompanyContactActions
           companyId={companyId}
+          recipientId={recipientId}
           phone={company.phone}
           website={company.website || company.socialLinks?.website}
         />

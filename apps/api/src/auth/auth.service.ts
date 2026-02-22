@@ -10,6 +10,7 @@ import { compare, hash } from "bcryptjs";
 import * as speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import { nanoid } from "nanoid";
+import { createHash, randomBytes } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { RiskService } from "../security/risk.service";
 import { ReferralsService } from "../growth/referrals/referrals.service";
@@ -83,7 +84,11 @@ export class AuthService {
   }
 
   async login(email: string, password: string, otp?: string) {
-    const user = await this.validateUser(email, password);
+    const rawUser = await this.validateUser(email, password);
+    const user = await this.ensureRoleFromListings(
+      rawUser.id,
+      rawUser.role as Role,
+    );
     const mfaUser = user as typeof user & {
       mfaEnabled?: boolean;
       mfaSecret?: string | null;
@@ -123,8 +128,8 @@ export class AuthService {
     password: string,
     name?: string,
     phone?: string,
-    role?: Role,
-    companyName?: string,
+    _role?: Role,
+    _companyName?: string,
     referralCode?: string,
     meta?: { ip?: string; deviceId?: string },
   ) {
@@ -136,7 +141,7 @@ export class AuthService {
     }
 
     const passwordHash = await hash(password, 10);
-    const userRole = role ?? Role.USER;
+    const userRole = Role.USER;
     const user = await this.prisma.user.create({
       data: {
         email,
@@ -153,21 +158,6 @@ export class AuthService {
       },
     });
 
-    if (userRole === Role.COMPANY_ADMIN && companyName) {
-      await this.prisma.agency.create({
-        data: {
-          name: companyName,
-          status: AgencyStatus.PENDING,
-          members: {
-            create: {
-              userId: user.id,
-              role: AgencyMemberRole.OWNER,
-            },
-          },
-        },
-      });
-    }
-
     // Growth: Track Referral if code provided
     if (referralCode) {
       await this.referralsService.trackSignup({
@@ -182,17 +172,7 @@ export class AuthService {
   }
 
   async refresh(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        agentProfile: true,
-        landlordProfile: true,
-        agencyMemberships: {
-          where: { isActive: true },
-          take: 1,
-        },
-      },
-    });
+    const user = await this.ensureRoleFromListings(userId);
 
     if (!user) {
       throw new NotFoundException("User not found");
@@ -202,6 +182,128 @@ export class AuthService {
   }
 
   async getSession(userId: string): Promise<SanitizedUser> {
+    const user = await this.ensureRoleFromListings(userId);
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    return this.sanitizeUser(user);
+  }
+
+  async createRoleUpgradeToken(
+    actorId: string,
+    targetRole: Role,
+    options?: { ttlHours?: number; campaign?: string; note?: string },
+  ) {
+    const ttlHours = options?.ttlHours ?? 72;
+    const rawToken = randomBytes(32).toString("hex");
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+
+    await this.prisma.roleUpgradeToken.create({
+      data: {
+        tokenHash,
+        targetRole,
+        expiresAt: new Date(Date.now() + ttlHours * 60 * 60 * 1000),
+        issuedById: actorId,
+        campaign: options?.campaign,
+        note: options?.note,
+      },
+    });
+
+    return { token: rawToken, targetRole };
+  }
+
+  async redeemRoleUpgradeToken(userId: string, token: string) {
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    const record = await this.prisma.roleUpgradeToken.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!record || record.usedAt || record.expiresAt <= new Date()) {
+      throw new BadRequestException("Upgrade link is invalid or expired");
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { role: record.targetRole as any },
+      }),
+      this.prisma.roleUpgradeToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date(), usedByUserId: userId },
+      }),
+    ]);
+
+    if (record.targetRole === Role.COMPANY_ADMIN) {
+      const existingOwnerAgency = await this.prisma.agencyMember.findFirst({
+        where: {
+          userId,
+          role: AgencyMemberRole.OWNER,
+          isActive: true,
+        },
+      });
+
+      if (!existingOwnerAgency) {
+        await this.prisma.agency.create({
+          data: {
+            name: "My Agency",
+            status: AgencyStatus.PENDING,
+            members: {
+              create: {
+                userId,
+                role: AgencyMemberRole.OWNER,
+              },
+            },
+          },
+        });
+      }
+    }
+
+    const user = await this.ensureRoleFromListings(userId);
+    return this.issueTokens(this.sanitizeUser(user));
+  }
+
+  async selfServeUpgrade(userId: string, targetRole: Role) {
+    const allowedTargets = [Role.AGENT, Role.COMPANY_ADMIN, Role.ADVERTISER];
+    if (!allowedTargets.includes(targetRole)) {
+      throw new BadRequestException("Unsupported upgrade target");
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { role: targetRole as any },
+    });
+
+    if (targetRole === Role.COMPANY_ADMIN) {
+      const existingOwnerAgency = await this.prisma.agencyMember.findFirst({
+        where: {
+          userId,
+          role: AgencyMemberRole.OWNER,
+          isActive: true,
+        },
+      });
+      if (!existingOwnerAgency) {
+        await this.prisma.agency.create({
+          data: {
+            name: "My Agency",
+            status: AgencyStatus.PENDING,
+            members: {
+              create: {
+                userId,
+                role: AgencyMemberRole.OWNER,
+              },
+            },
+          },
+        });
+      }
+    }
+
+    const user = await this.ensureRoleFromListings(userId);
+    return this.issueTokens(this.sanitizeUser(user));
+  }
+
+  private async ensureRoleFromListings(userId: string, roleHint?: Role) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -218,7 +320,37 @@ export class AuthService {
       throw new NotFoundException("User not found");
     }
 
-    return this.sanitizeUser(user);
+    const effectiveRole = (roleHint ?? (user.role as Role)) as Role;
+    if (effectiveRole !== Role.USER) {
+      return user;
+    }
+
+    const ownedListingsCount = await this.prisma.property.count({
+      where: {
+        OR: [
+          { ownerId: userId },
+          { landlordId: userId },
+          { agentOwnerId: userId },
+        ],
+      },
+    });
+
+    if (!ownedListingsCount) {
+      return user;
+    }
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { role: Role.LANDLORD as any },
+      include: {
+        agentProfile: true,
+        landlordProfile: true,
+        agencyMemberships: {
+          where: { isActive: true },
+          take: 1,
+        },
+      },
+    });
   }
 
   private async issueTokens(user: SanitizedUser) {

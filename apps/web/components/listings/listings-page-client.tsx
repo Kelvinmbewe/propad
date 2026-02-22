@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GeoSuburb, PropertySearchResult } from "@propad/sdk";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
-import { signIn, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { Button, notify } from "@propad/ui";
 import { api } from "@/lib/api-client";
 import { DEFAULT_HOME_LOCATION } from "@/lib/homepage-locations";
@@ -31,6 +31,7 @@ import { ListingsTopBar } from "@/components/listings/listings-top-bar";
 import { SavedSearchCTA } from "@/components/listings/saved-search-cta";
 import { SponsoredSlot } from "@/components/listings/sponsored-slot";
 import type { MapBounds } from "@/components/property-map";
+import { useAuthAction } from "@/hooks/use-auth-action";
 
 function parseBoundsString(value: string | undefined): MapBounds | undefined {
   if (!value) return undefined;
@@ -70,6 +71,7 @@ export function ListingsPageClient({
   const router = useRouter();
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { requireAuth } = useAuthAction();
   const geo = useGeoPreference(DEFAULT_HOME_LOCATION);
   const [awaitingGeo, setAwaitingGeo] = useState(false);
   const [query, setQuery] = useState<ListingsQueryState>(initialQuery);
@@ -518,10 +520,10 @@ export function ListingsPageClient({
         isSaving={saveSearch.isPending}
         onCreate={() => {
           if (!isAuthenticated) {
-            signIn(undefined, {
-              callbackUrl:
+            requireAuth({
+              returnTo:
                 typeof window !== "undefined"
-                  ? window.location.href
+                  ? `${window.location.pathname}${window.location.search}`
                   : "/listings",
             });
             return;
