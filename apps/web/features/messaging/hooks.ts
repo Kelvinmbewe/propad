@@ -39,7 +39,7 @@ async function getJson<T>(input: string, init?: RequestInit): Promise<T> {
 }
 
 export function useConversations(filters: {
-  type?: "all" | "listing" | "general";
+  type?: "all" | "listing" | "viewing" | "general";
   status?: "all" | "requests";
   q?: string;
 }) {

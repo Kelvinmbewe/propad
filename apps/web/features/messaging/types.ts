@@ -1,4 +1,4 @@
-export type ConversationType = "LISTING_CHAT" | "GENERAL_CHAT";
+export type ConversationType = "LISTING_CHAT" | "VIEWING_CHAT" | "GENERAL_CHAT";
 export type ChatRequestStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "BLOCKED";
 
 export interface MessagingUser {
@@ -52,6 +52,8 @@ export interface Conversation {
   id: string;
   type: ConversationType;
   propertyId?: string | null;
+  viewingId?: string | null;
+  requestStatus?: "PENDING" | "ACCEPTED";
   listingId?: string | null;
   lastMessageAt?: string | null;
   participants: ConversationParticipant[];

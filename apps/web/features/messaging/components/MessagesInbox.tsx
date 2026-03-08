@@ -38,7 +38,7 @@ import {
   useSendMessage,
 } from "../hooks";
 
-type TabValue = "all" | "listing" | "general" | "requests";
+type TabValue = "all" | "listing" | "viewing" | "general" | "requests";
 
 export function MessagesInbox({
   initialConversationId,
@@ -55,7 +55,14 @@ export function MessagesInbox({
   const [body, setBody] = useState("");
 
   const conversationsQuery = useConversations({
-    type: tab === "listing" ? "listing" : tab === "general" ? "general" : "all",
+    type:
+      tab === "listing"
+        ? "listing"
+        : tab === "viewing"
+          ? "viewing"
+          : tab === "general"
+            ? "general"
+            : "all",
     status: tab === "requests" ? "requests" : "all",
     q: query,
   });
@@ -120,22 +127,38 @@ export function MessagesInbox({
 
   const listPane = (
     <Card className="h-full overflow-hidden rounded-2xl border">
-      <CardContent className="flex h-full flex-col gap-3 p-3">
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search conversations"
-          aria-label="Search conversations"
-        />
-        <Tabs value={tab} onValueChange={(value) => setTab(value as TabValue)}>
-          <TabsList className="grid grid-cols-4">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="listing">Listing</TabsTrigger>
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="requests">Requests</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <ScrollArea className="flex-1">
+      <CardContent className="flex h-full min-h-0 flex-col gap-3 p-3">
+        <div className="space-y-2">
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search conversations"
+            aria-label="Search conversations"
+          />
+          <Tabs
+            value={tab}
+            onValueChange={(value) => setTab(value as TabValue)}
+          >
+            <TabsList className="grid h-auto grid-cols-2 gap-1 sm:grid-cols-5">
+              <TabsTrigger className="text-[11px]" value="all">
+                All
+              </TabsTrigger>
+              <TabsTrigger className="text-[11px]" value="listing">
+                Listing
+              </TabsTrigger>
+              <TabsTrigger className="text-[11px]" value="viewing">
+                Viewing
+              </TabsTrigger>
+              <TabsTrigger className="text-[11px]" value="general">
+                General
+              </TabsTrigger>
+              <TabsTrigger className="text-[11px]" value="requests">
+                Requests
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <ScrollArea className="min-h-0 flex-1">
           {conversationsQuery.isLoading ? (
             <div className="space-y-2 p-1">
               <Skeleton className="h-16 w-full" />
@@ -200,8 +223,12 @@ export function MessagesInbox({
                         </div>
                         <p className="truncate text-xs text-muted-foreground">
                           {conversationItem.type === "LISTING_CHAT"
-                            ? listingTitle || "Listing chat"
-                            : "General chat"}
+                            ? other?.user?.name ||
+                              other?.user?.id ||
+                              "Listing chat"
+                            : conversationItem.type === "VIEWING_CHAT"
+                              ? "Viewing chat"
+                              : "General chat"}
                         </p>
                         <p className="truncate text-sm text-muted-foreground">
                           {last?.body || "No messages yet"}
@@ -269,7 +296,9 @@ export function MessagesInbox({
                         <Badge variant="secondary">
                           {selectedConversation.type === "LISTING_CHAT"
                             ? "Listing"
-                            : "General"}
+                            : selectedConversation.type === "VIEWING_CHAT"
+                              ? "Viewing"
+                              : "General"}
                         </Badge>
                         {selectedConversation.type === "LISTING_CHAT" &&
                         selectedConversation.property ? (

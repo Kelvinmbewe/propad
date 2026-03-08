@@ -6,8 +6,12 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
+  BillingInvoiceKind,
+  BillingInvoiceStatus,
   Currency,
+  LeaseStatus,
   ListingIntent,
+  PaymentReceiptMethod,
   Prisma,
   PropertyAvailability,
   PropertyFurnishing,
@@ -153,6 +157,7 @@ import { HomeLocationEventDto } from "./dto/home-location-event.dto";
 import { VerificationFingerprintService } from "../verifications/verification-fingerprint.service";
 import { RankingService } from "../ranking/ranking.service";
 import { RiskService, RiskSignalType } from "../trust/risk.service";
+import { VerificationBillingService } from "../verifications/verification-billing.service";
 
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
@@ -258,6 +263,7 @@ export class PropertiesService {
     private readonly pricing: PricingService,
     private readonly paymentsService: PaymentsService,
     private readonly verificationsService: VerificationsService,
+    private readonly verificationBilling: VerificationBillingService,
   ) {}
 
   /**
@@ -1589,6 +1595,16 @@ export class PropertiesService {
         targetId: createdProperty.id,
         metadata: { landlordId, agentOwnerId },
       });
+
+      if (actor.role === Role.USER) {
+        await this.prisma.user.updateMany({
+          where: {
+            id: actor.userId,
+            role: Role.USER,
+          },
+          data: { role: Role.LANDLORD as any },
+        });
+      }
 
       try {
         return this.attachLocation(createdProperty);
@@ -4057,23 +4073,6 @@ export class PropertiesService {
       throw new BadRequestException("Property Photos allows max 5 files");
     }
 
-    // Fetch verification costs config - values are in dollars (e.g., 5 = $5)
-    const verificationCosts = (await this.pricing.getConfig(
-      "pricing.verificationCosts",
-      {
-        PROOF_OF_OWNERSHIP: 5,
-        LOCATION_CONFIRMATION: 5,
-        PROPERTY_PHOTOS: 5,
-        SITE_VISIT_UPGRADE: 15,
-      },
-    )) as Record<string, number>;
-
-    // Calculate total fee based on submitted items
-    // Convert dollars to cents for payment ledger
-    let totalFeeUsd = 0;
-    if (dto.proofOfOwnershipUrls && dto.proofOfOwnershipUrls.length > 0) {
-      totalFeeUsd += verificationCosts["PROOF_OF_OWNERSHIP"] || 5;
-    }
     if (
       dto.requestOnSiteVisit &&
       (!dto.locationGpsLat || !dto.locationGpsLng)
@@ -4082,18 +4081,6 @@ export class PropertiesService {
         "Location GPS is required when requesting an on-site visit",
       );
     }
-
-    if (dto.locationGpsLat && dto.locationGpsLng) {
-      totalFeeUsd += verificationCosts["LOCATION_CONFIRMATION"] || 5;
-      if (dto.requestOnSiteVisit) {
-        totalFeeUsd += verificationCosts["SITE_VISIT_UPGRADE"] || 15;
-      }
-    }
-    if (dto.propertyPhotoUrls && dto.propertyPhotoUrls.length > 0) {
-      totalFeeUsd += verificationCosts["PROPERTY_PHOTOS"] || 5;
-    }
-    // Convert to cents for payment storage
-    const verificationFeeUsdCents = totalFeeUsd * 100;
 
     let verificationRequest: any;
 
@@ -4145,10 +4132,18 @@ export class PropertiesService {
             }
           }
         } else {
-          // TODO: create new item if needed
-          // const newItem = await this.prisma.verificationRequestItem.create({
-          //   data: { ... }
-          // });
+          const newItem = await this.prisma.verificationRequestItem.create({
+            data: {
+              verificationRequestId: existingRequest.id,
+              type: "PROOF_OF_OWNERSHIP",
+              status: "SUBMITTED",
+              evidenceUrls: dto.proofOfOwnershipUrls,
+            },
+          });
+          void this.fingerprintService.processItemEvidence(
+            newItem.id,
+            dto.proofOfOwnershipUrls,
+          );
         }
       }
 
@@ -4404,23 +4399,55 @@ export class PropertiesService {
       }
     }
 
-    // Only create payment if fee > 0
-    let payment = null;
-    if (verificationFeeUsdCents > 0) {
-      payment = await this.prisma.listingPayment.create({
+    const billingInvoices: any[] = [];
+    for (const item of verificationRequest.items as any[]) {
+      const siteVisitRequested =
+        item.type === "LOCATION_CONFIRMATION" &&
+        Boolean(item.notes?.includes("On-site visit"));
+      const normalizedStatus = String(item.status || "PENDING").toUpperCase();
+
+      await this.prisma.verificationRequestItem.update({
+        where: { id: item.id },
         data: {
-          propertyId: id,
-          type: ListingPaymentType.VERIFICATION,
-          amountCents: verificationFeeUsdCents,
-          currency: Currency.USD,
-          status: ListingPaymentStatus.PENDING,
-          reference: `VERIFICATION_${id}_${Date.now()}`,
-          metadata: {
-            verificationFee: true,
+          workflowStatus:
+            normalizedStatus === "SUBMITTED"
+              ? "SUBMITTED"
+              : normalizedStatus === "APPROVED"
+                ? "APPROVED"
+                : normalizedStatus === "REJECTED"
+                  ? "REJECTED"
+                  : "DRAFT",
+          submittedAt:
+            normalizedStatus === "SUBMITTED"
+              ? item.submittedAt ?? item.updatedAt ?? new Date()
+              : item.submittedAt ?? null,
+          siteVisitRequested,
+          siteVisitRequestedAt: siteVisitRequested
+            ? item.siteVisitRequestedAt ?? item.updatedAt ?? new Date()
+            : null,
+          metadataJson: {
+            source: "submitForVerification",
+            legacyStatus: item.status,
           },
         },
       });
+
+      if (normalizedStatus === "SUBMITTED") {
+        const invoice =
+          await this.verificationBilling.createOrUpdateVerificationPriorityInvoice(
+            {
+              userId: actor.userId,
+              listingId: id,
+              verificationItemId: item.id,
+            },
+          );
+        if (invoice) {
+          billingInvoices.push(invoice);
+        }
+      }
     }
+
+    const payment = billingInvoices[0] ?? null;
 
     // Update property status
     // Do not update property status. Verification state is derived from VerificationRequest.
@@ -4454,6 +4481,7 @@ export class PropertiesService {
       property: this.attachLocation(property),
       verificationRequest,
       payment,
+      v2Invoices: billingInvoices,
     };
   }
 
@@ -4505,7 +4533,42 @@ export class PropertiesService {
       orderBy: { createdAt: "desc" },
     });
 
-    return request;
+    if (!request) {
+      return null;
+    }
+
+    const invoices =
+      await this.verificationBilling.listVerificationInvoicesForListing(
+        propertyId,
+      );
+    const invoiceByItem = new Map<string, any>();
+    for (const invoice of invoices) {
+      if (
+        invoice.verificationItemId &&
+        !invoiceByItem.has(invoice.verificationItemId)
+      ) {
+        invoiceByItem.set(invoice.verificationItemId, invoice);
+      }
+    }
+
+    return {
+      ...request,
+      items: request.items.map((item: any) => {
+        const invoice = invoiceByItem.get(item.id);
+        return {
+          ...item,
+          priorityInvoice: invoice
+            ? {
+                id: invoice.id,
+                status: invoice.status,
+                amountCents: invoice.amountCents,
+                currency: invoice.currency,
+                cancelledReason: invoice.cancelledReason,
+              }
+            : null,
+        };
+      }),
+    };
   }
 
   async updateVerificationItem(
@@ -4626,6 +4689,32 @@ export class PropertiesService {
         gpsLng: resolvedGpsLng,
         notes: notes,
         status: newStatus,
+        workflowStatus:
+          newStatus === "SUBMITTED"
+            ? "SUBMITTED"
+            : newStatus === "APPROVED"
+              ? "APPROVED"
+              : newStatus === "REJECTED"
+                ? "REJECTED"
+                : "DRAFT",
+        submittedAt:
+          newStatus === "SUBMITTED"
+            ? item.submittedAt ?? new Date()
+            : item.submittedAt,
+        siteVisitRequested:
+          item.type === "LOCATION_CONFIRMATION" &&
+          (Boolean(dto.requestOnSiteVisit) ||
+            Boolean(notes?.includes("On-site visit"))),
+        siteVisitRequestedAt:
+          item.type === "LOCATION_CONFIRMATION" &&
+          (Boolean(dto.requestOnSiteVisit) ||
+            Boolean(notes?.includes("On-site visit")))
+            ? item.siteVisitRequestedAt ?? new Date()
+            : null,
+        metadataJson: {
+          source: "updateVerificationItem",
+          legacyStatus: newStatus,
+        },
         verifierId: newStatus === "SUBMITTED" ? null : item.verifierId, // Reset verifier on resubmit
         reviewedAt: newStatus === "SUBMITTED" ? null : item.reviewedAt,
       },
@@ -4648,57 +4737,12 @@ export class PropertiesService {
       }
     }
 
-    // Create payment record when item is newly submitted
-    if (newStatus === "SUBMITTED" && item.status !== "SUBMITTED") {
-      // Check if a verification payment already exists for this item type
-      const existingPayment = await this.prisma.listingPayment.findFirst({
-        where: {
-          propertyId,
-          type: ListingPaymentType.VERIFICATION,
-          metadata: {
-            path: ["itemType"],
-            equals: item.type,
-          },
-        },
+    if (newStatus === "SUBMITTED") {
+      await this.verificationBilling.createOrUpdateVerificationPriorityInvoice({
+        userId: actor.userId,
+        listingId: propertyId,
+        verificationItemId: itemId,
       });
-
-      if (!existingPayment) {
-        // Fetch verification costs
-        const verificationCosts = (await this.pricing.getConfig(
-          "pricing.verificationCosts",
-          {
-            PROOF_OF_OWNERSHIP: 5,
-            LOCATION_CONFIRMATION: 5,
-            PROPERTY_PHOTOS: 5,
-            SITE_VISIT_UPGRADE: 15,
-          },
-        )) as Record<string, number>;
-
-        // Determine the fee for this item type
-        let feeUsd = verificationCosts[item.type] || 5;
-        if (dto.requestOnSiteVisit && item.type === "LOCATION_CONFIRMATION") {
-          feeUsd += verificationCosts["SITE_VISIT_UPGRADE"] || 15;
-        }
-
-        const feeCents = feeUsd * 100;
-
-        // Create a PENDING payment record
-        await this.prisma.listingPayment.create({
-          data: {
-            propertyId,
-            type: ListingPaymentType.VERIFICATION,
-            amountCents: feeCents,
-            currency: Currency.USD,
-            status: ListingPaymentStatus.PENDING,
-            reference: `VERIFICATION_${item.type}_${propertyId}_${Date.now()}`,
-            metadata: {
-              itemType: item.type,
-              itemId: itemId,
-              verificationFee: true,
-            },
-          },
-        });
-      }
     }
 
     await this.audit.logAction({
@@ -4749,42 +4793,38 @@ export class PropertiesService {
       where: { id: itemId },
       data: {
         status: dto.status as VerificationItemStatus,
+        workflowStatus:
+          dto.status === "APPROVED"
+            ? "APPROVED"
+            : dto.status === "REJECTED"
+              ? "REJECTED"
+              : dto.status === "SUBMITTED"
+                ? "SUBMITTED"
+                : "DRAFT",
         notes: dto.notes ?? item.notes,
         verifierId: actor.userId,
         reviewedAt: new Date(),
+        decidedAt:
+          dto.status === "APPROVED" || dto.status === "REJECTED"
+            ? new Date()
+            : item.reviewedAt,
+        decidedByUserId:
+          dto.status === "APPROVED" || dto.status === "REJECTED"
+            ? actor.userId
+            : item.verifierId,
+        metadataJson: {
+          source: "reviewVerificationItem",
+          legacyStatus: dto.status,
+        },
       },
     });
 
-    // Write off pending verification payment if Admin approves before payment
-    if (dto.status === "APPROVED") {
-      const pendingPayment = await this.prisma.listingPayment.findFirst({
-        where: {
-          propertyId,
-          type: ListingPaymentType.VERIFICATION,
-          status: ListingPaymentStatus.PENDING,
-          metadata: {
-            path: ["itemType"],
-            equals: item.type,
-          },
-        },
-      });
-
-      if (pendingPayment) {
-        // Write off the payment as waived
-        await this.prisma.listingPayment.update({
-          where: { id: pendingPayment.id },
-          data: {
-            status: ListingPaymentStatus.CANCELLED,
-            metadata: {
-              ...((pendingPayment.metadata as Record<string, unknown>) || {}),
-              waivedByAdmin: true,
-              waivedAt: new Date().toISOString(),
-              waivedReason: "Admin approved verification before payment",
-              discountPercent: 100,
-            },
-          },
-        });
-      }
+    if (dto.status === "APPROVED" || dto.status === "REJECTED") {
+      await this.verificationBilling.cancelVerificationInvoicesOnDecision(
+        itemId,
+        dto.status as "APPROVED" | "REJECTED",
+        actor.userId,
+      );
     }
 
     // Check if all items are reviewed and update request status
@@ -5742,7 +5782,7 @@ export class PropertiesService {
       );
     }
 
-    const payments = await this.prisma.listingPayment.findMany({
+    const legacyPayments = await this.prisma.listingPayment.findMany({
       where: { propertyId },
       include: {
         invoice: {
@@ -5768,7 +5808,67 @@ export class PropertiesService {
       orderBy: { createdAt: "desc" },
     });
 
-    return payments;
+    const v2Invoices =
+      await this.verificationBilling.listVerificationInvoicesForListing(
+        propertyId,
+      );
+
+    const v2Payments = v2Invoices.map((invoice: any) => {
+      const latestReceipt = invoice.receipts?.[0] ?? null;
+      const itemType = invoice.verificationItem?.type ?? null;
+      const metadata: Record<string, unknown> = {
+        v2Billing: true,
+        verificationItemId: invoice.verificationItemId,
+        itemType,
+        cancelledReason: invoice.cancelledReason,
+        writtenOffReason: invoice.writtenOffReason,
+        lineItems: invoice.lines.map((line: any) => ({
+          pricingKey: line.pricingKey,
+          amountCents: line.amountCents,
+          quantity: line.quantity,
+        })),
+        method: latestReceipt?.method ?? null,
+        proofUrl: latestReceipt?.proofFileUrl ?? null,
+        paidAt: latestReceipt?.paidAt ?? null,
+      };
+
+      const mappedStatus =
+        invoice.status === BillingInvoiceStatus.PAID
+          ? ListingPaymentStatus.PAID
+          : invoice.status === BillingInvoiceStatus.CANCELLED
+            ? ListingPaymentStatus.CANCELLED
+            : invoice.status === BillingInvoiceStatus.WRITTEN_OFF
+              ? ListingPaymentStatus.CANCELLED
+              : ListingPaymentStatus.PENDING;
+
+      return {
+        id: `v2_${invoice.id}`,
+        propertyId,
+        type: ListingPaymentType.VERIFICATION,
+        amountCents: invoice.amountCents,
+        currency: invoice.currency,
+        status: mappedStatus,
+        reference: latestReceipt?.reference ?? invoice.externalRef,
+        invoiceId: null,
+        metadata,
+        createdAt: invoice.createdAt,
+        updatedAt: invoice.updatedAt,
+        invoice: {
+          id: invoice.id,
+          invoiceNo: null,
+          status: invoice.status,
+          currency: invoice.currency,
+          pdfUrl: null,
+          paymentIntents: [],
+        },
+      };
+    });
+
+    return [...v2Payments, ...legacyPayments].sort(
+      (left: any, right: any) =>
+        new Date(right.createdAt).getTime() -
+        new Date(left.createdAt).getTime(),
+    );
   }
 
   async createOfflineListingPayment(
@@ -5793,6 +5893,39 @@ export class PropertiesService {
       throw new BadRequestException("Amount must be greater than zero");
     }
 
+    let verificationMetadata: Record<string, unknown> = {};
+    if (payload.type === ListingPaymentType.VERIFICATION) {
+      const pendingVerificationInvoice =
+        await this.prisma.billingInvoice.findFirst({
+          where: {
+            listingId: propertyId,
+            kind: BillingInvoiceKind.VERIFICATION_PRIORITY,
+            status: {
+              in: [
+                BillingInvoiceStatus.PENDING,
+                BillingInvoiceStatus.ISSUED,
+                BillingInvoiceStatus.DRAFT,
+              ],
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        });
+
+      if (pendingVerificationInvoice) {
+        if (amountCents !== pendingVerificationInvoice.amountCents) {
+          throw new BadRequestException(
+            `Verification amount must match pending invoice (${pendingVerificationInvoice.amountCents / 100} ${pendingVerificationInvoice.currency})`,
+          );
+        }
+
+        verificationMetadata = {
+          itemId: pendingVerificationInvoice.verificationItemId,
+          v2BillingInvoiceId: pendingVerificationInvoice.id,
+          v2ExpectedAmountCents: pendingVerificationInvoice.amountCents,
+        };
+      }
+    }
+
     const payment = await this.prisma.listingPayment.create({
       data: {
         propertyId,
@@ -5806,6 +5939,7 @@ export class PropertiesService {
           notes: payload.notes ?? null,
           proofUrl: payload.proofUrl ?? null,
           paidAt: payload.paidAt ?? null,
+          ...verificationMetadata,
         },
       },
       include: {
@@ -5848,6 +5982,60 @@ export class PropertiesService {
       throw new ForbiddenException("Only admins can approve offline payments");
     }
 
+    if (paymentId.startsWith("v2_")) {
+      const v2InvoiceId = paymentId.replace(/^v2_/, "");
+      const v2Invoice = await this.prisma.billingInvoice.findUnique({
+        where: { id: v2InvoiceId },
+        include: {
+          verificationItem: {
+            include: {
+              verificationRequest: { select: { propertyId: true } },
+            },
+          },
+        },
+      });
+
+      if (!v2Invoice) {
+        throw new NotFoundException("Billing invoice not found");
+      }
+
+      if (v2Invoice.listingId !== propertyId) {
+        throw new BadRequestException(
+          "Billing invoice does not belong to this property",
+        );
+      }
+
+      if (v2Invoice.status === BillingInvoiceStatus.PAID) {
+        return v2Invoice;
+      }
+
+      await this.verificationBilling.markVerificationInvoicePaidById({
+        billingInvoiceId: v2Invoice.id,
+        amountCents: v2Invoice.amountCents,
+        currency: v2Invoice.currency,
+        method: PaymentReceiptMethod.OTHER,
+        reference: v2Invoice.externalRef ?? `ADMIN-OFFLINE-${Date.now()}`,
+        paidAt: new Date(),
+        createdByUserId: actor.userId,
+      });
+
+      await this.audit.logAction({
+        action: "property.approvePayment",
+        actorId: actor.userId,
+        targetType: "property",
+        targetId: propertyId,
+        metadata: {
+          v2BillingInvoiceId: v2Invoice.id,
+          amountCents: v2Invoice.amountCents,
+          type: "VERIFICATION_PRIORITY",
+        },
+      });
+
+      return this.prisma.billingInvoice.findUnique({
+        where: { id: v2Invoice.id },
+      });
+    }
+
     const payment = await this.prisma.listingPayment.findUnique({
       where: { id: paymentId },
     });
@@ -5880,6 +6068,48 @@ export class PropertiesService {
         type: payment.type,
       },
     });
+
+    if (payment.type === ListingPaymentType.VERIFICATION) {
+      const metadata =
+        (payment.metadata as Record<string, unknown> | null) ?? {};
+      const v2BillingInvoiceId = metadata.v2BillingInvoiceId;
+      const verificationItemId = metadata.itemId;
+      const parsedPaidAt =
+        typeof metadata.paidAt === "string" && metadata.paidAt.trim()
+          ? new Date(metadata.paidAt)
+          : null;
+      const resolvedPaidAt =
+        parsedPaidAt && !Number.isNaN(parsedPaidAt.getTime())
+          ? parsedPaidAt
+          : new Date();
+
+      if (typeof v2BillingInvoiceId === "string" && v2BillingInvoiceId.trim()) {
+        await this.verificationBilling.markVerificationInvoicePaidById({
+          billingInvoiceId: v2BillingInvoiceId,
+          amountCents: payment.amountCents,
+          currency: String(payment.currency),
+          method: PaymentReceiptMethod.OTHER,
+          reference: payment.reference,
+          proofFileUrl:
+            typeof metadata.proofUrl === "string" ? metadata.proofUrl : null,
+          paidAt: resolvedPaidAt,
+          createdByUserId: actor.userId,
+        });
+      } else if (
+        typeof verificationItemId === "string" &&
+        verificationItemId.trim()
+      ) {
+        await this.verificationBilling.markVerificationInvoicePaid({
+          verificationItemId,
+          amountCents: payment.amountCents,
+          currency: String(payment.currency),
+          method: PaymentReceiptMethod.OTHER,
+          reference: payment.reference,
+          paidAt: resolvedPaidAt,
+          createdByUserId: actor.userId,
+        });
+      }
+    }
 
     return updated;
   }
@@ -6087,6 +6317,23 @@ export class PropertiesService {
       throw new ForbiddenException("You cannot rate your own property");
     }
 
+    if (property.listingIntent === ListingIntent.TO_RENT) {
+      const endedLease = await this.prisma.lease.findFirst({
+        where: {
+          propertyId,
+          tenantId: actor.userId,
+          status: LeaseStatus.ENDED,
+        },
+        select: { id: true },
+      });
+
+      if (!endedLease) {
+        throw new ForbiddenException(
+          "Property ratings for rentals are allowed only after your lease ends",
+        );
+      }
+    }
+
     // Check if user already rated this property (unless anonymous)
     if (!dto.isAnonymous) {
       const existingRating = await this.prisma.propertyRating.findUnique({
@@ -6120,7 +6367,7 @@ export class PropertiesService {
 
     // Calculate tenant months if not provided
     let tenantMonths = dto.tenantMonths;
-    if (!tenantMonths && firstPayment && lastPayment) {
+    if (!tenantMonths && firstPayment?.paidAt && lastPayment?.paidAt) {
       const monthsDiff =
         (lastPayment.paidAt.getTime() - firstPayment.paidAt.getTime()) /
         (1000 * 60 * 60 * 24 * 30);

@@ -26,13 +26,141 @@ export class MessagesService {
       : null;
   }
 
+  private buildCounterpartyKey(participantIds: string[], userId: string) {
+    return participantIds
+      .filter((participantId) => participantId !== userId)
+      .sort()
+      .join(":");
+  }
+
+  private async resolveConversationFamilyIds(
+    conversation: {
+      id: string;
+      type: ConversationType;
+      propertyId?: string | null;
+      pairKey?: string | null;
+      participants: Array<{ userId: string }>;
+    },
+    userId: string,
+  ) {
+    if (conversation.type === ConversationType.LISTING_CHAT) {
+      if (!conversation.propertyId) {
+        return [conversation.id];
+      }
+
+      const counterpartyIds = Array.from(
+        new Set(
+          conversation.participants
+            .map((participant) => participant.userId)
+            .filter((participantId) => participantId !== userId),
+        ),
+      ).sort();
+
+      const whereAnd: Prisma.ConversationWhereInput[] = [
+        { participants: { some: { userId } } },
+        ...counterpartyIds.map((counterpartyId) => ({
+          participants: { some: { userId: counterpartyId } },
+        })),
+      ];
+
+      const family = await this.prisma.conversation.findMany({
+        where: {
+          type: ConversationType.LISTING_CHAT,
+          propertyId: conversation.propertyId,
+          AND: whereAnd,
+        },
+        select: {
+          id: true,
+          lastMessageAt: true,
+          participants: { select: { userId: true } },
+        },
+        orderBy: [{ lastMessageAt: "desc" }, { updatedAt: "desc" }],
+      });
+
+      const targetCounterpartyKey = this.buildCounterpartyKey(
+        conversation.participants.map((participant) => participant.userId),
+        userId,
+      );
+
+      const canonicalFamily = family.filter((entry) => {
+        const entryCounterpartyKey = this.buildCounterpartyKey(
+          entry.participants.map((participant) => participant.userId),
+          userId,
+        );
+        return entryCounterpartyKey === targetCounterpartyKey;
+      });
+
+      return canonicalFamily.length > 0
+        ? canonicalFamily.map((entry) => entry.id)
+        : [conversation.id];
+    }
+
+    if (conversation.type === ConversationType.GENERAL_CHAT) {
+      const counterpartyIds = Array.from(
+        new Set(
+          conversation.participants
+            .map((participant) => participant.userId)
+            .filter((participantId) => participantId !== userId),
+        ),
+      ).sort();
+
+      if (counterpartyIds.length === 0) {
+        return [conversation.id];
+      }
+
+      const whereAnd: Prisma.ConversationWhereInput[] = [
+        { participants: { some: { userId } } },
+        ...counterpartyIds.map((counterpartyId) => ({
+          participants: { some: { userId: counterpartyId } },
+        })),
+      ];
+
+      const family = await this.prisma.conversation.findMany({
+        where: {
+          type: ConversationType.GENERAL_CHAT,
+          pairKey: conversation.pairKey ?? undefined,
+          AND: whereAnd,
+        },
+        select: {
+          id: true,
+          pairKey: true,
+          lastMessageAt: true,
+          participants: { select: { userId: true } },
+        },
+        orderBy: [{ lastMessageAt: "desc" }, { updatedAt: "desc" }],
+      });
+
+      const targetCounterpartyKey = this.buildCounterpartyKey(
+        conversation.participants.map((participant) => participant.userId),
+        userId,
+      );
+
+      const canonicalFamily = family.filter((entry) => {
+        const entryCounterpartyKey = this.buildCounterpartyKey(
+          entry.participants.map((participant) => participant.userId),
+          userId,
+        );
+        return (
+          entryCounterpartyKey === targetCounterpartyKey &&
+          (conversation.pairKey ? entry.pairKey === conversation.pairKey : true)
+        );
+      });
+
+      return canonicalFamily.length > 0
+        ? canonicalFamily.map((entry) => entry.id)
+        : [conversation.id];
+    }
+
+    return [conversation.id];
+  }
+
   async sendMessage(userId: string, dto: CreateMessageDto) {
     const normalizedUserId = this.normalizeUserId(userId);
     if (!normalizedUserId) {
       throw new ForbiddenException("Access denied");
     }
 
-    const conversation = await this.prisma.conversation.findUnique({
+    const requestedConversation = await this.prisma.conversation.findUnique({
       where: { id: dto.conversationId },
       include: {
         participants: true,
@@ -40,17 +168,35 @@ export class MessagesService {
       },
     });
 
-    if (!conversation) {
+    if (!requestedConversation) {
       throw new ForbiddenException("Access denied");
     }
 
-    const isParticipant = conversation.participants.some(
+    const isParticipant = requestedConversation.participants.some(
       (participant: any) => participant.userId === normalizedUserId,
     );
 
     if (!isParticipant) {
       throw new ForbiddenException("Access denied");
     }
+
+    const familyConversationIds = await this.resolveConversationFamilyIds(
+      requestedConversation,
+      normalizedUserId,
+    );
+    const canonicalConversationId =
+      familyConversationIds[0] ?? dto.conversationId;
+
+    const conversation =
+      canonicalConversationId === requestedConversation.id
+        ? requestedConversation
+        : await this.prisma.conversation.findUniqueOrThrow({
+            where: { id: canonicalConversationId },
+            include: {
+              participants: true,
+              chatRequest: true,
+            },
+          });
 
     if (
       conversation.type === ConversationType.GENERAL_CHAT &&
@@ -79,7 +225,7 @@ export class MessagesService {
 
     const message = await this.prisma.message.create({
       data: {
-        conversationId: dto.conversationId,
+        conversationId: conversation.id,
         senderId: normalizedUserId,
         body: dto.body,
         attachments: dto.attachments as Prisma.InputJsonValue | undefined,
@@ -91,7 +237,7 @@ export class MessagesService {
     });
 
     await this.prisma.conversation.update({
-      where: { id: dto.conversationId },
+      where: { id: conversation.id },
       data: {
         lastMessageAt: message.createdAt,
         lastMessageId: message.id,
@@ -100,7 +246,7 @@ export class MessagesService {
 
     await this.prisma.conversationParticipant.updateMany({
       where: {
-        conversationId: dto.conversationId,
+        conversationId: conversation.id,
         userId: normalizedUserId,
       },
       data: {
@@ -108,7 +254,7 @@ export class MessagesService {
       },
     });
 
-    this.gateway.emitMessage(dto.conversationId, message);
+    this.gateway.emitMessage(conversation.id, message);
 
     return message;
   }
@@ -136,8 +282,15 @@ export class MessagesService {
       throw new ForbiddenException();
     }
 
+    const familyConversationIds = await this.resolveConversationFamilyIds(
+      conversation,
+      normalizedUserId,
+    );
+
     const messages = await this.prisma.message.findMany({
-      where: { conversationId },
+      where: {
+        conversationId: { in: familyConversationIds },
+      },
       take: limit,
       skip: cursor ? 1 : 0,
       cursor: cursor ? { id: cursor } : undefined,
@@ -160,9 +313,28 @@ export class MessagesService {
 
     const readAt = new Date();
 
+    const conversation = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: { participants: true },
+    });
+
+    if (
+      !conversation ||
+      !conversation.participants.some(
+        (participant) => participant.userId === normalizedUserId,
+      )
+    ) {
+      throw new ForbiddenException();
+    }
+
+    const familyConversationIds = await this.resolveConversationFamilyIds(
+      conversation,
+      normalizedUserId,
+    );
+
     await this.prisma.message.updateMany({
       where: {
-        conversationId,
+        conversationId: { in: familyConversationIds },
         readAt: null,
         senderId: { not: normalizedUserId },
       },
@@ -171,7 +343,7 @@ export class MessagesService {
 
     await this.prisma.conversationParticipant.updateMany({
       where: {
-        conversationId,
+        conversationId: { in: familyConversationIds },
         userId: normalizedUserId,
       },
       data: { lastReadAt: readAt },

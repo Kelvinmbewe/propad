@@ -8,7 +8,9 @@
     "start:dev": "nest start --watch",
     "lint": "eslint .",
     "test": "vitest",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "backfill:deals:v2": "ts-node scripts/backfill-deal-v2.ts",
+    "seed:verification-pricing:v2": "ts-node scripts/seed-verification-pricing-v2.ts"
   },
   "dependencies": {
     "@nestjs/axios": "3.0.0",

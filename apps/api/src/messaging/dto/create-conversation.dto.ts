@@ -11,6 +11,14 @@ export class CreateConversationDto {
 
   @IsString()
   @IsOptional()
+  viewingId?: string;
+
+  @IsString()
+  @IsOptional()
+  applicantUserId?: string;
+
+  @IsString()
+  @IsOptional()
   recipientId?: string;
 
   @IsString()

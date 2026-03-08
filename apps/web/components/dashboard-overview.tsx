@@ -164,6 +164,7 @@ export function DashboardOverview() {
   const [agentsLimit, setAgentsLimit] = useState(5);
   const topAgentsQuery = useTopAgents(agentsLimit, { enabled: isAdmin });
   const geoQuery = useGeoListings(selectedCity, { enabled: isAdmin });
+  const advertiserQuery = useAdvertiser();
 
   const updateQuery = useCallback(
     (updates: Record<string, string | null>) => {
@@ -352,18 +353,6 @@ export function DashboardOverview() {
       </div>
     );
   }
-
-  // --- Render Non-Admin Roles ---
-  if (!isAdmin) {
-    // Hook must be called unconditionally or conditionally in a safe way if this component re-renders.
-    // But since we have early returns, we should move hooks up or ensure consistent order.
-    // React hooks rule: "Don't call hooks inside loops, conditions, or nested functions."
-    // Since isAdmin is constant for a render (derived from session), this is "technically" safe but bad practice.
-    // Better to hoist the hook.
-  }
-
-  // Hoisting hooks to top level
-  const advertiserQuery = useAdvertiser();
 
   if (!isAdmin) {
     if (role === "ADVERTISER") {

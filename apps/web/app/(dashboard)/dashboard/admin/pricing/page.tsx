@@ -13,37 +13,49 @@ interface PricingConfig {
   updatedAt: string;
 }
 
+interface VerificationPricingRow {
+  key: string;
+  amountCents: number;
+  currency: string;
+  isActive: boolean;
+  description?: string | null;
+}
+
 export default function PricingPage() {
   const queryClient = useQueryClient();
   const [editKey, setEditKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [draftKey, setDraftKey] = useState<string>('');
   const [jsonError, setJsonError] = useState<string | null>(null);
-  const { status, message, apiBaseUrl, accessToken } = useSdkClient();
+  const [pricingEdits, setPricingEdits] = useState<Record<string, string>>({});
+  const { sdk, status, message } = useSdkClient();
 
 
   const { data: configs, isLoading, isError } = useQuery<PricingConfig[]>({
     queryKey: ['admin', 'pricing'],
-    enabled: status === 'ready',
+    enabled: status === 'ready' && !!sdk,
     queryFn: async () => {
-      if (!apiBaseUrl || !accessToken) {
+      if (!sdk) {
         return [];
       }
-      const response = await fetch(`${apiBaseUrl}/admin/pricing`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to load pricing configurations');
-      }
-      return response.json();
+      return sdk.admin.pricing.listConfigs();
     }
+  });
+
+  const { data: verificationPricing } = useQuery<VerificationPricingRow[]>({
+    queryKey: ['admin', 'verification-pricing-v2'],
+    enabled: status === 'ready' && !!sdk,
+    queryFn: async () => {
+      if (!sdk) {
+        return [];
+      }
+      return sdk.admin.verifications.listBillingPricing();
+    },
   });
 
   const saveConfig = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: string }) => {
-      if (!apiBaseUrl || !accessToken) {
+      if (!sdk) {
         throw new Error('Pricing client not ready');
       }
 
@@ -57,19 +69,7 @@ export default function PricingPage() {
         throw error;
       }
 
-      const response = await fetch(`${apiBaseUrl}/admin/pricing`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ key, value: parsedValue })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update pricing configuration');
-      }
-      return response.json();
+      return sdk.admin.pricing.upsertConfig({ key, value: parsedValue });
     },
     onSuccess: () => {
       setEditKey(null);
@@ -83,6 +83,22 @@ export default function PricingPage() {
         setJsonError(error.message);
       }
     }
+  });
+
+  const saveVerificationPrice = useMutation({
+    mutationFn: async ({ key, amountCents }: { key: string; amountCents: number }) => {
+      if (!sdk) {
+        throw new Error('Pricing client not ready');
+      }
+      return sdk.admin.verifications.upsertBillingPricing(key, {
+        amountCents,
+        currency: 'USD',
+        isActive: true,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'verification-pricing-v2'] });
+    },
   });
 
   const knownConfigs = configs ?? [];
@@ -113,6 +129,56 @@ export default function PricingPage() {
 
 
       <div className="grid gap-4">
+        <Card>
+          <CardHeader className="py-4">
+            <CardTitle className="text-base">Verification Billing V2</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-neutral-500">
+              These prices are used by Verification Billing V2 invoices.
+            </p>
+            {(verificationPricing ?? []).map((row) => {
+              const current = pricingEdits[row.key] ?? String(row.amountCents);
+              return (
+                <div key={row.key} className="rounded border p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-neutral-700">{row.key}</p>
+                      <p className="text-xs text-neutral-500">{row.description || 'Verification pricing rule'}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-28 rounded-md border border-neutral-200 px-2 py-1 text-xs"
+                        value={current}
+                        onChange={(event) =>
+                          setPricingEdits((prev) => ({
+                            ...prev,
+                            [row.key]: event.target.value,
+                          }))
+                        }
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          saveVerificationPrice.mutate({
+                            key: row.key,
+                            amountCents: Math.max(0, Math.round(Number(current) || 0)),
+                          })
+                        }
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+
         {isLoading ? (
           <div className="rounded-lg border border-neutral-200 bg-white p-6 text-sm text-neutral-500">
             Loading pricing configurations…

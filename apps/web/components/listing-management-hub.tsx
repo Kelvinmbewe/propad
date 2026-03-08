@@ -2513,7 +2513,18 @@ function VerificationTab({
   });
 
   const verificationPayment = payments?.find(
-    (p: any) => p.type === "VERIFICATION" && p.status === "PENDING",
+    (p: any) =>
+      p.type === "VERIFICATION" &&
+      (p.status === "PENDING" || p.invoice?.status === "PENDING"),
+  );
+  const hasAutoCancelledVerificationPayment = Boolean(
+    payments?.some(
+      (p: any) =>
+        p.type === "VERIFICATION" &&
+        (p.status === "CANCELLED" ||
+          p.invoice?.status === "CANCELLED" ||
+          p.invoice?.status === "WRITTEN_OFF"),
+    ),
   );
   const verifiedForFree =
     verificationPayment && verificationPayment.amountCents === 0;
@@ -2689,6 +2700,22 @@ function VerificationTab({
                 <p className="text-sm text-emerald-700">
                   Admin has written off the verification payment for this
                   listing.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {!verificationPayment && hasAutoCancelledVerificationPayment && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-5 w-5 text-blue-600" />
+              <div className="flex-1">
+                <p className="font-medium text-blue-900">No payment required</p>
+                <p className="text-sm text-blue-700">
+                  Priority verification invoice was auto-cancelled after
+                  decision.
                 </p>
               </div>
             </div>
@@ -2881,6 +2908,7 @@ function VerificationTab({
           }}
           type="location"
           propertyId={propertyId}
+          siteVisitAddonCost={verificationCosts?.SITE_VISIT_UPGRADE}
         />
 
         {/* Step 3: Property Photos */}
@@ -2923,6 +2951,7 @@ function VerificationStep({
   type,
   propertyId,
   cost,
+  siteVisitAddonCost,
 }: {
   title: string;
   description: string;
@@ -2934,6 +2963,7 @@ function VerificationStep({
   type: "proof" | "location" | "photos";
   propertyId: string;
   cost?: number;
+  siteVisitAddonCost?: number;
 }) {
   const sdk = useAuthenticatedSDK();
   const [evidenceUrls, setEvidenceUrls] = useState<string[]>(
@@ -2946,7 +2976,8 @@ function VerificationStep({
     item?.gpsLng || undefined,
   );
   const [requestOnSiteVisit, setRequestOnSiteVisit] = useState<boolean>(
-    !!item?.notes?.includes("On-site visit"),
+    Boolean(item?.siteVisitRequested) ||
+      !!item?.notes?.includes("On-site visit"),
   );
   const [uploading, setUploading] = useState(false);
   // Track if local changes have been made that shouldn't be overwritten by item sync
@@ -2958,7 +2989,10 @@ function VerificationStep({
       setEvidenceUrls(item.evidenceUrls || []);
       setGpsLat(item.gpsLat || undefined);
       setGpsLng(item.gpsLng || undefined);
-      setRequestOnSiteVisit(!!item.notes?.includes("On-site visit"));
+      setRequestOnSiteVisit(
+        Boolean(item.siteVisitRequested) ||
+          !!item.notes?.includes("On-site visit"),
+      );
     }
   }, [item, hasLocalChanges]);
 
@@ -2968,6 +3002,13 @@ function VerificationStep({
       setHasLocalChanges(false);
     }
   }, [item?.status, item?.updatedAt]);
+
+  const canUpgradeToSiteVisit =
+    type === "location" &&
+    !!item &&
+    item.status !== "REJECTED" &&
+    !item?.siteVisitRequested &&
+    !item?.notes?.includes("On-site visit");
 
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0 || !sdk) return;
@@ -3108,6 +3149,25 @@ function VerificationStep({
                 ` on ${new Date(item.reviewedAt).toLocaleDateString()}`}
             </p>
             <p className="text-xs text-neutral-600">{item?.notes}</p>
+          </div>
+        )}
+
+        {item?.priorityInvoice && (
+          <div className="mb-4 rounded-lg border bg-neutral-50 p-3 text-xs">
+            <p className="font-medium text-neutral-700">
+              Priority billing: {item.priorityInvoice.status}
+            </p>
+            <p className="text-neutral-500">
+              {formatCurrency(
+                Number(item.priorityInvoice.amountCents ?? 0) / 100,
+                item.priorityInvoice.currency || "USD",
+              )}
+            </p>
+            {item.priorityInvoice.status === "CANCELLED" && (
+              <p className="text-blue-700">
+                No payment required (auto-cancelled after decision)
+              </p>
+            )}
           </div>
         )}
 
@@ -3303,19 +3363,37 @@ function VerificationStep({
                 </Button>
               </PaymentGate>
             ) : (
-              <Button
-                onClick={handleSubmit}
-                disabled={
-                  uploading ||
-                  (type === "proof" || type === "photos"
-                    ? evidenceUrls.length === 0
-                    : type === "location"
-                      ? !((gpsLat && gpsLng) || requestOnSiteVisit)
-                      : false)
-                }
-              >
-                {uploading ? "Uploading..." : "Update"}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={handleSubmit}
+                  disabled={
+                    uploading ||
+                    (type === "proof" || type === "photos"
+                      ? evidenceUrls.length === 0
+                      : type === "location"
+                        ? !((gpsLat && gpsLng) || requestOnSiteVisit)
+                        : false)
+                  }
+                >
+                  {uploading ? "Uploading..." : "Update"}
+                </Button>
+                {canUpgradeToSiteVisit && (
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      onSubmit({
+                        gpsLat,
+                        gpsLng,
+                        requestOnSiteVisit: true,
+                      })
+                    }
+                    disabled={uploading || !(gpsLat && gpsLng)}
+                  >
+                    Upgrade to site visit
+                    {siteVisitAddonCost ? ` (+US$${siteVisitAddonCost})` : ""}
+                  </Button>
+                )}
+              </div>
             )}
             {(type === "proof" || type === "photos") &&
               evidenceUrls.length === 0 && (
@@ -3337,6 +3415,7 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
   const apiBaseUrl = getPublicApiBaseUrl();
 
   const [offlineMethod, setOfflineMethod] = useState("Bank Transfer");
+  const [offlineType, setOfflineType] = useState("VERIFICATION");
   const [offlineAmount, setOfflineAmount] = useState("");
   const [offlineCurrency, setOfflineCurrency] = useState("USD");
   const [offlineReference, setOfflineReference] = useState("");
@@ -3408,6 +3487,14 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
     enabled: !!sdk,
   });
 
+  const v2Payments = (payments ?? []).filter(
+    (payment: any) => payment?.metadata?.v2Billing,
+  );
+  const legacyPayments = (payments ?? []).filter(
+    (payment: any) => !payment?.metadata?.v2Billing,
+  );
+  const ledgerRows = [...v2Payments, ...legacyPayments];
+
   const getPaymentTitle = (type: string, metadata: any) => {
     switch (type) {
       case "AGENT_FEE":
@@ -3453,6 +3540,16 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
         },
         PAID: { bg: "bg-emerald-100", text: "text-emerald-700", label: "Paid" },
         FAILED: { bg: "bg-red-100", text: "text-red-700", label: "Failed" },
+        CANCELLED: {
+          bg: "bg-slate-100",
+          text: "text-slate-700",
+          label: "Cancelled",
+        },
+        WRITTEN_OFF: {
+          bg: "bg-blue-100",
+          text: "text-blue-700",
+          label: "Written off",
+        },
       };
     const style = config[status] || config.PENDING;
     return (
@@ -3495,6 +3592,11 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
     }
     try {
       await sdk.properties.createOfflinePayment(propertyId, {
+        type: offlineType as
+          | "LISTING_FEE"
+          | "PROMOTION"
+          | "VERIFICATION"
+          | "AGENT_FEE",
         amount,
         currency: offlineCurrency as "USD" | "ZWG",
         method: offlineMethod,
@@ -3593,7 +3695,7 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {!payments?.length ? (
+          {!ledgerRows.length ? (
             <div className="text-center py-8">
               <CreditCard className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
               <p className="text-neutral-500">
@@ -3602,10 +3704,15 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
             </div>
           ) : (
             <div className="space-y-3">
-              {payments.map((payment: any) => {
+              {ledgerRows.map((payment: any) => {
                 const isPending = payment.status === "PENDING";
+                const isCancelled =
+                  payment.status === "CANCELLED" ||
+                  payment.invoice?.status === "CANCELLED" ||
+                  payment.invoice?.status === "WRITTEN_OFF";
                 const hasRedirectUrl =
                   isPending &&
+                  !isCancelled &&
                   payment.invoice?.paymentIntents?.[0]?.redirectUrl;
                 const amount = payment.amountCents / 100;
                 const formattedAmount = formatCurrency(
@@ -3703,7 +3810,7 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                         </p>
                       </div>
                       <div className="flex flex-col gap-2 items-end">
-                        {isPending && isAdmin && (
+                        {isPending && isAdmin && !isCancelled && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -3733,6 +3840,7 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                           </Button>
                         ) : (
                           isPending &&
+                          !isCancelled &&
                           payment.invoice?.id &&
                           !isAdmin && (
                             <Button
@@ -3775,6 +3883,17 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
                   </Button>
                 </div>
               )}
+              {legacyPayments.length > 0 && (
+                <details className="rounded-lg border bg-neutral-50 p-3">
+                  <summary className="cursor-pointer text-xs font-medium text-neutral-600">
+                    Legacy payment rows ({legacyPayments.length})
+                  </summary>
+                  <p className="mt-2 text-xs text-neutral-500">
+                    Legacy listing-payment records are retained for history.
+                    Verification Billing V2 rows are shown at the top.
+                  </p>
+                </details>
+              )}
             </div>
           )}
         </CardContent>
@@ -3789,6 +3908,14 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Payment Type</Label>
+              <Input
+                value={offlineType}
+                onChange={(e) => setOfflineType(e.target.value)}
+                placeholder="VERIFICATION / PROMOTION"
+              />
+            </div>
             <div className="space-y-2">
               <Label>Payment Method</Label>
               <Input
@@ -3908,362 +4035,292 @@ function PaymentsTab({ propertyId }: { propertyId: string }) {
 }
 
 function RatingsTab({ propertyId }: { propertyId: string }) {
-  const sdk = useAuthenticatedSDK();
+  const { data: session } = useSession();
   const queryClient = useQueryClient();
-
-  const {
-    data: ratingsData,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["ratings", propertyId],
-    queryFn: () => sdk!.properties.getRatings(propertyId),
-    enabled: !!sdk,
-  });
-
-  const [rating, setRating] = useState(0);
-  const [hoverRating, setHoverRating] = useState(0);
+  const apiBaseUrl = getPublicApiBaseUrl();
+  const [score, setScore] = useState(5);
   const [comment, setComment] = useState("");
-  const [isAnonymous, setIsAnonymous] = useState(false);
-  const [ratingType, setRatingType] = useState<
-    "PREVIOUS_TENANT" | "CURRENT_TENANT" | "VISITOR"
-  >("VISITOR");
+  const [rateTarget, setRateTarget] = useState<"PROPERTY" | "TENANT">(
+    "PROPERTY",
+  );
 
-  const submitMut = useMutation({
-    mutationFn: (payload: any) =>
-      sdk!.properties.submitRating(propertyId, payload),
-    onSuccess: () => {
-      notify.success("Rating submitted successfully");
-      setRating(0);
-      setComment("");
-      setIsAnonymous(false);
-      queryClient.invalidateQueries({ queryKey: ["ratings", propertyId] });
-    },
-    onError: (err: any) => {
-      const errorMessage = err.message || "Failed to submit rating";
-      if (errorMessage.includes("cannot rate your own")) {
-        notify.error("You cannot rate your own property");
-      } else if (errorMessage.includes("already rated")) {
-        notify.error("You have already rated this property");
-      } else {
-        notify.error(errorMessage);
-      }
+  const leaseQuery = useQuery({
+    queryKey: ["rental-v2", "leases", propertyId],
+    enabled: !!session?.accessToken && !!apiBaseUrl,
+    queryFn: async () => {
+      const response = await fetch(
+        `${apiBaseUrl}/rental-v2/leases/property/${propertyId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${session?.accessToken}`,
+          },
+        },
+      );
+      if (!response.ok) throw new Error("Failed to fetch leases");
+      return response.json();
     },
   });
 
-  const getReviewerLabel = (type: string, isVerifiedTenant?: boolean) => {
-    switch (type) {
-      case "PREVIOUS_TENANT":
-        return isVerifiedTenant
-          ? "Verified Previous Tenant"
-          : "Previous Tenant";
-      case "CURRENT_TENANT":
-        return "Current Tenant";
-      case "VISITOR":
-        return "Visitor";
-      case "ANONYMOUS":
-        return "Anonymous Tenant";
-      default:
-        return "Reviewer";
+  const ratingsQuery = useQuery({
+    queryKey: ["rental-v2", "ratings", propertyId],
+    enabled: !!session?.accessToken && !!apiBaseUrl,
+    queryFn: async () => {
+      const response = await fetch(
+        `${apiBaseUrl}/rental-v2/ratings?propertyId=${propertyId}&take=20`,
+        {
+          headers: {
+            Authorization: `Bearer ${session?.accessToken}`,
+          },
+        },
+      );
+      if (!response.ok) throw new Error("Failed to fetch ratings");
+      return response.json();
+    },
+  });
+
+  const lease = useMemo(() => {
+    const leases = leaseQuery.data ?? [];
+    const active = leases.find((item: any) => item.status === "ACTIVE");
+    if (active) return active;
+    const ended = leases.find((item: any) => item.status === "ENDED");
+    if (ended) return ended;
+    return leases[0] ?? null;
+  }, [leaseQuery.data]);
+
+  const canRate = useMemo(() => {
+    if (!lease || lease.status !== "ENDED" || !session?.user?.id) return false;
+    if (rateTarget === "PROPERTY") {
+      return lease.tenantId === session.user.id;
     }
-  };
+    return lease.landlordId === session.user.id;
+  }, [lease, rateTarget, session?.user?.id]);
 
-  const renderStars = (value: number, size: "sm" | "md" | "lg" = "md") => {
-    const sizeClasses = {
-      sm: "h-3 w-3",
-      md: "h-4 w-4",
-      lg: "h-6 w-6",
-    };
-    return (
-      <div className="flex gap-0.5">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            className={`${sizeClasses[size]} ${star <= value ? "fill-yellow-400 text-yellow-400" : "text-neutral-300"}`}
-          />
-        ))}
-      </div>
-    );
-  };
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      if (!lease?.id) throw new Error("No lease found");
+      const response = await fetch(
+        `${apiBaseUrl}/rental-v2/leases/${lease.id}/ratings`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.accessToken}`,
+          },
+          body: JSON.stringify({
+            score,
+            comment: comment || undefined,
+            rateTarget,
+          }),
+        },
+      );
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(
+          payload?.message || payload?.error || "Failed to submit rating",
+        );
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      notify.success("Rating submitted");
+      setComment("");
+      queryClient.invalidateQueries({
+        queryKey: ["rental-v2", "ratings", propertyId],
+      });
+    },
+    onError: (error: any) => {
+      notify.error(error?.message || "Failed to submit rating");
+    },
+  });
 
-  if (isLoading) return <Skeleton className="h-64" />;
+  const endLeaseMutation = useMutation({
+    mutationFn: async (republish: boolean) => {
+      if (!lease?.id) throw new Error("No lease found");
+      const response = await fetch(
+        `${apiBaseUrl}/rental-v2/leases/${lease.id}/end`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.accessToken}`,
+          },
+          body: JSON.stringify({ republish }),
+        },
+      );
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(
+          payload?.message || payload?.error || "Failed to end lease",
+        );
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      notify.success("Lease ended successfully");
+      queryClient.invalidateQueries({
+        queryKey: ["rental-v2", "leases", propertyId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["property", propertyId] });
+    },
+    onError: (error: any) => {
+      notify.error(error?.message || "Failed to end lease");
+    },
+  });
 
-  if (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to load ratings";
-    return (
-      <Card>
-        <CardContent className="p-8 text-center">
-          <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-          <p className="text-red-600">Failed to load ratings: {errorMessage}</p>
-        </CardContent>
-      </Card>
-    );
+  if (leaseQuery.isLoading || ratingsQuery.isLoading) {
+    return <Skeleton className="h-64" />;
   }
 
-  const aggregate = ratingsData?.aggregate;
-  const ratings = ratingsData?.ratings || [];
-  const userRating = ratingsData?.userRating;
-  const canSubmitRating = !userRating;
+  const ratings = ratingsQuery.data?.items ?? [];
+  const average = ratingsQuery.data?.aggregate?.average ?? 0;
 
   return (
     <div className="space-y-6">
-      {/* Aggregated Rating Overview */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Star className="h-5 w-5 text-yellow-400 fill-yellow-400" />
-            Ratings & Reviews
+          <CardTitle className="flex items-center justify-between">
+            <span>Ratings & Reviews</span>
+            <Link
+              href="/dashboard/ratings"
+              className="text-sm text-emerald-700 hover:underline"
+            >
+              View all ratings
+            </Link>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          {aggregate && aggregate.totalCount > 0 ? (
-            <div className="space-y-6">
-              {/* Overall Rating Display */}
-              <div className="flex items-center gap-6">
-                <div className="text-center">
-                  <div className="text-5xl font-bold text-neutral-900 mb-1">
-                    {aggregate.average.toFixed(1)}
-                  </div>
-                  <div className="mb-2">
-                    {renderStars(Math.round(aggregate.average), "md")}
-                  </div>
-                  <p className="text-sm text-neutral-500">
-                    {aggregate.totalCount}{" "}
-                    {aggregate.totalCount === 1 ? "rating" : "ratings"}
-                  </p>
-                </div>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+            Lease status:{" "}
+            <span className="font-medium">{lease?.status ?? "Unknown"}</span>
+            <span className="mx-2">•</span>
+            Rating allowed:{" "}
+            <span
+              className={
+                canRate ? "font-medium text-emerald-700" : "text-slate-500"
+              }
+            >
+              {canRate ? "Yes" : "No"}
+            </span>
+            {lease?.status === "ACTIVE" &&
+            (lease.landlordId === session?.user?.id ||
+              session?.user?.role === "ADMIN") ? (
+              <div className="mt-3 flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={endLeaseMutation.isPending}
+                  onClick={() => endLeaseMutation.mutate(false)}
+                >
+                  End lease
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={endLeaseMutation.isPending}
+                  onClick={() => endLeaseMutation.mutate(true)}
+                >
+                  End + republish
+                </Button>
+              </div>
+            ) : null}
+          </div>
 
-                {/* Rating Distribution */}
-                <div className="flex-1 space-y-2">
-                  {[5, 4, 3, 2, 1].map((starValue) => {
-                    const count =
-                      aggregate.ratingCounts[
-                        starValue as keyof typeof aggregate.ratingCounts
-                      ] || 0;
-                    const percentage =
-                      aggregate.totalCount > 0
-                        ? (count / aggregate.totalCount) * 100
-                        : 0;
-                    return (
-                      <div key={starValue} className="flex items-center gap-3">
-                        <div className="flex items-center gap-1 w-16">
-                          <span className="text-sm font-medium">
-                            {starValue}
-                          </span>
-                          <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
-                        </div>
-                        <div className="flex-1 h-2 bg-neutral-200 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-yellow-400 transition-all"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-neutral-500 w-8 text-right">
-                          {count}
-                        </span>
-                      </div>
-                    );
-                  })}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-3">
+              <div>
+                <Label>Target</Label>
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    variant={rateTarget === "PROPERTY" ? "default" : "outline"}
+                    onClick={() => setRateTarget("PROPERTY")}
+                  >
+                    Rate property
+                  </Button>
+                  <Button
+                    variant={rateTarget === "TENANT" ? "default" : "outline"}
+                    onClick={() => setRateTarget("TENANT")}
+                  >
+                    Rate tenant
+                  </Button>
                 </div>
               </div>
+
+              <div>
+                <Label>Score (1-5)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={score}
+                  onChange={(event) => setScore(Number(event.target.value))}
+                  className="mt-1 max-w-[120px]"
+                />
+              </div>
             </div>
-          ) : (
-            <div className="text-center py-8">
-              <Star className="h-12 w-12 text-neutral-300 mx-auto mb-4" />
-              <p className="text-neutral-500">
-                No ratings yet for this property.
-              </p>
+
+            <div className="space-y-3">
+              <div>
+                <Label>Comment</Label>
+                <Textarea
+                  value={comment}
+                  onChange={(event) => setComment(event.target.value)}
+                  rows={4}
+                  placeholder="Share your experience"
+                  className="mt-1"
+                />
+              </div>
+              <Button
+                onClick={() => submitMutation.mutate()}
+                disabled={!canRate || submitMutation.isPending}
+              >
+                {submitMutation.isPending ? "Submitting..." : "Submit rating"}
+              </Button>
             </div>
-          )}
+          </div>
+
+          <div className="text-sm text-slate-500">
+            Average rating for this listing:{" "}
+            <span className="font-semibold text-slate-900">
+              {Number(average).toFixed(2)}
+            </span>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Submit Rating Form */}
-      {canSubmitRating && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Leave a Rating</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <Label>Your Rating</Label>
-                <div className="flex gap-1 mt-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      className="focus:outline-none"
-                      onMouseEnter={() => setHoverRating(star)}
-                      onMouseLeave={() => setHoverRating(0)}
-                      onClick={() => setRating(star)}
-                    >
-                      <Star
-                        className={`h-8 w-8 transition-colors ${
-                          star <= (hoverRating || rating)
-                            ? "fill-yellow-400 text-yellow-400"
-                            : "text-neutral-300"
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <Label>Reviewer Type</Label>
-                <select
-                  value={ratingType}
-                  onChange={(e) => setRatingType(e.target.value as any)}
-                  className="mt-1 block w-full rounded-md border-neutral-300 py-2 px-3 text-sm"
-                >
-                  <option value="VISITOR">Visitor</option>
-                  <option value="PREVIOUS_TENANT">Previous Tenant</option>
-                  <option value="CURRENT_TENANT">Current Tenant</option>
-                </select>
-              </div>
-
-              {ratingType === "CURRENT_TENANT" && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="anonymous"
-                    checked={isAnonymous}
-                    onChange={(e) => setIsAnonymous(e.target.checked)}
-                    className="rounded"
-                  />
-                  <Label
-                    htmlFor="anonymous"
-                    className="font-normal cursor-pointer"
-                  >
-                    Submit anonymously
-                  </Label>
-                </div>
-              )}
-
-              <div>
-                <Label>Comment (Optional)</Label>
-                <textarea
-                  className="mt-1 block w-full rounded-md border-neutral-300 py-2 px-3 text-sm min-h-[100px]"
-                  placeholder="Share your experience..."
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  maxLength={1000}
-                />
-                <p className="text-xs text-neutral-500 mt-1">
-                  {comment.length}/1000 characters
-                </p>
-              </div>
-
-              <Button
-                onClick={() => {
-                  if (rating === 0) {
-                    notify.error("Please select a rating");
-                    return;
-                  }
-                  submitMut.mutate({
-                    rating,
-                    comment: comment || undefined,
-                    type: ratingType,
-                    isAnonymous:
-                      ratingType === "CURRENT_TENANT" ? isAnonymous : false,
-                  });
-                }}
-                disabled={submitMut.isPending || rating === 0}
-              >
-                {submitMut.isPending ? "Submitting..." : "Submit Rating"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* User's Existing Rating */}
-      {userRating && (
-        <Card className="border-emerald-200 bg-emerald-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              <div className="flex-1">
-                <p className="font-medium text-emerald-900">
-                  You have already rated this property
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  {renderStars(userRating.rating, "sm")}
-                  {userRating.comment && (
-                    <p className="text-sm text-emerald-700 italic">
-                      "{userRating.comment}"
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Ratings List */}
       <Card>
         <CardHeader>
-          <CardTitle>All Ratings ({ratings.length})</CardTitle>
+          <CardTitle>Recent Ratings</CardTitle>
         </CardHeader>
         <CardContent>
           {ratings.length === 0 ? (
-            <div className="text-center py-8 text-neutral-500">
-              <p>No ratings yet.</p>
-            </div>
+            <div className="py-6 text-sm text-slate-500">No ratings yet.</div>
           ) : (
-            <div className="space-y-4">
-              {ratings.map((r: any) => (
+            <div className="space-y-3">
+              {ratings.slice(0, 10).map((item: any) => (
                 <div
-                  key={r.id}
-                  className="border-b pb-4 last:border-0 last:border-b-0"
+                  key={item.id}
+                  className="rounded-md border border-slate-200 p-3"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        {r.isAnonymous ? (
-                          <>
-                            <div className="h-8 w-8 bg-neutral-200 rounded-full flex items-center justify-center font-bold text-xs text-neutral-500">
-                              ?
-                            </div>
-                            <span className="font-semibold text-neutral-600">
-                              Anonymous
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <div className="h-8 w-8 bg-neutral-200 rounded-full flex items-center justify-center font-bold text-xs">
-                              {r.reviewer?.name?.[0] || "?"}
-                            </div>
-                            <span className="font-semibold">
-                              {r.reviewer?.name || "Anonymous"}
-                            </span>
-                            {r.reviewer?.isVerified && (
-                              <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">
-                                Verified
-                              </span>
-                            )}
-                          </>
-                        )}
-                        <span className="text-xs text-neutral-500">
-                          {getReviewerLabel(r.type, r.reviewer?.isVerified)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-neutral-400">
-                        {new Date(r.createdAt).toLocaleDateString("en-ZW", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">
+                        {item.rater?.name ||
+                          item.rater?.email ||
+                          "Unknown rater"}
                       </p>
+                      <p className="text-xs text-slate-500">
+                        {item.targetType} •{" "}
+                        {new Date(item.createdAt).toLocaleString()}
+                      </p>
+                      {item.comment ? (
+                        <p className="mt-1 text-sm text-slate-700">
+                          {item.comment}
+                        </p>
+                      ) : null}
                     </div>
-                    <div>{renderStars(r.rating, "sm")}</div>
+                    <div className="rounded-md bg-slate-100 px-2 py-1 text-sm font-semibold text-slate-900">
+                      {item.score}/5
+                    </div>
                   </div>
-                  {r.comment && (
-                    <p className="text-neutral-700 mt-2">{r.comment}</p>
-                  )}
                 </div>
               ))}
             </div>

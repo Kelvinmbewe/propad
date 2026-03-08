@@ -482,7 +482,7 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
         client.get(`properties/${id}/payments`).json<
           Array<{
             id: string;
-            propertyId: string;
+            propertyId?: string;
             type:
               | "LISTING_FEE"
               | "PROMOTION"
@@ -515,6 +515,7 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
       createOfflinePayment: async (
         id: string,
         payload: {
+          type: "LISTING_FEE" | "PROMOTION" | "VERIFICATION" | "AGENT_FEE";
           amount: number;
           currency: "USD" | "ZWG";
           method: string;
@@ -577,12 +578,26 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
               | "LOCATION_CONFIRMATION"
               | "PROPERTY_PHOTOS";
             status: "PENDING" | "SUBMITTED" | "APPROVED" | "REJECTED";
+            workflowStatus?:
+              | "DRAFT"
+              | "SUBMITTED"
+              | "APPROVED"
+              | "REJECTED"
+              | "EXPIRED";
             evidenceUrls: string[];
             gpsLat: number | null;
             gpsLng: number | null;
             notes: string | null;
+            siteVisitRequested?: boolean;
             verifierId: string | null;
             reviewedAt: string | null;
+            priorityInvoice?: {
+              id: string;
+              status: string;
+              amountCents: number;
+              currency: string;
+              cancelledReason?: string | null;
+            } | null;
             verifier?: { id: string; name: string } | null;
           }>;
           requester: { id: string; name: string; email: string };
@@ -610,7 +625,13 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             id: string;
             items: Array<{ id: string; type: string; status: string }>;
           };
-          payment: { id: string; status: string };
+          payment: { id: string; status: string } | null;
+          v2Invoices?: Array<{
+            id: string;
+            status: string;
+            amountCents: number;
+            currency: string;
+          }>;
         }>(),
       updateVerificationItem: async (
         propertyId: string,
@@ -620,6 +641,7 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
           gpsLat?: number;
           gpsLng?: number;
           notes?: string;
+          requestOnSiteVisit?: boolean;
         },
       ) =>
         client
@@ -1212,6 +1234,25 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
             })
             .json<any>(),
       },
+      pricing: {
+        listConfigs: async () =>
+          client.get("admin/pricing").json<
+            Array<{
+              key: string;
+              value: unknown;
+              description: string | null;
+              updatedAt: string;
+            }>
+          >(),
+        upsertConfig: async (payload: {
+          key: string;
+          value: unknown;
+          description?: string;
+        }) =>
+          client
+            .post("admin/pricing", { json: payload })
+            .json<{ success: boolean }>(),
+      },
       ledger: {
         search: async (
           params: {
@@ -1372,6 +1413,42 @@ export function createSDK({ baseUrl, token }: SDKOptions) {
               requesterName: string;
             }>
           >(),
+        listBillingPricing: async () =>
+          client.get("verifications/billing/pricing").json<
+            Array<{
+              id: string;
+              key: string;
+              amountCents: number;
+              currency: string;
+              isActive: boolean;
+              description: string | null;
+              updatedByUserId: string | null;
+              createdAt: string;
+              updatedAt: string;
+            }>
+          >(),
+        upsertBillingPricing: async (
+          key: string,
+          payload: {
+            amountCents: number;
+            currency?: string;
+            isActive?: boolean;
+            description?: string;
+          },
+        ) =>
+          client
+            .put(`verifications/billing/pricing/${key}`, { json: payload })
+            .json<{
+              id: string;
+              key: string;
+              amountCents: number;
+              currency: string;
+              isActive: boolean;
+              description: string | null;
+              updatedByUserId: string | null;
+              createdAt: string;
+              updatedAt: string;
+            }>(),
       },
     },
     siteVisits: {

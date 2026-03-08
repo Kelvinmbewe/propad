@@ -80,6 +80,7 @@ type AgencyLite = {
 import { NotificationsService } from "../notifications/notifications.service";
 
 import { ReferralsService } from "../growth/referrals/referrals.service";
+import { VerificationBillingService } from "./verification-billing.service";
 
 @Injectable()
 export class VerificationsService {
@@ -91,7 +92,8 @@ export class VerificationsService {
     private readonly riskService: RiskService,
     private readonly notifications: NotificationsService,
     private readonly referralsService: ReferralsService,
-  ) { }
+    private readonly verificationBilling: VerificationBillingService,
+  ) {}
 
   async refreshPropertyVerification(propertyId: string) {
     await this.recalculatePropertyScore(propertyId);
@@ -170,15 +172,15 @@ export class VerificationsService {
       const [users, agencies] = await Promise.all([
         userIds.length
           ? this.prisma.user.findMany({
-            where: { id: { in: userIds } },
-            select: { id: true, name: true, email: true },
-          })
+              where: { id: { in: userIds } },
+              select: { id: true, name: true, email: true },
+            })
           : [],
         agencyIds.length
           ? this.prisma.agency.findMany({
-            where: { id: { in: agencyIds } },
-            select: { id: true, name: true },
-          })
+              where: { id: { in: agencyIds } },
+              select: { id: true, name: true },
+            })
           : [],
       ]);
 
@@ -381,10 +383,10 @@ export class VerificationsService {
       const hasEvidence =
         item.type === "LOCATION_CONFIRMATION"
           ? (item.gpsLat && item.gpsLng) ||
-          item.notes?.includes("On-site visit requested")
+            item.notes?.includes("On-site visit requested")
           : item.evidenceUrls &&
-          Array.isArray(item.evidenceUrls) &&
-          item.evidenceUrls.length > 0;
+            Array.isArray(item.evidenceUrls) &&
+            item.evidenceUrls.length > 0;
 
       if (!hasEvidence) {
         throw new BadRequestException("No evidence submitted");
@@ -420,14 +422,48 @@ export class VerificationsService {
             where: { id: itemId },
             data: {
               status: dto.status,
+              workflowStatus:
+                dto.status === VerificationItemStatus.APPROVED
+                  ? "APPROVED"
+                  : dto.status === VerificationItemStatus.REJECTED
+                    ? "REJECTED"
+                    : dto.status === VerificationItemStatus.SUBMITTED
+                      ? "SUBMITTED"
+                      : "DRAFT",
               notes:
                 dto.status === VerificationItemStatus.REJECTED
                   ? dto.notes
                   : item.notes,
               verifierId: verifier.id,
               reviewedAt: new Date(),
+              decidedAt:
+                dto.status === VerificationItemStatus.APPROVED ||
+                dto.status === VerificationItemStatus.REJECTED
+                  ? new Date()
+                  : null,
+              decidedByUserId:
+                dto.status === VerificationItemStatus.APPROVED ||
+                dto.status === VerificationItemStatus.REJECTED
+                  ? verifier.id
+                  : null,
+              submittedAt:
+                dto.status === VerificationItemStatus.SUBMITTED
+                  ? new Date()
+                  : item.submittedAt,
             },
           });
+
+          if (
+            dto.status === VerificationItemStatus.APPROVED ||
+            dto.status === VerificationItemStatus.REJECTED
+          ) {
+            await this.verificationBilling.cancelVerificationInvoicesOnDecision(
+              itemId,
+              dto.status as "APPROVED" | "REJECTED",
+              verifier.id,
+              tx,
+            );
+          }
 
           const allItems: VerificationRequestItem[] =
             await tx.verificationRequestItem.findMany({
@@ -732,6 +768,19 @@ export class VerificationsService {
         data: { status, notes },
       });
 
+      const requestItems = await tx.verificationRequestItem.findMany({
+        where: { verificationRequestId: requestId },
+        select: { id: true },
+      });
+      for (const item of requestItems) {
+        await this.verificationBilling.cancelVerificationInvoicesOnDecision(
+          item.id,
+          status,
+          actorId,
+          tx,
+        );
+      }
+
       if (status === "APPROVED") {
         if (request.targetType === "PROPERTY" && request.propertyId) {
           await tx.property.update({
@@ -828,9 +877,9 @@ export class VerificationsService {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(this.deg2rad(lat1)) *
-      Math.cos(this.deg2rad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+        Math.cos(this.deg2rad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const d = R * c; // Distance in km
     return d;

@@ -13,7 +13,9 @@
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "artifact": "node scripts/create-artifact.mjs",
-    "build:og": "node scripts/render-social-share.mjs"
+    "build:og": "node scripts/render-social-share.mjs",
+    "backfill:deals:v2": "pnpm --filter @propad/api run backfill:deals:v2",
+    "seed:verification-pricing:v2": "pnpm --filter @propad/api run seed:verification-pricing:v2"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

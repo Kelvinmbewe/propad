@@ -20,6 +20,8 @@ import {
   Building2,
   Receipt,
   MessageSquare,
+  Handshake,
+  Star,
 } from "lucide-react";
 
 const links = [
@@ -75,6 +77,40 @@ const links = [
     icon: <MessageSquare className="h-4 w-4" />,
   },
   {
+    href: "/dashboard/deals",
+    label: "Deals",
+    roles: [
+      "ADMIN",
+      "AGENT",
+      "LANDLORD",
+      "USER",
+      "INDEPENDENT_AGENT",
+      "COMPANY_ADMIN",
+    ] as Role[],
+    icon: <Handshake className="h-4 w-4" />,
+  },
+  {
+    href: "/dashboard/applications",
+    label: "Applications",
+    roles: [
+      "ADMIN",
+      "AGENT",
+      "LANDLORD",
+      "USER",
+      "TENANT",
+      "BUYER",
+      "INDEPENDENT_AGENT",
+      "COMPANY_ADMIN",
+    ] as Role[],
+    icon: <Receipt className="h-4 w-4" />,
+  },
+  {
+    href: "/dashboard/rent-history",
+    label: "Rent Management",
+    roles: ["ADMIN", "LANDLORD", "USER", "TENANT", "BUYER", "AGENT"] as Role[],
+    icon: <Wallet2 className="h-4 w-4" />,
+  },
+  {
     href: "/dashboard/agency",
     label: "Company Hub",
     roles: ["AGENT", "LANDLORD"] as Role[],
@@ -115,6 +151,43 @@ const links = [
     label: "Offer & Interest",
     roles: ["ADMIN", "AGENT", "LANDLORD"] as Role[],
     icon: <Wallet2 className="h-4 w-4" />,
+  },
+  {
+    href: "/dashboard/my-interests",
+    label: "My Interests",
+    roles: ["USER", "TENANT", "BUYER"] as Role[],
+    icon: <Handshake className="h-4 w-4" />,
+  },
+  {
+    href: "/dashboard/ratings",
+    label: "Ratings",
+    roles: [
+      "ADMIN",
+      "AGENT",
+      "LANDLORD",
+      "USER",
+      "TENANT",
+      "COMPANY_ADMIN",
+    ] as Role[],
+    icon: <Star className="h-4 w-4" />,
+  },
+  {
+    href: "/dashboard/notifications",
+    label: "Notifications",
+    roles: [
+      "ADMIN",
+      "VERIFIER",
+      "AGENT",
+      "LANDLORD",
+      "USER",
+      "MODERATOR",
+      "ADVERTISER",
+      "INDEPENDENT_AGENT",
+      "COMPANY_ADMIN",
+      "TENANT",
+      "BUYER",
+    ] as Role[],
+    icon: <Activity className="h-4 w-4" />,
   },
   {
     href: "/dashboard/reward-pool",
@@ -214,12 +287,6 @@ const links = [
     icon: <Wallet2 className="h-4 w-4" />,
   },
   {
-    href: "/dashboard/admin/payouts",
-    label: "Payout Mgmt",
-    roles: ["ADMIN"] as Role[],
-    icon: <Wallet2 className="h-4 w-4" />,
-  },
-  {
     href: "/dashboard/admin/adsense",
     label: "Google AdSense",
     roles: ["ADMIN"] as Role[],
@@ -243,22 +310,6 @@ const links = [
     roles: ["AGENT"] as Role[],
     icon: <BarChart3 className="h-4 w-4" />,
   },
-  {
-    href: "/dashboard/profile",
-    label: "Settings",
-    roles: [
-      "ADMIN",
-      "VERIFIER",
-      "AGENT",
-      "LANDLORD",
-      "USER",
-      "MODERATOR",
-      "ADVERTISER",
-      "INDEPENDENT_AGENT",
-      "COMPANY_ADMIN",
-    ] as Role[],
-    icon: <Users className="h-4 w-4" />,
-  },
 ];
 
 import { NotificationsBell } from "./notifications-bell";
@@ -266,6 +317,7 @@ import { useTrustScore } from "@/hooks/use-trust-score";
 import { Badge } from "@propad/ui";
 import { useSdkClient } from "@/hooks/use-sdk-client";
 import { canAccessListingsDashboard } from "@/lib/rbac";
+import { useNotifications } from "@/hooks/use-notifications";
 
 export function DashboardNav() {
   const pathname = usePathname();
@@ -274,6 +326,7 @@ export function DashboardNav() {
   const isAuthenticated = status === "authenticated";
   const { data: trustData } = useTrustScore();
   const { sdk, status: sdkStatus } = useSdkClient();
+  const { unreadCount: unreadNotifications } = useNotifications();
 
   const { data: ownedListingsCount = 0 } = useQuery({
     queryKey: ["nav", "owned-listings-count", data?.user?.id],
@@ -286,6 +339,27 @@ export function DashboardNav() {
     staleTime: 60_000,
     retry: 0,
   });
+
+  const { data: dealsUnreadCount = 0 } = useQuery({
+    queryKey: ["nav", "deals-unread"],
+    queryFn: async () => {
+      const response = await fetch("/api/deals/queue?take=1", {
+        cache: "no-store",
+      });
+      if (!response.ok) return 0;
+      const json = await response.json();
+      return Number(json?.stats?.unread ?? 0);
+    },
+    enabled: Boolean(role),
+    staleTime: 30_000,
+    refetchInterval: 45_000,
+  });
+
+  const getLinkBadgeCount = (href: string): number => {
+    if (href === "/dashboard/deals") return dealsUnreadCount;
+    if (href === "/dashboard/notifications") return unreadNotifications;
+    return 0;
+  };
 
   const upgradeLinks = [
     { href: "/upgrade/agent", label: "Become an Agent", role: "AGENT" as Role },
@@ -317,6 +391,14 @@ export function DashboardNav() {
         <p className="text-sm text-[color:var(--aurora-color-text-muted)]">
           Operations and admin consoles
         </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="inline-flex items-center rounded-full bg-[color:var(--aurora-color-input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--aurora-color-text-subtle)]">
+            {dealsUnreadCount} deal actions
+          </span>
+          <span className="inline-flex items-center rounded-full bg-[color:var(--aurora-color-input)] px-2.5 py-1 text-[11px] font-medium text-[color:var(--aurora-color-text-subtle)]">
+            {unreadNotifications} unread notifications
+          </span>
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
@@ -333,15 +415,22 @@ export function DashboardNav() {
               key={link.href}
               href={link.href}
               className={cn(
-                "group inline-flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium text-[color:var(--aurora-color-text-subtle)] transition hover:-translate-y-0.5 hover:bg-[color:var(--aurora-color-input)] hover:text-[color:var(--aurora-color-text)]",
+                "group inline-flex items-center justify-between gap-3 rounded-xl px-4 py-2 text-sm font-medium text-[color:var(--aurora-color-text-subtle)] transition hover:-translate-y-0.5 hover:bg-[color:var(--aurora-color-input)] hover:text-[color:var(--aurora-color-text)]",
                 pathname.startsWith(link.href) &&
                   "bg-[color:var(--aurora-color-accent)]/10 text-[color:var(--aurora-color-accent)] shadow-aurora",
               )}
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[color:var(--aurora-color-input)] text-[color:var(--aurora-color-accent)] group-hover:bg-[color:var(--aurora-color-accent)]/15">
-                {link.icon}
+              <span className="inline-flex min-w-0 items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[color:var(--aurora-color-input)] text-[color:var(--aurora-color-accent)] group-hover:bg-[color:var(--aurora-color-accent)]/15">
+                  {link.icon}
+                </span>
+                <span className="truncate">{link.label}</span>
               </span>
-              {link.label}
+              {getLinkBadgeCount(link.href) > 0 ? (
+                <Badge className="ml-2 h-5 rounded-full bg-rose-500 px-2 text-[10px] text-white hover:bg-rose-600">
+                  {getLinkBadgeCount(link.href)}
+                </Badge>
+              ) : null}
             </Link>
           ))}
 

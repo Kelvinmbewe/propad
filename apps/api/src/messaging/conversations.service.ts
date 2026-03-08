@@ -12,6 +12,109 @@ import { CreateConversationDto } from "./dto/create-conversation.dto";
 export class ConversationsService {
   constructor(private prisma: PrismaService) {}
 
+  private isLaterDate(
+    candidate?: Date | string | null,
+    baseline?: Date | string | null,
+  ) {
+    const candidateAt = candidate ? new Date(candidate).getTime() : 0;
+    const baselineAt = baseline ? new Date(baseline).getTime() : 0;
+    return candidateAt > baselineAt;
+  }
+
+  private pickCanonicalConversations(userId: string, conversations: any[]) {
+    const grouped = new Map<string, any>();
+
+    for (const conversation of conversations) {
+      if (conversation.type === ConversationType.VIEWING_CHAT) {
+        grouped.set(`direct:${conversation.id}`, conversation);
+        continue;
+      }
+
+      if (
+        conversation.type !== ConversationType.LISTING_CHAT &&
+        conversation.type !== ConversationType.GENERAL_CHAT
+      ) {
+        grouped.set(`direct:${conversation.id}`, conversation);
+        continue;
+      }
+
+      const otherParticipantIds = (conversation.participants ?? [])
+        .map((participant: any) => participant.userId ?? participant.user?.id)
+        .filter((participantId: string | null | undefined) =>
+          Boolean(participantId && participantId !== userId),
+        )
+        .sort();
+
+      const counterpartKey = otherParticipantIds.join(":") || "no-counterpart";
+      const key =
+        conversation.type === ConversationType.LISTING_CHAT
+          ? `${conversation.type}:${conversation.propertyId ?? conversation.property?.id ?? "no-property"}:${counterpartKey}`
+          : `${conversation.type}:${conversation.pairKey ?? counterpartKey}`;
+      const existing = grouped.get(key);
+
+      if (!existing) {
+        grouped.set(key, conversation);
+        continue;
+      }
+
+      const candidateAt =
+        conversation.lastMessageAt ??
+        conversation.updatedAt ??
+        conversation.createdAt;
+      const existingAt =
+        existing.lastMessageAt ?? existing.updatedAt ?? existing.createdAt;
+
+      if (this.isLaterDate(candidateAt, existingAt)) {
+        grouped.set(key, conversation);
+      }
+    }
+
+    return Array.from(grouped.values());
+  }
+
+  private async resolveListingApplicantUserId(
+    actorUserId: string,
+    listingId: string,
+    participantIds: string[],
+    providedApplicantUserId?: string | null,
+  ) {
+    const normalizedProvidedApplicant = this.normalizeUserId(
+      providedApplicantUserId,
+    );
+    if (normalizedProvidedApplicant) {
+      return normalizedProvidedApplicant;
+    }
+
+    const property = await this.prisma.property.findUnique({
+      where: { id: listingId },
+      select: {
+        landlordId: true,
+        ownerId: true,
+        agentOwnerId: true,
+        assignedAgentId: true,
+      },
+    });
+
+    const managerIds = new Set(
+      [
+        property?.landlordId,
+        property?.ownerId,
+        property?.agentOwnerId,
+        property?.assignedAgentId,
+      ].filter((entry): entry is string => Boolean(entry)),
+    );
+
+    const otherParticipantId =
+      participantIds.find((participantId) => participantId !== actorUserId) ??
+      null;
+
+    if (managerIds.has(actorUserId)) {
+      return otherParticipantId;
+    }
+
+    return actorUserId;
+  }
+
   private normalizeUserId(candidate: unknown): string | null {
     if (typeof candidate === "string" && candidate.trim()) {
       return candidate.trim();
@@ -144,6 +247,7 @@ export class ConversationsService {
     }
 
     const listingId = dto.listingId?.trim() ?? dto.propertyId?.trim() ?? null;
+    const viewingId = dto.viewingId?.trim() ?? null;
     const rawRecipientId = await this.resolveRecipient(normalizedUserId, dto);
     const recipientId = this.normalizeUserId(rawRecipientId);
 
@@ -151,9 +255,9 @@ export class ConversationsService {
       throw new BadRequestException("No available agency inbox recipient");
     }
 
-    if (!listingId && !recipientId) {
+    if (!listingId && !viewingId && !recipientId) {
       throw new BadRequestException(
-        "Either listingId/propertyId or recipientId/companyId is required",
+        "Either listingId/propertyId, viewingId, or recipientId/companyId is required",
       );
     }
 
@@ -173,46 +277,120 @@ export class ConversationsService {
       ]),
     );
 
-    const type = listingId
-      ? ConversationType.LISTING_CHAT
-      : ConversationType.GENERAL_CHAT;
+    const type = viewingId
+      ? ConversationType.VIEWING_CHAT
+      : listingId
+        ? ConversationType.LISTING_CHAT
+        : ConversationType.GENERAL_CHAT;
 
-    const whereBase: Prisma.ConversationWhereInput = {
-      type,
-      propertyId: listingId,
-      dealId: dto.dealId?.trim() || null,
-      applicationId: dto.applicationId?.trim() || null,
-      participants: {
-        some: {
-          userId: { in: participantIds },
-        },
-      },
-    };
+    const sortedPair = participantIds.slice().sort();
+    const pairKey =
+      type === ConversationType.GENERAL_CHAT && sortedPair.length >= 2
+        ? `${sortedPair[0]}:${sortedPair[1]}`
+        : null;
 
-    const candidates = await this.prisma.conversation.findMany({
-      where: whereBase,
+    const applicantUserId =
+      type === ConversationType.LISTING_CHAT && listingId
+        ? await this.resolveListingApplicantUserId(
+            normalizedUserId,
+            listingId,
+            participantIds,
+            dto.applicantUserId,
+          )
+        : null;
+
+    const primaryCounterpartyId =
+      participantIds.find(
+        (participantId) => participantId !== normalizedUserId,
+      ) ?? null;
+
+    const uniqueWhere: Prisma.ConversationWhereInput =
+      type === ConversationType.VIEWING_CHAT && viewingId
+        ? { type, viewingId }
+        : type === ConversationType.LISTING_CHAT &&
+            listingId &&
+            primaryCounterpartyId
+          ? {
+              type,
+              propertyId: listingId,
+              AND: [
+                { participants: { some: { userId: normalizedUserId } } },
+                { participants: { some: { userId: primaryCounterpartyId } } },
+              ],
+            }
+          : type === ConversationType.LISTING_CHAT &&
+              listingId &&
+              applicantUserId
+            ? { type, propertyId: listingId, applicantUserId }
+            : type === ConversationType.GENERAL_CHAT && pairKey
+              ? { type, pairKey }
+              : {
+                  type,
+                  propertyId: listingId,
+                  viewingId,
+                  participants: {
+                    some: {
+                      userId: { in: participantIds },
+                    },
+                  },
+                };
+
+    const existing = await this.prisma.conversation.findFirst({
+      where: uniqueWhere,
       include: this.conversationInclude,
-      take: 30,
       orderBy: { updatedAt: "desc" },
     });
 
-    const expectedKey = participantIds.sort().join(":");
-    const existing = candidates.find((conversation: any) => {
-      const activeParticipants = conversation.participants
-        .filter((participant: any) => !participant.leftAt)
-        .map((participant: any) => participant.userId)
-        .sort()
-        .join(":");
-      return activeParticipants === expectedKey;
-    });
-
     if (existing) {
+      const existingParticipantIds = new Set(
+        (existing.participants ?? []).map(
+          (participant: any) => participant.userId,
+        ),
+      );
+      const missingParticipantIds = participantIds.filter(
+        (participantId) => !existingParticipantIds.has(participantId),
+      );
+
+      if (
+        missingParticipantIds.length > 0 ||
+        existing.applicantUserId !== applicantUserId
+      ) {
+        await this.prisma.conversation.update({
+          where: { id: existing.id },
+          data: {
+            applicantUserId:
+              applicantUserId ?? existing.applicantUserId ?? null,
+            participants:
+              missingParticipantIds.length > 0
+                ? {
+                    create: missingParticipantIds.map((participantId) => ({
+                      userId: participantId,
+                    })),
+                  }
+                : undefined,
+          },
+        });
+
+        const reloadedExisting =
+          await this.prisma.conversation.findUniqueOrThrow({
+            where: { id: existing.id },
+            include: this.conversationInclude,
+          });
+
+        return this.toConversationListItem(userId, reloadedExisting);
+      }
+
       return this.toConversationListItem(userId, existing);
     }
 
     const created = await this.prisma.conversation.create({
       data: {
         propertyId: listingId,
+        viewingId,
+        applicantUserId,
+        pairKey,
+        requestStatus:
+          type === ConversationType.GENERAL_CHAT ? "PENDING" : "ACCEPTED",
         dealId: dto.dealId?.trim() || null,
         applicationId: dto.applicationId?.trim() || null,
         type,
@@ -259,6 +437,8 @@ export class ConversationsService {
 
     if (filters.type === "listing") {
       where.type = ConversationType.LISTING_CHAT;
+    } else if (filters.type === "viewing") {
+      where.type = ConversationType.VIEWING_CHAT;
     } else if (filters.type === "general") {
       where.type = ConversationType.GENERAL_CHAT;
     }
@@ -294,8 +474,13 @@ export class ConversationsService {
       orderBy: { lastMessageAt: "desc" },
     });
 
+    const canonicalConversations = this.pickCanonicalConversations(
+      normalizedUserId,
+      conversations,
+    );
+
     return Promise.all(
-      conversations.map((conversation) =>
+      canonicalConversations.map((conversation: any) =>
         this.toConversationListItem(normalizedUserId, conversation),
       ),
     );
@@ -366,10 +551,17 @@ export class ConversationsService {
       throw new NotFoundException("Chat request not found");
     }
 
-    return this.prisma.chatRequest.update({
+    const updated = await this.prisma.chatRequest.update({
       where: { id: requestId },
       data: { status: ChatRequestStatus.ACCEPTED },
     });
+
+    await this.prisma.conversation.update({
+      where: { id: request.conversationId },
+      data: { requestStatus: "ACCEPTED" as any },
+    });
+
+    return updated;
   }
 
   async declineRequest(requestId: string, userId: string) {

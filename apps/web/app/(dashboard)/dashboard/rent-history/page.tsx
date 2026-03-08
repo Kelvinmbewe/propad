@@ -11,16 +11,17 @@ interface RentPayment {
     paidAt: string;
     amount: number;
     currency: string;
-    isVerified: boolean;
+    status: string;
+    method: string;
+    reference?: string | null;
+    lease?: { id: string; status: string } | null;
     property: { title: string };
 }
 
 async function getRentHistory(userId: string): Promise<RentPayment[]> {
     try {
-        // TODO: Implement API endpoint
-        // return await serverApiRequest<RentPayment[]>('/rent-payments');
-        console.warn('[rent-history/page.tsx] getRentHistory - API endpoint not yet implemented');
-        return [];
+        void userId;
+        return await serverApiRequest<RentPayment[]>('/rental-v2/payments/mine');
     } catch (error) {
         console.error('Failed to fetch rent history:', error);
         return [];
@@ -29,10 +30,9 @@ async function getRentHistory(userId: string): Promise<RentPayment[]> {
 
 async function getTenantProperties(userId: string): Promise<{ id: string; title: string }[]> {
     try {
-        // TODO: Implement API endpoint
-        // return await serverApiRequest<any[]>('/properties/my-rentals');
-        console.warn('[rent-history/page.tsx] getTenantProperties - API endpoint not yet implemented');
-        return [];
+        void userId;
+        const leases = await serverApiRequest<Array<{ id: string; title: string }>>('/rental-v2/lease-options/mine');
+        return leases;
     } catch (error) {
         console.error('Failed to fetch tenant properties:', error);
         return [];
@@ -85,14 +85,14 @@ export default async function RentHistoryPage() {
                                             <p className="font-bold text-slate-900">
                                                 {payment.currency} {Number(payment.amount).toLocaleString()}
                                             </p>
-                                            <div className="mt-1 flex items-center justify-end gap-1 text-xs">
-                                                {payment.isVerified ? (
+                                                <div className="mt-1 flex items-center justify-end gap-1 text-xs">
+                                                {payment.status === 'PAID' ? (
                                                     <span className="flex items-center gap-1 text-emerald-600">
                                                         <CheckCircle className="h-3 w-3" /> Verified
                                                     </span>
                                                 ) : (
                                                     <span className="flex items-center gap-1 text-amber-600">
-                                                        <Clock className="h-3 w-3" /> Pending
+                                                        <Clock className="h-3 w-3" /> {payment.status}
                                                     </span>
                                                 )}
                                             </div>

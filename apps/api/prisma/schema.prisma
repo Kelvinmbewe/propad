@@ -503,7 +503,50 @@ enum MessageModerationStatus {
 
 enum ConversationType {
   LISTING_CHAT
+  VIEWING_CHAT
   GENERAL_CHAT
+}
+
+enum ConversationRequestStatus {
+  PENDING
+  ACCEPTED
+}
+
+enum DealPartyRole {
+  LISTING_MANAGER
+  APPLICANT
+}
+
+enum ContractSnapshotFormat {
+  HTML
+  MARKDOWN
+}
+
+enum DealContractVersionStatus {
+  DRAFT
+  SENT
+  SIGNED
+  VOID
+}
+
+enum ContractMethod {
+  ESIGN
+  UPLOAD
+}
+
+enum DealEventType {
+  APPLICATION_APPROVED
+  APPLICATION_REJECTED
+  CONTRACT_SENT
+  CONTRACT_VIEWED
+  SIGNED_BY_MANAGER
+  SIGNED_BY_APPLICANT
+  VIEWING_REQUESTED
+  VIEWING_CONFIRMED
+  PAYMENT_REQUESTED
+  PAYMENT_RECEIVED
+  DEAL_CLOSED
+  DEAL_CANCELLED
 }
 
 enum ConversationStatus {
@@ -641,6 +684,10 @@ model User {
   verificationsRequested      Verification[]            @relation("VerificationRequester")
   verificationRequestsCreated VerificationRequest[]     @relation("VerificationRequestRequester")
   verificationItemsReviewed   VerificationRequestItem[] @relation("VerificationItemVerifier")
+  verificationItemsDecided    VerificationRequestItem[] @relation("VerificationItemDecider")
+  verificationPricingUpdates  VerificationPricing[]     @relation("VerificationPricingUpdatedBy")
+  billingInvoices             BillingInvoice[]          @relation("BillingInvoiceUser")
+  paymentReceiptsCreated      PaymentReceipt[]          @relation("PaymentReceiptCreatedBy")
   rewardEvents                RewardEvent[]
   payouts                     Payout[]
   adImpressions               AdImpression[]
@@ -666,7 +713,7 @@ model User {
   ownedAdvertisers            Advertiser[]              @relation("AdvertiserOwner")
   userKyc                     UserKyc?
   companyAffiliations         UserCompanyAffiliation[]
-  documents                   Document[]               @relation("UserDocuments")
+  documents                   Document[]                @relation("UserDocuments")
   userKycReviews              UserKyc[]                 @relation("UserKycReviewer")
   companyKycReviews           CompanyKyc[]              @relation("CompanyKycReviewer")
   affiliationApprovals        UserCompanyAffiliation[]  @relation("UserAffiliationApprover")
@@ -714,26 +761,34 @@ model User {
   adClicks            AdClick[]            @relation("AdClickUser")
 
   // Application, Deal, Conversation, and Message Relations
-  applications             Application[]             @relation("UserApplications")
-  tenantDeals              Deal[]                    @relation("TenantDeals")
-  landlordDeals            Deal[]                    @relation("LandlordDeals")
-  agentDeals               Deal[]                    @relation("AgentDeals")
-  commissions              Commission[]              @relation("UserCommissions")
-  conversationParticipants ConversationParticipant[] @relation("ConversationParticipants")
-  sentConversationMessages Message[]                 @relation("UserMessages")
-  moderatedMessages       Message[]                 @relation("MessageModerator")
-  requestedChatRequests   ChatRequest[]             @relation("ChatRequestRequester")
-  receivedChatRequests    ChatRequest[]             @relation("ChatRequestRecipient")
-  usedRoleUpgradeTokens   RoleUpgradeToken[]        @relation("RoleUpgradeUsedBy")
-  managementAssignmentsCreated ListingManagementAssignment[] @relation("ListingManagementCreator")
+  applications                  Application[]                 @relation("UserApplications")
+  tenantDeals                   Deal[]                        @relation("TenantDeals")
+  landlordDeals                 Deal[]                        @relation("LandlordDeals")
+  agentDeals                    Deal[]                        @relation("AgentDeals")
+  commissions                   Commission[]                  @relation("UserCommissions")
+  dealSignatures                DealSignature[]
+  dealContractFilesUploaded     DealContractFile[]
+  dealEvents                    DealEvent[]
+  conversationParticipants      ConversationParticipant[]     @relation("ConversationParticipants")
+  sentConversationMessages      Message[]                     @relation("UserMessages")
+  moderatedMessages             Message[]                     @relation("MessageModerator")
+  requestedChatRequests         ChatRequest[]                 @relation("ChatRequestRequester")
+  receivedChatRequests          ChatRequest[]                 @relation("ChatRequestRecipient")
+  usedRoleUpgradeTokens         RoleUpgradeToken[]            @relation("RoleUpgradeUsedBy")
+  managementAssignmentsCreated  ListingManagementAssignment[] @relation("ListingManagementCreator")
   managementAssignmentsAccepted ListingManagementAssignment[] @relation("ListingManagementAccepter")
-  managementAssignmentsOwned ListingManagementAssignment[] @relation("ListingManagementOwner")
+  managementAssignmentsOwned    ListingManagementAssignment[] @relation("ListingManagementOwner")
   managementAssignmentsAssigned ListingManagementAssignment[] @relation("ListingManagementAssignedAgent")
+  leasesAsTenant                Lease[]                       @relation("LeaseTenant")
+  leasesAsLandlord              Lease[]                       @relation("LeaseLandlord")
+  rentalRatingsAuthored         Rating[]                      @relation("RatingRater")
+  rentalRatingsReceived         Rating[]                      @relation("RatingRatedUser")
+  rentPaymentsAsLandlord        RentPayment[]                 @relation("LandlordRentPaymentsV2")
 }
 
 model RoleUpgradeToken {
-  id           String   @id @default(cuid())
-  tokenHash    String   @unique
+  id           String    @id @default(cuid())
+  tokenHash    String    @unique
   targetRole   Role
   expiresAt    DateTime
   usedAt       DateTime?
@@ -742,7 +797,7 @@ model RoleUpgradeToken {
   note         String?
   campaign     String?
   metadata     Json?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 
   usedBy User? @relation("RoleUpgradeUsedBy", fields: [usedByUserId], references: [id])
 
@@ -785,37 +840,37 @@ model UserKyc {
   user      User             @relation(fields: [userId], references: [id])
   reviewer  User?            @relation("UserKycReviewer", fields: [reviewerId], references: [id])
   identity  UserKycIdentity?
-  documents Document[] @relation("UserKycDocuments")
+  documents Document[]       @relation("UserKycDocuments")
 }
 
 model UserKycIdentity {
-  id             String   @id @default(cuid())
-  userKycId       String   @unique
-  legalName      String
-  idNumber       String?
-  idType         KycIdType
-  dateOfBirth    DateTime?
-  addressLine1   String?
-  addressCity    String?
+  id              String    @id @default(cuid())
+  userKycId       String    @unique
+  legalName       String
+  idNumber        String?
+  idType          KycIdType
+  dateOfBirth     DateTime?
+  addressLine1    String?
+  addressCity     String?
   addressProvince String?
-  addressCountry String?
-  verifiedAt     DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  addressCountry  String?
+  verifiedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   userKyc UserKyc @relation(fields: [userKycId], references: [id])
 }
 
 model UserCompanyAffiliation {
-  id         String            @id @default(cuid())
-  userId     String
-  agencyId   String
-  roleTitle  String?
-  status     AffiliationStatus @default(PENDING)
+  id           String            @id @default(cuid())
+  userId       String
+  agencyId     String
+  roleTitle    String?
+  status       AffiliationStatus @default(PENDING)
   approvedById String?
-  approvedAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  approvedAt   DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   user       User   @relation(fields: [userId], references: [id])
   agency     Agency @relation(fields: [agencyId], references: [id])
@@ -901,99 +956,101 @@ model Agency {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  members       AgencyMember[]
-  contracts     ManagementContract[]
-  properties    Property[]
-  buyerInvoices Invoice[]            @relation("InvoiceBuyerAgency")
-  reviews       AgencyReview[]
+  members        AgencyMember[]
+  contracts      ManagementContract[]
+  properties     Property[]
+  buyerInvoices  Invoice[]                @relation("InvoiceBuyerAgency")
+  reviews        AgencyReview[]
   companyProfile Company?
-  affiliations  UserCompanyAffiliation[]
+  affiliations   UserCompanyAffiliation[]
 
   @@index([status])
   @@index([name])
 }
 
 model Company {
-  id                  String   @id @default(cuid())
-  agencyId            String?  @unique
-  name                String
-  slug                String?  @unique
-  logoUrl             String?
-  coverUrl            String?
-  shortDescription    String?
-  description         String?
-  servicesJson        Json?
-  areasServedJson     Json?
-  hoursJson           Json?
-  languagesJson       Json?
-  socialLinksJson     Json?
-  responseTimeMinutes Int?
-  trustScore          Int      @default(0)
-  trustBreakdownJson  Json?
-  listingsCount       Int      @default(0)
-  reviewsCount        Int      @default(0)
-  avgRating           Float    @default(0)
-  verifiedTransactionsCount Int @default(0)
-  complaintResolutionRate    Float @default(0)
-  yearsActive         Int      @default(0)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                        String   @id @default(cuid())
+  agencyId                  String?  @unique
+  name                      String
+  slug                      String?  @unique
+  logoUrl                   String?
+  coverUrl                  String?
+  shortDescription          String?
+  description               String?
+  servicesJson              Json?
+  areasServedJson           Json?
+  hoursJson                 Json?
+  languagesJson             Json?
+  socialLinksJson           Json?
+  responseTimeMinutes       Int?
+  trustScore                Int      @default(0)
+  trustBreakdownJson        Json?
+  listingsCount             Int      @default(0)
+  reviewsCount              Int      @default(0)
+  avgRating                 Float    @default(0)
+  verifiedTransactionsCount Int      @default(0)
+  complaintResolutionRate   Float    @default(0)
+  yearsActive               Int      @default(0)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
 
-  agency    Agency? @relation(fields: [agencyId], references: [id])
-  kyc       CompanyKyc?
-  documents Document[] @relation("CompanyDocuments")
+  agency          Agency?     @relation(fields: [agencyId], references: [id])
+  kyc             CompanyKyc?
+  documents       Document[]  @relation("CompanyDocuments")
+  leases          Lease[]
+  ratingsReceived Rating[]    @relation("RatingRatedCompany")
 }
 
 model CompanyKyc {
-  id            String     @id @default(cuid())
-  companyId     String     @unique
-  status        KycStatus  @default(PENDING)
+  id            String    @id @default(cuid())
+  companyId     String    @unique
+  status        KycStatus @default(PENDING)
   reviewerId    String?
   reviewedAt    DateTime?
   requestedAt   DateTime?
   riskFlagsJson Json?
   notes         String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  company   Company @relation(fields: [companyId], references: [id])
-  reviewer  User?   @relation("CompanyKycReviewer", fields: [reviewerId], references: [id])
+  company   Company             @relation(fields: [companyId], references: [id])
+  reviewer  User?               @relation("CompanyKycReviewer", fields: [reviewerId], references: [id])
   identity  CompanyKycIdentity?
   ubos      CompanyKycUbo[]
-  documents Document[] @relation("CompanyKycDocuments")
+  documents Document[]          @relation("CompanyKycDocuments")
 }
 
 model CompanyKycIdentity {
-  id                  String   @id @default(cuid())
-  companyKycId         String   @unique
-  legalName           String
-  registrationNumber  String?
-  taxNumber           String?
-  addressLine1        String?
-  addressCity         String?
-  addressProvince     String?
-  addressCountry      String?
-  verifiedAt          DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                 String    @id @default(cuid())
+  companyKycId       String    @unique
+  legalName          String
+  registrationNumber String?
+  taxNumber          String?
+  addressLine1       String?
+  addressCity        String?
+  addressProvince    String?
+  addressCountry     String?
+  verifiedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   companyKyc CompanyKyc @relation(fields: [companyKycId], references: [id])
 }
 
 model CompanyKycUbo {
-  id             String   @id @default(cuid())
-  companyKycId   String
-  fullName       String
-  nationalId     String?
-  ownershipPct   Float?
-  dateOfBirth    DateTime?
-  addressLine1   String?
-  addressCity    String?
+  id              String    @id @default(cuid())
+  companyKycId    String
+  fullName        String
+  nationalId      String?
+  ownershipPct    Float?
+  dateOfBirth     DateTime?
+  addressLine1    String?
+  addressCity     String?
   addressProvince String?
-  addressCountry String?
-  verifiedAt     DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  addressCountry  String?
+  verifiedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   companyKyc CompanyKyc @relation(fields: [companyKycId], references: [id])
 
@@ -1014,14 +1071,14 @@ model Document {
   extractedFields Json?
   verifiedById    String?
   verifiedAt      DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  company    Company?   @relation("CompanyDocuments", fields: [companyId], references: [id])
-  user       User?      @relation("UserDocuments", fields: [userId], references: [id])
+  company    Company?    @relation("CompanyDocuments", fields: [companyId], references: [id])
+  user       User?       @relation("UserDocuments", fields: [userId], references: [id])
   companyKyc CompanyKyc? @relation("CompanyKycDocuments", fields: [companyKycId], references: [id])
   userKyc    UserKyc?    @relation("UserKycDocuments", fields: [userKycId], references: [id])
-  verifiedBy User?      @relation("DocumentVerifier", fields: [verifiedById], references: [id])
+  verifiedBy User?       @relation("DocumentVerifier", fields: [verifiedById], references: [id])
 
   @@index([companyId, status])
   @@index([userId, status])
@@ -1107,32 +1164,33 @@ model Property {
   dealConfirmedById String?
   isManaged         Boolean              @default(false)
 
-  landlord        User?                @relation("LandlordProperties", fields: [landlordId], references: [id])
-  agentOwner      User?                @relation("AgentOwnerProperties", fields: [agentOwnerId], references: [id])
-  owner           User?                @relation("ListingOwner", fields: [ownerId], references: [id])
-  assignedAgent   User?                @relation("ListingAssignedAgent", fields: [assignedAgentId], references: [id])
-  agency          Agency?              @relation(fields: [agencyId], references: [id])
-  country         Country?             @relation(fields: [countryId], references: [id])
-  province        Province?            @relation(fields: [provinceId], references: [id])
-  city            City?                @relation(fields: [cityId], references: [id])
-  suburb          Suburb?              @relation(fields: [suburbId], references: [id])
-  pendingGeo      PendingGeo?          @relation(fields: [pendingGeoId], references: [id])
-  dealConfirmedBy User?                @relation("PropertyDealConfirmer", fields: [dealConfirmedById], references: [id])
-  media           PropertyMedia[]
-  verifications   Verification[]
-  leads           Lead[]
-  adImpressions   AdImpression[]
-  promoBoosts     PromoBoost[]
-  assignments     AgentAssignment[]
+  landlord              User?                         @relation("LandlordProperties", fields: [landlordId], references: [id])
+  agentOwner            User?                         @relation("AgentOwnerProperties", fields: [agentOwnerId], references: [id])
+  owner                 User?                         @relation("ListingOwner", fields: [ownerId], references: [id])
+  assignedAgent         User?                         @relation("ListingAssignedAgent", fields: [assignedAgentId], references: [id])
+  agency                Agency?                       @relation(fields: [agencyId], references: [id])
+  country               Country?                      @relation(fields: [countryId], references: [id])
+  province              Province?                     @relation(fields: [provinceId], references: [id])
+  city                  City?                         @relation(fields: [cityId], references: [id])
+  suburb                Suburb?                       @relation(fields: [suburbId], references: [id])
+  pendingGeo            PendingGeo?                   @relation(fields: [pendingGeoId], references: [id])
+  dealConfirmedBy       User?                         @relation("PropertyDealConfirmer", fields: [dealConfirmedById], references: [id])
+  media                 PropertyMedia[]
+  verifications         Verification[]
+  leads                 Lead[]
+  adImpressions         AdImpression[]
+  promoBoosts           PromoBoost[]
+  assignments           AgentAssignment[]
   managementAssignments ListingManagementAssignment[]
-  messages        PropertyMessage[]
-  priceHistory    PriceHistory[]
-  discountOffers  DiscountOffer[]
-  listingEvents   ListingEvent[]
-  watchlists      Watchlist[]
-  metricsDaily    MetricListingDaily[]
-  shortLinks      ShortLink[]
-  reviews         UserReview[]
+  messages              PropertyMessage[]
+  priceHistory          PriceHistory[]
+  discountOffers        DiscountOffer[]
+  listingEvents         ListingEvent[]
+  watchlists            Watchlist[]
+  metricsDaily          MetricListingDaily[]
+  shortLinks            ShortLink[]
+  reviews               UserReview[]
+  billingInvoices       BillingInvoice[]              @relation("BillingInvoiceProperty")
 
   // Role-Aware
   createdByRole String @default("LANDLORD")
@@ -1160,6 +1218,8 @@ model Property {
   // Application, Deal, and Conversation Relations
   applications  Application[]
   deals         Deal[]
+  leases        Lease[]
+  ratings       Rating[]
   conversations Conversation[]
   commissions   Commission[]
 
@@ -1199,14 +1259,14 @@ model AgentAssignment {
 }
 
 model ListingManagementAssignment {
-  id                 String                 @id @default(cuid())
+  id                 String                  @id @default(cuid())
   propertyId         String
   ownerId            String
   managedByType      ListingManagedByType
   managedById        String?
   assignedAgentId    String?
   serviceFeeUsdCents Int?
-  landlordPaysFee    Boolean                @default(true)
+  landlordPaysFee    Boolean                 @default(true)
   status             ListingManagementStatus @default(CREATED)
   createdById        String?
   acceptedById       String?
@@ -1214,8 +1274,8 @@ model ListingManagementAssignment {
   declinedAt         DateTime?
   endedAt            DateTime?
   notes              String?
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
 
   property      Property @relation(fields: [propertyId], references: [id])
   owner         User     @relation("ListingManagementOwner", fields: [ownerId], references: [id])
@@ -1230,23 +1290,23 @@ model ListingManagementAssignment {
 }
 
 model PropertyMessage {
-  id          String    @id @default(cuid())
-  propertyId  String
-  senderId    String
-  recipientId String
-  body        String
-  moderationStatus MessageModerationStatus @default(OK)
-  containsContactInfo Boolean @default(false)
-  moderatedAt DateTime?
-  moderatedById String?
-  moderationNotes String?
-  createdAt   DateTime  @default(now())
-  readAt      DateTime?
+  id                  String                  @id @default(cuid())
+  propertyId          String
+  senderId            String
+  recipientId         String
+  body                String
+  moderationStatus    MessageModerationStatus @default(OK)
+  containsContactInfo Boolean                 @default(false)
+  moderatedAt         DateTime?
+  moderatedById       String?
+  moderationNotes     String?
+  createdAt           DateTime                @default(now())
+  readAt              DateTime?
 
-  property  Property @relation(fields: [propertyId], references: [id])
-  sender    User     @relation("MessageSender", fields: [senderId], references: [id])
-  recipient User     @relation("MessageRecipient", fields: [recipientId], references: [id])
-  moderatedBy User?   @relation("PropertyMessageModerator", fields: [moderatedById], references: [id])
+  property    Property @relation(fields: [propertyId], references: [id])
+  sender      User     @relation("MessageSender", fields: [senderId], references: [id])
+  recipient   User     @relation("MessageRecipient", fields: [recipientId], references: [id])
+  moderatedBy User?    @relation("PropertyMessageModerator", fields: [moderatedById], references: [id])
 
   @@index([propertyId, createdAt])
   @@index([recipientId, readAt])
@@ -1399,6 +1459,45 @@ enum VerificationLevel {
   VERIFIED
 }
 
+enum VerificationItemWorkflowStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum VerificationPricingKey {
+  LOCATION_CONFIRMATION_BASE
+  LOCATION_CONFIRMATION_SITE_VISIT_ADDON
+  PROPERTY_PHOTOS
+  PROOF_OF_OWNERSHIP
+  PROPERTY_VERIFICATION
+}
+
+enum BillingInvoiceKind {
+  VERIFICATION_PRIORITY
+  OTHER
+}
+
+enum BillingInvoiceStatus {
+  DRAFT
+  ISSUED
+  PENDING
+  PAID
+  CANCELLED
+  WRITTEN_OFF
+  REFUNDED
+}
+
+enum PaymentReceiptMethod {
+  BANK_TRANSFER
+  CASH
+  CARD
+  MOBILE
+  OTHER
+}
+
 model Verification {
   id          String              @id @default(cuid())
   propertyId  String? // Optional now as we have polymorphic targetId
@@ -1453,26 +1552,113 @@ enum VerificationType {
 }
 
 model VerificationRequestItem {
-  id                    String               @id @default(cuid())
+  id                    String                         @id @default(cuid())
   verificationRequestId String
   type                  VerificationItemType
-  status                String               @default("PENDING")
-  evidenceUrls          String[]             @default([]) // Array of uploaded file URLs
+  status                String                         @default("PENDING")
+  workflowStatus        VerificationItemWorkflowStatus @default(DRAFT)
+  submittedAt           DateTime?
+  decidedAt             DateTime?
+  decidedByUserId       String?
+  metadataJson          Json?
+  siteVisitRequested    Boolean                        @default(false)
+  siteVisitRequestedAt  DateTime?
+  evidenceUrls          String[]                       @default([]) // Array of uploaded file URLs
   gpsLat                Float? // For location confirmation
   gpsLng                Float? // For location confirmation
   notes                 String? // User notes or verifier feedback
   verifierId            String? // Admin/verifier who reviewed
   reviewedAt            DateTime?
-  createdAt             DateTime             @default(now())
-  updatedAt             DateTime             @updatedAt
+  createdAt             DateTime                       @default(now())
+  updatedAt             DateTime                       @updatedAt
 
   verificationRequest VerificationRequest    @relation(fields: [verificationRequestId], references: [id], onDelete: Cascade)
   verifier            User?                  @relation("VerificationItemVerifier", fields: [verifierId], references: [id])
+  decidedBy           User?                  @relation("VerificationItemDecider", fields: [decidedByUserId], references: [id])
   evidence            VerificationEvidence[]
   siteVisits          SiteVisit[]
+  billingInvoices     BillingInvoice[]
 
   @@index([verificationRequestId])
   @@index([type, status])
+}
+
+model VerificationPricing {
+  id              String                 @id @default(cuid())
+  key             VerificationPricingKey @unique
+  amountCents     Int
+  currency        String                 @default("USD")
+  isActive        Boolean                @default(true)
+  description     String?
+  updatedByUserId String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  updatedBy User? @relation("VerificationPricingUpdatedBy", fields: [updatedByUserId], references: [id])
+
+  @@index([isActive])
+}
+
+model BillingInvoice {
+  id                 String               @id @default(cuid())
+  userId             String
+  listingId          String?
+  verificationItemId String?
+  kind               BillingInvoiceKind
+  status             BillingInvoiceStatus @default(PENDING)
+  amountCents        Int
+  currency           String               @default("USD")
+  description        String
+  externalRef        String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  cancelledAt        DateTime?
+  cancelledReason    String?
+  writtenOffAt       DateTime?
+  writtenOffReason   String?
+
+  user             User                     @relation("BillingInvoiceUser", fields: [userId], references: [id])
+  listing          Property?                @relation("BillingInvoiceProperty", fields: [listingId], references: [id])
+  verificationItem VerificationRequestItem? @relation(fields: [verificationItemId], references: [id])
+  lines            BillingInvoiceLine[]
+  receipts         PaymentReceipt[]
+
+  @@index([verificationItemId, status])
+  @@index([userId, status])
+  @@index([listingId])
+}
+
+model BillingInvoiceLine {
+  id          String                 @id @default(cuid())
+  invoiceId   String
+  pricingKey  VerificationPricingKey
+  amountCents Int
+  quantity    Int                    @default(1)
+  metaJson    Json?
+  createdAt   DateTime               @default(now())
+
+  invoice BillingInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([pricingKey])
+}
+
+model PaymentReceipt {
+  id              String               @id @default(cuid())
+  invoiceId       String
+  method          PaymentReceiptMethod
+  reference       String?
+  proofFileUrl    String?
+  paidAt          DateTime
+  amountCents     Int
+  currency        String               @default("USD")
+  createdByUserId String?
+  createdAt       DateTime             @default(now())
+
+  invoice       BillingInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdByUser User?          @relation("PaymentReceiptCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([invoiceId])
 }
 
 model VerificationEvidence {
@@ -1550,32 +1736,33 @@ model ListingActivityLog {
 }
 
 model Viewing {
-  id          String   @id @default(cuid())
-  propertyId  String
-  viewerId    String
-  agentId     String? // If assigned agent is handling
-  landlordId  String? // If landlord is handling
-  scheduledAt DateTime
-  status      String   @default("PENDING")
-  statusV2    ViewingRequestStatus @default(REQUESTED)
-  notes       String?
-  locationLat Float?
-  locationLng Float?
-  requestedAt DateTime? @default(now())
-  acceptedAt  DateTime?
-  rescheduledAt DateTime?
-  cancelledAt DateTime?
-  completedAt DateTime?
+  id                String               @id @default(cuid())
+  propertyId        String
+  viewerId          String
+  agentId           String? // If assigned agent is handling
+  landlordId        String? // If landlord is handling
+  scheduledAt       DateTime
+  status            String               @default("PENDING")
+  statusV2          ViewingRequestStatus @default(REQUESTED)
+  notes             String?
+  locationLat       Float?
+  locationLng       Float?
+  requestedAt       DateTime?            @default(now())
+  acceptedAt        DateTime?
+  rescheduledAt     DateTime?
+  cancelledAt       DateTime?
+  completedAt       DateTime?
   viewerConfirmedAt DateTime?
-  hostConfirmedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  hostConfirmedAt   DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
-  property Property @relation(fields: [propertyId], references: [id])
-  viewer   User     @relation("ViewingViewer", fields: [viewerId], references: [id])
-  agent    User?    @relation("ViewingAgent", fields: [agentId], references: [id])
-  landlord User?    @relation("ViewingLandlord", fields: [landlordId], references: [id])
-  slot     ViewingSlot?
+  property      Property       @relation(fields: [propertyId], references: [id])
+  viewer        User           @relation("ViewingViewer", fields: [viewerId], references: [id])
+  agent         User?          @relation("ViewingAgent", fields: [agentId], references: [id])
+  landlord      User?          @relation("ViewingLandlord", fields: [landlordId], references: [id])
+  slot          ViewingSlot?
+  conversations Conversation[]
 
   @@index([propertyId, scheduledAt])
   @@index([viewerId])
@@ -2253,14 +2440,14 @@ model AgencyReview {
 model Interest {
   id String @id @default(cuid())
 
-  propertyId  String
-  userId      String
-  status      String   @default("PENDING")
+  propertyId     String
+  userId         String
+  status         String                 @default("PENDING")
   pipelineStatus InterestPipelineStatus @default(NEW)
-  offerAmount Decimal? @db.Decimal(12, 2)
-  message     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  offerAmount    Decimal?               @db.Decimal(12, 2)
+  message        String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
 
   property Property @relation(fields: [propertyId], references: [id])
   user     User     @relation("UserInterests", fields: [userId], references: [id])
@@ -2271,21 +2458,36 @@ model Interest {
 }
 
 model RentPayment {
-  id         String   @id @default(cuid())
-  propertyId String
-  tenantId   String
-  amount     Decimal  @db.Decimal(12, 2)
-  currency   Currency
-  paidAt     DateTime
-  proofUrl   String?
-  isVerified Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id          String                  @id @default(cuid())
+  leaseId     String?
+  propertyId  String
+  tenantId    String
+  landlordId  String?
+  amount      Decimal                 @db.Decimal(12, 2)
+  currency    Currency
+  method      RentPaymentMethod       @default(CASH)
+  status      RentPaymentRecordStatus @default(PENDING)
+  periodStart DateTime?
+  periodEnd   DateTime?
+  dueDate     DateTime?
+  paidAt      DateTime?
+  reference   String?
+  proofUrl    String?
+  notes       String?
+  isVerified  Boolean                 @default(false)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
 
+  lease    Lease?   @relation("LeaseRentPayments", fields: [leaseId], references: [id], onDelete: SetNull)
   property Property @relation(fields: [propertyId], references: [id])
   tenant   User     @relation("TenantRentPayments", fields: [tenantId], references: [id])
+  landlord User?    @relation("LandlordRentPaymentsV2", fields: [landlordId], references: [id], onDelete: SetNull)
 
+  @@index([leaseId])
   @@index([tenantId])
+  @@index([landlordId])
   @@index([propertyId])
+  @@index([status])
 }
 
 model ListingPayment {
@@ -2668,6 +2870,58 @@ enum DealStatus {
   EXPIRED
 }
 
+enum DealType {
+  RENT
+  SALE
+}
+
+enum DealStage {
+  DRAFT
+  TERMS_SET
+  CONTRACT_READY
+  SENT
+  SIGNING
+  SIGNED
+  ACTIVE
+  CANCELLED
+}
+
+enum LeaseStatus {
+  DRAFT
+  ACTIVE
+  ENDED
+  TERMINATED
+}
+
+enum RatingTargetType {
+  LISTING
+  USER
+  COMPANY
+}
+
+enum RatingContext {
+  RENTAL
+  SALE
+  VIEWING
+  GENERAL
+}
+
+enum RentPaymentMethod {
+  CASH
+  BANK_TRANSFER
+  MOBILE_MONEY
+  CARD
+  OTHER
+}
+
+enum RentPaymentRecordStatus {
+  PENDING
+  PAID
+  LATE
+  FAILED
+  CANCELLED
+}
+
 enum CommissionStatus {
   PENDING
   EARNED
@@ -2694,35 +2948,229 @@ model Application {
 }
 
 model Deal {
-  id            String     @id @default(cuid())
-  propertyId    String
-  tenantId      String
-  landlordId    String
-  agentId       String?
-  applicationId String?
-  status        DealStatus @default(PENDING)
-  startDate     DateTime?
-  endDate       DateTime?
-  rentAmount    Int?
-  depositAmount Int?
-  currency      Currency   @default(USD)
-  notes         String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id             String     @id @default(cuid())
+  propertyId     String
+  tenantId       String
+  landlordId     String
+  agentId        String?
+  applicationId  String?
+  status         DealStatus @default(PENDING)
+  dealType       DealType?
+  stage          DealStage  @default(DRAFT)
+  startDate      DateTime?
+  endDate        DateTime?
+  rentAmount     Int?
+  depositAmount  Int?
+  currency       Currency   @default(USD)
+  notes          String?
+  rules          String?
+  specialTerms   String?
+  contractTemplateKey String?
+  contractHtml   String?
+  contractMethod ContractMethod @default(ESIGN)
+  contractSentAt DateTime?
+  sealedAt       DateTime?
+  sealedMethod   ContractMethod?
+  activatedAt    DateTime?
+  migratedToV2At DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
-  property      Property       @relation(fields: [propertyId], references: [id])
-  tenant        User           @relation("TenantDeals", fields: [tenantId], references: [id])
-  landlord      User           @relation("LandlordDeals", fields: [landlordId], references: [id])
-  agent         User?          @relation("AgentDeals", fields: [agentId], references: [id])
-  application   Application?   @relation(fields: [applicationId], references: [id])
-  conversations Conversation[]
-  commissions   Commission[]
+  property         Property              @relation(fields: [propertyId], references: [id])
+  tenant           User                  @relation("TenantDeals", fields: [tenantId], references: [id])
+  landlord         User                  @relation("LandlordDeals", fields: [landlordId], references: [id])
+  agent            User?                 @relation("AgentDeals", fields: [agentId], references: [id])
+  application      Application?          @relation(fields: [applicationId], references: [id])
+  conversations    Conversation[]
+  commissions      Commission[]
+  termsRent        DealTermsRent?
+  termsSale        DealTermsSale?
+  signatures       DealSignature[]
+  contractFiles    DealContractFile[]
+  contractVersions DealContractVersion[]
+  events           DealEvent[]
+  lease            Lease?
 
   @@index([propertyId])
   @@index([tenantId])
   @@index([landlordId])
   @@index([agentId])
   @@index([status])
+}
+
+model Lease {
+  id         String      @id @default(cuid())
+  propertyId String
+  tenantId   String
+  landlordId String
+  companyId  String?
+  dealId     String?     @unique
+  status     LeaseStatus @default(DRAFT)
+
+  startDate         DateTime?
+  endDate           DateTime?
+  endedAt           DateTime?
+  terminationReason String?
+
+  currency      Currency @default(USD)
+  rentAmount    Decimal? @db.Decimal(12, 2)
+  depositAmount Decimal? @db.Decimal(12, 2)
+  billingDay    Int?
+  payToAccount  String?
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenant   User     @relation("LeaseTenant", fields: [tenantId], references: [id], onDelete: Restrict)
+  landlord User     @relation("LeaseLandlord", fields: [landlordId], references: [id], onDelete: Restrict)
+  company  Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  deal     Deal?    @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  payments RentPayment[] @relation("LeaseRentPayments")
+  ratings  Rating[]
+
+  @@index([propertyId])
+  @@index([tenantId])
+  @@index([landlordId])
+  @@index([companyId])
+  @@index([status])
+}
+
+model Rating {
+  id String @id @default(cuid())
+
+  context    RatingContext    @default(RENTAL)
+  targetType RatingTargetType
+  targetId   String
+
+  leaseId    String?
+  propertyId String?
+
+  raterId        String
+  ratedUserId    String?
+  ratedCompanyId String?
+
+  score       Int
+  comment     String?
+  isAnonymous Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lease        Lease?    @relation(fields: [leaseId], references: [id], onDelete: SetNull)
+  property     Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  rater        User      @relation("RatingRater", fields: [raterId], references: [id], onDelete: Cascade)
+  ratedUser    User?     @relation("RatingRatedUser", fields: [ratedUserId], references: [id], onDelete: SetNull)
+  ratedCompany Company?  @relation("RatingRatedCompany", fields: [ratedCompanyId], references: [id], onDelete: SetNull)
+
+  @@unique([leaseId, raterId, targetType, targetId])
+  @@index([targetType, targetId])
+  @@index([leaseId])
+  @@index([propertyId])
+  @@index([raterId])
+  @@index([ratedUserId])
+  @@index([ratedCompanyId])
+}
+
+model DealTermsRent {
+  id                String    @id @default(cuid())
+  dealId            String    @unique
+  rentAmount        Decimal   @db.Decimal(12, 2)
+  currency          Currency  @default(USD)
+  depositAmount     Decimal?  @db.Decimal(12, 2)
+  leaseStartDate    DateTime?
+  leaseEndDate      DateTime?
+  paymentSchedule   String?
+  utilitiesIncluded Json?
+  additionalTerms   String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+}
+
+model DealTermsSale {
+  id              String    @id @default(cuid())
+  dealId          String    @unique
+  salePrice       Decimal   @db.Decimal(12, 2)
+  currency        Currency  @default(USD)
+  depositAmount   Decimal?  @db.Decimal(12, 2)
+  closingDate     DateTime?
+  conditions      Json?
+  additionalTerms String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+}
+
+model DealSignature {
+  id             String        @id @default(cuid())
+  dealId         String
+  role           DealPartyRole
+  signedByUserId String
+  signedAt       DateTime
+  ipAddress      String?
+  userAgent      String?
+  signatureData  Json?
+  createdAt      DateTime      @default(now())
+
+  deal         Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  signedByUser User @relation(fields: [signedByUserId], references: [id])
+
+  @@unique([dealId, role, signedByUserId])
+  @@index([dealId, signedAt])
+  @@index([signedByUserId])
+}
+
+model DealContractVersion {
+  id             String                    @id @default(cuid())
+  dealId         String
+  versionInt     Int
+  snapshotFormat ContractSnapshotFormat
+  snapshotText   String
+  snapshotHash   String
+  status         DealContractVersionStatus @default(DRAFT)
+  createdAt      DateTime                  @default(now())
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@unique([dealId, versionInt])
+  @@index([dealId, status])
+}
+
+model DealContractFile {
+  id               String   @id @default(cuid())
+  dealId           String
+  uploadedByUserId String
+  filename         String
+  mimeType         String
+  sizeBytes        Int
+  storagePath      String
+  createdAt        DateTime @default(now())
+
+  deal           Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  uploadedByUser User @relation(fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([dealId, createdAt])
+  @@index([uploadedByUserId])
+}
+
+model DealEvent {
+  id          String        @id @default(cuid())
+  dealId      String
+  type        DealEventType
+  actorUserId String?
+  metadata    Json?
+  createdAt   DateTime      @default(now())
+
+  deal      Deal  @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  actorUser User? @relation(fields: [actorUserId], references: [id])
+
+  @@index([dealId, createdAt(sort: Desc)])
+  @@index([type, createdAt(sort: Desc)])
 }
 
 model Commission {
@@ -2749,24 +3197,35 @@ model Commission {
 }
 
 model Conversation {
-  id            String             @id @default(cuid())
-  propertyId    String?
-  dealId        String?
-  applicationId String?
-  type          ConversationType   @default(GENERAL_CHAT)
-  status        ConversationStatus @default(ACTIVE)
-  lastMessageId String?
-  lastMessageAt DateTime?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  id              String                    @id @default(cuid())
+  propertyId      String?
+  viewingId       String?
+  applicantUserId String?
+  pairKey         String?
+  requestStatus   ConversationRequestStatus @default(ACCEPTED)
+  dealId          String?
+  applicationId   String?
+  type            ConversationType          @default(GENERAL_CHAT)
+  status          ConversationStatus        @default(ACTIVE)
+  lastMessageId   String?
+  lastMessageAt   DateTime?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
 
   property     Property?                 @relation(fields: [propertyId], references: [id])
+  viewing      Viewing?                  @relation(fields: [viewingId], references: [id])
   deal         Deal?                     @relation(fields: [dealId], references: [id])
   messages     Message[]
   participants ConversationParticipant[]
   chatRequest  ChatRequest?
 
+  @@unique([type, propertyId, applicantUserId])
+  @@unique([type, viewingId])
+  @@unique([type, pairKey])
   @@index([propertyId])
+  @@index([viewingId])
+  @@index([applicantUserId])
+  @@index([pairKey])
   @@index([dealId])
   @@index([applicationId])
   @@index([type])
@@ -2793,20 +3252,20 @@ model ConversationParticipant {
 }
 
 model Message {
-  id             String    @id @default(cuid())
-  conversationId String
-  senderId       String
-  body           String
-  attachments    Json?
-  metadata       Json?
-  moderationStatus MessageModerationStatus @default(OK)
-  containsContactInfo Boolean @default(false)
-  moderatedAt    DateTime?
-  moderatedById  String?
-  moderationNotes String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  readAt         DateTime?
+  id                  String                  @id @default(cuid())
+  conversationId      String
+  senderId            String
+  body                String
+  attachments         Json?
+  metadata            Json?
+  moderationStatus    MessageModerationStatus @default(OK)
+  containsContactInfo Boolean                 @default(false)
+  moderatedAt         DateTime?
+  moderatedById       String?
+  moderationNotes     String?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  readAt              DateTime?
 
   conversation Conversation @relation(fields: [conversationId], references: [id])
   sender       User         @relation("UserMessages", fields: [senderId], references: [id])

@@ -1,9 +1,13 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { logRentPayment } from '@/app/actions/rent';
+import { useState } from "react";
+import { logRentPayment } from "@/app/actions/rent";
 
-export function RentPaymentForm({ properties }: { properties: { id: string; title: string }[] }) {
+export function RentPaymentForm({
+  properties,
+}: {
+  properties: { id: string; title: string }[];
+}) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -25,26 +29,65 @@ export function RentPaymentForm({ properties }: { properties: { id: string; titl
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-slate-200 p-6 bg-white">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 rounded-xl border border-slate-200 p-6 bg-white"
+    >
       <h3 className="font-semibold text-slate-900">Log Rent Payment</h3>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700">Property</label>
-        <select name="propertyId" className="mt-1 block w-full rounded-md border-gray-300 py-2 border px-3">
-          {properties.map(p => (
-            <option key={p.id} value={p.id}>{p.title}</option>
+        <label className="block text-sm font-medium text-slate-700">
+          Lease
+        </label>
+        <select
+          name="leaseId"
+          className="mt-1 block w-full rounded-md border-gray-300 py-2 border px-3"
+        >
+          {properties.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.title}
+            </option>
           ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700">
+          Method
+        </label>
+        <select
+          name="method"
+          className="mt-1 block w-full rounded-md border-gray-300 py-2 border px-3"
+        >
+          <option value="CASH">Cash</option>
+          <option value="BANK_TRANSFER">Bank transfer</option>
+          <option value="MOBILE_MONEY">Mobile money</option>
+          <option value="CARD">Card</option>
+          <option value="OTHER">Other</option>
         </select>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700">Amount</label>
-          <input type="number" name="amount" step="0.01" required className="mt-1 block w-full rounded-md border-gray-300 py-2 border px-3" />
+          <label className="block text-sm font-medium text-slate-700">
+            Amount
+          </label>
+          <input
+            type="number"
+            name="amount"
+            step="0.01"
+            required
+            className="mt-1 block w-full rounded-md border-gray-300 py-2 border px-3"
+          />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700">Currency</label>
-          <select name="currency" className="mt-1 block w-full rounded-md border-gray-300 py-2 border px-3">
+          <label className="block text-sm font-medium text-slate-700">
+            Currency
+          </label>
+          <select
+            name="currency"
+            className="mt-1 block w-full rounded-md border-gray-300 py-2 border px-3"
+          >
             <option value="USD">USD</option>
             <option value="ZWG">ZWG</option>
           </select>
@@ -52,13 +95,39 @@ export function RentPaymentForm({ properties }: { properties: { id: string; titl
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700">Date Paid</label>
-        <input type="date" name="paidAt" required className="mt-1 block w-full rounded-md border-gray-300 py-2 border px-3" />
+        <label className="block text-sm font-medium text-slate-700">
+          Date Paid
+        </label>
+        <input
+          type="date"
+          name="paidAt"
+          required
+          className="mt-1 block w-full rounded-md border-gray-300 py-2 border px-3"
+        />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700">Proof URL (Optional)</label>
-        <input type="url" name="proofUrl" placeholder="https://..." className="mt-1 block w-full rounded-md border-gray-300 py-2 border px-3" />
+        <label className="block text-sm font-medium text-slate-700">
+          Proof URL (Optional)
+        </label>
+        <input
+          type="url"
+          name="proofUrl"
+          placeholder="https://..."
+          className="mt-1 block w-full rounded-md border-gray-300 py-2 border px-3"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700">
+          Reference (Optional)
+        </label>
+        <input
+          type="text"
+          name="reference"
+          placeholder="Receipt or transaction id"
+          className="mt-1 block w-full rounded-md border-gray-300 py-2 border px-3"
+        />
       </div>
 
       <button
@@ -66,7 +135,7 @@ export function RentPaymentForm({ properties }: { properties: { id: string; titl
         disabled={loading}
         className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
       >
-        {loading ? 'Logging...' : 'Log Payment'}
+        {loading ? "Logging..." : "Log Payment"}
       </button>
     </form>
   );

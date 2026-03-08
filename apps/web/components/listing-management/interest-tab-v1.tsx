@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
+import DOMPurify from "dompurify";
 import {
   Avatar,
   AvatarFallback,
@@ -24,6 +26,10 @@ import {
 } from "@propad/ui";
 import { Check, Info, X } from "lucide-react";
 import { getImageUrl } from "@/lib/image-url";
+import {
+  resolveDealTypeFromApplicationType,
+  resolveDealTypeFromValue,
+} from "@/lib/deal-type";
 import { acceptInterest, rejectInterest } from "@/app/actions/landlord";
 
 type ApplicationRow = {
@@ -56,6 +62,21 @@ type DealWorkflow = {
   dealType?: "RENT" | "SALE" | null;
   terms?: Record<string, unknown>;
   contractHtml?: string | null;
+  contractHash?: string | null;
+  contractVersionStatus?: "DRAFT" | "SENT" | "SIGNED" | "VOID" | null;
+  contractMethod?: "ESIGN" | "UPLOAD" | null;
+  sealedAt?: string | null;
+  sealedMethod?: "ESIGN" | "UPLOAD" | null;
+  contractFiles?: Array<{
+    id: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+    storagePath: string;
+    url: string;
+    createdAt: string;
+    uploadedByUserId: string;
+  }>;
   signatures?: {
     applicant?: { fullName?: string; signedAt?: string };
     manager?: { fullName?: string; signedAt?: string };
@@ -67,6 +88,31 @@ type Deal = {
   status: string;
   workflow?: DealWorkflow;
 };
+
+const STAGE_BADGE_CLASS: Record<string, string> = {
+  DRAFT: "bg-slate-100 text-slate-800",
+  TERMS_SET: "bg-amber-100 text-amber-800",
+  CONTRACT_READY: "bg-sky-100 text-sky-800",
+  SENT: "bg-indigo-100 text-indigo-800",
+  SIGNING: "bg-violet-100 text-violet-800",
+  SIGNED: "bg-blue-100 text-blue-800",
+  ACTIVE: "bg-emerald-100 text-emerald-800",
+  COMPLETED: "bg-green-100 text-green-800",
+  CANCELLED: "bg-zinc-100 text-zinc-700",
+};
+
+function formatStageLabel(stage: string): string {
+  return stage.replaceAll("_", " ").toLowerCase();
+}
+
+function stageNextAction(stage: string): string {
+  if (stage === "DRAFT") return "Set terms";
+  if (stage === "TERMS_SET") return "Generate contract";
+  if (stage === "CONTRACT_READY") return "Send to sign";
+  if (stage === "SENT" || stage === "SIGNING") return "Collect signatures";
+  if (stage === "SIGNED") return "Activate";
+  return "-";
+}
 
 const cannedReasons = [
   "Insufficient supporting details",
@@ -320,6 +366,7 @@ export function ListingInterestTabV1({ propertyId }: { propertyId: string }) {
                 <DealChecklistCard
                   applicationId={item.id}
                   applicantName={displayName}
+                  applicationType={item.type}
                   isManager={Boolean(session?.user?.id)}
                 />
               ) : null}
@@ -425,14 +472,16 @@ export function ListingInterestTabV1({ propertyId }: { propertyId: string }) {
 function DealChecklistCard({
   applicationId,
   applicantName,
+  applicationType,
   isManager,
 }: {
   applicationId: string;
   applicantName: string;
+  applicationType: string;
   isManager: boolean;
 }) {
   const queryClient = useQueryClient();
-  const [dealType, setDealType] = useState<"RENT" | "SALE">("RENT");
+  const fallbackDealType = resolveDealTypeFromApplicationType(applicationType);
   const [terms, setTerms] = useState<Record<string, string>>({
     monthlyRent: "",
     deposit: "",
@@ -444,7 +493,13 @@ function DealChecklistCard({
     rules: "",
   });
   const [managerSignName, setManagerSignName] = useState("");
+  const [specialTerms, setSpecialTerms] = useState("");
+  const [editContractHtml, setEditContractHtml] = useState(false);
   const [contractHtmlDraft, setContractHtmlDraft] = useState("");
+  const [contractMethod, setContractMethod] = useState<"ESIGN" | "UPLOAD">(
+    "ESIGN",
+  );
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
 
   const dealQuery = useQuery<Deal | null>({
     queryKey: ["listing-management", "deal", applicationId],
@@ -460,10 +515,10 @@ function DealChecklistCard({
   const deal = dealQuery.data;
 
   const updateWorkflow = useMutation({
-    mutationFn: async (payload: Partial<DealWorkflow>) => {
+    mutationFn: async (payload: Record<string, unknown>) => {
       if (!deal?.id) return null;
       const response = await fetch(
-        `/api/listing-management/deals/${deal.id}/workflow`,
+        `/api/listing-management/deals/${deal.id}/terms`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -471,7 +526,8 @@ function DealChecklistCard({
         },
       );
       if (!response.ok) {
-        throw new Error("Failed to update deal workflow");
+        const message = await response.text();
+        throw new Error(message || "Failed to update deal terms");
       }
       return response.json();
     },
@@ -479,10 +535,86 @@ function DealChecklistCard({
       queryClient.invalidateQueries({
         queryKey: ["listing-management", "deal", applicationId],
       });
+      queryClient.invalidateQueries({ queryKey: ["deals", "queue"] });
       notify.success("Deal updated");
     },
     onError: (error: any) =>
       notify.error(error?.message || "Failed to update deal"),
+  });
+
+  const generateContract = useMutation({
+    mutationFn: async () => {
+      if (!deal?.id) {
+        throw new Error("Deal is not ready");
+      }
+      const response = await fetch(`/api/deals/${deal.id}/contract/generate`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Failed to auto-generate contract");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["listing-management", "deal", applicationId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["deals", "queue"] });
+      notify.success("Contract generated from template");
+    },
+    onError: (error: any) =>
+      notify.error(error?.message || "Failed to generate contract"),
+  });
+
+  const sendContract = useMutation({
+    mutationFn: async () => {
+      if (!deal?.id) {
+        throw new Error("Deal is not ready");
+      }
+      const response = await fetch(`/api/deals/${deal.id}/contract/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Failed to send contract");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["listing-management", "deal", applicationId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["deals", "queue"] });
+      notify.success("Contract sent for signature");
+    },
+    onError: (error: any) =>
+      notify.error(error?.message || "Failed to send contract"),
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: async () => {
+      if (!deal?.id) throw new Error("Deal is not ready");
+      const response = await fetch(`/api/deals/${deal.id}/activate`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Failed to activate deal");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["listing-management", "deal", applicationId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["deals", "queue"] });
+      notify.success("Deal activated");
+    },
+    onError: (error: any) =>
+      notify.error(error?.message || "Failed to activate deal"),
   });
 
   const signMutation = useMutation({
@@ -504,10 +636,144 @@ function DealChecklistCard({
       queryClient.invalidateQueries({
         queryKey: ["listing-management", "deal", applicationId],
       });
+      queryClient.invalidateQueries({ queryKey: ["deals", "queue"] });
       notify.success("Signature saved");
     },
     onError: (error: any) => notify.error(error?.message || "Failed to sign"),
   });
+
+  const uploadContractFile = useMutation({
+    mutationFn: async () => {
+      if (!deal?.id || !uploadFile) {
+        throw new Error("Please select a file to upload");
+      }
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      const response = await fetch(`/api/deals/${deal.id}/contract/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || "Failed to upload signed contract");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      setUploadFile(null);
+      queryClient.invalidateQueries({
+        queryKey: ["listing-management", "deal", applicationId],
+      });
+      notify.success("Signed contract uploaded");
+    },
+    onError: (error: any) =>
+      notify.error(error?.message || "Failed to upload signed contract"),
+  });
+
+  const sealContractMutation = useMutation({
+    mutationFn: async (method: "ESIGN" | "UPLOAD") => {
+      if (!deal?.id) {
+        throw new Error("Deal is not ready");
+      }
+      const response = await fetch(`/api/deals/${deal.id}/contract/seal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || "Failed to seal contract");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["listing-management", "deal", applicationId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["deals", "queue"] });
+      notify.success("Contract sealed");
+    },
+    onError: (error: any) =>
+      notify.error(error?.message || "Failed to seal contract"),
+  });
+
+  const workflow = deal?.workflow ?? {};
+  const lockedDealType =
+    resolveDealTypeFromValue(workflow.dealType) ?? fallbackDealType;
+  const stage = String(workflow.stage ?? "DRAFT").toUpperCase();
+  const contractVersionStatus = workflow.contractVersionStatus ?? null;
+  const nextAction = stageNextAction(stage);
+  const editableStages = ["DRAFT", "TERMS_SET", "CONTRACT_READY"];
+  const canEditTerms = isManager && editableStages.includes(stage);
+  const canGenerateContract = isManager && editableStages.includes(stage);
+  const canSendContract =
+    isManager &&
+    editableStages.includes(stage) &&
+    contractVersionStatus === "DRAFT";
+  const managerAlreadySigned = Boolean(workflow.signatures?.manager?.signedAt);
+  const applicantAlreadySigned = Boolean(
+    workflow.signatures?.applicant?.signedAt,
+  );
+  const signableStages = ["SENT", "SIGNING", "SIGNED", "ACTIVE"];
+  const canManagerSign =
+    isManager && signableStages.includes(stage) && !managerAlreadySigned;
+  const canActivate = isManager && stage === "SIGNED";
+  const isSealed = Boolean(workflow.sealedAt);
+  const uploadedFiles = workflow.contractFiles ?? [];
+  const canSealUpload =
+    isManager &&
+    uploadedFiles.length > 0 &&
+    applicantAlreadySigned &&
+    managerAlreadySigned &&
+    !isSealed &&
+    !sealContractMutation.isPending;
+  const canSealEsign =
+    isManager &&
+    applicantAlreadySigned &&
+    managerAlreadySigned &&
+    !isSealed &&
+    !sealContractMutation.isPending;
+  const renderedContractHtml = useMemo(
+    () =>
+      workflow.contractHtml
+        ? DOMPurify.sanitize(String(workflow.contractHtml), {
+            USE_PROFILES: { html: true },
+          })
+        : "",
+    [workflow.contractHtml],
+  );
+
+  useEffect(() => {
+    if (!deal) return;
+    const wfTerms = (workflow.terms ?? {}) as Record<string, unknown>;
+    setTerms((prev) => ({
+      ...prev,
+      monthlyRent: String(
+        wfTerms.monthlyRent ??
+          (deal as any).rentAmount ??
+          prev.monthlyRent ??
+          "",
+      ),
+      deposit: String(wfTerms.deposit ?? prev.deposit ?? ""),
+      leaseStart: wfTerms.leaseStart
+        ? String(wfTerms.leaseStart).slice(0, 10)
+        : prev.leaseStart,
+      leaseEnd: wfTerms.leaseEnd
+        ? String(wfTerms.leaseEnd).slice(0, 10)
+        : prev.leaseEnd,
+      salePrice: String(wfTerms.salePrice ?? prev.salePrice ?? ""),
+      transferDate: wfTerms.transferDate
+        ? String(wfTerms.transferDate).slice(0, 10)
+        : prev.transferDate,
+      conditions: String(wfTerms.conditions ?? prev.conditions ?? ""),
+      rules: String(wfTerms.rules ?? prev.rules ?? ""),
+    }));
+    setSpecialTerms(String(wfTerms.specialTerms ?? ""));
+    setContractHtmlDraft(String(workflow.contractHtml ?? ""));
+    setContractMethod(
+      workflow.contractMethod === "UPLOAD" ? "UPLOAD" : "ESIGN",
+    );
+  }, [deal, workflow.terms, workflow.contractHtml, workflow.contractMethod]);
 
   if (!deal) {
     return (
@@ -517,48 +783,77 @@ function DealChecklistCard({
     );
   }
 
-  const workflow = deal.workflow ?? {};
-  const stage = workflow.stage ?? "DRAFT";
-
-  useEffect(() => {
-    setContractHtmlDraft((workflow.contractHtml as string) ?? "");
-  }, [workflow.contractHtml]);
-
   return (
     <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/40 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-foreground">
           Deal cockpit for {applicantName}
         </p>
-        <Badge variant="outline">{stage}</Badge>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">{lockedDealType}</Badge>
+          <Badge
+            className={
+              STAGE_BADGE_CLASS[stage] ?? "bg-slate-100 text-slate-700"
+            }
+          >
+            {formatStageLabel(stage)}
+          </Badge>
+          <Badge variant="outline">Next: {nextAction}</Badge>
+          {contractVersionStatus ? (
+            <Badge variant="outline">Contract: {contractVersionStatus}</Badge>
+          ) : null}
+        </div>
       </div>
 
-      <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-5">
-        <p>1. Verify parties</p>
-        <p>2. Agree terms</p>
-        <p>3. Generate contract</p>
-        <p>4. Sign</p>
-        <p>5. Activate</p>
+      <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-6">
+        <p className={stage !== "DRAFT" ? "text-foreground" : undefined}>
+          1. Verify
+        </p>
+        <p className={stage !== "DRAFT" ? "text-foreground" : undefined}>
+          2. Agree terms
+        </p>
+        <p
+          className={
+            ["CONTRACT_READY", "SENT", "SIGNING", "SIGNED", "ACTIVE"].includes(
+              stage,
+            )
+              ? "text-foreground"
+              : undefined
+          }
+        >
+          3. Generate/Upload
+        </p>
+        <p
+          className={
+            ["SENT", "SIGNING", "SIGNED", "ACTIVE"].includes(stage)
+              ? "text-foreground"
+              : undefined
+          }
+        >
+          4. Send
+        </p>
+        <p
+          className={
+            ["SIGNING", "SIGNED", "ACTIVE"].includes(stage)
+              ? "text-foreground"
+              : undefined
+          }
+        >
+          5. Sign
+        </p>
+        <p className={isSealed ? "text-emerald-700" : undefined}>
+          6. Seal/Activate
+        </p>
       </div>
 
       <div className="grid gap-2 md:grid-cols-2">
         <div className="space-y-2">
-          <Label>Deal type</Label>
-          <div className="flex gap-2">
-            <Button
-              variant={dealType === "RENT" ? "default" : "outline"}
-              onClick={() => setDealType("RENT")}
-            >
-              RENT
-            </Button>
-            <Button
-              variant={dealType === "SALE" ? "default" : "outline"}
-              onClick={() => setDealType("SALE")}
-            >
-              SALE
-            </Button>
-          </div>
-          {dealType === "RENT" ? (
+          <Label>Terms (type locked by listing)</Label>
+          <p className="text-xs text-muted-foreground">
+            Deal type is locked by listing intent, but price/deposit/dates
+            remain editable.
+          </p>
+          {lockedDealType === "RENT" ? (
             <div className="grid gap-2">
               <Input
                 placeholder="Monthly rent"
@@ -595,6 +890,11 @@ function DealChecklistCard({
                   setTerms((s) => ({ ...s, rules: e.target.value }))
                 }
               />
+              <Textarea
+                placeholder="Special terms"
+                value={specialTerms}
+                onChange={(event) => setSpecialTerms(event.target.value)}
+              />
             </div>
           ) : (
             <div className="grid gap-2">
@@ -619,67 +919,127 @@ function DealChecklistCard({
                   setTerms((s) => ({ ...s, conditions: e.target.value }))
                 }
               />
+              <Textarea
+                placeholder="Special terms"
+                value={specialTerms}
+                onChange={(event) => setSpecialTerms(event.target.value)}
+              />
             </div>
           )}
           <Button
             onClick={() =>
               updateWorkflow.mutate({
-                stage: "DRAFT",
-                dealType,
-                terms,
+                ...terms,
+                specialTerms,
+                contractMethod,
               })
             }
-            disabled={!isManager || updateWorkflow.isPending}
+            disabled={!canEditTerms || updateWorkflow.isPending}
           >
             Save terms
           </Button>
         </div>
 
         <div className="space-y-2">
-          <Label>Contract preview</Label>
-          <Textarea
-            value={contractHtmlDraft || workflow.contractHtml || ""}
-            onChange={(event) => setContractHtmlDraft(event.target.value)}
-            placeholder="Paste or edit contract HTML preview"
-            className="min-h-[140px]"
-          />
+          <Label>Contract preview (auto-generated)</Label>
+          {isSealed ? (
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+              Sealed via{" "}
+              {workflow.sealedMethod || workflow.contractMethod || "ESIGN"} at{" "}
+              {workflow.sealedAt
+                ? new Date(workflow.sealedAt).toLocaleString()
+                : "-"}
+            </div>
+          ) : null}
+          <div className="flex items-center justify-end gap-2">
+            <select
+              value={contractMethod}
+              onChange={(event) =>
+                setContractMethod(
+                  event.target.value === "UPLOAD" ? "UPLOAD" : "ESIGN",
+                )
+              }
+              className="h-9 rounded-md border bg-white px-2 text-xs"
+              disabled={!canEditTerms}
+            >
+              <option value="ESIGN">eSign with PropAd</option>
+              <option value="UPLOAD">Upload signed contract</option>
+            </select>
+            <Button
+              size="sm"
+              variant="outline"
+              type="button"
+              onClick={() => setEditContractHtml((value) => !value)}
+              disabled={!canEditTerms}
+            >
+              {editContractHtml ? "Preview" : "Edit HTML"}
+            </Button>
+          </div>
+
+          {editContractHtml ? (
+            <Textarea
+              value={contractHtmlDraft}
+              onChange={(event) => setContractHtmlDraft(event.target.value)}
+              placeholder="Edit contract HTML"
+              className="min-h-[220px] font-mono text-xs"
+            />
+          ) : renderedContractHtml ? (
+            <div
+              className="prose prose-sm max-h-[320px] max-w-none overflow-auto rounded-md border bg-white p-3"
+              dangerouslySetInnerHTML={{ __html: renderedContractHtml }}
+            />
+          ) : (
+            <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+              Click Auto-generate contract to create the agreement.
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              onClick={() =>
-                updateWorkflow.mutate({
-                  stage: "CONTRACT_SENT",
-                  dealType,
-                  terms,
-                  contractHtml:
-                    contractHtmlDraft || workflow.contractHtml || "",
-                })
+              onClick={() => generateContract.mutate()}
+              disabled={
+                !canGenerateContract ||
+                generateContract.isPending ||
+                sendContract.isPending
               }
-              disabled={!isManager || updateWorkflow.isPending}
             >
-              Send contract
+              Auto-generate contract
             </Button>
+            {contractMethod === "ESIGN" ? (
+              <Button
+                variant="ghost"
+                onClick={() => sendContract.mutate()}
+                disabled={
+                  !canSendContract || sendContract.isPending || isSealed
+                }
+              >
+                Send contract
+              </Button>
+            ) : null}
             <Button
-              variant="ghost"
+              variant="outline"
               onClick={() =>
                 updateWorkflow.mutate({
-                  stage: "DRAFT",
-                  dealType,
-                  terms,
-                  contractHtml:
-                    contractHtmlDraft || workflow.contractHtml || "",
+                  contractHtml: contractHtmlDraft,
+                  contractMethod,
                 })
               }
-              disabled={!isManager || updateWorkflow.isPending}
+              disabled={!canEditTerms || updateWorkflow.isPending}
             >
-              Save draft
+              Save contract HTML
             </Button>
             <Button
               variant="outline"
-              onClick={() => updateWorkflow.mutate({ stage: "ACTIVE" })}
-              disabled={!isManager || updateWorkflow.isPending}
+              onClick={() => activateMutation.mutate()}
+              disabled={!canActivate || activateMutation.isPending}
             >
-              Mark active
+              Activate
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href={`/dashboard/deals/${deal.id}/contract`}>
+                Open contract page
+              </Link>
             </Button>
           </div>
           <div className="rounded-lg border bg-white/70 p-3 text-xs text-muted-foreground">
@@ -689,19 +1049,97 @@ function DealChecklistCard({
             Manager signed:{" "}
             {workflow.signatures?.manager?.signedAt ? "Yes" : "No"}
           </div>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Your legal name"
-              value={managerSignName}
-              onChange={(event) => setManagerSignName(event.target.value)}
-            />
-            <Button
-              onClick={() => signMutation.mutate()}
-              disabled={!managerSignName.trim() || signMutation.isPending}
-            >
-              Sign
-            </Button>
-          </div>
+          {contractMethod === "ESIGN" ? (
+            <div className="flex gap-2">
+              <Input
+                placeholder="Your legal name"
+                value={managerSignName}
+                onChange={(event) => setManagerSignName(event.target.value)}
+              />
+              <Button
+                onClick={() => signMutation.mutate()}
+                disabled={
+                  !canManagerSign ||
+                  !managerSignName.trim() ||
+                  signMutation.isPending ||
+                  isSealed
+                }
+              >
+                Sign
+              </Button>
+              {isManager ? (
+                <Button
+                  variant="outline"
+                  onClick={() => sealContractMutation.mutate("ESIGN")}
+                  disabled={!canSealEsign}
+                >
+                  Seal via eSign
+                </Button>
+              ) : null}
+            </div>
+          ) : (
+            <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Confirm your legal name"
+                  value={managerSignName}
+                  onChange={(event) => setManagerSignName(event.target.value)}
+                />
+                <Button
+                  onClick={() => signMutation.mutate()}
+                  disabled={
+                    !canManagerSign ||
+                    !managerSignName.trim() ||
+                    signMutation.isPending
+                  }
+                >
+                  Confirm signature
+                </Button>
+              </div>
+              <Input
+                type="file"
+                accept="application/pdf,image/png,image/jpeg"
+                onChange={(event) =>
+                  setUploadFile(event.target.files?.[0] ?? null)
+                }
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => uploadContractFile.mutate()}
+                  disabled={
+                    !uploadFile || uploadContractFile.isPending || isSealed
+                  }
+                >
+                  Upload signed contract
+                </Button>
+                {isManager ? (
+                  <Button
+                    onClick={() => sealContractMutation.mutate("UPLOAD")}
+                    disabled={!canSealUpload}
+                  >
+                    Seal via Upload
+                  </Button>
+                ) : null}
+              </div>
+              {uploadedFiles.length ? (
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  {uploadedFiles.map((file) => (
+                    <a
+                      key={file.id}
+                      href={file.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block hover:underline"
+                    >
+                      {file.filename} •{" "}
+                      {new Date(file.createdAt).toLocaleString()}
+                    </a>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
     </div>

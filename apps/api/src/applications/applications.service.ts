@@ -9,7 +9,10 @@ import { CreateApplicationDto } from "./dto/create-application.dto";
 import { UpdateApplicationStatusDto } from "./dto/update-application-status.dto";
 import {
   ApplicationStatus,
+  LeaseStatus,
+  ListingIntent,
   Prisma,
+  PropertyStatus,
   Role,
   LeadSource,
   NotificationType,
@@ -235,8 +238,53 @@ export class ApplicationsService {
         where: { applicationId: updated.id },
         select: { id: true },
       });
+      let approvedDealId = existingDeal?.id;
       if (!existingDeal) {
-        await this.dealsService.createFromApplication(updated);
+        const createdDeal =
+          await this.dealsService.createFromApplication(updated);
+        approvedDealId = createdDeal.id;
+      }
+
+      if (application.property.listingIntent === ListingIntent.TO_RENT) {
+        if (!application.property.landlordId) {
+          throw new BadRequestException(
+            "Cannot activate rental lease without a landlord on the listing",
+          );
+        }
+
+        const existingLease = await this.prisma.lease.findFirst({
+          where: {
+            propertyId: application.propertyId,
+            status: { in: [LeaseStatus.ACTIVE, LeaseStatus.DRAFT] },
+          },
+          select: { id: true },
+        });
+
+        if (!existingLease) {
+          await this.prisma.lease.create({
+            data: {
+              propertyId: application.propertyId,
+              tenantId: application.userId,
+              landlordId: application.property.landlordId,
+              dealId: approvedDealId,
+              status: LeaseStatus.ACTIVE,
+              startDate: new Date(),
+              endDate: null,
+              currency: application.property.currency,
+              rentAmount: application.property.price,
+              depositAmount: null,
+            },
+          });
+        }
+
+        if (application.property.status !== PropertyStatus.RENTED) {
+          await this.prisma.property.update({
+            where: { id: application.propertyId },
+            data: {
+              status: PropertyStatus.RENTED,
+            },
+          });
+        }
       }
     }
 
